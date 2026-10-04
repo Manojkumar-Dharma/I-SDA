@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-177 of 189 tasks done; 12 open (see [Open work](#open-work); the I-121 umbrella row counts as one open task until its slices land). Current version: **v0.10.322**.
+178 of 189 tasks done; 11 open (see [Open work](#open-work); the I-121 umbrella row counts as one open task until its slices land). Current version: **v0.10.323**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -231,7 +231,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-166](#i-166) | Field | `MSGCON` message ID and message file name rules (the reference states none; opened from the I-153 deferred finding) | I-153 | Not started (needs a rule or a decision) | — |
 | [I-167](#i-167) | Field | Companion-keyword lists for `DATE`, `USER` and `SYSNAME` (the reference does not say "only"; opened from the I-154 deferred finding) | I-154 | Not started (needs a decision) | — |
 | [I-168](#i-168) | File | `USRDSPMGT`: the System/36 list of twelve versus the keyword's own list of eight (opened from the I-121g deferred finding) | I-121g, I-160 | Claimed (in progress; decided: keep the eight as a refusal, show the four extras as an advisory) | — |
-| [I-169](#i-169) | File / Record | `CAnn` and `CFnn` with the same key number (file-level versus record is unambiguous; record versus record is not; opened from the I-160 deferred finding) | I-160 | Claimed (in progress) | — |
+| [I-169](#i-169) | File / Record | `CAnn` and `CFnn` with the same key number (the reference says "not valid in the same display file", so the whole file; opened from the I-160 deferred finding) | I-160 | Done | v0.10.323 |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -251,16 +251,15 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | 4 | [I-122](#i-122) | In progress (batch 1 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
 | 5 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
 | 6 | [I-121t](#i-121t) | Not started | Generate the keyword index from the spec. Needs I-121a – I-121s. Last. |
-| 7 | [I-169](#i-169) | Not started | `CAnn` / `CFnn` same key number: the file-level versus record half is unambiguous and can ship alone. Size (estimate): Small. |
-| 8 | [I-168](#i-168) | Not started (decision) | `USRDSPMGT` eight-name versus twelve-name list; the first step is choosing which. Size (estimate): Small once decided. |
-| 9 | [I-167](#i-167) | Not started (decision) | `DATE` / `USER` / `SYSNAME` companion lists, closed or open. Size (estimate): Small once decided. |
-| 10 | [I-166](#i-166) | Not started (rule needed) | `MSGCON` message ID and file name rules; nothing can be enforced until a rule is found. Size (estimate): Small once a rule exists. |
+| 7 | [I-168](#i-168) | Not started (decision) | `USRDSPMGT` eight-name versus twelve-name list; the first step is choosing which. Size (estimate): Small once decided. |
+| 8 | [I-167](#i-167) | Not started (decision) | `DATE` / `USER` / `SYSNAME` companion lists, closed or open. Size (estimate): Small once decided. |
+| 9 | [I-166](#i-166) | Not started (rule needed) | `MSGCON` message ID and file name rules; nothing can be enforced until a rule is found. Size (estimate): Small once a rule exists. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The I-121 umbrella row there stays open until its slices land, so it is counted in the headline but not listed here.
 
 ## Deferred findings (not yet tasks)
 
-Every finding so far has been opened as a task (I-61 – I-169, see the tables above). The four that were waiting here because the DDS Reference does not settle them were converted on request: I-153's open questions became [I-166](#i-166), I-154's became [I-167](#i-167), I-121g's became [I-168](#i-168) and I-160's became [I-169](#i-169). Each of those tasks starts with the decision or rule it is waiting on, so nothing in it is implemented on a guess. A new finding that cannot be implemented yet goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
+Every finding so far has been opened as a task (I-61 – I-169, see the tables above). The four that were waiting here because the DDS Reference does not settle them were converted on request: I-153's open questions became [I-166](#i-166), I-154's became [I-167](#i-167), I-121g's became [I-168](#i-168) and I-160's became [I-169](#i-169) (done; the source turned out to state the whole-file scope). Each of those tasks starts with the decision or rule it is waiting on, so nothing in it is implemented on a guess. A new finding that cannot be implemented yet goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
 
 | Raised by | Finding |
 |-----------|---------|
@@ -7359,7 +7358,7 @@ Raised by the I-121g slice. Probed on v0.10.309 through `setFileFlagKeyword` (th
 - **`HLPRCD`** with no record format name is refused; `HLPRCD(HELP1)` and `HLPRCD(HELP1 LIB/FILE)` are accepted.
 - **`PASSRCD`** naming a record format that is not in the file is refused, and so is deleting the record format it names.
 
-**Left open on purpose.** The twelve-name System/36 list for `USRDSPMGT` (the four extra names `ERRSFL`, `MNUBAR`, `PULLDOWN`, `SNGCHCFLD`) is not enforced: the reference gives two lists and does not say which wins (see Deferred findings; a test pins that those four are still accepted). Probed and found unenforced, not fixed here: a `CAnn` and a `CFnn` with the same key number (`CA03` at the file level and `CF03` on a record is accepted by every guard in the edit chain); the sentence says the same number cannot be both, but whether `CA03` on one record and `CF03` on another also counts is not stated, so it is recorded as a deferred finding rather than guessed.
+**Left open on purpose.** The twelve-name System/36 list for `USRDSPMGT` (the four extra names `ERRSFL`, `MNUBAR`, `PULLDOWN`, `SNGCHCFLD`) is not enforced: the reference gives two lists and does not say which wins (see Deferred findings; a test pins that those four are still accepted). Probed and found unenforced, not fixed here: a `CAnn` and a `CFnn` with the same key number (`CA03` at the file level and `CF03` on a record is accepted by every guard in the edit chain); the sentence says the same number cannot be both, but whether `CA03` on one record and `CF03` on another also counts was recorded as a deferred finding rather than guessed (opened as [I-169](#i-169), which found the source does state it: "in the same display file").
 
 New `src/test/i160FileHelpRelations.test.js` (54 checks): each cited sentence against the reference text, every rule accepted and refused in both directions (all eight `USRDSPMGT` names, `HLPPNLGRP` at both levels, `HLPSHELF`), the already-invalid-file case for each, the open twelve-name list pinned, and the real webview (file panel checkbox and raw keyword editor) refusing with nothing written. Dropping the hook, or dropping the old-model diff, makes the matching checks fail.
 
@@ -7530,12 +7529,17 @@ Opened from the I-121g deferred finding. `USRDSPMGT`'s own section forbids eight
 
 ### I-169 — `CAnn` and `CFnn` with the same key number
 
-> **Area:** File / Record · **Status:** Claimed (in progress) · **Depends on:** I-160 · **Size (estimate):** Small
+> **Area:** File / Record · **Status:** Done (v0.10.323) · **Depends on:** I-160 · **Size (estimate):** Small
 
 Opened from the I-160 deferred finding. The reference says a file cannot specify the same key number as both `CAnn` and `CFnn`, and that file-level keys extend to the record level: `CA02` at the file level makes `CF02` at a record level an error. Probed on v0.10.314: `CA03` at the file level with `CF03` on a record is accepted by every guard in the edit chain.
 
-**Two halves.** (1) File level versus record level (either direction): unambiguous, can ship on its own. (2) `CA03` on one record and `CF03` on another record: not stated. Recommendation: do half (1) now as a diff-based guard in the I-140 / I-151 shape (refuse only what an edit adds, from either side, naming the record format), and leave half (2) allowed with a note in the spec, the same call I-164 made for the file-level `ROLLUP` with record-level `PAGEDOWN` case. Also check same-level same-number (`CA03` and `CF03` on the same record, or both at file level), which the sentence plainly covers.
+**Correction to the deferred finding.** I-160 and the first version of this task said the record-versus-record case ("`CA03` on one record, `CF03` on another") was not stated. Re-reading the source for this task, it is: the `CAnn` section says "CA02 and CF02 are not valid in the same display file" and the `CFnn` section says "CA01 and CF01 are not valid in the same display file". The stated scope is the whole display file, not the same record, so the recommendation to leave record versus record allowed (modelled on I-164's `ROLLUP` / `PAGEDOWN` call, where the section does say "same record") was wrong for this keyword and is dropped.
 
-**To do:** probe all four placements in the raw keyword editor and the file panel first, then add the guard reading the key-number range from the spec (`CA01`-`CA24`, `CF01`-`CF24`), wire it into the `commitSourceChange` guard chain, add tests, and record the record-versus-record question on the spec entry as an open question.
+**Fix (v0.10.323).** One model-diff guard, `DspfWriter.commandKeyNumberNewConflictReason`, added to the webview's `commitSourceChange` guard chain beside the I-164 pairing guard (only a clash the edit adds is reported, in either direction; a hand-written file that is already clashing stays editable). The facts come from the spec: both entries gain `sameKeyNumberScope: 'file'` next to the existing `sameKeyNumberAsOtherType: 'notAllowed'`, read through a new accessor `KeywordSpec.commandKeyNumberClash(token)` (which also rejects `CA00`, `CA25` and anything that is not a key). A key number is refused when the file has it as `CA` and as `CF` anywhere: at the file level, on one record, or on two different records. The message names both places (`CA03 is on the file level, CF03 on record format REC1`). One violation per key number, so moving a clash to another record is not reported as new.
+
+- Not affected: the same type twice (`CA03` at file level and on a record), different key numbers, and other keywords that merely name a key (`SFLDROP(CF03)`, `CLEAR`, `HELP`). `ALTHELP` / `ALTPAGEDWN` / `ALTPAGEUP` and `MOUBTN` have their own key rules and are separate.
+- Not touched: the `RETCMDKEY` and `ALTPAGEDWN` key-number rules, which are other keywords' sections and have their own guards.
+
+Tests: new `src/test/i169CommandKeyNumberClash.test.js` (the three source sentences against the reference text, the spec facts, every placement from both sides, the two-digit and lower-case forms, the neighbours that stay allowed, removal and unchanged hand-written leftovers, a second new clash still reported, fail-safe models, and the raw keyword editors at file and record level in jsdom). Mutation-checked: dropping the hook fails 6 checks, dropping the check fails 16.
 
 ---

@@ -6509,6 +6509,41 @@
     return firstNewViolation(commandFunctionPairingViolations(oldModel), after);
   }
 
+  /** Task I-169 - the same key number cannot be both a CA and a CF key. Both sections say
+   *  "CA02 and CF02 are not valid in the same display file" and that file-level keys extend to
+   *  the record level (CA02 at file level makes CF02 on a record an error), so the scope is
+   *  the whole file: file level, any record, same record or not. Facts through
+   *  KeywordSpec.commandKeyNumberClash; the plain CAnn / CFnn keywords only (SFLDROP(CAnn),
+   *  MOUBTN and the ALT keys are other keywords with their own rules). One violation per key
+   *  number, keyed by it, so firstNewViolation reports only a clash an edit adds (in either
+   *  direction) and a hand-written file that is already clashing stays editable. */
+  function commandKeyNumberViolations(model) {
+    var seen = {};
+    function note(kws, where) {
+      (kws || []).forEach(function (k) {
+        var c = KeywordSpec.commandKeyNumberClash(String(k.name || '').toUpperCase());
+        if (!c || c.scope !== 'file') return;
+        var slot = seen[c.number] || (seen[c.number] = {});
+        if (!slot[c.type]) slot[c.type] = where;
+      });
+    }
+    note(model && model.fileKeywords, 'the file level');
+    ((model && model.records) || []).forEach(function (r) { note(r.keywords, 'record format ' + r.name); });
+    var out = {};
+    Object.keys(seen).forEach(function (n) {
+      if (seen[n].CA && seen[n].CF) {
+        out[n] = 'CA' + n + ' and CF' + n + ' cannot both be specified in the same display file (CA' + n + ' is on ' + seen[n].CA +
+          ', CF' + n + ' on ' + seen[n].CF + '); a key number cannot be both a command attention and a command function key (per the DDS Reference).';
+      }
+    });
+    return out;
+  }
+  function commandKeyNumberNewConflictReason(oldModel, newModel) {
+    var after = commandKeyNumberViolations(newModel);
+    if (!Object.keys(after).length) return null;
+    return firstNewViolation(commandKeyNumberViolations(oldModel), after);
+  }
+
   function subfileKeywordNewConflictReason(oldModel, newModel) {
     var after = subfileKeywordViolations(newModel);
     if (!Object.keys(after).length) return null;
@@ -11137,6 +11172,7 @@
     fileHelpViolations: fileHelpViolations,
     retKeyViolations: retKeyViolations,
     commandFunctionPairingNewConflictReason: commandFunctionPairingNewConflictReason,
+    commandKeyNumberNewConflictReason: commandKeyNumberNewConflictReason,
     commandFunctionPairingViolations: commandFunctionPairingViolations,
     fieldKindNewConflictReason: fieldKindNewConflictReason,
     fieldKindViolations: fieldKindViolations,

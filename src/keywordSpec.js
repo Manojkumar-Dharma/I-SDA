@@ -1230,6 +1230,9 @@
       },
       transmitsInputData: false,
       sameKeyNumberAsOtherType: 'notAllowed',
+      // Task I-169: the section says "CA02 and CF02 are not valid in the same display file", so the
+      // scope is the whole file (any record, either level), not the same record.
+      sameKeyNumberScope: 'file',
       fileLevelKeysExtendToRecordLevel: true,
       ddsReference:
         'CAnn (Command Attention) keyword (~line 2404): file-level or record-level, CAnn[(response-indicator [\'text\'])], nn = 01-24 with the ' +
@@ -1248,6 +1251,7 @@
       },
       transmitsInputData: true,
       sameKeyNumberAsOtherType: 'notAllowed',
+      sameKeyNumberScope: 'file',
       fileLevelKeysExtendToRecordLevel: true,
       ddsReference:
         'CFnn (Command Function) keyword (~line 2509): file-level or record-level, CFnn[(response-indicator [\'text\'])], nn = 01-24 with the ' +
@@ -5840,6 +5844,15 @@
     var e = RECORD_TYPES[k.type + '01-' + k.type + '24'];
     return (e && n >= e.pattern.first && n <= e.pattern.last) ? e : null;
   }
+  /** Task I-169 - the other command-key type that may not share `token`'s key number in the same display file
+   *  ('CA03' -> { type: 'CA', number: '03', other: 'CF' }), or null when `token` is not a CAnn / CFnn in 01-24
+   *  or its entry states no such rule. The scope ('file') is the entry's own sameKeyNumberScope fact. */
+  function commandKeyNumberClash(token) {
+    var e = commandKeyEntry(token);
+    if (!e || e.sameKeyNumberAsOtherType !== 'notAllowed') return null;
+    var k = parseCommandKey(token);
+    return { type: k.type, number: k.number, other: k.type === 'CA' ? 'CF' : 'CA', scope: e.sameKeyNumberScope || 'file' };
+  }
   /** The keywords PASSRCD's own section forbids on the named record format (a fresh array). */
   function passrcdOwnSectionRestricted() { return RECORD_TYPES.PASSRCD.ownSectionRestrictedKeywords.slice(); }
   /** USRDSPMGT's two forbidden-keyword lists: { own: [...8], considerations: [...12] } (fresh arrays). */
@@ -6076,6 +6089,7 @@
     // ---- I-121g ----
     fileHelpCommandKeywords: fileHelpCommandKeywords,
     commandKeyEntry: commandKeyEntry,
+    commandKeyNumberClash: commandKeyNumberClash,
     passrcdOwnSectionRestricted: passrcdOwnSectionRestricted,
     usrdspmgtForbiddenKeywords: usrdspmgtForbiddenKeywords
   };
