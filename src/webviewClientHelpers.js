@@ -7140,7 +7140,11 @@
     // takes no conditions argument - no Conditioning toggle. An existing hand-written
     // condition is preserved on commit (see wireApplicationHelpFields) and is visible,
     // with a warning, in the help entry's raw keyword editor.
-    html += flagRowHtml(p + '-hlpara', 'Define help area (HLPARA)', fHlpara.present, undefined, undefined, undefined, expandedSet);
+    // Task I-161: the five documented forms (four numbers, *RCD, *NONE, *FLD field [choice],
+    // *CNST help-id) were reachable only in the raw keyword editor; the row now carries the
+    // parameter box. It edits the first HLPARA; a second one (a different display size) is
+    // still added in the raw editor, where its display size condition lives.
+    html += flagRowHtml(p + '-hlpara', 'Define help area (HLPARA)', fHlpara.present, fHlpara.parameters, 'top left bottom right | *RCD | *NONE | *FLD field [choice] | *CNST help-id', undefined, expandedSet);
     // Task I-67: HLPDOC's help-specification-level form - I-38 only ever
     // added the file-level one, deferring this one (same "file-level only,
     // H-spec deferred" precedent I-5's own HLPRCD entry set). Same
@@ -7223,7 +7227,7 @@
         onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'HLPBDY', hlpbdyOn.checked, '', undefined, newConditions));
       }, expandedSet, rerender);
     })();
-    simple(p + '-hlpara', 'HLPARA');
+    simple(p + '-hlpara', 'HLPARA', true); // I-161: carries its parameter box
 
     // Task I-67: HLPDOC's help-specification-level form. Same "-on"
     // checkbox drives presence regardless of whether the sub-fields are

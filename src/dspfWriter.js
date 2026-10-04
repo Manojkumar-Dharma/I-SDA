@@ -5802,6 +5802,154 @@
     return firstNewViolation(fileHelpViolations(oldModel), after);
   }
 
+  /** Task I-161 - the help-specification (H specification) rules the I-121k
+   *  slice recorded as facts (KeywordSpec.helpSpecificationRules and the
+   *  HLPARA / HLPBDY / HLPEXCLD entries) and no guard enforced. Diff-based, in
+   *  the I-140 / I-148 / I-160 shape: it reports only a violation the edit
+   *  adds, in either direction, so an already-invalid hand-written file never
+   *  blocks an unrelated edit. A violation is keyed by its rule, the record and
+   *  a signature of the H specification's own content (not its position), so
+   *  inserting an H specification above another does not make the other look
+   *  new. Checked:
+   *   - at most one of HLPRCD / HLPPNLGRP / HLPDOC, at most one of HLPBDY /
+   *     HLPEXCLD, HLPEXCLD only with HLPPNLGRP, on the same H specification;
+   *   - no H specification in an SFL record, or in the SFLCTL record of a
+   *     message subfile (SFLMSGRCD);
+   *   - HLPARA: one of the five stated forms; coordinates whole numbers from 1,
+   *     top not after bottom, left not after right, within the display size the
+   *     HLPARA applies to (the line bound is not judged on a record with SLNO,
+   *     which adjusts the lines); *RCD not on SFLCTL / USRDFN records and only
+   *     with a displayable field; *FLD names a field of the record and a choice
+   *     number 1-99 that is on that field's CHOICE / MNUBARCHC; *CNST names a
+   *     constant field of the record whose HLPID is the same number; at most
+   *     one HLPARA per H specification without a display size condition, and
+   *     no display size condition twice.
+   *  Not enforced (it would refuse a half-built H specification): "exactly one"
+   *  / "at least one HLPARA" as a lower bound. */
+  function helpSpecViolations(model) {
+    var out = {};
+    var records = (model && model.records) || [];
+    var rules = KeywordSpec.helpSpecificationRules();
+    var hl = KeywordSpec.RECORD_TYPES.HLPARA;
+    var sizes = getDisplaySizesList((model && model.fileKeywords) || []);
+    function names(list) { return (list || []).map(function (k) { return k && k.name; }); }
+    function count(list, set) { return (list || []).filter(function (k) { return k && set.indexOf(k.name) !== -1; }).length; }
+    function sig(h) {
+      return (h.keywords || []).map(function (k) { return k.name + '(' + (k.parameters == null ? '' : k.parameters) + ')' + JSON.stringify(k.conditions || []); }).join(';');
+    }
+    function isDisplayable(f) {
+      if (f.usage === 'H' || f.usage === 'M' || f.usage === 'P') return false;
+      return !hasKeywordNamed(f.keywords, 'SFLPGMQ') && !hasKeywordNamed(f.keywords, 'SFLMSGKEY');
+    }
+    function toks(text) { return String(text == null ? '' : text).trim().split(/\s+/).filter(Boolean); }
+    function whole(t) { return /^\d+$/.test(t); }
+    function paramProblem(k, r, size) {
+      var t = toks(k.parameters);
+      if (!t.length) return 'HLPARA needs a parameter: HLPARA(top-line left-position bottom-line right-position), HLPARA(*RCD), HLPARA(*NONE), HLPARA(*FLD field-name [choice-number]) or HLPARA(*CNST help-identifier) (per the DDS Reference).';
+      var head = t[0].toUpperCase();
+      var recKw = r.keywords || [];
+      if (head === '*RCD' || head === '*NONE') {
+        if (t.length !== 1) return 'HLPARA(' + head + ') takes no other parameter (per the DDS Reference).';
+        if (head === '*RCD') {
+          var bad = hl.rcd.notOnRecordTypes.filter(function (n) { return hasKeywordNamed(recKw, n); })[0];
+          if (bad) return 'HLPARA(*RCD) is not valid for a ' + bad + ' record format (per the DDS Reference).';
+          if (hl.rcd.recordNeedsDisplayableField && !(r.fields || []).some(isDisplayable)) {
+            return 'HLPARA(*RCD) needs the record format to contain at least one displayable field; hidden, message and program-to-system fields and SFLPGMQ / SFLMSGKEY fields are not displayable (per the DDS Reference).';
+          }
+        }
+        return null;
+      }
+      if (head === '*FLD') {
+        if (t.length < 2 || t.length > 3) return 'HLPARA(*FLD field-name [choice-number]) takes a field name and an optional choice number (per the DDS Reference).';
+        var fname = t[1].toUpperCase();
+        var fld = (r.fields || []).filter(function (f) { return f.name && String(f.name).toUpperCase() === fname; })[0];
+        if (hl.fld.fieldMustExistInRecord && !fld) return 'HLPARA(*FLD ' + t[1] + '): ' + t[1] + ' is not a field of record format ' + r.name + ' (per the DDS Reference).';
+        if (t.length === 3) {
+          var cn = t[2];
+          if (!whole(cn) || Number(cn) < hl.fld.choiceNumber.min || Number(cn) > hl.fld.choiceNumber.max) {
+            return 'The HLPARA choice number must be a whole number from ' + hl.fld.choiceNumber.min + ' to ' + hl.fld.choiceNumber.max + '; "' + cn + '" is not (per the DDS Reference).';
+          }
+          var onKw = (fld.keywords || []).some(function (fk) {
+            return fk && hl.fld.choiceNumber.onlyForFieldsWith.indexOf(fk.name) !== -1 && whole(toks(fk.parameters)[0] || '') && Number(toks(fk.parameters)[0]) === Number(cn);
+          });
+          if (hl.fld.choiceNumber.mustBeOnThatKeyword && !onKw) {
+            return 'HLPARA(*FLD ' + t[1] + ' ' + cn + '): choice ' + cn + ' is not specified on a ' + hl.fld.choiceNumber.onlyForFieldsWith.join(' or ') + ' keyword of field ' + t[1] + ' (per the DDS Reference).';
+          }
+        }
+        return null;
+      }
+      if (head === '*CNST') {
+        if (t.length !== 2 || !whole(t[1])) return 'HLPARA(*CNST help-identifier) takes one whole-number help identifier (per the DDS Reference).';
+        var id = Number(t[1]);
+        var has = (r.fields || []).some(function (f) {
+          return !f.name && (f.keywords || []).some(function (fk) { return fk && fk.name === hl.cnst.constantFieldNeedsKeyword && whole(toks(fk.parameters)[0] || '') && Number(toks(fk.parameters)[0]) === id; });
+        });
+        if (hl.cnst.constantFieldMustExistInRecord && !has) {
+          return 'HLPARA(*CNST ' + t[1] + '): record format ' + r.name + ' has no constant field with ' + hl.cnst.constantFieldNeedsKeyword + '(' + t[1] + ') (per the DDS Reference).';
+        }
+        return null;
+      }
+      if (head.charAt(0) === '*') return 'HLPARA does not accept ' + t[0] + '; the special values are ' + hl.specialValues.join(', ') + ' (per the DDS Reference).';
+      if (t.length !== 4 || !t.every(whole)) return 'HLPARA takes four whole numbers (top-line left-position bottom-line right-position) or one of ' + hl.specialValues.join(', ') + '; "' + t.join(' ') + '" is neither (per the DDS Reference).';
+      var top = Number(t[0]), left = Number(t[1]), bottom = Number(t[2]), right = Number(t[3]);
+      if (top < 1 || left < 1) return 'The HLPARA line and position values must be at least 1 (per the DDS Reference).';
+      if (hl.coordinates.topLineNotAfterBottomLine && top > bottom) return 'The HLPARA top line must not exceed the bottom line (per the DDS Reference).';
+      if (hl.coordinates.leftPositionNotAfterRightPosition && left > right) return 'The HLPARA left position must not exceed the right position (per the DDS Reference).';
+      if (hl.coordinates.withinDisplaySize && size) {
+        if (right > size.columns) return 'The HLPARA position ' + right + ' is outside the ' + size.lines + ' x ' + size.columns + ' display size (per the DDS Reference).';
+        if (!hasKeywordNamed(recKw, 'SLNO') && bottom > size.lines) return 'The HLPARA line ' + bottom + ' is outside the ' + size.lines + ' x ' + size.columns + ' display size (per the DDS Reference).';
+      }
+      return null;
+    }
+
+    records.forEach(function (r) {
+      var hs = r.helpEntries || [];
+      if (!hs.length) return;
+      var recKw = r.keywords || [];
+      // Record types that take no H specification.
+      if (rules.notOnRecordTypes.some(function (n) { return hasKeywordNamed(recKw, n); })) {
+        out['HSPEC|TYPE|' + r.name] = 'Record format ' + r.name + ' is a subfile (SFL) record format, which cannot have an H specification (per the DDS Reference).';
+      }
+      var ctl = keywordNamed(recKw, 'SFLCTL');
+      if (ctl) {
+        var sflName = String(ctl.parameters == null ? '' : ctl.parameters).trim().split(/\s+/)[0];
+        var msg = records.filter(function (x) { return x.name === sflName && hasKeywordNamed(x.keywords, rules.notOnSflctlWith); })[0];
+        if (msg) out['HSPEC|MSGSFL|' + r.name] = 'Record format ' + r.name + ' is the subfile control record of a message subfile (' + rules.notOnSflctlWith + '), which cannot have an H specification (per the DDS Reference).';
+      }
+      hs.forEach(function (h) {
+        var kws = h.keywords || [];
+        var base = r.name + '|' + sig(h);
+        if (count(kws, rules.exactlyOneOf) > 1) out['HSPEC|ONE|' + base] = 'An H specification can have only one of ' + rules.exactlyOneOf.join(', ') + ' (per the DDS Reference).';
+        if (count(kws, rules.atMostOneOf) > 1) out['HSPEC|BDYEXCL|' + base] = 'An H specification can have only one of ' + rules.atMostOneOf.join(' and ') + ' (per the DDS Reference).';
+        KeywordSpec.RECORD_TYPES.HLPEXCLD.requiresOnHelpSpecification.forEach(function (need) {
+          if (hasKeywordNamed(kws, 'HLPEXCLD') && !hasKeywordNamed(kws, need)) out['HSPEC|EXCLD|' + base] = 'HLPEXCLD is allowed only on an H specification that specifies ' + need + ' (per the DDS Reference).';
+        });
+        // HLPARA: one unconditioned at most, each display size once.
+        var paras = kws.filter(function (k) { return k && k.name === 'HLPARA'; });
+        var uncond = 0, seen = {};
+        paras.forEach(function (k) {
+          var grp = (k.conditions || []).filter(function (g) { return g && g.displaySizeCondition; })[0];
+          if (!grp) { uncond++; } else {
+            var key = (grp.displaySizeCondition.not ? '!' : '') + String(grp.displaySizeCondition.name || '').toUpperCase();
+            if (seen[key]) out['HSPEC|DUPSIZE|' + base + '|' + key] = 'An H specification can have only one HLPARA for display size ' + key + ' (per the DDS Reference).';
+            seen[key] = true;
+          }
+          var problem = paramProblem(k, r, msglocDisplaySize(k, sizes));
+          if (problem) out['HLPARA|' + r.name + '|' + String(k.parameters == null ? '' : k.parameters).trim() + '|' + JSON.stringify(k.conditions || [])] = problem;
+        });
+        if (hl.multipleNeedDisplaySizeConditioning && paras.length > 1 && uncond > 1) {
+          out['HSPEC|COND|' + base] = 'When an H specification has several HLPARA keywords, each beyond the first needs a display size condition (per the DDS Reference).';
+        }
+      });
+    });
+    return out;
+  }
+  function helpSpecNewConflictReason(oldModel, newModel) {
+    var after = helpSpecViolations(newModel);
+    if (!Object.keys(after).length) return null;
+    return firstNewViolation(helpSpecViolations(oldModel), after);
+  }
+
   /** Task I-149 - RETKEY / RETCMDKEY exclusions and file-level requirements
    *  (the I-121b spec facts: fileAndRecordExcludes, recordExcludes,
    *  fileExcludes, fileRequires). The exclusions span the file and the record,
@@ -10910,6 +11058,8 @@
     subfileControlNotes: subfileControlNotes,
     retKeyNewConflictReason: retKeyNewConflictReason,
     fileHelpNewConflictReason: fileHelpNewConflictReason,
+    helpSpecNewConflictReason: helpSpecNewConflictReason,
+    helpSpecViolations: helpSpecViolations,
     fileHelpViolations: fileHelpViolations,
     retKeyViolations: retKeyViolations,
     commandFunctionPairingNewConflictReason: commandFunctionPairingNewConflictReason,
