@@ -226,7 +226,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-161](#i-161) | Help-spec | Help-specification rules not enforced and `HLPARA`'s parameters not reachable: one of `HLPRCD`/`HLPPNLGRP`/`HLPDOC`, `HLPBDY` or `HLPEXCLD`, `HLPEXCLD` needs `HLPPNLGRP`, `HLPARA` forms and checks, H specification refused in `SFL` records | I-121k | Claimed (in progress) | — |
 | [I-162](#i-162) | File / Record | `HELP` relations to the other help keywords not enforced: a response indicator on `HELP` with `HLPRCD`/`HLPPNLGRP`/`HLPDOC`/`HLPRTN`/H specifications in the file, and `HELP` without one being required when they are present | I-121h | Claimed (in progress) | — |
 | [I-163](#i-163) | File / Record | Parameter forms of the command-function keywords not enforced: `ALWGPH`/`INVITE` take none, `VLDCMDKEY` needs its response indicator, `PRINT`'s three parameter forms | I-121h | Not started | — |
-| [I-164](#i-164) | File / Record | Pairings not enforced: `ROLLUP` with `PAGEDOWN`, `ROLLDOWN` with `PAGEUP`, and `INVITE` at both file and record level | I-121h | Not started | — |
+| [I-164](#i-164) | File / Record | Pairings not enforced: `ROLLUP` with `PAGEDOWN`, `ROLLDOWN` with `PAGEUP`, and `INVITE` at both file and record level | I-121h | Done | v0.10.318 |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -242,7 +242,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 |-------|------|--------|-------|
 | 1 | [I-162](#i-162) | Claimed | `HELP` relations to the other help keywords (raised by I-121h, probed). |
 | 2 | [I-163](#i-163) | Not started | Command-function keyword parameter forms (raised by I-121h, probed). Small. |
-| 3 | [I-164](#i-164) | Not started | `ROLLUP`/`PAGEDOWN`, `ROLLDOWN`/`PAGEUP` and `INVITE` file+record pairings (raised by I-121h, probed). Small. |
+| 3 | [I-164](#i-164) | Done v0.10.318 | `ROLLUP`/`PAGEDOWN`, `ROLLDOWN`/`PAGEUP` and `INVITE` file+record pairings (raised by I-121h, probed). Small. |
 | 4 | [I-121j](#i-121j), [I-121l](#i-121l), [I-121o](#i-121o) | Not started | The three keyword slices still open: 19 keywords with no spec entry (6 + 8 + 5, each owned exactly once; `check_spec_coverage.py` confirms). Fully parallel. |
 | 5 | [I-121q](#i-121q) | Not started | Audit the remaining `*ConflictReason` functions. Size (estimate): Large. |
 | 6 | [I-122](#i-122) | In progress (batch 1 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
@@ -7388,8 +7388,17 @@ Raised by I-121h; opened as a task with a probe. **Probe (raw keyword editor, v0
 
 ### I-164 — `ROLLUP`/`PAGEDOWN`, `ROLLDOWN`/`PAGEUP` and `INVITE` pairings are not enforced
 
-> **Area:** File / Record · **Status:** Not started · **Depends on:** I-121h
+> **Area:** File / Record · **Status:** Done (v0.10.318) · **Depends on:** I-121h
 
 Raised by I-121h; opened as a task with a probe. The `PAGEDOWN`/`PAGEUP` section (~line 9326) says "The ROLLUP keyword cannot be specified with PAGEDOWN. The ROLLDOWN keyword cannot be specified with PAGEUP." The `INVITE` section says it "cannot be specified at both the file and record level". **Probe (raw keyword editor, v0.10.311; all *allowed*):** `PAGEDOWN` added to a record that has `ROLLUP`; `ROLLUP` added to a record that has `PAGEDOWN`; `PAGEUP` added to a record that has `ROLLDOWN`; `INVITE` added at record level to a file that has `INVITE`, and at file level to a file with a record-level `INVITE`. Note the designer reads `ROLLUP` as `PAGEDOWN` and writes `PAGEDOWN` back (I-135-style alternate names), so a record carrying both spellings is only possible from a hand-written file or the raw editor. The facts are in `RECORD_TYPES.PAGEDOWN` / `PAGEUP` (`notWithAlternateName`) and `RECORD_TYPES.INVITE` (`notAtBothFileAndRecordLevel`). Add the guards in both directions, diff-based. Open question: the `PAGEDOWN`/`PAGEUP` section does not say whether the exclusion applies across file and record level (a file-level `ROLLUP` with a record-level `PAGEDOWN`) - the same-record reading is the stated one. Size (estimate): Small.
+
+**Fix (v%s).** One model-diff guard, `DspfWriter.commandFunctionPairingNewConflictReason`, wired into the webview's existing edit choke point (the I-140 / I-149 shape: only a clash the edit adds is reported, from either side; a hand-written file that is already wrong stays editable). It reads the I-121h facts through a new accessor, `commandFunctionNotWithAlternateName` (PAGEDOWN -> `ROLLUP`, PAGEUP -> `ROLLDOWN`), plus the existing `commandFunctionNotAtBothLevels`:
+
+- `PAGEDOWN` with `ROLLUP`, and `PAGEUP` with `ROLLDOWN`, are refused on the same record format, and likewise at the file level. `PAGEDOWN` with `ROLLDOWN`, `PAGEUP` with `ROLLUP`, and `PAGEDOWN` with `PAGEUP` stay allowed (different pairs).
+- `INVITE` is refused at the record level when the file has it and at the file level when any record has it; the refusal names the record format.
+
+**Open question, answered.** A file-level `ROLLUP` with a record-level `PAGEDOWN` (and the `PAGEUP` / `ROLLDOWN` pair) is **not** refused: the section states the exclusion without a level, the same-record / same-level reading is the stated one, and refusing across levels would invent a rule the reference does not give. If real SDA is found to refuse it, widening the check is a small change in that guard.
+
+Tests: new `src/test/i164CommandFunctionPairings.test.js` (each pairing from both sides, the allowed neighbours, per-record scope, the file-level and cross-level cases, the INVITE both ways, unchanged hand-written leftovers, the wiring; fails without the guard).
 
 ---

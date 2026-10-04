@@ -6160,6 +6160,42 @@
     return firstNewViolation(fieldKindViolations(oldModel), after);
   }
 
+  /** Task I-164 - the pairings I-121h found unenforced (spec facts:
+   *  notWithAlternateName on PAGEDOWN / PAGEUP, notAtBothFileAndRecordLevel on
+   *  INVITE). "The ROLLUP keyword cannot be specified with PAGEDOWN" and "The
+   *  ROLLDOWN keyword cannot be specified with PAGEUP" are applied at the
+   *  level the section states them - on the same record, and likewise on the
+   *  file level; a file-level ROLLUP with a record-level PAGEDOWN is NOT
+   *  refused, because the section does not say so. INVITE is refused at the
+   *  file level when any record has it and the reverse. Model-diff check
+   *  (the I-140 / I-149 shape), so only a clash an edit adds is reported. */
+  function commandFunctionPairingViolations(model) {
+    var out = {};
+    var fileKws = (model && model.fileKeywords) || [];
+    function altClash(where, kws, label) {
+      ['PAGEDOWN', 'PAGEUP'].forEach(function (n) {
+        var alt = KeywordSpec.commandFunctionNotWithAlternateName(n);
+        if (alt && hasKeywordNamed(kws, n) && hasKeywordNamed(kws, alt)) {
+          out[where + '|' + n + '|' + alt] = alt + ' cannot be specified with ' + n + ' on the same ' + label + ' - they are the same keyword under two names (per the DDS Reference).';
+        }
+      });
+    }
+    altClash('FILE', fileKws, 'file level');
+    var fileInvite = hasKeywordNamed(fileKws, 'INVITE');
+    ((model && model.records) || []).forEach(function (r) {
+      altClash('REC|' + r.name, r.keywords || [], 'record format (' + r.name + ')');
+      if (KeywordSpec.commandFunctionNotAtBothLevels('INVITE') && fileInvite && hasKeywordNamed(r.keywords, 'INVITE')) {
+        out['INVITE|' + r.name] = 'INVITE cannot be specified at both the file level and the record level (record format ' + r.name + ' has it and the file does too) (per the DDS Reference).';
+      }
+    });
+    return out;
+  }
+  function commandFunctionPairingNewConflictReason(oldModel, newModel) {
+    var after = commandFunctionPairingViolations(newModel);
+    if (!Object.keys(after).length) return null;
+    return firstNewViolation(commandFunctionPairingViolations(oldModel), after);
+  }
+
   function subfileKeywordNewConflictReason(oldModel, newModel) {
     var after = subfileKeywordViolations(newModel);
     if (!Object.keys(after).length) return null;
@@ -10785,6 +10821,8 @@
     fileHelpNewConflictReason: fileHelpNewConflictReason,
     fileHelpViolations: fileHelpViolations,
     retKeyViolations: retKeyViolations,
+    commandFunctionPairingNewConflictReason: commandFunctionPairingNewConflictReason,
+    commandFunctionPairingViolations: commandFunctionPairingViolations,
     fieldKindNewConflictReason: fieldKindNewConflictReason,
     fieldKindViolations: fieldKindViolations,
     subfileKeywordNewConflictReason: subfileKeywordNewConflictReason,

@@ -6335,6 +6335,7 @@ const htmlTemplate = `<!DOCTYPE html>
       DspfWriter.retKeyNewConflictReason(model, candidate) ||
       DspfWriter.fileHelpNewConflictReason(model, candidate) ||
       DspfWriter.fieldKindNewConflictReason(model, candidate) ||
+      DspfWriter.commandFunctionPairingNewConflictReason(model, candidate) ||
       DspfWriter.optionIndicatorRequiredNewConflictReason(model, candidate) ||
       DspfWriter.systemValueKeywordNewConflictReason(model, candidate);
     if (!reason) return false;

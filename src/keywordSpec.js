@@ -4587,6 +4587,12 @@
     var e = commandFunctionEntry(name);
     return e && e.excludesOnRecordTypes ? e.excludesOnRecordTypes.slice() : [];
   }
+  /** The alternate spelling the section forbids beside the keyword on the same
+   *  record or file (PAGEDOWN -> 'ROLLUP', PAGEUP -> 'ROLLDOWN'), or null. */
+  function commandFunctionNotWithAlternateName(name) {
+    var e = commandFunctionEntry(name);
+    return e && e.notWithAlternateName ? e.notWithAlternateName : null;
+  }
   /** Whether the section forbids the keyword at both file and record level
    *  (INVITE). */
   function commandFunctionNotAtBothLevels(name) {
@@ -5777,6 +5783,7 @@
     helpRelations: helpRelations,
     commandFunctionExcludedRecordTypes: commandFunctionExcludedRecordTypes,
     commandFunctionNotAtBothLevels: commandFunctionNotAtBothLevels,
+    commandFunctionNotWithAlternateName: commandFunctionNotWithAlternateName,
     validCommandKeys: validCommandKeys,
     recordIndicatorTakesOptionIndicators: recordIndicatorTakesOptionIndicators,
     RECORD_REFERENCES: RECORD_REFERENCES,
