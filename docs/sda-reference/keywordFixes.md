@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-183 of 191 tasks done; 8 open (see [Open work](#open-work); the I-121 umbrella row counts as one open task until its slices land). Current version: **v0.10.328**.
+184 of 191 tasks done; 7 open (see [Open work](#open-work); the I-121 umbrella row counts as one open task until its slices land). Current version: **v0.10.329**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -229,7 +229,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-164](#i-164) | File / Record | Pairings not enforced: `ROLLUP` with `PAGEDOWN`, `ROLLDOWN` with `PAGEUP`, and `INVITE` at both file and record level | I-121h | Done | v0.10.318 |
 | [I-165](#i-165) | Field / Record | Multi-level keyword eligibility not enforced: `OVRATR` on hidden fields, `OVRDTA` on input-only, hidden and constant fields, `TEXT` on `SFLMSGKEY` / `SFLPGMQ` fields, `PUTRETAIN` without `OVERLAY` (with `DSPMOD`: advisory note) | I-121j | Done | v0.10.322 |
 | [I-166](#i-166) | Field | `MSGCON` message ID and message file name rules (the reference states none; opened from the I-153 deferred finding) | I-153 | Done | v0.10.328 |
-| [I-167](#i-167) | Field | Companion-keyword lists for `DATE`, `USER` and `SYSNAME` (the reference does not say "only"; opened from the I-154 deferred finding) | I-154 | Claimed (in progress; decided: keep the three lists open, no behaviour change) | — |
+| [I-167](#i-167) | Field | Companion-keyword lists for `DATE`, `USER` and `SYSNAME` (the reference does not say "only"; opened from the I-154 deferred finding) | I-154 | Done | v0.10.329 |
 | [I-168](#i-168) | File | `USRDSPMGT`: the System/36 list of twelve versus the keyword's own list of eight (opened from the I-121g deferred finding) | I-121g, I-160 | Done | v0.10.324 |
 | [I-169](#i-169) | File / Record | `CAnn` and `CFnn` with the same key number (the reference says "not valid in the same display file", so the whole file; opened from the I-160 deferred finding) | I-160 | Done | v0.10.323 |
 | [I-170](#i-170) | Field | Reference-field and help-identifier rules not enforced: `DLTCHK` / `DLTEDT` / `REFFLD` without R in position 29, `ALIAS` uniqueness, `HLPID` range 1-999 and uniqueness | I-121o | Claimed (in progress) | — |
@@ -251,9 +251,8 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | 2 | [I-122](#i-122) | In progress (batch 1 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
 | 3 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
 | 4 | [I-121t](#i-121t) | Not started | Generate the keyword index from the spec. Needs I-121a – I-121s. Last. |
-| 5 | [I-167](#i-167) | Not started (decision) | `DATE` / `USER` / `SYSNAME` companion lists, closed or open. Size (estimate): Small once decided. |
-| 6 | [I-170](#i-170) | Claimed | Reference-field and help-identifier rules (raised by I-121o). Size (estimate): Small. |
-| 7 | [I-171](#i-171) | Claimed | Choice and menu-bar rules (raised by I-121l). Size (estimate): Medium. |
+| 5 | [I-170](#i-170) | Claimed | Reference-field and help-identifier rules (raised by I-121o). Size (estimate): Small. |
+| 6 | [I-171](#i-171) | Claimed | Choice and menu-bar rules (raised by I-121l). Size (estimate): Medium. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The I-121 umbrella row there stays open until its slices land, so it is counted in the headline but not listed here.
 
@@ -7547,11 +7546,15 @@ Opened from the I-153 deferred finding. `MSGCON(length message-ID [library-name/
 
 ### I-167 — Companion-keyword lists for `DATE`, `USER` and `SYSNAME`
 
-> **Area:** Field · **Status:** Claimed (in progress; decided: keep the three lists open, no behaviour change) · **Depends on:** I-154 · **Size (estimate):** Small
+> **Area:** Field · **Status:** Done (v0.10.329) · **Depends on:** I-154 · **Size (estimate):** Small
 
 Opened from the I-154 deferred finding. The `TIME` section says "You can specify **only** the location of the field, TIME, and optionally EDTCDE, EDTWRD, COLOR, DSPATR, or TEXT", and I-154 enforces that (`companionsStatedAsOnly` is true for `TIME` alone). The `DATE`, `USER` and `SYSNAME` sections use "you can specify ... and, optionally, ..." without "only". The spec holds each list as `listedCompanionKeywords` (`DATE`: `EDTCDE`, `EDTWRD`, `COLOR`, `DSPATR`, `TEXT`; `USER` and `SYSNAME`: `COLOR`, `DSPATR`, `TEXT`).
 
-**Decision needed first.** Whether those lists are closed. The reading that the sentence is a list of what is available, not a prohibition, is the literal one; enforcing it would refuse `DFT`, `CHECK` and the rest on those fields. Recommendation: keep them open unless IBM states otherwise or a compile refuses an extra keyword, because a refusal on the wrong reading blocks valid DDS. If a compile shows they are closed, flip `companionsStatedAsOnly` for the three keywords; the I-144 / I-154 collector is already driven by that flag, so the change is the spec value plus tests.
+**Decision (on the task's recommendation).** Keep the three lists open. The literal reading of "you can specify ... and, optionally, ..." is a list of what is available, not a prohibition, and the one section that means "only" (`TIME`) says so; a refusal on the wrong reading would block valid DDS (`DFT`, `CHECK` and the rest on those fields). Revisit only if IBM states otherwise or a compile refuses an extra keyword.
+
+**Change (v0.10.329).** No behaviour change. The spec comment above `DATE` now records the decision and the one-line remedy (flip `companionsStatedAsOnly` for that keyword, because the I-144 / I-154 collector is driven by the flag). The lists stay recorded as facts.
+
+**Tests.** `i167CompanionListsOpen.test.js`: the reference wording (`TIME` says "only"; `DATE`, `USER` and `SYSNAME` do not), the three lists exactly as stated, only `TIME` closed, `DATE` / `USER` / `SYSNAME` accepting `DFT`, `DUP`, `CHECK`, `COLOR` and `TEXT` through the collector, and `TIME` still refusing `DFT`, `DUP` and `CHECK` with its "only" reason.
 
 ---
 

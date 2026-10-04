@@ -3081,8 +3081,13 @@
     // parameters and DATE's parameter grammar
     // (DspfWriter.systemValueKeywordNewConflictReason) and uses the display
     // widths (systemValueConstantWidth); the companion-keyword lists below
-    // are stated as facts but not enforced (the DATE / USER / SYSNAME
-    // sections say "optionally", only TIME says "only" - left open).
+    // are stated as facts but not enforced for DATE / USER / SYSNAME: their
+    // sections say "optionally", only TIME says "only". Task I-167 (decision):
+    // those three lists stay OPEN - the literal reading is a list of what is
+    // available, not a prohibition, and a refusal on the wrong reading blocks
+    // valid DDS. If a compile ever shows a list is closed, flipping
+    // companionsStatedAsOnly for that keyword is the whole change (the
+    // I-154 collector is driven by the flag).
     DATE: {
       ddsReference:
         'You use this field-level keyword to display the current date as a ' +
