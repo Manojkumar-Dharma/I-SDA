@@ -175,7 +175,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-121i](#i-121i) | File / Record | Cursor, message and help-title keywords (4) | I-121 | Done | v0.10.313 |
 | [I-121j](#i-121j) | Cross-level | Keywords valid at several levels (6) | I-121 | Done | v0.10.321 |
 | [I-121k](#i-121k) | Help-spec | Help-specification-level keywords (3) | I-121 | Done | v0.10.316 |
-| [I-121l](#i-121l) | Field | Choice and menu-bar field keywords (8) | I-121 | Not started | — |
+| [I-121l](#i-121l) | Field | Choice and menu-bar field keywords (8) | I-121 | Claimed (in progress) | — |
 | [I-121m](#i-121m) | Field | Constant and system-value field keywords (6) | I-121 | Done v0.10.292 (6 of 6 specified) | v0.10.292 |
 | [I-121n](#i-121n) | Field | Input, format and display field keywords (8) | I-121 | Done v0.10.291 (8 of 8 specified) | v0.10.291 |
 | [I-121o](#i-121o) | Field | Reference and database-inherit field keywords (5) | I-121 | Not started | — |
@@ -6416,7 +6416,7 @@ New `src/test/i121kHelpSpecKeywordSpec.test.js` (42 checks): every heading and c
 
 ### I-121l — Choice and menu-bar field keywords
 
-> **Area:** Field · **Status:** Not started · **Depends on:** I-121 · **Size (estimate):** Medium
+> **Area:** Field · **Status:** Claimed (in progress) · **Depends on:** I-121 · **Size (estimate):** Medium
 
 **Keywords (8):** `MNUBARCHC`, `MNUBARSEP`, `CHOICE`, `CHCACCEL`, `CHCAVAIL`, `CHCCTL`, `CHCSLT`, `CHCUNAVAIL`.
 
