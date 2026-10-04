@@ -174,7 +174,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-121h](#i-121h) | File / Record | Command-function keywords (10) | I-121 | Claimed (in progress) | — |
 | [I-121i](#i-121i) | File / Record | Cursor, message and help-title keywords (4) | I-121 | Done | v0.10.313 |
 | [I-121j](#i-121j) | Cross-level | Keywords valid at several levels (6) | I-121 | Not started | — |
-| [I-121k](#i-121k) | Help-spec | Help-specification-level keywords (3) | I-121 | Not started | — |
+| [I-121k](#i-121k) | Help-spec | Help-specification-level keywords (3) | I-121 | Claimed (in progress) | — |
 | [I-121l](#i-121l) | Field | Choice and menu-bar field keywords (8) | I-121 | Not started | — |
 | [I-121m](#i-121m) | Field | Constant and system-value field keywords (6) | I-121 | Done v0.10.292 (6 of 6 specified) | v0.10.292 |
 | [I-121n](#i-121n) | Field | Input, format and display field keywords (8) | I-121 | Done v0.10.291 (8 of 8 specified) | v0.10.291 |
@@ -236,7 +236,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-121h](#i-121h), [I-121j](#i-121j), [I-121k](#i-121k), [I-121l](#i-121l), [I-121o](#i-121o) | I-121h claimed; the rest not started | The five keyword slices still open: 32 keywords with no spec entry (10 + 6 + 3 + 8 + 5, each owned exactly once; `check_spec_coverage.py` confirms). Fully parallel. |
+| 1 | [I-121h](#i-121h), [I-121j](#i-121j), [I-121k](#i-121k), [I-121l](#i-121l), [I-121o](#i-121o) | I-121h and I-121k claimed; the rest not started | The five keyword slices still open: 32 keywords with no spec entry (10 + 6 + 3 + 8 + 5, each owned exactly once; `check_spec_coverage.py` confirms). Fully parallel. |
 | 2 | [I-121q](#i-121q) | Not started | Audit the remaining `*ConflictReason` functions. Size (estimate): Large. |
 | 3 | [I-122](#i-122) | In progress (batch 1 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
 | 4 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
@@ -6348,7 +6348,7 @@ Done when: the checklist in [I-121](#i-121-slices) is met for every keyword abov
 
 ### I-121k — Help-specification-level keywords
 
-> **Area:** Help-spec · **Status:** Not started · **Depends on:** I-121 · **Size (estimate):** Small
+> **Area:** Help-spec · **Status:** In progress · **Depends on:** I-121 · **Size (estimate):** Small
 
 **Keywords (3):** `HLPARA`, `HLPBDY`, `HLPEXCLD`.
 
