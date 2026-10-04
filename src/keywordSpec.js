@@ -3174,6 +3174,10 @@
         lengthMin: 1, lengthMax: 132,
         parameterCount: 3, libraryDelimiter: '/',
         messageIdRule: null, fileNameRule: null,
+        // Task I-166 (decision): the usual IBM i message ID is seven characters, but MSGCON's section
+        // does not say the compiler requires it, so a different length is an ADVISORY only (never a
+        // refusal) and messageIdRule stays null. Promote to a refusal only if a compile settles it.
+        messageIdAdvisoryLength: 7,
         openQuestions: [
           'MSGCON states no rule for the message-ID (MSGID\'s 7-character form is MSGID\'s own, for its &field and msg-id parameters).',
           'MSGCON states no rule for message-file-name or library-name beyond the optional library-name/ prefix.'
@@ -4208,6 +4212,10 @@
   function msgconLengthRange() {
     var m = RECORD_TYPES.MSGCON.msgconParameters;
     return { min: m.lengthMin, max: m.lengthMax };
+  }
+  /** Task I-166 - the usual message-ID length MSGCON gets an advisory (not a refusal) for. */
+  function msgconMessageIdAdvisoryLength() {
+    return RECORD_TYPES.MSGCON.msgconParameters.messageIdAdvisoryLength;
   }
   /** Task I-153 - MSGCON's parameter shape as the format line states it:
    *  { count: 3, libraryDelimiter: '/' } (a fresh object). Nothing about the
@@ -6334,6 +6342,7 @@
     dateEditCodeWidth: dateEditCodeWidth,
     msgconLengthRange: msgconLengthRange,
     msgconParameterShape: msgconParameterShape,
+    msgconMessageIdAdvisoryLength: msgconMessageIdAdvisoryLength,
     isNumericShiftDataType: isNumericShiftDataType,
     keyboardShiftValues: keyboardShiftValues,
     keyboardShiftPermitted: keyboardShiftPermitted,

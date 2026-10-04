@@ -4485,6 +4485,9 @@ const htmlTemplate = `<!DOCTYPE html>
       const parsed = DspfWriter.parseMsgConParams(msgConKw ? msgConKw.parameters : '');
       basicHtml += '<div class="field-row"><label>Length</label><input type="number" id="p-const-msgcon-length" min="' + DspfWriter.msgconLengthRange().min + '" max="' + DspfWriter.msgconLengthRange().max + '" value="' + DspfEngine.escapeHtml(parsed.length) + '" /></div>';
       basicHtml += '<div class="field-row"><label>Message ID</label><input type="text" id="p-const-msgcon-msgid" value="' + DspfEngine.escapeHtml(parsed.msgId) + '" placeholder="MSG0001" /></div>';
+      // Task I-166: advisory only - a message ID that is not the usual seven characters is not refused.
+      const msgConIdNote = DspfWriter.msgconMessageIdAdvisory(parsed.msgId);
+      if (msgConIdNote) basicHtml += '<div class="hint-small warn" id="p-const-msgcon-msgid-note">' + DspfEngine.escapeHtml(msgConIdNote) + '</div>';
       basicHtml += '<div class="two-col"><div class="field-row"><label>Message file</label><input type="text" id="p-const-msgcon-msgfile" value="' + DspfEngine.escapeHtml(parsed.msgFile) + '" /></div>';
       basicHtml += '<div class="field-row"><label>Library</label><input type="text" id="p-const-msgcon-library" value="' + DspfEngine.escapeHtml(parsed.library) + '" placeholder="*LIBL" /></div></div>';
       basicHtml += '<div class="hint-small">This field\u2019s text is pulled from a message description at run time, not typed in here - the design preview shows the message ID as a placeholder.</div>';

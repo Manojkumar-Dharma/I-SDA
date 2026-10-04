@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-182 of 191 tasks done; 9 open (see [Open work](#open-work); the I-121 umbrella row counts as one open task until its slices land). Current version: **v0.10.327**.
+183 of 191 tasks done; 8 open (see [Open work](#open-work); the I-121 umbrella row counts as one open task until its slices land). Current version: **v0.10.328**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -228,7 +228,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-163](#i-163) | File / Record | Parameter forms of the command-function keywords not enforced: `ALWGPH`/`INVITE` take none, `VLDCMDKEY` needs its response indicator, `PRINT`'s three parameter forms | I-121h | Done | v0.10.319 |
 | [I-164](#i-164) | File / Record | Pairings not enforced: `ROLLUP` with `PAGEDOWN`, `ROLLDOWN` with `PAGEUP`, and `INVITE` at both file and record level | I-121h | Done | v0.10.318 |
 | [I-165](#i-165) | Field / Record | Multi-level keyword eligibility not enforced: `OVRATR` on hidden fields, `OVRDTA` on input-only, hidden and constant fields, `TEXT` on `SFLMSGKEY` / `SFLPGMQ` fields, `PUTRETAIN` without `OVERLAY` (with `DSPMOD`: advisory note) | I-121j | Done | v0.10.322 |
-| [I-166](#i-166) | Field | `MSGCON` message ID and message file name rules (the reference states none; opened from the I-153 deferred finding) | I-153 | Claimed (in progress; decided: advisory only for an ID that is not seven characters, nothing refused) | — |
+| [I-166](#i-166) | Field | `MSGCON` message ID and message file name rules (the reference states none; opened from the I-153 deferred finding) | I-153 | Done | v0.10.328 |
 | [I-167](#i-167) | Field | Companion-keyword lists for `DATE`, `USER` and `SYSNAME` (the reference does not say "only"; opened from the I-154 deferred finding) | I-154 | Not started (needs a decision) | — |
 | [I-168](#i-168) | File | `USRDSPMGT`: the System/36 list of twelve versus the keyword's own list of eight (opened from the I-121g deferred finding) | I-121g, I-160 | Done | v0.10.324 |
 | [I-169](#i-169) | File / Record | `CAnn` and `CFnn` with the same key number (the reference says "not valid in the same display file", so the whole file; opened from the I-160 deferred finding) | I-160 | Done | v0.10.323 |
@@ -252,9 +252,8 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | 3 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
 | 4 | [I-121t](#i-121t) | Not started | Generate the keyword index from the spec. Needs I-121a – I-121s. Last. |
 | 5 | [I-167](#i-167) | Not started (decision) | `DATE` / `USER` / `SYSNAME` companion lists, closed or open. Size (estimate): Small once decided. |
-| 6 | [I-166](#i-166) | Not started (rule needed) | `MSGCON` message ID and file name rules; nothing can be enforced until a rule is found. Size (estimate): Small once a rule exists. |
-| 7 | [I-170](#i-170) | Claimed | Reference-field and help-identifier rules (raised by I-121o). Size (estimate): Small. |
-| 8 | [I-171](#i-171) | Claimed | Choice and menu-bar rules (raised by I-121l). Size (estimate): Medium. |
+| 6 | [I-170](#i-170) | Claimed | Reference-field and help-identifier rules (raised by I-121o). Size (estimate): Small. |
+| 7 | [I-171](#i-171) | Claimed | Choice and menu-bar rules (raised by I-121l). Size (estimate): Medium. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The I-121 umbrella row there stays open until its slices land, so it is counted in the headline but not listed here.
 
@@ -7530,15 +7529,17 @@ Tests: new `src/test/i165MultiLevelEligibility.test.js` (the spec accessors, eve
 
 ### I-166 — `MSGCON` message ID and message file name rules
 
-> **Area:** Field · **Status:** Claimed (in progress; decided: advisory only for an ID that is not seven characters, nothing refused) · **Depends on:** I-153 · **Size (estimate):** Small
+> **Area:** Field · **Status:** Done (v0.10.328) · **Depends on:** I-153 · **Size (estimate):** Small
 
 Opened from the I-153 deferred finding. `MSGCON(length message-ID [library-name/]message-file-name)`: the section states no length, character-set or format rule for the message ID, nor for the file or library names beyond the optional `library-name/` prefix. The seven-character message-ID form and the ten-character file and library lengths in the `MSGID` section are `MSGID`'s own and govern its `&field` and `msg-id` parameters; `MSGCON` has no field-reference form. Today any token is accepted (`MSGCON(20 X Y)` is written), by design, and the two open questions are recorded as `openQuestions` on the spec entry.
 
 **Open questions.** (1) Does the compiler enforce the usual seven-character message ID for `MSGCON`? (2) Is `*LIBL` or `*CURLIB` accepted as the library, and what are the file and library name limits?
 
-**Decision needed first.** Either an IBM source or a compile on a real system settles the rule, or a deliberate choice is made to enforce the `MSGID`-style forms as a warning only. Recommendation: do not refuse anything on a guess; if no source turns up, ship an advisory note (not a refusal) for an ID that is not seven characters, in the I-165 `PUTRETAIN` / `DSPMOD` shape, and leave the file and library names open.
+**Decision (on the task's recommendation).** Refuse nothing on a guess: no IBM source settles the rule, so a message ID that is not the usual seven characters gets an advisory, not a refusal, in the I-165 `PUTRETAIN` / `DSPMOD` shape, and the file and library names stay open. Promote the advisory to a refusal only if a compile shows the compiler enforces it.
 
-**To do:** settle the rule, then extend `DspfWriter.msgconStructureProblem` (or add a sibling) reading the facts from the spec entry, keep the diff-based wiring I-153 already has, add tests, and remove the matching `openQuestions`.
+**Fix (v0.10.328).** The spec entry's `msgconParameters` gains `messageIdAdvisoryLength: 7` (read through `KeywordSpec.msgconMessageIdAdvisoryLength()`); `messageIdRule` and `fileNameRule` stay `null` and both `openQuestions` stay recorded. New `DspfWriter.msgconMessageIdAdvisory(msgId)` returns the note for a non-blank ID whose trimmed length is not seven (null otherwise, and for a blank ID), saying the reference states no rule, the usual IBM i ID is seven characters, and the edit is not refused. The MSGCON constant's panel shows it as a `.hint-small.warn` (`#p-const-msgcon-msgid-note`) under the Message ID box for the field's current ID. The I-153 checks (`msgconStructureProblem`, `msgconFullProblem`) are unchanged, so nothing new is refused at the raw editor, the Add form or the panel's Apply.
+
+**Tests.** `i166MsgconMessageIdAdvisory.test.js`: the spec fact; seven characters, blank, short, long, one-character and lower-case IDs; surrounding blanks; nothing newly refused (including a long file and library); and the real webview in jsdom (no note for a seven-character ID, a note for a short and for a long one, none mentioning the library).
 
 ---
 

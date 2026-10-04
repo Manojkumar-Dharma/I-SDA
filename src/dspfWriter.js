@@ -2616,6 +2616,18 @@
     }
     return null;
   }
+  /** Task I-166 - the advisory (not a refusal) for a MSGCON message ID that is not the usual
+   *  seven characters, or null. The section states no rule for the message ID, so nothing is
+   *  refused (I-153 still accepts any token); the usual IBM i form is the only thing said.
+   *  Blank is "not set" (null). The file and library names get no advisory: nothing settles them. */
+  function msgconMessageIdAdvisory(msgId) {
+    var id = String(msgId == null ? '' : msgId).trim();
+    if (id === '') return null;
+    var n = KeywordSpec.msgconMessageIdAdvisoryLength();
+    if (id.length === n) return null;
+    return 'MSGCON message ID ' + id.toUpperCase() + ' is ' + id.length + ' character' + (id.length === 1 ? '' : 's') +
+      ': the DDS Reference states no rule for it, but the usual IBM i message ID is ' + n + ' characters. It is not refused here; check it against the message file.';
+  }
   /** The first problem in a whole MSGCON parameter text: its length (rule 3),
    *  then its overall form. */
   function msgconFullProblem(paramText) {
@@ -11129,6 +11141,7 @@
     msgconParamsProblem: msgconParamsProblem,
     msgconStructureProblem: msgconStructureProblem,
     msgconFullProblem: msgconFullProblem,
+    msgconMessageIdAdvisory: msgconMessageIdAdvisory,
     msgconNamedFieldReason: msgconNamedFieldReason,
     msgidRecordIsSubfile: msgidRecordIsSubfile,
     msgidSflRecordReason: msgidSflRecordReason,
