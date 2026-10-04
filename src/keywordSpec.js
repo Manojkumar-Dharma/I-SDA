@@ -2963,10 +2963,9 @@
     // Task I-121o - ALIAS, REFFLD, DLTCHK, DLTEDT and HLPID, each re-read
     // fresh against its own section of DDS_Keyword_V7r6.txt (ALIAS ~1837,
     // DLTCHK ~4785, DLTEDT ~4805, HLPID ~7070, REFFLD ~10095), not against
-    // the code. Facts, not new behaviour: the one consumer is the General
-    // keywords panel's HLPID row scope (validOnlyOnConstantField); the rest
-    // are stated because the reference states them and are logged in the
-    // Deferred findings / Open work tables where no guard enforces them.
+    // the code. I-121o itself changed no behaviour (its one consumer is the
+    // General keywords panel's HLPID row scope, validOnlyOnConstantField);
+    // I-170 then enforced the rest through referenceFieldRules() below.
     // Option indicators are "not valid" for all five; that stays in the
     // NO_OPTION_INDICATORS table (I-101) and is not restated.
     //   requiresReferenceFlag   the keyword is valid only when position 29 is R
@@ -3961,6 +3960,25 @@
   function helpIdentifierRange() {
     var e = RECORD_TYPES.HLPID;
     return e && e.identifierRange ? { min: e.identifierRange.min, max: e.identifierRange.max } : null;
+  }
+
+  /** Task I-170 - the enforceable rules the I-121o entries state, in one
+   *  fresh object: { requireReferenceFlag: [names], aliasUnique, help: { min,
+   *  max, unique, constantOnly, required } }. Nothing here is copied from the
+   *  guard; the guard reads only this. */
+  function referenceFieldRules() {
+    var h = RECORD_TYPES.HLPID;
+    return {
+      requireReferenceFlag: referenceFlagRequiredKeywords(),
+      aliasUnique: RECORD_TYPES.ALIAS.alternativeNameMustBeUnique === true,
+      help: {
+        min: h.identifierRange.min,
+        max: h.identifierRange.max,
+        unique: h.uniqueWithinRecord === true,
+        constantOnly: h.validOnlyOnConstantField === true,
+        required: h.parameterRequired === true
+      }
+    };
   }
 
   /** Task I-121m - the entry for a constant / system-value keyword, or null
@@ -6335,6 +6353,7 @@
     requiresReferenceFlag: requiresReferenceFlag,
     validOnlyOnConstantField: validOnlyOnConstantField,
     helpIdentifierRange: helpIdentifierRange,
+    referenceFieldRules: referenceFieldRules,
     fieldKeywordsWithoutParameters: fieldKeywordsWithoutParameters,
     systemValueConstantWidth: systemValueConstantWidth,
     systemValuePreviewText: systemValuePreviewText,

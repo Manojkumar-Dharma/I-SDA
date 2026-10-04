@@ -6322,6 +6322,8 @@ const htmlTemplate = `<!DOCTYPE html>
   // Task I-162: HELP with a response indicator excludes H specifications and
   // HLPRCD / HLPPNLGRP / HLPDOC / HLPRTN anywhere in the file; those need a HELP
   // with no response indicator.
+  // Task I-170: REFFLD / DLTCHK / DLTEDT need R in position 29, ALIAS differs from
+  // every other alias and field name, HLPID is a constant-field number 1-999 unique in the record.
   // Task I-147: the other five subfile-control
   // keywords also need an SFLCTL, and SFLCLR / SFLDSP / SFLDSPCTL / SFLINZ take
   // no display size names. Returns true
@@ -6336,6 +6338,7 @@ const htmlTemplate = `<!DOCTYPE html>
       DspfWriter.subfileFoldDropNewConflictReason(model, candidate) ||
       DspfWriter.outputControlNewConflictReason(model, candidate) ||
       DspfWriter.multiLevelEligibilityNewConflictReason(model, candidate) ||
+      DspfWriter.referenceFieldNewConflictReason(model, candidate) ||
       DspfWriter.windowHelpMenuNewConflictReason(model, candidate) ||
       DspfWriter.initRetainReturnNewConflictReason(model, candidate) ||
       DspfWriter.fileLevelDisplayNewConflictReason(model, candidate) ||

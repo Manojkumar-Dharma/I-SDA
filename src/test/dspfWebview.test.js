@@ -2173,8 +2173,16 @@ function runFieldPropertyHelpersScenario() {
     posted.length = 0;
     const amountEl6b = Array.from(doc.querySelectorAll('.dspf-field')).find((el) => (el.getAttribute('data-field') || '') === 'AMOUNT');
     amountEl6b.dispatchEvent(new Event('click', { bubbles: true }));
+    // Task I-170: DLTCHK / DLTEDT are valid only with R in position 29, so a plain field does not offer them until it is a reference field.
+    check('a plain field does not offer DLTCHK / DLTEDT (they need R in position 29)', !doc.getElementById(fieldKey + '-ref-dltchk-on') && !doc.getElementById(fieldKey + '-ref-dltedt-on'));
+    const reffldOnBox = doc.getElementById(fieldKey + '-reffld-on');
+    check('setup: the reference checkbox is present', !!reffldOnBox);
+    reffldOnBox.checked = true;
+    reffldOnBox.dispatchEvent(new Event('change', { bubbles: true }));
+    posted.length = 0;
+    amountEl6b.dispatchEvent(new Event('click', { bubbles: true }));
     const dltchkOn = doc.getElementById(fieldKey + '-ref-dltchk-on');
-    check('setup: the DLTCHK checkbox is present', !!dltchkOn);
+    check('setup: the DLTCHK checkbox is present once the field is a reference field', !!dltchkOn);
     dltchkOn.checked = true;
     dltchkOn.dispatchEvent(new Event('change', { bubbles: true }));
     let refEdit = posted.find((m) => m.type === 'applyEdit');
@@ -2518,11 +2526,11 @@ function runD4ConstantWiringScenario() {
     check('General keywords is still offered (HLPID lives there)', labels.indexOf('General keywords') >= 0);
 
     console.log('  Filling in HLPID on the constant via General keywords and applying writes HLPID');
-    doc.querySelector('input[id$="-gen-hlpid-params"]').value = 'CONSTHELP';
+    doc.querySelector('input[id$="-gen-hlpid-params"]').value = '7';
     doc.querySelector('input[id$="-gen-hlpid-on"]').checked = true;
     doc.querySelector('input[id$="-gen-hlpid-on"]').dispatchEvent(new Event('change', { bubbles: true }));
     let last = posted[posted.length - 1];
-    check('posts applyEdit with HLPID(CONSTHELP) on the constant', last && last.type === 'applyEdit' && /HLPID\(CONSTHELP\)/.test(last.text));
+    check('posts applyEdit with HLPID(7) on the constant', last && last.type === 'applyEdit' && /HLPID\(7\)/.test(last.text));
 
     console.log('  Adding a menu-bar choice row on the constant and applying writes MNUBARCHC');
     selectConstant();

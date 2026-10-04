@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-184 of 191 tasks done; 7 open (see [Open work](#open-work); the I-121 umbrella row counts as one open task until its slices land). Current version: **v0.10.329**.
+185 of 191 tasks done; 6 open (see [Open work](#open-work); the I-121 umbrella row counts as one open task until its slices land). Current version: **v0.10.330**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -232,7 +232,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-167](#i-167) | Field | Companion-keyword lists for `DATE`, `USER` and `SYSNAME` (the reference does not say "only"; opened from the I-154 deferred finding) | I-154 | Done | v0.10.329 |
 | [I-168](#i-168) | File | `USRDSPMGT`: the System/36 list of twelve versus the keyword's own list of eight (opened from the I-121g deferred finding) | I-121g, I-160 | Done | v0.10.324 |
 | [I-169](#i-169) | File / Record | `CAnn` and `CFnn` with the same key number (the reference says "not valid in the same display file", so the whole file; opened from the I-160 deferred finding) | I-160 | Done | v0.10.323 |
-| [I-170](#i-170) | Field | Reference-field and help-identifier rules not enforced: `DLTCHK` / `DLTEDT` / `REFFLD` without R in position 29, `ALIAS` uniqueness, `HLPID` range 1-999 and uniqueness | I-121o | Claimed (in progress) | — |
+| [I-170](#i-170) | Field | Reference-field and help-identifier rules not enforced: `DLTCHK` / `DLTEDT` / `REFFLD` without R in position 29, `ALIAS` uniqueness, `HLPID` range 1-999 and uniqueness | I-121o | Done | v0.10.330 |
 | [I-171](#i-171) | Field | Choice and menu-bar rules not enforced: `CHCACCEL` outside a `SNGCHCFLD` field in a `PULLDOWN` record, `CHCSLT` with `CHOICE` in a record without `PULLDOWN(*NOSLTIND)`, the `CHCCTL` control-field type and matching choice, the `MNUBARCHC` pull-down record needing `PULLDOWN`, the 12-line menu-bar limit | I-121l | Claimed (in progress) | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
@@ -251,8 +251,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | 2 | [I-122](#i-122) | In progress (batch 1 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
 | 3 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
 | 4 | [I-121t](#i-121t) | Not started | Generate the keyword index from the spec. Needs I-121a – I-121s. Last. |
-| 5 | [I-170](#i-170) | Claimed | Reference-field and help-identifier rules (raised by I-121o). Size (estimate): Small. |
-| 6 | [I-171](#i-171) | Claimed | Choice and menu-bar rules (raised by I-121l). Size (estimate): Medium. |
+| 5 | [I-171](#i-171) | Claimed | Choice and menu-bar rules (raised by I-121l). Size (estimate): Medium. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The I-121 umbrella row there stays open until its slices land, so it is counted in the headline but not listed here.
 
@@ -7599,15 +7598,23 @@ Tests: new `src/test/i169CommandKeyNumberClash.test.js` (the three source senten
 
 ### I-170 — Reference-field and help-identifier rules are not enforced
 
-> **Area:** Field · **Status:** Claimed (in progress) · **Depends on:** I-121o
+> **Area:** Field · **Status:** Done (v0.10.330) · **Depends on:** I-121o
 
-Raised by the I-121o slice. The DDS Reference states, and `keywordSpec.js` now holds as facts, rules that no guard enforces (found by searching the writer, webview and extension host for each keyword; no raw-editor probe has been run yet):
+Raised by the I-121o slice. The DDS Reference states, and `keywordSpec.js` holds as facts, rules that nothing enforced. Probed in the raw keyword editor on v0.10.325 (a fresh webview per case): every one of these was accepted.
 
-- `DLTCHK` and `DLTEDT` are "valid only when R is specified in position 29", and `REFFLD` needs "an R in position 29". Nothing refuses them on a non-reference field, and turning the reference flag off drops `REFFLD` but leaves `DLTCHK` / `DLTEDT` behind.
-- `ALIAS`: the alternative name must differ from all other alternative names and all field names in the record format. No duplicate check exists.
-- `HLPID`: a numeric value 1 to 999, unique within the record. Neither is checked, and the General keywords row is a free-text box with the placeholder `e.g. FLDHELP1`, which suggests a name rather than a number.
+- `DLTCHK`, `DLTEDT` and `REFFLD` are valid only with R in position 29. They were accepted on plain fields, and unticking the reference flag dropped `REFFLD` but left `DLTCHK` / `DLTEDT` behind.
+- `ALIAS` must differ from every other alternative name and every field name in the record format. `ALIAS(F2)` on a record that has an `F2`, a repeated alias and a different-case repeat were all accepted.
+- `HLPID` is a number 1 to 999, unique within the record format, and a constant-field keyword. `HLPID(1000)`, `HLPID(0)`, `HLPID(FOO)`, a bare `HLPID`, a repeated number, and `HLPID` on a named field were all accepted.
 
-To do: probe each case in the raw keyword editor and the panels, then add spec-driven, diff-based guards in the I-140 / I-151 shape, make the `HLPID` input numeric 1-999, and decide what turning the reference flag off should do to `DLTCHK` / `DLTEDT`.
+**Result (v0.10.330).** One spec-driven, diff-based guard, `DspfWriter.referenceFieldNewConflictReason`, in the I-140 / I-151 / I-165 shape: it reads `KeywordSpec.referenceFieldRules()` (new, one fresh object built from the I-121o entries) and reports only a violation the edit adds, so an already-invalid hand-written file never blocks an unrelated edit. It is wired into `windowDependencyGuardBlocks`, so every committed edit passes through it, and the refusal carries the DDS wording.
+
+- **R in position 29.** `REFFLD`, `DLTCHK` and `DLTEDT` on a field without R, or on a constant, are refused; so is clearing R while `DLTCHK` / `DLTEDT` remain.
+- **Reference toggle.** Decision: unticking the reference flag now drops `DLTCHK` and `DLTEDT` together with `REFFLD` (`applyReffldState` removes every keyword the spec says needs R), in one accepted edit. They are meaningless without R, and `REFFLD` was already dropped the same way.
+- **`ALIAS`.** Refused when it equals any field name in the record format (its own included, as the reference says "all DDS field names") or another field's alias. Compared as upper case, with a quoted alias read by its name; a bare `ALIAS` is left to the parameter checks.
+- **`HLPID`.** The parameter is required and must be a whole number 1 to 999; a number already used by another constant in the record (05 and 5 are the same) is refused; every `HLPID` instance on a field is checked. Found by the probe and added: `HLPID` on a named field is refused too, since the spec carries `validOnlyOnConstantField` and the panel already hid the row.
+- **Panel.** The `HLPID` row's placeholder was `e.g. FLDHELP1`, which suggested a name; it now says `e.g. 1 (help identifier, 1-999, unique in the record)`. The row is still a text box, so a bad number is caught by the guard, not by the input. The `DLTCHK` / `DLTEDT` rows in the Define Database Reference panel are now offered only on a reference field (or while one of them is still on a plain field, so it can be cleared), since the guard would otherwise refuse the checkbox it offers.
+- **Tests.** New `src/test/i170ReferenceFieldRules.test.js` (240 checks): the accessor, every rule in both directions, diff semantics, `applyReffldState` with the flag on and off, 15 raw-editor cases and the reference toggle through the real generated webview, and a sweep over every `KEYWORD-LOOKUP.json` keyword confirming no other keyword triggers the guard. Against the pre-change source the file fails (the accessor and the guard do not exist). Three older checks changed with the rules: `dspfWebview.test.js` now ticks the reference flag before DLTCHK and uses `HLPID(7)` instead of `HLPID(CONSTHELP)`, and `i35UsageMpFailOpenAudit.test.js` renders the DLT rows on a reference field (and pins their absence on a plain one). Full suite passes.
+- **Not changed.** The `HLPARA` side of the link (`*CNST n` must name a constant whose `HLPID` is `n`) is I-161's and was already enforced.
 
 ---
 

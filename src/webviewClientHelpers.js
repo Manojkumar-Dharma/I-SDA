@@ -2497,7 +2497,7 @@
   /** "Select General Keywords" - ALIAS/INDTXT/DFT/DFTVAL/FLDCSRPRG/HLPID
    *  (text-bearing, caller-supplied form - see the generic keyword
    *  parameter handling for why: they vary too much in shape - e.g. ALIAS/
-   *  FLDCSRPRG/HLPID take a bare name, DFT/DFTVAL/INDTXT take a quoted
+   *  FLDCSRPRG take a bare name, HLPID a number 1-999, DFT/DFTVAL/INDTXT take a quoted
    *  string - to usefully auto-quote here) + PUTRETAIN/OVRDTA/OVRATR/
    *  CHRID/IGCALTTYP/NOCCSID (booleans). Each its own flagRowHtml() row
    *  (checkbox + optional text param + own Conditioning toggle) rather
@@ -2594,7 +2594,7 @@
     // Task I-150: input-capable (I/B) fields only (DDS Reference).
     ['fldcsrprg', 'FLDCSRPRG', 'Cursor-progression field name', true, 'named', false, 'none', undefined, 'input-capable'],
     // Task I-121o - constant-field-only now comes from the spec (validOnlyOnConstantField), see generalRowHiddenByScope.
-    ['hlpid', 'HLPID', 'e.g. FLDHELP1 (constant help identifier)', true, 'all', false, 'none'],
+    ['hlpid', 'HLPID', 'e.g. 1 (help identifier, 1-999, unique in the record)', true, 'all', false, 'none'],
     ['putretain', 'PUTRETAIN', 'Retain field on display', false, 'all', true, 'none'],
     ['ovrdta', 'OVRDTA', 'Override data', false, 'all', true, 'msg-only'],
     ['ovratr', 'OVRATR', 'Override attributes', false, 'all', true, 'none'],
@@ -2933,6 +2933,10 @@
     return html;
   }
 
+  /** Task I-170 - true when DLTCHK or DLTEDT is on the field's keyword list. */
+  function referenceOverridesPresent(keywords) {
+    return DspfWriter.requiresReferenceFlag('DLTCHK') && (DspfWriter.getFileFlagKeyword(keywords, 'DLTCHK').present || DspfWriter.getFileFlagKeyword(keywords, 'DLTEDT').present);
+  }
   function wireReferenceOverridesEditor(keywords, onChange, ownerKey, expandedSet, rerender) {
     ['dltchk', 'dltedt'].forEach(function (k, i) {
       var name = ['DLTCHK', 'DLTEDT'][i];
@@ -3051,7 +3055,10 @@
     // fieldKeywordCategoryVisibility's own I-35 doc comment) - skipped
     // for M/P fields specifically, matching wireDatabaseReferenceEditor's
     // own matching skip just below.
-    if (field.usage !== 'M' && field.usage !== 'P') {
+    // Task I-170: both are valid only with R in position 29 (the guard refuses them
+    // otherwise), so the rows are offered on a reference field, or while one is
+    // still present so it can be cleared.
+    if (field.usage !== 'M' && field.usage !== 'P' && (state.isReference || referenceOverridesPresent(field.keywords))) {
       html += referenceOverridesHtml(field.keywords, ownerKey, expandedSet);
     }
     return html;

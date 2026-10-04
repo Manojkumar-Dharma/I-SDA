@@ -164,11 +164,17 @@ console.log('\ndatabaseReferenceHtml - usage M/P keep REFFLD but drop DLTCHK/DLT
 
 console.log('\ndatabaseReferenceHtml - no regression: usage O still shows DLTCHK/DLTEDT alongside REFFLD');
 {
-  const f = field({ usage: 'O' });
+  // Task I-170: DLTCHK / DLTEDT need R in position 29, so a usage O REFERENCE field shows them and a plain one does not.
+  const f = field({ usage: 'O', isReference: true });
   const html = Helpers.databaseReferenceHtml(f, 'dbrefO', new Set());
   check('REFFLD checkbox present', html.indexOf('dbrefO-reffld-on') >= 0);
   check('DLTCHK row present', html.indexOf('dbrefO-ref-dltchk-on') >= 0);
   check('DLTEDT row present', html.indexOf('dbrefO-ref-dltedt-on') >= 0);
+  const plain = Helpers.databaseReferenceHtml(field({ usage: 'O' }), 'dbrefP', new Set());
+  check('a plain usage O field still shows the REFFLD checkbox', plain.indexOf('dbrefP-reffld-on') >= 0);
+  check('a plain usage O field shows no DLTCHK / DLTEDT row', plain.indexOf('dbrefP-ref-dltchk-on') === -1 && plain.indexOf('dbrefP-ref-dltedt-on') === -1);
+  const stale = Helpers.databaseReferenceHtml(field({ usage: 'O', keywords: [{ name: 'DLTCHK', parameters: '', conditions: [] }] }), 'dbrefS', new Set());
+  check('a plain field that still carries DLTCHK shows the row so it can be cleared', stale.indexOf('dbrefS-ref-dltchk-on') >= 0);
 }
 
 console.log('\nwireDatabaseReferenceEditor - runs cleanly for M/P with no crash, and REFFLD still commits correctly');

@@ -4516,7 +4516,8 @@
    *  name) rather than leaving REFFLD's always-required field name blank. */
   function applyReffldState(keywords, currentFieldName, state) {
     var s = state || {};
-    var next = (keywords || []).filter(function (k) { return k.name !== 'REFFLD'; });
+    // Task I-170: with R off, DLTCHK / DLTEDT go too (every keyword the spec says is valid only with R in position 29), not just REFFLD.
+    var next = (keywords || []).filter(function (k) { return k.name !== 'REFFLD' && (s.isReference || !KeywordSpec.requiresReferenceFlag(k.name)); });
     if (s.isReference) {
       var hasAnyPart = !!((s.recordFormat || '').trim() || (s.fieldName || '').trim() || s.useSrc || (s.file || '').trim() || (s.library || '').trim());
       if (hasAnyPart) {
@@ -5640,6 +5641,75 @@
     var after = multiLevelEligibilityViolations(newModel);
     if (!Object.keys(after).length) return null;
     return firstNewViolation(multiLevelEligibilityViolations(oldModel), after);
+  }
+  /** Task I-170 - the reference-field and help-identifier rules the I-121o
+   *  entries record (KeywordSpec.referenceFieldRules - nothing hand-copied):
+   *   REFFLD / DLTCHK / DLTEDT  valid only with R in position 29
+   *   ALIAS   different from every other alternative name and from every
+   *           field name in the record format (compared as upper case)
+   *   HLPID   constant fields only, parameter required, a number 1 to 999,
+   *           unique within the record format
+   *  Violations are keyed so firstNewViolation reports only what an edit
+   *  adds: an already-invalid hand-written file never blocks an unrelated
+   *  edit, but clearing the reference flag while DLTCHK / DLTEDT remain, or
+   *  adding a clashing alias, is reported. */
+  function referenceFieldViolations(model) {
+    var rules = KeywordSpec.referenceFieldRules();
+    var out = {};
+    ((model && model.records) || []).forEach(function (r) {
+      var rname = String(r.name || '').toUpperCase();
+      var counts = {};
+      function add(rule, key, text) {
+        var c = counts[rule + '|' + key] = (counts[rule + '|' + key] || 0) + 1;
+        out[rname + '|' + rule + '|' + key + '|' + c] = text;
+      }
+      var fields = r.fields || [];
+      var names = {};
+      fields.forEach(function (f) { if (f.nameType !== 'CONSTANT' && f.name) names[String(f.name).toUpperCase()] = true; });
+      var aliasOwners = {};
+      var helpValues = {};
+      fields.forEach(function (f) {
+        var isConstant = f.nameType === 'CONSTANT';
+        var fname = String(f.name || '').toUpperCase();
+        var label = isConstant ? 'a constant field' : 'field ' + fname;
+        rules.requireReferenceFlag.forEach(function (kw) {
+          if (!hasKeywordNamed(f.keywords, kw) || (!isConstant && f.isReference)) return;
+          add('REF', kw + '|' + fname, kw + ' cannot be specified on ' + label + ': it is valid only when R is specified in position 29 (per the DDS Reference).');
+        });
+        var alias = keywordNamed(f.keywords, 'ALIAS');
+        if (rules.aliasUnique && alias && !isConstant) {
+          var a = String(alias.parameters == null ? '' : alias.parameters).trim().replace(/^'(.*)'$/, '$1').toUpperCase();
+          if (a) {
+            if (names[a]) add('ALIAS', 'NAME|' + a, 'ALIAS(' + a + ') on field ' + fname + ': the alternative name must be different from all DDS field names in the record format, and ' + a + ' is one (per the DDS Reference).');
+            if (aliasOwners[a] && aliasOwners[a] !== fname) add('ALIAS', 'DUP|' + a, 'ALIAS(' + a + ') on field ' + fname + ': the alternative name must be different from all other alternative names in the record format, and field ' + aliasOwners[a] + ' already uses it (per the DDS Reference).');
+            if (!aliasOwners[a]) aliasOwners[a] = fname;
+          }
+        }
+        var helps = (f.keywords || []).filter(function (k) { return String(k.name || '').toUpperCase() === 'HLPID'; });
+        if (helps.length && rules.help.constantOnly && !isConstant) {
+          add('HLPID', 'CONST|' + fname, 'HLPID cannot be specified on field ' + fname + ': it is a constant field keyword (per the DDS Reference).');
+          return;
+        }
+        helps.forEach(function (help) {
+          var p = String(help.parameters == null ? '' : help.parameters).trim();
+          if (!p) {
+            if (rules.help.required) add('HLPID', 'REQ', 'HLPID needs a help-identifier parameter, a number from ' + rules.help.min + ' to ' + rules.help.max + ' (per the DDS Reference).');
+          } else if (!/^\d+$/.test(p) || Number(p) < rules.help.min || Number(p) > rules.help.max) {
+            add('HLPID', 'RANGE|' + p, 'HLPID(' + p + ') is not a valid help identifier: it can be only a numeric value from ' + rules.help.min + ' to ' + rules.help.max + ' (per the DDS Reference).');
+          } else {
+            var v = String(Number(p));
+            helpValues[v] = (helpValues[v] || 0) + 1;
+            if (rules.help.unique && helpValues[v] === 2) add('HLPID', 'DUP|' + v, 'HLPID(' + p + ') is already used by another constant field in record format ' + r.name + ': the help identifier must be unique within the record format (per the DDS Reference).');
+          }
+        });
+      });
+    });
+    return out;
+  }
+  function referenceFieldNewConflictReason(oldModel, newModel) {
+    var after = referenceFieldViolations(newModel);
+    if (!Object.keys(after).length) return null;
+    return firstNewViolation(referenceFieldViolations(oldModel), after);
   }
   /** Task I-165 - the advisory (not a refusal) for PUTRETAIN on a record that
    *  also has DSPMOD, or null. `recordKeywords` / `fields` are the record's. */
@@ -11297,6 +11367,7 @@
     subfileKeywordNewConflictReason: subfileKeywordNewConflictReason,
     outputControlNewConflictReason: outputControlNewConflictReason,
     multiLevelEligibilityNewConflictReason: multiLevelEligibilityNewConflictReason,
+    referenceFieldNewConflictReason: referenceFieldNewConflictReason,
     multiLevelFieldReason: multiLevelFieldReason,
     putretainDspmodAdvisory: putretainDspmodAdvisory,
     usrdspmgtSystem36ExtrasNote: usrdspmgtSystem36ExtrasNote,
