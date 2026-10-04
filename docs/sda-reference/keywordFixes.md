@@ -224,7 +224,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-159](#i-159) | File | File-level display and I/O keyword rules not enforced: `MSGLOC` range, `ERRSFL` vs display sizes, `OPENPRT` needs a printer-file `PRINT`, `IGCCNV` key and prompt line | I-121f | Done | v0.10.314 |
 | [I-160](#i-160) | File | File-level help and `USRDSPMGT` rules not enforced: `HLPFULL` and `HLPSCHIDX` need `HLPPNLGRP`, `HLPSCHIDX` with `HLPSHELF`, `USRDSPMGT` with its forbidden keywords, `HLPRCD` with no record format | I-121g | Done | v0.10.315 |
 | [I-161](#i-161) | Help-spec | Help-specification rules not enforced and `HLPARA`'s parameters not reachable: one of `HLPRCD`/`HLPPNLGRP`/`HLPDOC`, `HLPBDY` or `HLPEXCLD`, `HLPEXCLD` needs `HLPPNLGRP`, `HLPARA` forms and checks, H specification refused in `SFL` records | I-121k | Claimed (in progress) | — |
-| [I-162](#i-162) | File / Record | `HELP` relations to the other help keywords not enforced: a response indicator on `HELP` with `HLPRCD`/`HLPPNLGRP`/`HLPDOC`/`HLPRTN`/H specifications in the file, and `HELP` without one being required when they are present | I-121h | Not started | — |
+| [I-162](#i-162) | File / Record | `HELP` relations to the other help keywords not enforced: a response indicator on `HELP` with `HLPRCD`/`HLPPNLGRP`/`HLPDOC`/`HLPRTN`/H specifications in the file, and `HELP` without one being required when they are present | I-121h | Claimed (in progress) | — |
 | [I-163](#i-163) | File / Record | Parameter forms of the command-function keywords not enforced: `ALWGPH`/`INVITE` take none, `VLDCMDKEY` needs its response indicator, `PRINT`'s three parameter forms | I-121h | Not started | — |
 | [I-164](#i-164) | File / Record | Pairings not enforced: `ROLLUP` with `PAGEDOWN`, `ROLLDOWN` with `PAGEUP`, and `INVITE` at both file and record level | I-121h | Not started | — |
 
@@ -240,7 +240,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-162](#i-162) | Not started | `HELP` relations to the other help keywords (raised by I-121h, probed). |
+| 1 | [I-162](#i-162) | Claimed | `HELP` relations to the other help keywords (raised by I-121h, probed). |
 | 2 | [I-163](#i-163) | Not started | Command-function keyword parameter forms (raised by I-121h, probed). Small. |
 | 3 | [I-164](#i-164) | Not started | `ROLLUP`/`PAGEDOWN`, `ROLLDOWN`/`PAGEUP` and `INVITE` file+record pairings (raised by I-121h, probed). Small. |
 | 4 | [I-121j](#i-121j), [I-121l](#i-121l), [I-121o](#i-121o) | Not started | The three keyword slices still open: 19 keywords with no spec entry (6 + 8 + 5, each owned exactly once; `check_spec_coverage.py` confirms). Fully parallel. |
@@ -7368,7 +7368,7 @@ To do: probe each case, then add a spec-driven, diff-based guard in the I-140 / 
 
 ### I-162 — `HELP` relations to the other help keywords are not enforced
 
-> **Area:** File / Record · **Status:** Not started · **Depends on:** I-121h
+> **Area:** File / Record · **Status:** Claimed (in progress) · **Depends on:** I-121h
 
 Raised by I-121h; opened as a task with a probe. The `HELP` section (~line 6564) states: "When a response indicator is specified on the HELP keyword, no H specifications or HLPRCD, HLPPNLGRP, HLPDOC, or HLPRTN keywords can be specified in the file" and "HELP (with no response indicator) is required if the file contains H specifications or HLPRCD, HLPPNLGRP, HLPDOC, or HLPRTN keywords". **Probe (raw keyword editor, v0.10.311; every case below was *allowed* and wrote an edit):** `HELP(95)` added at file level to a file that has a file-level `HLPRCD`; `HLPRCD` added at file level to a file that has `HELP(95)`; `HLPRTN` added to a file with `HELP(95)`; `HLPRCD` added to a record of a file with no `HELP` at all. The facts are in `RECORD_TYPES.HELP` (`withResponseIndicatorExcludesInFile`, `withoutResponseIndicatorRequiredWhenFileContains`, and the H-specification flags, read through `KeywordSpec.helpRelations()`). This task adds the guards, both directions and at both levels (the file-level and record-level `HELP`, the help keywords' own rows, the raw editor, the `commitEdit` backstop), diff-based like I-140's. Related existing guards to build on, not duplicate: the `HLPDOC` / `HLPRTN` / `HLPPNLGRP` / `HLPRCD` pair rules (I-38, I-68), `HLPRCD`'s H-specification check, I-160's file-level help rules and I-161's help-specification rules. Open questions: whether "in the file" means any record's `HELP` too, and what "required" should do when the user adds a help keyword (refuse, or offer to add a bare `HELP`).
 
