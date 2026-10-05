@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-185 of 191 tasks done; 6 open (see [Open work](#open-work); the I-121 umbrella row counts as one open task until its slices land). Current version: **v0.10.330**.
+186 of 192 tasks done; 6 open (see [Open work](#open-work); the I-121 umbrella row counts as one open task until its slices land). Current version: **v0.10.331**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -233,7 +233,8 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-168](#i-168) | File | `USRDSPMGT`: the System/36 list of twelve versus the keyword's own list of eight (opened from the I-121g deferred finding) | I-121g, I-160 | Done | v0.10.324 |
 | [I-169](#i-169) | File / Record | `CAnn` and `CFnn` with the same key number (the reference says "not valid in the same display file", so the whole file; opened from the I-160 deferred finding) | I-160 | Done | v0.10.323 |
 | [I-170](#i-170) | Field | Reference-field and help-identifier rules not enforced: `DLTCHK` / `DLTEDT` / `REFFLD` without R in position 29, `ALIAS` uniqueness, `HLPID` range 1-999 and uniqueness | I-121o | Done | v0.10.330 |
-| [I-171](#i-171) | Field | Choice and menu-bar rules not enforced: `CHCACCEL` outside a `SNGCHCFLD` field in a `PULLDOWN` record, `CHCSLT` with `CHOICE` in a record without `PULLDOWN(*NOSLTIND)`, the `CHCCTL` control-field type and matching choice, the `MNUBARCHC` pull-down record needing `PULLDOWN`, the 12-line menu-bar limit | I-121l | Claimed (in progress) | — |
+| [I-171](#i-171) | Field | Choice and menu-bar rules not enforced: `CHCACCEL` outside a `SNGCHCFLD` field in a `PULLDOWN` record, `CHCSLT` with `CHOICE` in a record without `PULLDOWN(*NOSLTIND)`, the `CHCCTL` control-field type and matching choice, the `MNUBARCHC` pull-down record needing `PULLDOWN`, the 12-line menu-bar limit | I-121l | Done | v0.10.331 |
+| [I-172](#i-172) | Field / Record | Choice and menu-bar follow-ups: the 12-line limit of a menu-bar field (how the reference counts lines is unclear) and panel rows that still offer a keyword the guard then refuses (`CHCACCEL` input on a `MLTCHCFLD` field, the colour-state rows on a field with no choice keyword) | I-171 | Not started | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -251,13 +252,13 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | 2 | [I-122](#i-122) | In progress (batch 1 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
 | 3 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
 | 4 | [I-121t](#i-121t) | Not started | Generate the keyword index from the spec. Needs I-121a – I-121s. Last. |
-| 5 | [I-171](#i-171) | Claimed | Choice and menu-bar rules (raised by I-121l). Size (estimate): Medium. |
+| 5 | [I-172](#i-172) | Not started | Choice and menu-bar follow-ups (raised by I-171). Size (estimate): Small. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The I-121 umbrella row there stays open until its slices land, so it is counted in the headline but not listed here.
 
 ## Deferred findings (not yet tasks)
 
-Every finding so far has been opened as a task (I-61 – I-171, see the tables above). The four that were waiting here because the DDS Reference does not settle them were converted on request: I-153's open questions became [I-166](#i-166), I-154's became [I-167](#i-167), I-121g's became [I-168](#i-168) and I-160's became [I-169](#i-169) (done; the source turned out to state the whole-file scope). Each of those tasks starts with the decision or rule it is waiting on, so nothing in it is implemented on a guess. A new finding that cannot be implemented yet goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
+Every finding so far has been opened as a task (I-61 – I-172, see the tables above). The four that were waiting here because the DDS Reference does not settle them were converted on request: I-153's open questions became [I-166](#i-166), I-154's became [I-167](#i-167), I-121g's became [I-168](#i-168) and I-160's became [I-169](#i-169) (done; the source turned out to state the whole-file scope). Each of those tasks starts with the decision or rule it is waiting on, so nothing in it is implemented on a guess. A new finding that cannot be implemented yet goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
 
 | Raised by | Finding |
 |-----------|---------|
@@ -6442,7 +6443,7 @@ Done when: the checklist in [I-121](#i-121-slices) is met for every keyword abov
 
 New accessors `choiceMenuBarKeywords()`, `choiceMenuBarIndicatorMode(name)`, `choiceMenuBarRequiresOneOf(name)` and `choiceMenuBarFacts(name)` (a deep copy without the prose; `null` outside the eight).
 
-**Not enforced (spec facts only; opened as [I-171](#i-171)).**
+**Not enforced (spec facts only; enforced afterwards by [I-171](#i-171)):** the companion-keyword rules (`CHCACCEL`, the three colour-state keywords, `CHCCTL`, the `MNUBARCHC` pull-down record).
 
 New `src/test/i121lChoiceMenuBarKeywordSpec.test.js` (99 checks): every cited sentence against the keyword's own section, the levels against `KEYWORD-LOOKUP.json`, the no-option-indicators table both ways, `CHOICE_COLOR_STATE_KEYWORDS` phrases, `PSHBTNFLD`'s and `MNUBAR`'s whitelists, the record-reference table and the accessors. Confirmed failing against the pre-change source via stash. Full suite: 273 files, 16,047 checks, zero failures. `check_spec_coverage.py` now reports every keyword in the lookup as specified.
 
@@ -7622,7 +7623,7 @@ Raised by the I-121o slice. The DDS Reference states, and `keywordSpec.js` holds
 
 ### I-171 — Choice and menu-bar rules are not enforced
 
-> **Area:** Field · **Status:** Claimed (in progress) · **Depends on:** I-121l
+> **Area:** Field · **Status:** Done (v0.10.331) · **Depends on:** I-121l
 
 Raised by the I-121l slice. The DDS Reference states, and `keywordSpec.js` now holds as facts (`choiceMenuBarFacts`), rules the writer has no spec-driven guard for. Found by reading the writer's existing choice and menu-bar functions; no raw-editor or panel probe has been run yet, so each item needs confirming before a guard is written.
 
@@ -7634,4 +7635,34 @@ Raised by the I-121l slice. The DDS Reference states, and `keywordSpec.js` now h
 
 To do: probe each case in the raw keyword editor and the choice and menu-bar panels, then add spec-driven, diff-based guards in the I-140 / I-151 shape (refuse only what an edit adds), and decide for each whether the reference's "must" is a refusal or an advisory note.
 
+
+**Done (v0.10.331).** One new model guard, `choiceMenuBarNewConflictReason`, in `dspfWriter.js`, wired into the central commit chain beside the I-165 guard. It reads every rule from the I-121l spec facts through three new accessors (`choiceCompanionRules(name)`, `chcctlRules()`, `mnubarchcPullDownRecordKeyword()`), so nothing is hand-copied:
+
+| Keyword | Refused when an edit adds or leaves it without |
+|---------|-----------------------------------------------|
+| `CHCAVAIL` | `PSHBTNCHC`, `CHOICE` or `MNUBARCHC` on the field; at record level `SFLSNGCHC` or `SFLMLTCHC` |
+| `CHCUNAVAIL` | `CHOICE` or `PSHBTNCHC` on the field; at record level `SFLSNGCHC` or `SFLMLTCHC` |
+| `CHCSLT` | `MNUBARCHC` or `CHOICE` on the field; with `CHOICE` (no `MNUBARCHC`) `PULLDOWN(*NOSLTIND)` on the record; at record level `SFLSNGCHC` or `SFLMLTCHC`; never on a push-button field |
+| `CHCACCEL` | `SNGCHCFLD` on the field and `PULLDOWN` on the record |
+| `CHCCTL` | a `CHOICE` or `PSHBTNCHC` with the same choice number on the field; a control field that exists in the record must be a hidden 1-byte numeric (Y, 0 decimals) field |
+| `MNUBARCHC` | `PULLDOWN` on the record it names, when that record exists |
+
+Violations are keyed record, keyword, rule and field, so only what an edit adds is reported (adding the keyword, changing the control field, or removing what it depends on); an already-invalid hand-written file never blocks an unrelated edit. A control field or pull-down record that does not exist yet is a forward reference and is not refused, since a display file is built in any order. Choice numbers match numerically (`01` and `1`) and the `&` on the control field name is optional.
+
+New `src/test/i171ChoiceMenuBarRules.test.js` (53 checks): the spec accessors, the model guard for every rule in both directions plus the diff semantics, and the committed-edit hook in jsdom through the raw keyword editor. Confirmed failing against the pre-change writer via stash. Full suite: 278 files, 16,444 checks, zero failures.
+
+**Not done here (opened as [I-172](#i-172)):** the 12-line limit of a menu-bar field, because the reference does not say how the lines are counted, and the panel rows that still offer a keyword the guard then refuses.
+
+---
+
+<a id="i-172"></a>
+
+### I-172 — Choice and menu-bar follow-ups
+
+> **Area:** Field / Record · **Status:** Not started · **Depends on:** I-171
+
+Raised by the I-171 slice.
+
+- `MNUBARCHC`: "The maximum number of lines that a menu-bar field can occupy is 12 lines (this includes the separator line)." The reference does not say whether the lines come from the choice text lengths alone, from the 76 / 128 character width, or from the display size, so the count needs a documented rule before a guard is written. The spec already records the 12 and the widths (`maxLinesForMenuBarField`, `choiceText.maxLength`).
+- The choice and colour-state panel rows are not narrowed from the spec: the accelerator input is still offered on a `MLTCHCFLD` field and the `CHCAVAIL` / `CHCUNAVAIL` / `CHCSLT` rows on a field with none of their companion keywords, and the new guard then refuses the edit with the DDS wording. Narrow the rows from `choiceCompanionRules` the way I-165 narrowed the multi-level rows, using the guard's own reason function so the two cannot disagree.
 ---

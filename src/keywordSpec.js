@@ -6239,6 +6239,38 @@
     delete copy.ddsReference;
     return copy;
   }
+  /** Task I-171 - the companion-keyword facts the I-121l slice recorded for the three colour-state
+   *  keywords, CHCACCEL and CHCSLT, as one shape (a copy; null for any other keyword):
+   *  { oneOfOnField:[..], allOfOnField:[..], onRecord:[..], subfileControlRecordOneOf:[..],
+   *    choiceWithoutMnubarchcRecordNeeds:string|null }.
+   *  `oneOfOnField` - the field must carry at least one of these (CHCAVAIL / CHCUNAVAIL / CHCSLT);
+   *  `allOfOnField` / `onRecord` - CHCACCEL's SNGCHCFLD and PULLDOWN;
+   *  `subfileControlRecordOneOf` - at record level (a subfile control record) one of these is needed. */
+  function choiceCompanionRules(name) {
+    var e = i121lEntry(name);
+    if (!e) return null;
+    var sub = e.allowedOnSubfileControlRecordWithOneOf || e.onSubfileControlRecordRequiresOneOf || [];
+    var wired = !!(e.requiresOneOfOnField || e.requiresOnField || e.requiresOnRecord);
+    if (!wired) return null;
+    return {
+      oneOfOnField: (e.requiresOneOfOnField || []).slice(),
+      allOfOnField: (e.requiresOnField || []).slice(),
+      onRecord: (e.requiresOnRecord || []).slice(),
+      subfileControlRecordOneOf: sub.slice(),
+      choiceWithoutMnubarchcRecordNeeds: e.whenChoiceInsteadOfMnubarchcRecordNeeds || null
+    };
+  }
+  /** Task I-171 - CHCCTL's control-field shape and the choice keywords that must carry the same number
+   *  (a copy): { controlField:{dataType,length,decimalPositions,usage}, sameNumberOneOf:[..] }. */
+  function chcctlRules() {
+    var e = RECORD_TYPES.CHCCTL;
+    return {
+      controlField: { dataType: e.controlField.dataType, length: e.controlField.length, decimalPositions: e.controlField.decimalPositions, usage: e.controlField.usage },
+      sameNumberOneOf: e.requiresOneOfOnFieldWithSameChoiceNumber.slice()
+    };
+  }
+  /** Task I-171 - the keyword the record named by an MNUBARCHC must carry. */
+  function mnubarchcPullDownRecordKeyword() { return RECORD_TYPES.MNUBARCHC.pullDownRecord.mustHaveKeyword; }
   // ---- end I-121l ----
   // ---- I-121f: accessors ----
   // DSPSIZ's size table is DSPSIZ_DOMAIN (defined above); copy it into the entry
@@ -6378,6 +6410,9 @@
     isAltKeyName: isAltKeyName,
     altKeyDefaultKey: altKeyDefaultKey,
     isValidValue: isValidValue,
+    choiceCompanionRules: choiceCompanionRules,
+    chcctlRules: chcctlRules,
+    mnubarchcPullDownRecordKeyword: mnubarchcPullDownRecordKeyword,
     choiceMenuBarKeywords: choiceMenuBarKeywords,
     choiceMenuBarIndicatorMode: choiceMenuBarIndicatorMode,
     choiceMenuBarRequiresOneOf: choiceMenuBarRequiresOneOf,

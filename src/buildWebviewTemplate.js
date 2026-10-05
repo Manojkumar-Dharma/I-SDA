@@ -6339,6 +6339,7 @@ const htmlTemplate = `<!DOCTYPE html>
       DspfWriter.outputControlNewConflictReason(model, candidate) ||
       DspfWriter.multiLevelEligibilityNewConflictReason(model, candidate) ||
       DspfWriter.referenceFieldNewConflictReason(model, candidate) ||
+      DspfWriter.choiceMenuBarNewConflictReason(model, candidate) ||
       DspfWriter.windowHelpMenuNewConflictReason(model, candidate) ||
       DspfWriter.initRetainReturnNewConflictReason(model, candidate) ||
       DspfWriter.fileLevelDisplayNewConflictReason(model, candidate) ||

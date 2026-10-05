@@ -5637,6 +5637,101 @@
     });
     return out;
   }
+  /** Task I-171 - the choice and menu-bar companion-keyword rules the I-121l slice recorded as
+   *  spec facts (KeywordSpec.choiceCompanionRules / chcctlRules / mnubarchcPullDownRecordKeyword -
+   *  nothing hand-copied here). Each is a "must also be specified" the DDS Reference states:
+   *   CHCAVAIL / CHCUNAVAIL / CHCSLT  the field carries one of their choice keywords; at record
+   *                                   level (a subfile control record) SFLSNGCHC or SFLMLTCHC
+   *   CHCSLT                          with CHOICE instead of MNUBARCHC the record needs PULLDOWN(*NOSLTIND)
+   *   CHCACCEL                        SNGCHCFLD on the field and PULLDOWN on the record
+   *   CHCCTL                          a CHOICE or PSHBTNCHC with the same choice number on the
+   *                                   field; the control field, when it exists in the record, is Y 1,0 H
+   *   MNUBARCHC                       the pull-down record it names, when it exists, has PULLDOWN
+   *  A control field or pull-down record that does not exist yet is NOT a violation: a display file
+   *  is built in any order, so a forward reference is left to the compiler. Violations are keyed
+   *  record | keyword | rule | field, so firstNewViolation reports only what an edit adds, in either
+   *  direction (adding the keyword, or removing what it depends on), and an already-invalid
+   *  hand-written file never blocks an unrelated edit. */
+  function choiceMenuBarViolations(model) {
+    var out = {};
+    var records = (model && model.records) || [];
+    var STATE = ['CHCAVAIL', 'CHCUNAVAIL', 'CHCSLT'];
+    function anyOf(list, names) { return (names || []).filter(function (n) { return hasKeywordNamed(list, n); }); }
+    function sameNumber(a, b) { return String(parseInt(a, 10)) === String(parseInt(b, 10)); }
+    records.forEach(function (r) {
+      var rname = String(r.name || '').toUpperCase();
+      var pulldown = (r.keywords || []).filter(function (k) { return k.name === 'PULLDOWN'; })[0];
+      STATE.forEach(function (kw) {
+        if (!hasKeywordNamed(r.keywords, kw)) return;
+        var rule = KeywordSpec.choiceCompanionRules(kw);
+        if (!anyOf(r.keywords, rule.subfileControlRecordOneOf).length) {
+          out[rname + '|' + kw + '|SFLCHC|'] = kw + ' on record format ' + r.name + ' needs ' + rule.subfileControlRecordOneOf.join(' or ') +
+            ' on the same subfile control record (per the DDS Reference).';
+        }
+      });
+      (r.fields || []).forEach(function (f) {
+        var fname = String(f.name || '').toUpperCase();
+        var label = fname || ('in ' + rname);
+        var kws = f.keywords;
+        STATE.forEach(function (kw) {
+          if (!hasKeywordNamed(kws, kw)) return;
+          var rule = KeywordSpec.choiceCompanionRules(kw);
+          var have = anyOf(kws, rule.oneOfOnField);
+          if (!have.length) {
+            out[rname + '|' + kw + '|COMPANION|' + fname] = kw + ' on field ' + label + ' needs ' + rule.oneOfOnField.join(', ').replace(/, ([^,]*)$/, ' or $1') +
+              ' on the same field (per the DDS Reference).';
+          } else if (rule.choiceWithoutMnubarchcRecordNeeds && have.indexOf('MNUBARCHC') < 0) {
+            if (!pulldown || String(pulldown.parameters || '').toUpperCase().indexOf('*NOSLTIND') < 0) {
+              out[rname + '|' + kw + '|NOSLTIND|' + fname] = kw + ' on field ' + label + ' with CHOICE (and no MNUBARCHC) needs ' +
+                rule.choiceWithoutMnubarchcRecordNeeds + ' on record format ' + r.name + ' (per the DDS Reference).';
+            }
+          }
+        });
+        if (hasKeywordNamed(kws, 'CHCACCEL')) {
+          var ar = KeywordSpec.choiceCompanionRules('CHCACCEL');
+          ar.allOfOnField.forEach(function (need) {
+            if (!hasKeywordNamed(kws, need)) out[rname + '|CHCACCEL|FIELD|' + fname] = 'CHCACCEL on field ' + label + ' needs ' + need + ' on the same field: it is allowed only on single-choice selection fields (per the DDS Reference).';
+          });
+          ar.onRecord.forEach(function (need) {
+            if (!hasKeywordNamed(r.keywords, need)) out[rname + '|CHCACCEL|RECORD|' + fname] = 'CHCACCEL on field ' + label + ' needs ' + need + ' on record format ' + r.name + ': it is allowed only in pull-down records (per the DDS Reference).';
+          });
+        }
+        var cr = KeywordSpec.chcctlRules();
+        getChoiceControls(kws).forEach(function (c) {
+          var tag = fname + '#' + parseInt(c.id, 10);
+          var hasChoice = (kws || []).some(function (k) {
+            return cr.sameNumberOneOf.indexOf(k.name) >= 0 && sameNumber(splitLeadingChoiceId(k.parameters).id, c.id);
+          });
+          if (!hasChoice) {
+            out[rname + '|CHCCTL|CHOICE|' + tag] = 'CHCCTL(' + c.id + ') on field ' + label + ' needs a ' + cr.sameNumberOneOf.join(' or ') + ' keyword with the same choice number on the same field (per the DDS Reference).';
+          }
+          var ctlName = String(c.controlField || '').replace(/^&/, '').toUpperCase();
+          var ctl = ctlName && (r.fields || []).filter(function (g) { return String(g.name || '').toUpperCase() === ctlName; })[0];
+          var cf = cr.controlField;
+          if (ctl && !(String(ctl.dataType || '').toUpperCase() === cf.dataType && Number(ctl.length) === cf.length && ctl.decimalPositions === cf.decimalPositions && String(ctl.usage || '').toUpperCase() === cf.usage)) {
+            out[rname + '|CHCCTL|CTLFIELD|' + tag] = 'CHCCTL(' + c.id + ') on field ' + label + ': control field ' + ctlName + ' must be a hidden 1-byte numeric field (data type ' + cf.dataType + ', length ' + cf.length +
+              ', ' + cf.decimalPositions + ' decimal positions, usage ' + cf.usage + ') (per the DDS Reference).';
+          }
+        });
+        (kws || []).filter(function (k) { return k.name === 'MNUBARCHC'; }).forEach(function (k) {
+          var rest = splitLeadingChoiceId(k.parameters).rest;
+          var target = String((rest.split(/\s+/)[0]) || '').toUpperCase();
+          var need = KeywordSpec.mnubarchcPullDownRecordKeyword();
+          var rec = target && records.filter(function (x) { return String(x.name || '').toUpperCase() === target; })[0];
+          if (rec && !hasKeywordNamed(rec.keywords, need)) {
+            out[rname + '|MNUBARCHC|PULLDOWN|' + fname + '#' + target] = 'MNUBARCHC on field ' + label + ' names record format ' + rec.name + ', which has no ' + need + ' keyword: the record must contain ' + need + ' (per the DDS Reference).';
+          }
+        });
+      });
+    });
+    return out;
+  }
+  function choiceMenuBarNewConflictReason(oldModel, newModel) {
+    var after = choiceMenuBarViolations(newModel);
+    if (!Object.keys(after).length) return null;
+    return firstNewViolation(choiceMenuBarViolations(oldModel), after);
+  }
+
   function multiLevelEligibilityNewConflictReason(oldModel, newModel) {
     var after = multiLevelEligibilityViolations(newModel);
     if (!Object.keys(after).length) return null;
@@ -11368,6 +11463,7 @@
     outputControlNewConflictReason: outputControlNewConflictReason,
     multiLevelEligibilityNewConflictReason: multiLevelEligibilityNewConflictReason,
     referenceFieldNewConflictReason: referenceFieldNewConflictReason,
+    choiceMenuBarNewConflictReason: choiceMenuBarNewConflictReason,
     multiLevelFieldReason: multiLevelFieldReason,
     putretainDspmodAdvisory: putretainDspmodAdvisory,
     usrdspmgtSystem36ExtrasNote: usrdspmgtSystem36ExtrasNote,
