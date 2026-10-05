@@ -5695,7 +5695,8 @@
   function choiceMenuBarViolations(model) {
     var out = {};
     var records = (model && model.records) || [];
-    var STATE = ['CHCAVAIL', 'CHCUNAVAIL', 'CHCSLT'];
+    // I-121q: the three colour-state keyword names come from the spec.
+    var STATE = CHOICE_COLOR_STATE_KEYWORDS;
     function anyOf(list, names) { return (names || []).filter(function (n) { return hasKeywordNamed(list, n); }); }
     function sameNumber(a, b) { return String(parseInt(a, 10)) === String(parseInt(b, 10)); }
     records.forEach(function (r) {
@@ -9966,8 +9967,12 @@
   /** The name of the subfile record a control record's SFLCTL(name) points
    *  at, or '' when it has none. */
   function sflctlTargetName(keywords) {
+    // I-121q: where the record name sits in SFLCTL's parameter text is the
+    // spec's RECORD_REFERENCES fact (KeywordSpec.recordReferenceName).
     var k = (keywords || []).find(function (kw) { return kw.name === 'SFLCTL'; });
-    return k ? String(k.parameters || '').trim().replace(/^\(|\)$/g, '') : '';
+    if (!k) return '';
+    var ref = KeywordSpec.recordReferenceName('SFLCTL', k.parameters);
+    return ref ? String(ref).trim().replace(/^\(|\)$/g, '') : '';
   }
 
   /** Task I-86 - the SFLCTL panel's own SFLNXTCHG row operates on the

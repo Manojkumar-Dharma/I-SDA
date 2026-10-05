@@ -180,7 +180,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-121n](#i-121n) | Field | Input, format and display field keywords (8) | I-121 | Done v0.10.291 (8 of 8 specified) | v0.10.291 |
 | [I-121o](#i-121o) | Field | Reference and database-inherit field keywords (5) | I-121 | Done v0.10.325 (5 of 5 specified) | v0.10.325 |
 | [I-121p](#i-121p) | Cross-level | S36E restriction table into the spec | I-121 | Done | v0.10.285 |
-| [I-121q](#i-121q) | Cross-level | Audit the remaining `*ConflictReason` functions | I-121a – I-121o (alongside) | Claimed (in progress) | — |
+| [I-121q](#i-121q) | Cross-level | Audit the remaining `*ConflictReason` functions | I-121a – I-121o (alongside) | Done v0.10.333 | — |
 | [I-121r](#i-121r) | Tooling | Webview constant tables | I-121 | Done v0.10.287 (four value-domain lists from the spec; the rest guarded or classified as screen text) | v0.10.287 |
 | [I-121s](#i-121s) | Tooling | Engine and writer constant tables | I-121 | Done v0.10.286 (writer tables in the spec; engine/message tables classified as presentation) | v0.10.286 |
 | [I-121t](#i-121t) | Tooling | Generate the keyword index from the spec (do last) | I-121a – I-121s | Not started | — |
@@ -6533,9 +6533,142 @@ Original scope: Scope: `S36E_KEYWORD_RESTRICTIONS` in `dspfWriter.js` (CHANGE, H
 
 ### I-121q — Audit the remaining `*ConflictReason` functions
 
-> **Area:** Cross-level · **Status:** Claimed (in progress) · **Depends on:** I-121a – I-121o (alongside) · **Size (estimate):** Large
+> **Area:** Cross-level · **Status:** Done v0.10.333 · **Depends on:** I-121a – I-121o (alongside) · **Size (estimate):** Large
 
 The writer has 86 `*ConflictReason`-style functions. A first pass (v0.10.284) found 36 with no direct `KeywordSpec.` call in their body - some delegate through a helper (for example `usrdfnConflictReason` goes through `usrdfnWhitelistCheck`), so this is a starting list, not a verdict: edtmskNewConflictReason, chkmsgidBasicEditConflictReason, chkmsgidMsgDataNewConflictReason, messageIdMsgDataNewConflictReason, chridBasicEditConflictReason, wrdwrapReverseConflictReason, igcalttypBasicEditConflictReason, igcalttypNewConflictReason, noOptionIndicatorsNewConflictReason, msgidSflNewConflictReason, msgidExclusionNewConflictReason, valnumNewConflictReason, valnumBasicEditConflictReason, editKeywordDataTypeNewConflictReason, editKeywordDataTypeBasicEditConflictReason, dupFloatNewConflictReason, blkfoldFloatNewConflictReason, rangeFloatNewConflictReason, compFloatNewConflictReason, valuesFloatNewConflictReason, usrdfnConflictReason, usrdfnWhitelistConflictReason, pshbtnfldNewConflictReason, pshbtnfldBasicEditConflictReason, passrcdRecordConflictReason, altKeyFileExclusionNewConflictReason, sflcsrrrnNewConflictReason, sflctlDependencyNewConflictReason, optionIndicatorRequiredNewConflictReason, sfllinRecordEditConflictReason, sflcsrprgFieldEditConflictReason, sflscrollSizeRecordEditConflictReason, scrbarReservedNewConflictReason, sflscrollBasicEditConflictReason, sflchcctlBasicEditConflictReason, referencedFieldResolveConflictReason. Deliverable: a table of all 86 marked *spec-backed* / *procedural by design* / *needs a spec fact* (and the fact moved), plus the file-vs-record scoping in `mnuBarKeyConflictReason`. Do the keyword-owning slices a-o first or in parallel; this slice only closes what they leave.
+
+**Result (v0.10.333).** The writer now has 106 `*ConflictReason` functions (the task counted 86; the slices since added more). The first-pass list of 36 was mostly stale: every one of them reaches the spec through a helper or a spec-derived constant (`SFLLIN_RULE`, `EDIT_KEYWORDS`, ...). Method: for each function, follow its calls through `dspfWriter.js` and ask whether any function on the path calls `KeywordSpec.` or reads a module constant built from it.
+
+Totals: 104 spec-backed (58 call the spec directly, 46 through a helper or constant), 2 procedural by design, 0 left needing a new spec fact beyond the two small ones below.
+
+Moved to the spec (pure refactor, no behaviour change):
+
+- `choiceMenuBarViolations` kept its own `['CHCAVAIL', 'CHCUNAVAIL', 'CHCSLT']`; it now uses `CHOICE_COLOR_STATE_KEYWORDS` (`KeywordSpec.choiceColorStateKeywords()`).
+- `sflctlTargetName` parsed SFLCTL's record name by hand, which the spec already owns as `RECORD_REFERENCES.SFLCTL`; it now calls `KeywordSpec.recordReferenceName`. This is the resolver behind `sfllinRecordEditConflictReason` and `sflcsrprgFieldEditConflictReason`.
+
+Procedural by design:
+
+- `passrcdRecordConflictReason` - compares two record names; the keywords it guards are chosen by the callers.
+- `scrbarReservedNewConflictReason` - model-diff over engine scrollbar geometry; the `*SCRBAR` values themselves are the spec's `SFLEND` `firstParameters`.
+
+File-vs-record scoping in `mnuBarKeyConflictReason`: the CA-key partner and default (`caKeyPartner`, `defaultCakey`) are spec facts. The scoping is deliberately code: a file-level partner with the same CA key refuses (it extends to every record); a record-level partner refuses only inside the `recordScopes` the caller passes (the record being edited). It is a relation between two keywords at two levels, not a per-keyword fact, so it stays in the writer (the spec says so at its `caKeyPartner` comment).
+
+Several functions iterate a short literal list of keyword names (for example `layoutParametersNewConflictReason` over SNGCHCFLD/MLTCHCFLD/PSHBTNFLD, `commandFunctionPairingViolations` over PAGEDOWN/PAGEUP) while taking every rule from the spec; those are listed as spec-backed.
+
+Audit table (a new `*ConflictReason` function must be added here; `i121qConflictReasonAuditSpec.test.js` fails otherwise):
+
+<!-- i121q-audit-table:start -->
+| Function | Class | Evidence |
+|---|---|---|
+| `altKeyFileExclusionNewConflictReason` | spec-backed | Via `altKeyExclusionClashes`. |
+| `alwrolClrlSlnoConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `blkfoldFloatNewConflictReason` | spec-backed | Via `floatIncompatibleKeywordNewConflictReason`. |
+| `checkAbFloatIncompatibleNewConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `chkmsgidBasicEditConflictReason` | spec-backed | Via `chkmsgidUsageReason`. |
+| `chkmsgidMsgDataNewConflictReason` | spec-backed | Via `messageDataFieldProblem`. |
+| `chkmsgidNewConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `choiceMenuBarNewConflictReason` | spec-backed | Colour-state names now `CHOICE_COLOR_STATE_KEYWORDS` (I-121q); companion/CHCCTL/MNUBARCHC rules from the spec. |
+| `chridBasicEditConflictReason` | spec-backed | Via `chridDecimalsSpecified`. |
+| `chridNewConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `commandFunctionPairingNewConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `commandFunctionParameterNewConflictReason` | spec-backed | Via `commandFunctionParameterViolations`. |
+| `commandKeyNumberNewConflictReason` | spec-backed | Via `commandKeyNumberViolations`. |
+| `compFloatNewConflictReason` | spec-backed | Via `floatIncompatibleKeywordNewConflictReason`. |
+| `dateSeparatorConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `dateTimeUsageConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `dftGroupConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `dftGroupFloatNewConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `dspmodSflConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `dupFloatNewConflictReason` | spec-backed | Via `floatIncompatibleKeywordNewConflictReason`. |
+| `editCodeFillConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `editKeywordDataTypeBasicEditConflictReason` | spec-backed | Via `dataTypeRestrictedEditKeywords`. |
+| `editKeywordDataTypeNewConflictReason` | spec-backed | Via `dataTypeRestrictedEditKeywords`. |
+| `editMaskConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `edtmskConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `edtmskNewConflictReason` | spec-backed | Via `edtmskKeywordHits`. |
+| `fieldKindNewConflictReason` | spec-backed | Via `fieldKindViolations`. |
+| `fileHelpNewConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `fileLevelDisplayNewConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `floatIncompatibleKeywordNewConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `helpKeywordRelationNewConflictReason` | spec-backed | Via `helpKeywordRelationViolations`. |
+| `helpSpecNewConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `hlpdocConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `hlpdocHspecConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `hlprcdConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `htmlConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `igcalttypBasicEditConflictReason` | spec-backed | Via `igcalttypDataTypeReason`. |
+| `igcalttypConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `igcalttypNewConflictReason` | spec-backed | Via `igcalttypKeywordHits`. |
+| `initRetainReturnNewConflictReason` | spec-backed | Via `initRetainReturnViolations`. |
+| `keepMutexConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `layoutParametersNewConflictReason` | spec-backed | Iterates SNGCHCFLD/MLTCHCFLD/PSHBTNFLD (the three layout-parameter keywords); problems come from `layoutParameterProblems`. |
+| `messageIdMsgDataNewConflictReason` | spec-backed | Via `messageDataFieldProblem`. |
+| `mnuBarKeyConflictReason` | spec-backed | `caKeyPartner` / `defaultCakey` come from the spec. File-vs-record scoping stays procedural: a file-level partner with the same CA key refuses (it extends to every record); a record-level partner refuses only within the `recordScopes` the caller passes. Not a per-keyword fact. |
+| `mnubarWhitelistConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `moubtnCommandKeyConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `msgconConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `msgconNewConflictReason` | spec-backed | Via `msgconExcludedHits`. |
+| `msgidExclusionConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `msgidExclusionNewConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `msgidSflNewConflictReason` | spec-backed | Via `msgidRecordIsSubfile`. |
+| `multiLevelEligibilityNewConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `noOptionIndicatorsNewConflictReason` | spec-backed | Via `noDisplaySizeConditionKeyword`. |
+| `optionIndicatorRequiredNewConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `outputControlNewConflictReason` | spec-backed | Via `outputControlViolations`. |
+| `passrcdRecordConflictReason` | procedural by design | Compares two record names; the keyword list it guards (PASSRCD/ALWROL/CLRL/SLNO) is chosen by the callers from the spec. |
+| `passrcdWindowConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `pshbtnfldBasicEditConflictReason` | spec-backed | Via `pshbtnfldDefinitionUpdates`. |
+| `pshbtnfldConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `pshbtnfldNewConflictReason` | spec-backed | Via `pshbtnfldKeywordAllowed`. |
+| `pshbtnfldRemovalConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `pulldownConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `rangeFloatNewConflictReason` | spec-backed | Via `floatIncompatibleKeywordNewConflictReason`. |
+| `referenceFieldNewConflictReason` | spec-backed | Via `referenceFieldViolations`. |
+| `referencedFieldResolveConflictReason` | spec-backed | Via `wrdwrapBasicEditConflictReason`. |
+| `retKeyNewConflictReason` | spec-backed | Via `retKeyViolations`. |
+| `scrbarReservedNewConflictReason` | procedural by design | Model-diff over engine geometry (`resolveScreen` scrollbar collisions); SFLEND(*SCRBAR) values are the spec`s `firstParameters`, the column/line arithmetic is engine code. |
+| `sflChoiceListConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `sflChoiceListNewConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `sflNxtchgSflMsgRcdConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `sflNxtchgSflchcctlConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `sflScrollFieldConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `sflWhitelistConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `sflchcctlBasicEditConflictReason` | spec-backed | Via `sflchcctlDefinitionUpdates`. |
+| `sflchcctlFieldConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `sflchcctlReorderConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `sflcsrprgFieldEditConflictReason` | spec-backed | Reads `SFLLIN_RULE`; `sflctlTargetName` now uses the spec`s SFLCTL record reference (I-121q). |
+| `sflcsrrrnNewConflictReason` | spec-backed | Via `sflcsrrrnParameterProblem`. |
+| `sflctlDependencyNewConflictReason` | spec-backed | Via `sflctlDependencyViolations`. |
+| `sflctlNxtchgSflchcctlConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `sflendNewConflictReason` | spec-backed | Via `sflendParameterProblem`. |
+| `sfllinRecordEditConflictReason` | spec-backed | Reads `SFLLIN_RULE` (`KeywordSpec.crossRecordExclusion`); `sflctlTargetName` now uses the spec`s SFLCTL record reference (I-121q). |
+| `sflmsgkeyFieldNewConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `sflrtnselNewConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `sflscrollBasicEditConflictReason` | spec-backed | Via `sflscrollDefinitionUpdates`. |
+| `sflscrollNewConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `sflscrollSizeRecordEditConflictReason` | spec-backed | Via `sflsizPagEqualPair`. |
+| `sflsizConditionedFieldNameConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `subfileControlOnlyFieldNewConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `subfileFoldDropNewConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `subfileKeywordNewConflictReason` | spec-backed | Via `subfileKeywordViolations`. |
+| `systemValueKeywordNewConflictReason` | spec-backed | Via `systemValueKeywordViolations`. |
+| `timeSeparatorConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `usrdfnConflictReason` | spec-backed | Via `usrdfnWhitelistCheck`. |
+| `usrdfnWhitelistConflictReason` | spec-backed | Via `usrdfnWhitelistCheck`. |
+| `valnumBasicEditConflictReason` | spec-backed | Via `valnumDataTypeReason`. |
+| `valnumNewConflictReason` | spec-backed | Via `valnumDataTypeReason`. |
+| `valuesFloatNewConflictReason` | spec-backed | Via `floatIncompatibleKeywordNewConflictReason`. |
+| `windowConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `windowDependencyNewConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `windowHelpMenuNewConflictReason` | spec-backed | Via `windowHelpMenuViolations`. |
+| `windowMutexConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `wrdwrapBasicEditConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `wrdwrapFieldConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `wrdwrapNewConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `wrdwrapReverseConflictReason` | spec-backed | Via `wrdwrapKeywordHit`. |
+<!-- i121q-audit-table:end -->
+
+Test: `i121qConflictReasonAuditSpec.test.js`. No new findings.
 
 ---
 
