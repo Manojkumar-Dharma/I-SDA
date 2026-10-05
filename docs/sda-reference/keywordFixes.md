@@ -184,7 +184,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-121r](#i-121r) | Tooling | Webview constant tables | I-121 | Done v0.10.287 (four value-domain lists from the spec; the rest guarded or classified as screen text) | v0.10.287 |
 | [I-121s](#i-121s) | Tooling | Engine and writer constant tables | I-121 | Done v0.10.286 (writer tables in the spec; engine/message tables classified as presentation) | v0.10.286 |
 | [I-121t](#i-121t) | Tooling | Generate the keyword index from the spec (do last) | I-121a – I-121s | Done | v0.10.335 |
-| [I-122](#i-122) | Tooling | Generated keyword x dimension test matrix; retire duplicate and stale tests | I-120, I-121 | In progress (batch 2: thinnest-covered keywords - KEYBRD, MSGALARM, CSRINPONLY, MAPVAL, HLPEXCLD, RETLCKSTS) | — |
+| [I-122](#i-122) | Tooling | Generated keyword x dimension test matrix; retire duplicate and stale tests | I-120, I-121 | In progress (batch 1 done v0.10.274; batch 2 done v0.10.336: MSGALARM, CSRINPONLY, RETLCKSTS, MAPVAL, INZINP, HLPEXCLD; next: batch 3) | — |
 | [I-123](#i-123) | Tooling | Move "Task I-nn" history out of source comments | I-121 | Not started | — |
 | [I-124](#i-124) | Tooling | Test-only exports that still carry a "kept for backward compatibility / API completeness" note (decision first) | I-118 | Done | v0.10.202 |
 | [I-125](#i-125) | Field | `COMP`/`RANGE`/`VALUES`/`CHECK(AB)` "not on a floating-point field" restriction is unenforced | I-72, I-96 | Done | v0.10.223 |
@@ -236,6 +236,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-171](#i-171) | Field | Choice and menu-bar rules not enforced: `CHCACCEL` outside a `SNGCHCFLD` field in a `PULLDOWN` record, `CHCSLT` with `CHOICE` in a record without `PULLDOWN(*NOSLTIND)`, the `CHCCTL` control-field type and matching choice, the `MNUBARCHC` pull-down record needing `PULLDOWN`, the 12-line menu-bar limit | I-121l | Done | v0.10.331 |
 | [I-172](#i-172) | Field / Record | Choice and menu-bar follow-ups: the 12-line limit of a menu-bar field (how the reference counts lines is unclear) and panel rows that still offer a keyword the guard then refuses (`CHCACCEL` input on a `MLTCHCFLD` field, the colour-state rows on a field with no choice keyword) | I-171 | Done (panel rows; the 12-line limit became I-173) | v0.10.332 |
 | [I-173](#i-173) | Field | `MNUBARCHC` 12-line limit of a menu-bar field (opened from the I-172 deferred finding; reading decided: width = smallest `DSPSIZ` width minus 2, whole-choice wrap, separator counts as 1 of the 12 unless `*NOSEPARATOR`) | I-172 | Done | v0.10.334 |
+| [I-174](#i-174) | Tooling | `takesNoParameters` / `optionIndicatorsAllowed` answer only for the I-121b keywords, so they say "no" for `MSGALARM`, `CSRINPONLY` and `HLPEXCLD` although their spec entries say the opposite (opened from I-122 batch 2) | I-121 | Not started | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -249,14 +250,15 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-122](#i-122) | In progress (batch 2 of the thin-coverage keywords) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
+| 1 | [I-122](#i-122) | In progress (batches 1-2 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
 | 2 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
+| 3 | [I-174](#i-174) | Not started | Accessor gap found by I-122 batch 2; no wrong behaviour today. Size (estimate): Small. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The I-121 umbrella row there stays open until its slices land, so it is counted in the headline but not listed here.
 
 ## Deferred findings (not yet tasks)
 
-Every finding so far has been opened as a task (I-61 – I-173, see the tables above); the table below is empty. The four that were waiting here because the DDS Reference does not settle them were converted on request: I-153's open questions became [I-166](#i-166), I-154's became [I-167](#i-167), I-121g's became [I-168](#i-168) and I-160's became [I-169](#i-169) (done; the source turned out to state the whole-file scope). Each of those tasks starts with the decision or rule it is waiting on, so nothing in it is implemented on a guess. A new finding that cannot be implemented yet goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
+Every finding so far has been opened as a task (I-61 – I-174, see the tables above); the table below is empty. The four that were waiting here because the DDS Reference does not settle them were converted on request: I-153's open questions became [I-166](#i-166), I-154's became [I-167](#i-167), I-121g's became [I-168](#i-168) and I-160's became [I-169](#i-169) (done; the source turned out to state the whole-file scope). Each of those tasks starts with the decision or rule it is waiting on, so nothing in it is implemented on a guess. A new finding that cannot be implemented yet goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
 
 | Raised by | Finding |
 |-----------|---------|
@@ -6762,7 +6764,7 @@ With this slice the I-121 umbrella is complete: every keyword in the lookup has 
 
 ### I-122 — Generated keyword x dimension test matrix; retire duplicate and stale tests
 
-> **Area:** Tooling · **Status:** In progress (batch 2: KEYBRD, MSGALARM, CSRINPONLY, MAPVAL, HLPEXCLD, RETLCKSTS) · **Depends on:** I-120, I-121
+> **Area:** Tooling · **Status:** In progress (batches 1-2 done) · **Depends on:** I-120, I-121
 
 Generate tests from the I-121 spec: L1 pure rule checks, L2 parse/write round-trip of parameters and sub-parameters, L3 UI display and selection (one jsdom per record type iterating rows), L4 behaviour through each commit path (checkbox, raw keyword editor, Basic tab). Cover the keywords with no tests today (`RMVWDW`, `SFLCSRRRN`, `SFLDLT`, `USRRSTDSP`, ...). Migration rule: map each existing `check()` to a keyword x dimension cell; delete it only when a generated cell covers it **and** a stash-based mutation run shows the generated cell fails when the rule is broken; keep unique regressions. Report the before/after check count and suite time.
 
@@ -6770,7 +6772,9 @@ Generate tests from the I-121 spec: L1 pure rule checks, L2 parse/write round-tr
 
 **Batch 1 (v0.10.274) - the keywords with no tests.** An inventory of the 157 keywords in IBM's reference against every mention in `src/test/` found four with none (`RMVWDW`, `USRRSTDSP`, `SFLDLT`, `LOWER`) and two with a single passing mention (`SFLINZ`, `SFLCSRRRN`); the rest have at least four. `src/test/i122NoTestKeywordsBatch1.test.js` covers those six by matrix cell - parse, flag get/set round trip (idempotence, neighbours untouched, conditions carried), which record types get the rows, saved-keyword display including Conditioning counts, checkbox commits, Conditioning commits, raw-editor adds and the "edits elsewhere leave it alone" case (LOWER: moving its field, editing another field, adding another keyword) - each traced to the keyword's own DDS Reference text. Test-source lesson: the file builds DDS lines with a fixed-column helper because a hand-typed field line one column off parses as a length-0 field and the writer then mangles it; the first draft of this test passed several checks against such a source. Mutation-checked (a writer that ignores SFLINZ fails 4 checks across both layers; a renamed `USRRSTDSP` row id fails the panel check). Tests only. Gaps it found are not asserted as correct and are logged as I-140, I-141 and I-142.
 
-Not yet done for I-122: the generated per-keyword matrix itself (batch 2 onward, from the I-121 spec) and the retirement of overlapping tests; the cells for the other 151 keywords are covered unevenly by the existing hand-written files. Next batch candidate: the keywords with 4-8 test mentions, same inventory method.
+**Batch 2 (v0.10.336) - the thinnest-covered keywords.** The inventory counts, for each of the 175 `RECORD_TYPES` names, the `src/test/` files that mention it. The fewest: `KEYBRD` (3 files), `MSGALARM`, `CSRINPONLY`, `MAPVAL` (4 each), then `HLPEXCLD`, `RETLCKSTS` and `INZINP` (5-6, in a count that includes unrelated mentions). `KEYBRD` is not a DDS keyword (the spec records it as position 35, "Data type and keyboard shift"), so it was dropped from the claim and `INZINP` taken instead. `src/test/i122Batch2ThinCoverageKeywords.test.js` (59 checks) covers: the spec facts against each keyword's DDS Reference section; parse and flag round trip (idempotence, neighbours and conditions kept) at file and record level; `INZINP` needing `PUTOVR`, `OVERLAY` and `ERASEINP(*ALL)` (in both directions, and an already-invalid record not re-reported); `HLPEXCLD` only with `HLPPNLGRP` and not with `HLPBDY`; and in jsdom the file panel (MSGALARM and CSRINPONLY rows, no RETLCKSTS row), the record rows with saved state and Conditioning counts, checkbox commits, Conditioning, the raw editor, and the `MAPVAL` row on a date field (saved text shown, no Conditioning toggle because option indicators are not valid for it, parameter rewrite keeps `DATFMT` / `DATSEP`). Mutation-checked: removing `OVERLAY` from `INZINP`'s requirement list fails 3 checks, widening `MAPVAL` to alpha fails 1, and a mis-keyed `CSRINPONLY` row wiring fails the panel check (the webview tests run against the compiled `dist/`, so that mutation needs `npm run compile` to take effect). Tests only. The one gap it found is logged as I-174 and is not asserted as correct. Check count +59.
+
+Not yet done for I-122: the generated per-keyword matrix itself (batch 2 onward, from the I-121 spec) and the retirement of overlapping tests; the cells for the other 151 keywords are covered unevenly by the existing hand-written files. Next batch candidate: the next-thinnest keywords by the same file-count inventory (`HLPFULL`, `ERRSFL`-class file flags, `MNUBARSEP`).
 
 ---
 
@@ -7841,4 +7845,19 @@ Opened from I-172's deferred finding. The `MNUBARCHC` section says the number of
 New `src/test/i173MenuBarLineLimit.test.js` (35 checks): the spec accessor, the counter (boundaries 76 / 77, trailing blanks, 132 columns, smallest size wins, `*NOSEPARATOR`, `&field` lengths, ascending order) , the diff semantics, and the raw keyword editor in jsdom. Three mutations (`>=` for `>`, separator not counted, width minus 2) each fail it. Fixture note: keyword text stops at column 80, so a one-line `MNUBARCHC` holds at most an 18-character literal with a one-character pull-down name; longer choices in the test come from `&field` text fields, defined *before* the menu-bar field (keyword lines attach to the field above them).
 
 Not done: a literal split over continuation lines is counted from the parser's joined text, which was not probed with a real continuation.
+
+---
+
+<a id="i-174"></a>
+
+### I-174 — `takesNoParameters` / `optionIndicatorsAllowed` cover only the I-121b keywords
+
+> **Area:** Tooling · **Status:** Not started · **Depends on:** I-121
+
+Opened from I-122 batch 2. `KeywordSpec.takesNoParameters(name)` and `optionIndicatorsAllowed(name)` (reached as `DspfWriter.takesNoParameters` / `optionIndicatorsAllowed`) read only the I-121b table (`i121bEntry`). For any other keyword they answer `false`: `takesNoParameters('MSGALARM')`, `('CSRINPONLY')` and `('HLPEXCLD')` are false although their entries say `parameters: 'none'` / `noParameters: true`, and `optionIndicatorsAllowed` is false for the same three although each says `optionIndicators: 'valid'` (`RETLCKSTS` and `INZINP`, which are in the I-121b table, answer correctly). Nothing is wrong on screen today because the panel code passes literal `false` / `true` for those rows. The hazard is a later change that routes them through the accessor, as `RETKEY` and `RETLCKSTS` are, and silently loses a Conditioning toggle or grows a parameter box. The doc comment on `takesNoParameters` lists which keywords it covers, which is how the gap was seen.
+
+Decide, then do one of: (a) read the answer from the keyword's own `RECORD_TYPES` entry whatever slice owns it (`noParameters === true || parameters === 'none'`, `optionIndicators === 'valid'`), and check every current caller still gets the same answer; or (b) rename the accessors to say they are I-121b-only. (a) is the likely fix. The test is a table over every `RECORD_TYPES` entry that states these facts, so a later slice cannot add an entry the accessor ignores.
+
+*Raised by I-122 batch 2. Size (estimate): Small.*
+
 ---
