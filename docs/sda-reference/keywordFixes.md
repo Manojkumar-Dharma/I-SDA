@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-192 of 194 tasks done; 2 open (see [Open work](#open-work)). Current version: **v0.10.337**.
+192 of 195 tasks done; 3 open (see [Open work](#open-work)). Current version: **v0.10.337**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -237,6 +237,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-172](#i-172) | Field / Record | Choice and menu-bar follow-ups: the 12-line limit of a menu-bar field (how the reference counts lines is unclear) and panel rows that still offer a keyword the guard then refuses (`CHCACCEL` input on a `MLTCHCFLD` field, the colour-state rows on a field with no choice keyword) | I-171 | Done (panel rows; the 12-line limit became I-173) | v0.10.332 |
 | [I-173](#i-173) | Field | `MNUBARCHC` 12-line limit of a menu-bar field (opened from the I-172 deferred finding; reading decided: width = smallest `DSPSIZ` width minus 2, whole-choice wrap, separator counts as 1 of the 12 unless `*NOSEPARATOR`) | I-172 | Done | v0.10.334 |
 | [I-174](#i-174) | Tooling | `takesNoParameters` / `optionIndicatorsAllowed` answer only for the I-121b keywords, so they say "no" for `MSGALARM`, `CSRINPONLY` and `HLPEXCLD` although their spec entries say the opposite (opened from I-122 batch 2) | I-121 | Done | v0.10.337 |
+| [I-175](#i-175) | Field | `MNUBARSEP` and `MNUBARCHC` need `MNUBAR` on their record, and `MNUBARSEP` cannot be used where `MNUBAR` says `*NOSEPARATOR`; the spec records the rules and nothing enforces them (found logging I-122 batch 3; not asserted as correct) | I-171 | In progress | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -252,12 +253,13 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 |-------|------|--------|-------|
 | 1 | [I-122](#i-122) | In progress (batches 1-2 done, batch 3 claimed) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
 | 2 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
+| 3 | [I-175](#i-175) | In progress | `MNUBAR` required by `MNUBARSEP` / `MNUBARCHC`, and `MNUBARSEP` against `*NOSEPARATOR`. Size (estimate): Small. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The I-121 umbrella row there stays open until its slices land, so it is counted in the headline but not listed here.
 
 ## Deferred findings (not yet tasks)
 
-Every finding so far has been opened as a task (I-61 – I-174, see the tables above); the table below is empty. The four that were waiting here because the DDS Reference does not settle them were converted on request: I-153's open questions became [I-166](#i-166), I-154's became [I-167](#i-167), I-121g's became [I-168](#i-168) and I-160's became [I-169](#i-169) (done; the source turned out to state the whole-file scope). Each of those tasks starts with the decision or rule it is waiting on, so nothing in it is implemented on a guess. A new finding that cannot be implemented yet goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
+Every finding so far has been opened as a task (I-61 – I-175, see the tables above); the table below is empty. The four that were waiting here because the DDS Reference does not settle them were converted on request: I-153's open questions became [I-166](#i-166), I-154's became [I-167](#i-167), I-121g's became [I-168](#i-168) and I-160's became [I-169](#i-169) (done; the source turned out to state the whole-file scope). Each of those tasks starts with the decision or rule it is waiting on, so nothing in it is implemented on a guess. A new finding that cannot be implemented yet goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
 
 | Raised by | Finding |
 |-----------|---------|
@@ -7863,4 +7865,19 @@ Decide, then do one of: (a) read the answer from the keyword's own `RECORD_TYPES
 **Done (v0.10.337), option (a).** `KeywordSpec.takesNoParameters` and `optionIndicatorsAllowed` now read the keyword's own `RECORD_TYPES` entry through a new internal `recordTypeEntry(name)` (an own-property lookup, so `constructor` / `toString` cannot leak through): no parameters means `noParameters === true || parameters === 'none'`, indicators allowed means `optionIndicators === 'valid'` (`'notValid'`, `'required'` and unstated are not). 28 keywords change their answer on each accessor - among them `MSGALARM`, `CSRINPONLY`, `HLPEXCLD`, `SFLDSP`, `PROTECT`, `OVERLAY`, `HELP`, `CHOICE` - and none of them is asked about by a panel: the webview's 21 literal names (`DSPRL`, `ERRSFL`, `GETRETAIN`, `HLPCLR`, `HLPCMDKEY`, `HLPFULL`, `HLPSCHIDX`, `IGCCNV`, `INDARA`, `INZINP`, `INZRCD`, `LOGINP`, `LOGOUT`, `OPENPRT`, `RETCMDKEY`, `RETKEY`, `RETLCKSTS`, `RMVWDW`, `RTNDTA`, `USRDSPMGT`, `USRRSTDSP`) all belong to I-121 slices and keep their answers, which the test checks. So nothing changes on screen; the hazard in the opening paragraph (a later change routing one of the 28 through the accessor) is gone.
 
 New `src/test/i174AccessorsReadEveryEntry.test.js` (20 checks): the three keywords the gap was found on, a table over all 175 `RECORD_TYPES` entries for both accessors (so an entry added later cannot be ignored), the 21 panel names unchanged, unknown / prototype / empty names. Four mutations (old no-parameters read, old indicators read, ignoring `parameters: 'none'`, treating any indicators value as valid) each fail it. The I-122 batch-2 test no longer carries the "not asserted" note and checks all five keywords.
+
+---
+
+<a id="i-175"></a>
+
+### I-175 — `MNUBARSEP` / `MNUBARCHC` need `MNUBAR` on the record; `MNUBARSEP` cannot sit beside `*NOSEPARATOR`
+
+> **Area:** Field · **Status:** In progress · **Depends on:** I-171
+
+Found while logging I-122 batch 3; not asserted as correct until probed. The spec records (`keywordSpec.js`): `MNUBARSEP.requiresOnRecord: ['MNUBAR']`, `MNUBARSEP.conflictsWithMnubarParameter: '*NOSEPARATOR'` (\"the `*NOSEPARATOR` parameter cannot be used on `MNUBAR` if `MNUBARSEP` is specified\"), and `MNUBARCHC.requiresOnRecord: ['MNUBAR']` (\"The MNUBAR keyword is required at the record level\"). `choiceMenuBarViolations` enforces none of them.
+
+Probed on v0.10.337 at model level (the raw keyword editor and every panel reach the same `choiceMenuBarNewConflictReason`): adding `MNUBARSEP` beside `MNUBAR(*NOSEPARATOR)`, adding `*NOSEPARATOR` to an `MNUBAR` whose field has `MNUBARSEP`, adding `MNUBARSEP` on a record with no `MNUBAR`, and removing `MNUBAR` while `MNUBARSEP` stays are all accepted.
+
+To do: add `MNUBAR` and `NOSEP` violations to `choiceMenuBarViolations`, read from the spec through a new accessor, in the I-171 diff shape (refuse only what an edit adds, in either direction); the same `MNUBAR` rule for `MNUBARCHC`.
+
 ---
