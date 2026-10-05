@@ -236,7 +236,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-171](#i-171) | Field | Choice and menu-bar rules not enforced: `CHCACCEL` outside a `SNGCHCFLD` field in a `PULLDOWN` record, `CHCSLT` with `CHOICE` in a record without `PULLDOWN(*NOSLTIND)`, the `CHCCTL` control-field type and matching choice, the `MNUBARCHC` pull-down record needing `PULLDOWN`, the 12-line menu-bar limit | I-121l | Done | v0.10.331 |
 | [I-172](#i-172) | Field / Record | Choice and menu-bar follow-ups: the 12-line limit of a menu-bar field (how the reference counts lines is unclear) and panel rows that still offer a keyword the guard then refuses (`CHCACCEL` input on a `MLTCHCFLD` field, the colour-state rows on a field with no choice keyword) | I-171 | Done (panel rows; the 12-line limit became I-173) | v0.10.332 |
 | [I-173](#i-173) | Field | `MNUBARCHC` 12-line limit of a menu-bar field (opened from the I-172 deferred finding; reading decided: width = smallest `DSPSIZ` width minus 2, whole-choice wrap, separator counts as 1 of the 12 unless `*NOSEPARATOR`) | I-172 | Done | v0.10.334 |
-| [I-174](#i-174) | Tooling | `takesNoParameters` / `optionIndicatorsAllowed` answer only for the I-121b keywords, so they say "no" for `MSGALARM`, `CSRINPONLY` and `HLPEXCLD` although their spec entries say the opposite (opened from I-122 batch 2) | I-121 | Not started | — |
+| [I-174](#i-174) | Tooling | `takesNoParameters` / `optionIndicatorsAllowed` answer only for the I-121b keywords, so they say "no" for `MSGALARM`, `CSRINPONLY` and `HLPEXCLD` although their spec entries say the opposite (opened from I-122 batch 2) | I-121 | In progress | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -252,7 +252,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 |-------|------|--------|-------|
 | 1 | [I-122](#i-122) | In progress (batches 1-2 done, batch 3 claimed) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
 | 2 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
-| 3 | [I-174](#i-174) | Not started | Accessor gap found by I-122 batch 2; no wrong behaviour today. Size (estimate): Small. |
+| 3 | [I-174](#i-174) | In progress | Accessor gap found by I-122 batch 2; no wrong behaviour today. Size (estimate): Small. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The I-121 umbrella row there stays open until its slices land, so it is counted in the headline but not listed here.
 
@@ -7852,7 +7852,7 @@ Not done: a literal split over continuation lines is counted from the parser's j
 
 ### I-174 — `takesNoParameters` / `optionIndicatorsAllowed` cover only the I-121b keywords
 
-> **Area:** Tooling · **Status:** Not started · **Depends on:** I-121
+> **Area:** Tooling · **Status:** In progress · **Depends on:** I-121
 
 Opened from I-122 batch 2. `KeywordSpec.takesNoParameters(name)` and `optionIndicatorsAllowed(name)` (reached as `DspfWriter.takesNoParameters` / `optionIndicatorsAllowed`) read only the I-121b table (`i121bEntry`). For any other keyword they answer `false`: `takesNoParameters('MSGALARM')`, `('CSRINPONLY')` and `('HLPEXCLD')` are false although their entries say `parameters: 'none'` / `noParameters: true`, and `optionIndicatorsAllowed` is false for the same three although each says `optionIndicators: 'valid'` (`RETLCKSTS` and `INZINP`, which are in the I-121b table, answer correctly). Nothing is wrong on screen today because the panel code passes literal `false` / `true` for those rows. The hazard is a later change that routes them through the accessor, as `RETKEY` and `RETLCKSTS` are, and silently loses a Conditioning toggle or grows a parameter box. The doc comment on `takesNoParameters` lists which keywords it covers, which is how the gap was seen.
 
