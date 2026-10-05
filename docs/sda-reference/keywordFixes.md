@@ -184,7 +184,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-121r](#i-121r) | Tooling | Webview constant tables | I-121 | Done v0.10.287 (four value-domain lists from the spec; the rest guarded or classified as screen text) | v0.10.287 |
 | [I-121s](#i-121s) | Tooling | Engine and writer constant tables | I-121 | Done v0.10.286 (writer tables in the spec; engine/message tables classified as presentation) | v0.10.286 |
 | [I-121t](#i-121t) | Tooling | Generate the keyword index from the spec (do last) | I-121a – I-121s | Done | v0.10.335 |
-| [I-122](#i-122) | Tooling | Generated keyword x dimension test matrix; retire duplicate and stale tests | I-120, I-121 | In progress (batch 1 done v0.10.274; batch 2 done v0.10.336: MSGALARM, CSRINPONLY, RETLCKSTS, MAPVAL, INZINP, HLPEXCLD; next: batch 3) | — |
+| [I-122](#i-122) | Tooling | Generated keyword x dimension test matrix; retire duplicate and stale tests | I-120, I-121 | In progress (batch 1 done v0.10.274; batch 2 done v0.10.336: MSGALARM, CSRINPONLY, RETLCKSTS, MAPVAL, INZINP, HLPEXCLD; batch 3 claimed: HLPFULL, MNUBARSEP, LOCK, DSPRL, FRCDTA, ALWGPH) | — |
 | [I-123](#i-123) | Tooling | Move "Task I-nn" history out of source comments | I-121 | Not started | — |
 | [I-124](#i-124) | Tooling | Test-only exports that still carry a "kept for backward compatibility / API completeness" note (decision first) | I-118 | Done | v0.10.202 |
 | [I-125](#i-125) | Field | `COMP`/`RANGE`/`VALUES`/`CHECK(AB)` "not on a floating-point field" restriction is unenforced | I-72, I-96 | Done | v0.10.223 |
@@ -250,7 +250,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-122](#i-122) | In progress (batches 1-2 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
+| 1 | [I-122](#i-122) | In progress (batches 1-2 done, batch 3 claimed) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
 | 2 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
 | 3 | [I-174](#i-174) | Not started | Accessor gap found by I-122 batch 2; no wrong behaviour today. Size (estimate): Small. |
 
@@ -6764,7 +6764,7 @@ With this slice the I-121 umbrella is complete: every keyword in the lookup has 
 
 ### I-122 — Generated keyword x dimension test matrix; retire duplicate and stale tests
 
-> **Area:** Tooling · **Status:** In progress (batches 1-2 done) · **Depends on:** I-120, I-121
+> **Area:** Tooling · **Status:** In progress (batches 1-2 done, batch 3 claimed: HLPFULL, MNUBARSEP, LOCK, DSPRL, FRCDTA, ALWGPH) · **Depends on:** I-120, I-121
 
 Generate tests from the I-121 spec: L1 pure rule checks, L2 parse/write round-trip of parameters and sub-parameters, L3 UI display and selection (one jsdom per record type iterating rows), L4 behaviour through each commit path (checkbox, raw keyword editor, Basic tab). Cover the keywords with no tests today (`RMVWDW`, `SFLCSRRRN`, `SFLDLT`, `USRRSTDSP`, ...). Migration rule: map each existing `check()` to a keyword x dimension cell; delete it only when a generated cell covers it **and** a stash-based mutation run shows the generated cell fails when the rule is broken; keep unique regressions. Report the before/after check count and suite time.
 
