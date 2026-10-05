@@ -185,7 +185,8 @@ setTimeout(() => {
   console.log('\nRegression: single-choice field F2 keeps its own editors');
   owner = selectField(1);
   check('F2 still gets the choice keywords editor', hasAccordion(owner, 'choice-keywords'));
-  check('F2 still gets the three-state colours editor (incl. Selected)', hasAccordion(owner, 'choice-colors-attrs') && !!doc.getElementById(owner + '-ccs-slt-on'));
+  // Task I-172: F2 has CHOICE, so Available / Unavailable are offered; Selected (CHCSLT) waits for PULLDOWN(*NOSLTIND) on the record, which RECORD1 does not have.
+  check('F2 still gets the colours editor (Available / Unavailable; Selected needs *NOSLTIND, I-172)', hasAccordion(owner, 'choice-colors-attrs') && !!doc.getElementById(owner + '-ccs-avail-on') && !!doc.getElementById(owner + '-ccs-unavail-on') && !doc.getElementById(owner + '-ccs-slt-on'));
   check('F2 gets no push-button editors', !hasAccordion(owner, 'pshbtn-choice-control') && !hasAccordion(owner, 'pshbtn-choice-colors'));
 
   console.log('\nRegression: a plain field F3');

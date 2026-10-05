@@ -5637,6 +5637,46 @@
     });
     return out;
   }
+  /** Task I-172 - the field-level companion rules of one choice keyword, as the list of problems
+   *  the keyword WOULD have if it were on this field: [{ rule, text }] (rule is the I-171 violation
+   *  key part - COMPANION / NOSLTIND for CHCAVAIL / CHCUNAVAIL / CHCSLT, FIELD / RECORD for
+   *  CHCACCEL). Both the I-171 model guard (which asks only when the keyword is present) and the
+   *  choice panels (which ask before offering a row) read it, so the two can never disagree.
+   *  `recordKeywords` undefined skips the record-level rules (CHCSLT's PULLDOWN(*NOSLTIND),
+   *  CHCACCEL's PULLDOWN); `label` / `recordName` only word the text. */
+  function choiceFieldCompanionProblems(kw, fieldKeywords, recordKeywords, label, recordName) {
+    var out = [];
+    var rule = KeywordSpec.choiceCompanionRules(kw);
+    if (!rule) return out;
+    var have = (rule.oneOfOnField || []).filter(function (n) { return hasKeywordNamed(fieldKeywords, n); });
+    if (rule.oneOfOnField.length) {
+      if (!have.length) {
+        out.push({ rule: 'COMPANION', text: kw + ' on field ' + label + ' needs ' + rule.oneOfOnField.join(', ').replace(/, ([^,]*)$/, ' or $1') +
+          ' on the same field (per the DDS Reference).' });
+      } else if (rule.choiceWithoutMnubarchcRecordNeeds && have.indexOf('MNUBARCHC') < 0 && recordKeywords) {
+        var pulldown = (recordKeywords || []).filter(function (k) { return k.name === 'PULLDOWN'; })[0];
+        if (!pulldown || String(pulldown.parameters || '').toUpperCase().indexOf('*NOSLTIND') < 0) {
+          out.push({ rule: 'NOSLTIND', text: kw + ' on field ' + label + ' with CHOICE (and no MNUBARCHC) needs ' +
+            rule.choiceWithoutMnubarchcRecordNeeds + ' on record format ' + recordName + ' (per the DDS Reference).' });
+        }
+      }
+    }
+    (rule.allOfOnField || []).forEach(function (need) {
+      if (!hasKeywordNamed(fieldKeywords, need)) out.push({ rule: 'FIELD', text: kw + ' on field ' + label + ' needs ' + need + ' on the same field: it is allowed only on single-choice selection fields (per the DDS Reference).' });
+    });
+    if (recordKeywords) {
+      (rule.onRecord || []).forEach(function (need) {
+        if (!hasKeywordNamed(recordKeywords, need)) out.push({ rule: 'RECORD', text: kw + ' on field ' + label + ' needs ' + need + ' on record format ' + recordName + ': it is allowed only in pull-down records (per the DDS Reference).' });
+      });
+    }
+    return out;
+  }
+  /** Task I-172 - the first companion problem `kw` would have on this field, or '' when it is fine
+   *  (the panel's row-hiding reason; same text the guard refuses with). */
+  function choiceFieldCompanionReason(kw, fieldKeywords, recordKeywords, label, recordName) {
+    var p = choiceFieldCompanionProblems(kw, fieldKeywords, recordKeywords, label || 'this field', recordName || 'this record');
+    return p.length ? p[0].text : '';
+  }
   /** Task I-171 - the choice and menu-bar companion-keyword rules the I-121l slice recorded as
    *  spec facts (KeywordSpec.choiceCompanionRules / chcctlRules / mnubarchcPullDownRecordKeyword -
    *  nothing hand-copied here). Each is a "must also be specified" the DDS Reference states:
@@ -5660,7 +5700,6 @@
     function sameNumber(a, b) { return String(parseInt(a, 10)) === String(parseInt(b, 10)); }
     records.forEach(function (r) {
       var rname = String(r.name || '').toUpperCase();
-      var pulldown = (r.keywords || []).filter(function (k) { return k.name === 'PULLDOWN'; })[0];
       STATE.forEach(function (kw) {
         if (!hasKeywordNamed(r.keywords, kw)) return;
         var rule = KeywordSpec.choiceCompanionRules(kw);
@@ -5673,29 +5712,12 @@
         var fname = String(f.name || '').toUpperCase();
         var label = fname || ('in ' + rname);
         var kws = f.keywords;
-        STATE.forEach(function (kw) {
+        STATE.concat(['CHCACCEL']).forEach(function (kw) {
           if (!hasKeywordNamed(kws, kw)) return;
-          var rule = KeywordSpec.choiceCompanionRules(kw);
-          var have = anyOf(kws, rule.oneOfOnField);
-          if (!have.length) {
-            out[rname + '|' + kw + '|COMPANION|' + fname] = kw + ' on field ' + label + ' needs ' + rule.oneOfOnField.join(', ').replace(/, ([^,]*)$/, ' or $1') +
-              ' on the same field (per the DDS Reference).';
-          } else if (rule.choiceWithoutMnubarchcRecordNeeds && have.indexOf('MNUBARCHC') < 0) {
-            if (!pulldown || String(pulldown.parameters || '').toUpperCase().indexOf('*NOSLTIND') < 0) {
-              out[rname + '|' + kw + '|NOSLTIND|' + fname] = kw + ' on field ' + label + ' with CHOICE (and no MNUBARCHC) needs ' +
-                rule.choiceWithoutMnubarchcRecordNeeds + ' on record format ' + r.name + ' (per the DDS Reference).';
-            }
-          }
+          choiceFieldCompanionProblems(kw, kws, r.keywords, label, r.name).forEach(function (p) {
+            out[rname + '|' + kw + '|' + p.rule + '|' + fname] = p.text;
+          });
         });
-        if (hasKeywordNamed(kws, 'CHCACCEL')) {
-          var ar = KeywordSpec.choiceCompanionRules('CHCACCEL');
-          ar.allOfOnField.forEach(function (need) {
-            if (!hasKeywordNamed(kws, need)) out[rname + '|CHCACCEL|FIELD|' + fname] = 'CHCACCEL on field ' + label + ' needs ' + need + ' on the same field: it is allowed only on single-choice selection fields (per the DDS Reference).';
-          });
-          ar.onRecord.forEach(function (need) {
-            if (!hasKeywordNamed(r.keywords, need)) out[rname + '|CHCACCEL|RECORD|' + fname] = 'CHCACCEL on field ' + label + ' needs ' + need + ' on record format ' + r.name + ': it is allowed only in pull-down records (per the DDS Reference).';
-          });
-        }
         var cr = KeywordSpec.chcctlRules();
         getChoiceControls(kws).forEach(function (c) {
           var tag = fname + '#' + parseInt(c.id, 10);
@@ -11464,6 +11486,7 @@
     multiLevelEligibilityNewConflictReason: multiLevelEligibilityNewConflictReason,
     referenceFieldNewConflictReason: referenceFieldNewConflictReason,
     choiceMenuBarNewConflictReason: choiceMenuBarNewConflictReason,
+    choiceFieldCompanionReason: choiceFieldCompanionReason,
     multiLevelFieldReason: multiLevelFieldReason,
     putretainDspmodAdvisory: putretainDspmodAdvisory,
     usrdspmgtSystem36ExtrasNote: usrdspmgtSystem36ExtrasNote,

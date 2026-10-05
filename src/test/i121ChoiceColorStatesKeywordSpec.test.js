@@ -61,11 +61,12 @@ console.log('\nwebview');
 {
   check('the push-button state keys equal the old ["avail", "unavail"]', Helpers.pshbtnChoiceColorStateKeys().join() === 'avail,unavail');
   const root = document.getElementById('root');
-  root.innerHTML = Helpers.choiceColorStatesHtml([], 'x', new Set(), Helpers.pshbtnChoiceColorStateKeys());
+  root.innerHTML = Helpers.choiceColorStatesHtml([{ name: 'PSHBTNFLD', parameters: '', conditions: [] }, { name: 'PSHBTNCHC', parameters: "1 'OK'", conditions: [] }], 'x', new Set(), Helpers.pshbtnChoiceColorStateKeys(), []);
   const has = (key) => !!root.querySelector('#x-ccs-' + key + '-on');
   check('a push-button field is offered Available and Unavailable, not Selected', has('avail') && has('unavail') && !has('slt'));
-  root.innerHTML = Helpers.choiceColorStatesHtml([], 'y', new Set());
+  root.innerHTML = Helpers.choiceColorStatesHtml([{ name: 'SNGCHCFLD', parameters: '', conditions: [] }, { name: 'CHOICE', parameters: "1 'Undo'", conditions: [] }], 'y', new Set(), undefined, [{ name: 'PULLDOWN', parameters: '(*NOSLTIND)', conditions: [] }]);
   const hasY = (key) => !!root.querySelector('#y-ccs-' + key + '-on');
+  // Task I-172: the rows are offered once their companion keywords are on the field / record.
   check('a selection field is still offered all three', hasY('avail') && hasY('unavail') && hasY('slt'));
 }
 

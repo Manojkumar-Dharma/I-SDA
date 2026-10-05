@@ -4680,13 +4680,13 @@ const htmlTemplate = `<!DOCTYPE html>
       // never collide with the choice-field editors' own.
       if (DspfWriter.getPshbtnfld(field.keywords).present) {
         attrsHtml += accordionHtml('field-' + field.sourceLine + '::pshbtn-choice-control', 'Push-button choice control (CHCCTL)', WebviewClientHelpers.pshbtnChoiceControlHtml(field.keywords, 'field-' + field.sourceLine + '-pbx'), false);
-        attrsHtml += accordionHtml('field-' + field.sourceLine + '::pshbtn-choice-colors', 'Push-button colors & attributes (CHCAVAIL/CHCUNAVAIL)', WebviewClientHelpers.choiceColorStatesHtml(field.keywords, 'field-' + field.sourceLine + '-pbx', expandedKeywordConditioning, WebviewClientHelpers.pshbtnChoiceColorStateKeys()), false);
+        attrsHtml += accordionHtml('field-' + field.sourceLine + '::pshbtn-choice-colors', 'Push-button colors & attributes (CHCAVAIL/CHCUNAVAIL)', WebviewClientHelpers.choiceColorStatesHtml(field.keywords, 'field-' + field.sourceLine + '-pbx', expandedKeywordConditioning, WebviewClientHelpers.pshbtnChoiceColorStateKeys(), ownerRecord.keywords), false);
       }
       attrsHtml += accordionHtml('field-' + field.sourceLine + '::choice-selection-type', 'Choice selection type', WebviewClientHelpers.choiceSelectionTypeHtml(field.keywords, 'field-' + field.sourceLine), false);
       const isChoiceField = DspfWriter.getChoiceSelectionType(field.keywords).kind !== '';
       if (isChoiceField) {
-        attrsHtml += accordionHtml('field-' + field.sourceLine + '::choice-keywords', 'Choice keywords (CHOICE/CHCCTL/CHCACCEL)', WebviewClientHelpers.choiceKeywordsListHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning), false);
-        attrsHtml += accordionHtml('field-' + field.sourceLine + '::choice-colors-attrs', 'Choice colors & attributes', WebviewClientHelpers.choiceColorStatesHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning), false);
+        attrsHtml += accordionHtml('field-' + field.sourceLine + '::choice-keywords', 'Choice keywords (CHOICE/CHCCTL/CHCACCEL)', WebviewClientHelpers.choiceKeywordsListHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning, ownerRecord.keywords), false);
+        attrsHtml += accordionHtml('field-' + field.sourceLine + '::choice-colors-attrs', 'Choice colors & attributes', WebviewClientHelpers.choiceColorStatesHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning, undefined, ownerRecord.keywords), false);
       }
     }
 
@@ -4978,12 +4978,12 @@ const htmlTemplate = `<!DOCTYPE html>
       );
       if (DspfWriter.getPshbtnfld(field.keywords).present) {
         WebviewClientHelpers.wirePshbtnChoiceControl(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine + '-pbx');
-        WebviewClientHelpers.wireChoiceColorStatesEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine + '-pbx', expandedKeywordConditioning, () => renderFieldProps(recordName), WebviewClientHelpers.pshbtnChoiceColorStateKeys());
+        WebviewClientHelpers.wireChoiceColorStatesEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine + '-pbx', expandedKeywordConditioning, () => renderFieldProps(recordName), WebviewClientHelpers.pshbtnChoiceColorStateKeys(), ownerRecord.keywords);
       }
       WebviewClientHelpers.wireChoiceSelectionTypeEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, (kind) => DspfWriter.pshbtnfldConflictReason(kind, '', field.keywords));
       if (DspfWriter.getChoiceSelectionType(field.keywords).kind !== '') {
-        WebviewClientHelpers.wireChoiceKeywordsListEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));
-        WebviewClientHelpers.wireChoiceColorStatesEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));
+        WebviewClientHelpers.wireChoiceKeywordsListEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), ownerRecord.keywords);
+        WebviewClientHelpers.wireChoiceColorStatesEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), undefined, ownerRecord.keywords);
       }
     }
 

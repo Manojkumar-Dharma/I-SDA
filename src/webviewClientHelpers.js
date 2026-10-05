@@ -2741,6 +2741,17 @@
     return !!DspfWriter.multiLevelFieldReason(name, usage, isConstant, keywords, '');
   }
 
+  /** Task I-172 - a choice row (the CHCACCEL accelerator input, or one of the CHCAVAIL / CHCUNAVAIL /
+   *  CHCSLT colour-state rows) is hidden while the DDS Reference's companion rules would refuse the
+   *  keyword on this field - asked of the I-171 guard's own reason function, so the panel and the
+   *  guard cannot disagree. As with CHRID (I-70) and I-165 the row stays visible when the keyword is
+   *  ALREADY on the field, so a hand-written invalid field can still be un-ticked.
+   *  `recordKeywords` undefined skips the record-level rules. */
+  function choiceRowHidden(keywords, kw, recordKeywords) {
+    if ((keywords || []).some(function (k) { return k.name === kw; })) return false;
+    return !!DspfWriter.choiceFieldCompanionReason(kw, keywords, recordKeywords);
+  }
+
   /** Task I-121o - true when a General keywords row is hidden by its scope: a
    *  'named' row on a constant, or a constant-only row on a named field. A row
    *  is constant-only when its scope says so OR the keyword spec says the
@@ -3753,7 +3764,7 @@
    *  "Define Choice Keywords" screen which prompts for all three under one
    *  choice-number header). Rows commit together via one Apply, same
    *  batch-edit pattern as menuBarChoicesHtml. */
-  function choiceKeywordsListHtml(keywords, ownerKey, expandedSet) {
+  function choiceKeywordsListHtml(keywords, ownerKey, expandedSet, recordKeywords) {
     var choices = DspfWriter.getChoices(keywords);
     var controls = DspfWriter.getChoiceControls(keywords);
     var accelerators = DspfWriter.getChoiceAccelerators(keywords);
@@ -3761,6 +3772,7 @@
     choices.forEach(function (c) { ids[c.id] = true; });
     controls.forEach(function (c) { ids[c.id] = true; });
     accelerators.forEach(function (c) { ids[c.id] = true; });
+    var hideAccel = choiceRowHidden(keywords, 'CHCACCEL', recordKeywords);
     var merged = Object.keys(ids).sort(function (a, b) { return parseInt(a, 10) - parseInt(b, 10); }).map(function (id) {
       var choice = choices.find(function (c) { return c.id === id; }) || { text: '', spaceBefore: false, conditions: [] };
       var control = controls.find(function (c) { return c.id === id; }) || { controlField: '', messageId: '', messageFile: '', library: '' };
@@ -3769,14 +3781,14 @@
     });
     var html = '<div class="section-label">Choice keywords (CHOICE / CHCCTL / CHCACCEL)</div>';
     html += '<div id="' + ownerKey + '-choicekw-rows">';
-    merged.forEach(function (c, idx) { html += choiceKeywordRowHtml(ownerKey, idx, c, expandedSet); });
+    merged.forEach(function (c, idx) { html += choiceKeywordRowHtml(ownerKey, idx, c, expandedSet, hideAccel); });
     html += '</div>';
     html += '<button class="secondary ' + ownerKey + '-choicekw-add" style="width:100%;margin-top:6px;">+ Add choice</button>';
     html += '<button class="' + ownerKey + '-choicekw-apply" style="width:100%;margin-top:6px;">Apply choice keywords</button>';
     return html;
   }
 
-  function choiceKeywordRowHtml(ownerKey, idx, c, expandedSet) {
+  function choiceKeywordRowHtml(ownerKey, idx, c, expandedSet, hideAccel) {
     c = c || { id: '', text: '', spaceBefore: false, controlField: '', messageId: '', messageFile: '', library: '', accelText: '', conditions: [] };
     var conditions = c.conditions || [];
     var row = '<div class="choice-row-block" data-idx="' + idx + '" data-choice-id="' + escapeHtml(c.id) + '" style="border:1px solid var(--border,#333);border-radius:4px;padding:8px;margin-bottom:8px;">';
@@ -3785,9 +3797,11 @@
       '<input type="text" class="' + ownerKey + '-choicekw-text" placeholder="choice text (CHOICE)" value="' + escapeHtml(c.text) + '" style="flex:1;" />' +
       '<button class="secondary ' + ownerKey + '-choicekw-remove" data-idx="' + idx + '" title="Remove">&times;</button>' +
       '</div>';
-    row += '<div class="two-col" style="margin-top:6px;">' +
-      '<input type="text" class="' + ownerKey + '-choicekw-ctrl" placeholder="control field (CHCCTL)" value="' + escapeHtml(c.controlField) + '" />' +
-      '<input type="text" class="' + ownerKey + '-choicekw-accel" placeholder="accelerator text (CHCACCEL)" value="' + escapeHtml(c.accelText) + '" />' +
+    // Task I-172: the accelerator input is only offered where CHCACCEL is allowed (a single-choice
+    // field in a pull-down record) - see choiceRowHidden.
+    row += '<div class="' + (hideAccel ? '' : 'two-col') + '" style="margin-top:6px;">' +
+      '<input type="text" class="' + ownerKey + '-choicekw-ctrl" placeholder="control field (CHCCTL)" value="' + escapeHtml(c.controlField) + '"' + (hideAccel ? ' style="width:100%;"' : '') + ' />' +
+      (hideAccel ? '' : '<input type="text" class="' + ownerKey + '-choicekw-accel" placeholder="accelerator text (CHCACCEL)" value="' + escapeHtml(c.accelText) + '" />') +
       '</div>';
     row += '<div class="two-col" style="margin-top:6px;">' +
       '<input type="text" class="' + ownerKey + '-choicekw-msgid" placeholder="message ID" value="' + escapeHtml(c.messageId) + '" />' +
@@ -3816,13 +3830,14 @@
     return row;
   }
 
-  function wireChoiceKeywordsListEditor(keywords, onChange, ownerKey, expandedSet, rerender) {
+  function wireChoiceKeywordsListEditor(keywords, onChange, ownerKey, expandedSet, rerender, recordKeywords) {
+    var hideAccel = choiceRowHidden(keywords, 'CHCACCEL', recordKeywords);
     var container = document.getElementById(ownerKey + '-choicekw-rows');
     if (!container) return;
     var addBtn = document.querySelector('.' + ownerKey + '-choicekw-add');
     var applyBtn = document.querySelector('.' + ownerKey + '-choicekw-apply');
     if (addBtn) addBtn.addEventListener('click', function () {
-      container.insertAdjacentHTML('beforeend', choiceKeywordRowHtml(ownerKey, container.children.length, null, expandedSet));
+      container.insertAdjacentHTML('beforeend', choiceKeywordRowHtml(ownerKey, container.children.length, null, expandedSet, hideAccel));
       wireRemoveButtons();
     });
     function wireRemoveButtons() {
@@ -3843,7 +3858,8 @@
           messageFile: row.querySelector('.' + ownerKey + '-choicekw-msgfile').value,
           library: row.querySelector('.' + ownerKey + '-choicekw-lib').value,
         });
-        accelerators.push({ id: id, text: row.querySelector('.' + ownerKey + '-choicekw-accel').value });
+        var accelEl = row.querySelector('.' + ownerKey + '-choicekw-accel');
+        accelerators.push({ id: id, text: accelEl ? accelEl.value : '' });
       });
       var next = DspfWriter.setChoices(keywords, choices);
       next = DspfWriter.setChoiceControls(next, controls);
@@ -3979,13 +3995,29 @@
     return CHOICE_COLOR_STATES.filter(function (state) { return stateKeys.indexOf(state.key) >= 0; });
   }
 
+  /** Task I-172 - the colour-state rows actually offered on this field: `choiceColorStatesFor`
+   *  minus the states whose keyword the companion rules would refuse here (no CHOICE / PSHBTNCHC /
+   *  MNUBARCHC on the field, or CHCSLT without PULLDOWN(*NOSLTIND)). A state already in the source
+   *  stays visible. */
+  function visibleChoiceColorStates(keywords, stateKeys, recordKeywords) {
+    return choiceColorStatesFor(stateKeys).filter(function (state) {
+      return !choiceRowHidden(keywords, state.keyword, recordKeywords);
+    });
+  }
+
   /** CHCAVAIL/CHCUNAVAIL/CHCSLT - the three whole-field color/attribute
    *  states a choice field's entries can be shown in (see DspfWriter's own
    *  getChoiceColorState doc comment). Three independent enable-checkbox +
    *  color + attrs groups side by side, one shared Apply. */
-  function choiceColorStatesHtml(keywords, ownerKey, expandedSet, stateKeys) {
+  function choiceColorStatesHtml(keywords, ownerKey, expandedSet, stateKeys, recordKeywords) {
     var html = '<div class="section-label">Choice colors &amp; attributes</div>';
-    choiceColorStatesFor(stateKeys).forEach(function (state) {
+    var shown = visibleChoiceColorStates(keywords, stateKeys, recordKeywords);
+    if (!shown.length) {
+      // Task I-172: nothing here is allowed yet - say why instead of showing rows Apply would be refused on.
+      html += '<div class="hint" style="font-size:12px;opacity:0.8;">Colour states need a choice keyword (CHOICE, PSHBTNCHC or MNUBARCHC) on the same field first.</div>';
+      return html;
+    }
+    shown.forEach(function (state) {
       var current = DspfWriter.getChoiceColorState(keywords, state.keyword);
       var enabled = !!current.color || current.attrs.length > 0;
       html += '<div style="margin-bottom:10px;">';
@@ -4016,8 +4048,8 @@
     return html;
   }
 
-  function wireChoiceColorStatesEditor(keywords, onChange, ownerKey, expandedSet, rerender, stateKeys) {
-    var states = choiceColorStatesFor(stateKeys);
+  function wireChoiceColorStatesEditor(keywords, onChange, ownerKey, expandedSet, rerender, stateKeys, recordKeywords) {
+    var states = visibleChoiceColorStates(keywords, stateKeys, recordKeywords);
     var applyBtn = document.querySelector('.' + ownerKey + '-ccs-apply');
     if (applyBtn) {
       applyBtn.addEventListener('click', function () {
@@ -8955,6 +8987,8 @@
     wireChoiceKeywordsListEditor: wireChoiceKeywordsListEditor,
     pshbtnChoiceColorStateKeys: pshbtnChoiceColorStateKeys,
     choiceColorStatesHtml: choiceColorStatesHtml,
+    choiceRowHidden: choiceRowHidden,
+    visibleChoiceColorStates: visibleChoiceColorStates,
     wireChoiceColorStatesEditor: wireChoiceColorStatesEditor,
     isSflMsgRecord: isSflMsgRecord,
     isUsrDfnRecord: isUsrDfnRecord,

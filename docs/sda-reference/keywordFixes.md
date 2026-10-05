@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-186 of 192 tasks done; 6 open (see [Open work](#open-work); the I-121 umbrella row counts as one open task until its slices land). Current version: **v0.10.331**.
+187 of 192 tasks done; 5 open (see [Open work](#open-work); the I-121 umbrella row counts as one open task until its slices land). Current version: **v0.10.332**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -234,7 +234,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-169](#i-169) | File / Record | `CAnn` and `CFnn` with the same key number (the reference says "not valid in the same display file", so the whole file; opened from the I-160 deferred finding) | I-160 | Done | v0.10.323 |
 | [I-170](#i-170) | Field | Reference-field and help-identifier rules not enforced: `DLTCHK` / `DLTEDT` / `REFFLD` without R in position 29, `ALIAS` uniqueness, `HLPID` range 1-999 and uniqueness | I-121o | Done | v0.10.330 |
 | [I-171](#i-171) | Field | Choice and menu-bar rules not enforced: `CHCACCEL` outside a `SNGCHCFLD` field in a `PULLDOWN` record, `CHCSLT` with `CHOICE` in a record without `PULLDOWN(*NOSLTIND)`, the `CHCCTL` control-field type and matching choice, the `MNUBARCHC` pull-down record needing `PULLDOWN`, the 12-line menu-bar limit | I-121l | Done | v0.10.331 |
-| [I-172](#i-172) | Field / Record | Choice and menu-bar follow-ups: the 12-line limit of a menu-bar field (how the reference counts lines is unclear) and panel rows that still offer a keyword the guard then refuses (`CHCACCEL` input on a `MLTCHCFLD` field, the colour-state rows on a field with no choice keyword) | I-171 | Claimed (in progress) | — |
+| [I-172](#i-172) | Field / Record | Choice and menu-bar follow-ups: the 12-line limit of a menu-bar field (how the reference counts lines is unclear) and panel rows that still offer a keyword the guard then refuses (`CHCACCEL` input on a `MLTCHCFLD` field, the colour-state rows on a field with no choice keyword) | I-171 | Done (panel rows; the 12-line limit is a deferred finding) | v0.10.332 |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -252,17 +252,16 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | 2 | [I-122](#i-122) | In progress (batch 1 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
 | 3 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
 | 4 | [I-121t](#i-121t) | Not started | Generate the keyword index from the spec. Needs I-121a – I-121s. Last. |
-| 5 | [I-172](#i-172) | Not started | Choice and menu-bar follow-ups (raised by I-171). Size (estimate): Small. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The I-121 umbrella row there stays open until its slices land, so it is counted in the headline but not listed here.
 
 ## Deferred findings (not yet tasks)
 
-Every finding so far has been opened as a task (I-61 – I-172, see the tables above). The four that were waiting here because the DDS Reference does not settle them were converted on request: I-153's open questions became [I-166](#i-166), I-154's became [I-167](#i-167), I-121g's became [I-168](#i-168) and I-160's became [I-169](#i-169) (done; the source turned out to state the whole-file scope). Each of those tasks starts with the decision or rule it is waiting on, so nothing in it is implemented on a guess. A new finding that cannot be implemented yet goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
+Every finding so far has been opened as a task (I-61 – I-172, see the tables above), except the one in the table below. The four that were waiting here because the DDS Reference does not settle them were converted on request: I-153's open questions became [I-166](#i-166), I-154's became [I-167](#i-167), I-121g's became [I-168](#i-168) and I-160's became [I-169](#i-169) (done; the source turned out to state the whole-file scope). Each of those tasks starts with the decision or rule it is waiting on, so nothing in it is implemented on a guess. A new finding that cannot be implemented yet goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
 
 | Raised by | Finding |
 |-----------|---------|
-| *(none open)* | |
+| I-172 | `MNUBARCHC`'s 12-line limit for a menu-bar field is not enforced. The reference (MNUBARCHC section) says the number of lines is "determined by the sum of the lengths of the choice-text parameters, plus 3 blank spaces between each choice" (trailing blanks of a literal dropped, a `&field` counted at its length), that the maximum is 12 lines "(this includes the separator line)", and that the first choice on a line starts at position 3 with a trailing blank always inserted. It does not say the line width (80 or 132 from the smallest `DSPSIZ`?), whether a choice may be split across two lines or moves whole to the next, or whether the 12 includes the separator line as one of the twelve. Each reading gives a different count at the boundary, so a guard needs one of them decided first. The spec already holds the 12 (`maxLinesForMenuBarField`) and the per-choice widths (`choiceText.maxLength`). |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
@@ -7659,10 +7658,20 @@ New `src/test/i171ChoiceMenuBarRules.test.js` (53 checks): the spec accessors, t
 
 ### I-172 — Choice and menu-bar follow-ups
 
-> **Area:** Field / Record · **Status:** Claimed (in progress) · **Depends on:** I-171
+> **Area:** Field / Record · **Status:** Done (v0.10.332; panel rows done, the 12-line limit is a deferred finding) · **Depends on:** I-171
 
 Raised by the I-171 slice.
 
 - `MNUBARCHC`: "The maximum number of lines that a menu-bar field can occupy is 12 lines (this includes the separator line)." The reference does not say whether the lines come from the choice text lengths alone, from the 76 / 128 character width, or from the display size, so the count needs a documented rule before a guard is written. The spec already records the 12 and the widths (`maxLinesForMenuBarField`, `choiceText.maxLength`).
 - The choice and colour-state panel rows are not narrowed from the spec: the accelerator input is still offered on a `MLTCHCFLD` field and the `CHCAVAIL` / `CHCUNAVAIL` / `CHCSLT` rows on a field with none of their companion keywords, and the new guard then refuses the edit with the DDS wording. Narrow the rows from `choiceCompanionRules` the way I-165 narrowed the multi-level rows, using the guard's own reason function so the two cannot disagree.
+
+**Done (v0.10.332).** The panel rows now follow the guard.
+
+- New `DspfWriter.choiceFieldCompanionProblems` / `choiceFieldCompanionReason`: the field-level companion rules of one choice keyword, read from `KeywordSpec.choiceCompanionRules`, as the problems the keyword *would* have on this field. The I-171 guard (`choiceMenuBarViolations`) now calls it for `CHCAVAIL` / `CHCUNAVAIL` / `CHCSLT` / `CHCACCEL` instead of carrying its own copy, so the panel and the guard cannot disagree (pure refactor of the guard: same keys, same sentences; the I-171 test passes unchanged).
+- `WebviewClientHelpers.choiceRowHidden` / `visibleChoiceColorStates`: the `CHCACCEL` accelerator input is hidden unless the field is a `SNGCHCFLD` in a `PULLDOWN` record; `CHCAVAIL` / `CHCUNAVAIL` / `CHCSLT` rows are hidden until the field carries `CHOICE` (or `PSHBTNCHC` / `MNUBARCHC`), and `CHCSLT` with `CHOICE` until the record has `PULLDOWN(*NOSLTIND)`. A keyword already in the source keeps its row so a hand-written invalid field can still be cleared (the CHRID I-70 / I-165 idiom). With no state row to show, the panel says a choice keyword is needed first and draws no Apply button.
+- `choiceKeywordsListHtml`, `wireChoiceKeywordsListEditor`, `choiceColorStatesHtml` and `wireChoiceColorStatesEditor` take the owning record's keywords (optional; omitted skips the record-level rules). `buildWebviewTemplate.js` passes `ownerRecord.keywords` at the six call sites. The accelerator input being absent no longer breaks Apply (it reads an empty text, which adds nothing).
+
+New `src/test/i172ChoicePanelRows.test.js` (29 checks): the shared reason for every companion rule, guard parity on one field (same sentence), colour-state and accelerator rows shown / hidden / kept, and Apply with the accelerator input hidden. Two older fixtures were adjusted because their fields had no choice keyword (`i121ChoiceColorStatesKeywordSpec`, `i65PshbtnChoiceControlColors`: F2 has `CHOICE` but its record has no `PULLDOWN(*NOSLTIND)`, so Selected is no longer offered). Full suite: 279 files, 16,473 checks, zero failures.
+
+**Not done here (moved to Deferred findings):** the 12-line limit of a menu-bar field. The reference gives the counting formula but not the line width or how a choice that does not fit is wrapped, so a guard would be a guess.
 ---
