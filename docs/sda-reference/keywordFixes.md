@@ -234,7 +234,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-169](#i-169) | File / Record | `CAnn` and `CFnn` with the same key number (the reference says "not valid in the same display file", so the whole file; opened from the I-160 deferred finding) | I-160 | Done | v0.10.323 |
 | [I-170](#i-170) | Field | Reference-field and help-identifier rules not enforced: `DLTCHK` / `DLTEDT` / `REFFLD` without R in position 29, `ALIAS` uniqueness, `HLPID` range 1-999 and uniqueness | I-121o | Done | v0.10.330 |
 | [I-171](#i-171) | Field | Choice and menu-bar rules not enforced: `CHCACCEL` outside a `SNGCHCFLD` field in a `PULLDOWN` record, `CHCSLT` with `CHOICE` in a record without `PULLDOWN(*NOSLTIND)`, the `CHCCTL` control-field type and matching choice, the `MNUBARCHC` pull-down record needing `PULLDOWN`, the 12-line menu-bar limit | I-121l | Done | v0.10.331 |
-| [I-172](#i-172) | Field / Record | Choice and menu-bar follow-ups: the 12-line limit of a menu-bar field (how the reference counts lines is unclear) and panel rows that still offer a keyword the guard then refuses (`CHCACCEL` input on a `MLTCHCFLD` field, the colour-state rows on a field with no choice keyword) | I-171 | Not started | — |
+| [I-172](#i-172) | Field / Record | Choice and menu-bar follow-ups: the 12-line limit of a menu-bar field (how the reference counts lines is unclear) and panel rows that still offer a keyword the guard then refuses (`CHCACCEL` input on a `MLTCHCFLD` field, the colour-state rows on a field with no choice keyword) | I-171 | Claimed (in progress) | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -7659,7 +7659,7 @@ New `src/test/i171ChoiceMenuBarRules.test.js` (53 checks): the spec accessors, t
 
 ### I-172 — Choice and menu-bar follow-ups
 
-> **Area:** Field / Record · **Status:** Not started · **Depends on:** I-171
+> **Area:** Field / Record · **Status:** Claimed (in progress) · **Depends on:** I-171
 
 Raised by the I-171 slice.
 
