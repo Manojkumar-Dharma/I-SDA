@@ -22,7 +22,8 @@ const { check, failureCount } = require('./helpers/harness');
 const T = KeywordSpec.RECORD_TYPES;
 const names = Object.keys(T);
 const statesNoParams = (e) => e.noParameters === true || e.parameters === 'none';
-const statesIndicators = (e) => e.optionIndicators === 'valid';
+// Two spellings of the same fact (Task I-176): `optionIndicators: 'valid'` and `optionIndicatorsValid: true`.
+const statesIndicators = (e) => e.optionIndicators === 'valid' || e.optionIndicatorsValid === true;
 
 console.log('=== 1. the three keywords the gap was found on ===');
 ['MSGALARM', 'CSRINPONLY', 'HLPEXCLD'].forEach((k) => {

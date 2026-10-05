@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-192 of 196 tasks done; 4 open (see [Open work](#open-work)). Current version: **v0.10.338**.
+193 of 196 tasks done; 3 open (see [Open work](#open-work)). Current version: **v0.10.339**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -238,7 +238,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-173](#i-173) | Field | `MNUBARCHC` 12-line limit of a menu-bar field (opened from the I-172 deferred finding; reading decided: width = smallest `DSPSIZ` width minus 2, whole-choice wrap, separator counts as 1 of the 12 unless `*NOSEPARATOR`) | I-172 | Done | v0.10.334 |
 | [I-174](#i-174) | Tooling | `takesNoParameters` / `optionIndicatorsAllowed` answer only for the I-121b keywords, so they say "no" for `MSGALARM`, `CSRINPONLY` and `HLPEXCLD` although their spec entries say the opposite (opened from I-122 batch 2) | I-121 | Done | v0.10.337 |
 | [I-175](#i-175) | Field | `MNUBARSEP` and `MNUBARCHC` need `MNUBAR` on their record, and `MNUBARSEP` cannot be used where `MNUBAR` says `*NOSEPARATOR`; the spec records the rules and nothing enforces them (found logging I-122 batch 3; not asserted as correct) | I-171 | In progress | — |
-| [I-176](#i-176) | Tooling | `optionIndicatorsAllowed` still answers "no" for the 11 keywords whose entries spell the fact `optionIndicatorsValid: true` (`ALARM`, `BLINK`, `CSRLOC`, `ERASE`, `ERASEINP`, `OVERLAY`, `PUTOVR`, `FRCDTA`, `PROTECT`, `MDTOFF`, `LOCK`); left over from I-174 | I-174 | In progress | — |
+| [I-176](#i-176) | Tooling | `optionIndicatorsAllowed` still answers "no" for the 11 keywords whose entries spell the fact `optionIndicatorsValid: true` (`ALARM`, `BLINK`, `CSRLOC`, `ERASE`, `ERASEINP`, `OVERLAY`, `PUTOVR`, `FRCDTA`, `PROTECT`, `MDTOFF`, `LOCK`); left over from I-174 | I-174 | Done | v0.10.339 |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -255,7 +255,6 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | 1 | [I-122](#i-122) | In progress (batches 1-3 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
 | 2 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
 | 3 | [I-175](#i-175) | In progress | `MNUBAR` required by `MNUBARSEP` / `MNUBARCHC`, and `MNUBARSEP` against `*NOSEPARATOR`. Size (estimate): Small. |
-| 4 | [I-176](#i-176) | In progress | `optionIndicatorsAllowed` ignores the `optionIndicatorsValid: true` spelling (11 keywords). Size (estimate): Small. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The I-121 umbrella row there stays open until its slices land, so it is counted in the headline but not listed here.
 
@@ -7889,11 +7888,15 @@ To do: add `MNUBAR` and `NOSEP` violations to `choiceMenuBarViolations`, read fr
 
 ### I-176 — `optionIndicatorsAllowed` ignores the `optionIndicatorsValid` spelling
 
-> **Area:** Tooling · **Status:** In progress (claimed) · **Depends on:** I-174
+> **Area:** Tooling · **Status:** Done (v0.10.339) · **Depends on:** I-174
 
 Opened from I-122 batch 3, after I-174 landed. `KeywordSpec.optionIndicatorsAllowed(name)` returns true only when the entry says `optionIndicators: 'valid'`. Eleven entries state the same fact in the I-121a spelling, `optionIndicatorsValid: true` (`ALARM`, `BLINK`, `CSRLOC`, `ERASE`, `ERASEINP`, `OVERLAY`, `PUTOVR`, `FRCDTA`, `PROTECT`, `MDTOFF`, `LOCK`), and the accessor answers false for all eleven, although each of their DDS Reference sections says "Option indicators are valid for this keyword". I-174's table test compares the accessor with the same `optionIndicators === 'valid'` predicate, so it cannot see the gap. Nothing is wrong on screen today: the panels pass literal values for those rows, the same position I-174 described for the first three keywords, and the hazard is the same (a later change routes a row through the accessor and loses its Conditioning toggle).
 
 Decide, then do one of: (a) make the accessor accept either spelling; (b) rewrite the eleven entries to `optionIndicators: 'valid'` (the I-121a facts list, `I121A_FACT_KEYS`, and anything reading `optionIndicatorsValid` would move with them). (a) is smaller. The test is a table over every entry that states either spelling, so a third spelling cannot be added without the test noticing.
+
+**Done (v0.10.339), option (a).** `optionIndicatorsAllowed` now answers true for `optionIndicators === 'valid' || optionIndicatorsValid === true`. No entry carries both spellings with different meanings (checked), and `optionIndicatorsValid` is only ever the boolean `true`, so the second spelling is read rather than rewritten into the first (option (b) would touch 11 entries and the I-121a fact-key list for no gain). The other option-indicator keys stay unread on purpose: `optionIndicatorRequired` (`SFLDLT`: required, not merely valid; its `optionIndicators` is `'required'`), `noOptionIndicatorsOnField` (`SFLMSGKEY`), `optionIndicatorNote` (`MSGCON`) and `multipleRequireOptionIndicators` (`MNUBARDSP`).
+
+New `src/test/i176OptionIndicatorsSpellings.test.js` (23 checks): the 11 keywords on both accessors, the two spellings never contradict, a guard that every entry key naming option indicators is one of six known ones (so a third spelling fails the test instead of being ignored - the trap this task came from), and all 175 entries answering exactly "`'valid'` or `optionIndicatorsValid`". Two mutations (back to the I-174 read; a new `optionIndicatorsOk` spelling on `ALARM`) fail it; the first also fails the I-174 table test, whose predicate now uses the two-spelling definition.
 
 *Raised by I-122 batch 3. Size (estimate): Small.*
 

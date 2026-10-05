@@ -6085,9 +6085,14 @@
   /** Whether `name` is documented as taking no parameters: its entry says `noParameters: true` or
    *  `parameters: 'none'`. False for a keyword with no entry. */
   function takesNoParameters(name) { var e = recordTypeEntry(name); return !!(e && (e.noParameters === true || e.parameters === 'none')); }
-  /** Whether option indicators are valid on `name`: its entry says `optionIndicators: 'valid'`
-   *  (false for 'notValid' / 'required' / unstated, and for a keyword with no entry). */
-  function optionIndicatorsAllowed(name) { var e = recordTypeEntry(name); return !!(e && e.optionIndicators === 'valid'); }
+  /** Whether option indicators are valid on `name`: its entry says `optionIndicators: 'valid'`, or
+   *  - the spelling the I-121a record-level keywords (ALARM, BLINK, CSRLOC, ERASE, ERASEINP, OVERLAY,
+   *  PUTOVR, FRCDTA, PROTECT, MDTOFF, LOCK) use - `optionIndicatorsValid: true` (Task I-176). False for
+   *  'notValid' / 'required' / unstated, and for a keyword with no entry. */
+  function optionIndicatorsAllowed(name) {
+    var e = recordTypeEntry(name);
+    return !!(e && (e.optionIndicators === 'valid' || e.optionIndicatorsValid === true));
+  }
   /** Keywords that must be on the same record as `name` (copy; [] if none). */
   function recordRequires(name) { return i121bList(name, 'requiresOnRecord'); }
   /** Task I-148 - the three I-121b keywords whose record-level requires / excludes
