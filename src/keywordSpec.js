@@ -3654,6 +3654,13 @@
       },
       maxLinesForMenuBarField: 12,
       maxLinesIncludeSeparatorLine: true,
+      // Task I-173 - how the line count is worked out. The reference gives the formula (sum of the
+      // choice-text lengths plus 3 blanks between choices) but not the line width or the wrapping, so
+      // these two are decisions, not quotations: a line holds as many text positions as the longest
+      // single choice the reference allows (76 on 80 columns, 128 on 132, i.e. columns minus 4), and a
+      // choice that does not fit moves whole to the next line. The worked example (78 positions on a
+      // 24x80 display occupy 2 lines) rules out any width of 78 or more.
+      lineLayout: { textPositionsAreColumnsMinus: 4, choiceMovesWholeToNextLine: true, separatorCountsAsLine: true },
       mnemonic: {
         marker: '>',
         literalMarkerByDoubling: true,
@@ -6271,6 +6278,16 @@
   }
   /** Task I-171 - the keyword the record named by an MNUBARCHC must carry. */
   function mnubarchcPullDownRecordKeyword() { return RECORD_TYPES.MNUBARCHC.pullDownRecord.mustHaveKeyword; }
+  /** Task I-173 - the menu-bar field's line limit and how its lines are counted. */
+  function menuBarLineRules() {
+    var e = RECORD_TYPES.MNUBARCHC;
+    return {
+      maxLines: e.maxLinesForMenuBarField,
+      blanksBetweenChoices: e.choiceText.blanksBetweenChoices,
+      columnsMinus: e.lineLayout.textPositionsAreColumnsMinus,
+      separatorCountsAsLine: e.lineLayout.separatorCountsAsLine
+    };
+  }
   // ---- end I-121l ----
   // ---- I-121f: accessors ----
   // DSPSIZ's size table is DSPSIZ_DOMAIN (defined above); copy it into the entry
@@ -6413,6 +6430,7 @@
     choiceCompanionRules: choiceCompanionRules,
     chcctlRules: chcctlRules,
     mnubarchcPullDownRecordKeyword: mnubarchcPullDownRecordKeyword,
+    menuBarLineRules: menuBarLineRules,
     choiceMenuBarKeywords: choiceMenuBarKeywords,
     choiceMenuBarIndicatorMode: choiceMenuBarIndicatorMode,
     choiceMenuBarRequiresOneOf: choiceMenuBarRequiresOneOf,

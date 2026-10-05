@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-187 of 193 tasks done; 6 open (see [Open work](#open-work); the I-121 umbrella row counts as one open task until its slices land). Current version: **v0.10.332**.
+188 of 193 tasks done; 5 open (see [Open work](#open-work); the I-121 umbrella row counts as one open task until its slices land). Current version: **v0.10.334**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -234,8 +234,8 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-169](#i-169) | File / Record | `CAnn` and `CFnn` with the same key number (the reference says "not valid in the same display file", so the whole file; opened from the I-160 deferred finding) | I-160 | Done | v0.10.323 |
 | [I-170](#i-170) | Field | Reference-field and help-identifier rules not enforced: `DLTCHK` / `DLTEDT` / `REFFLD` without R in position 29, `ALIAS` uniqueness, `HLPID` range 1-999 and uniqueness | I-121o | Done | v0.10.330 |
 | [I-171](#i-171) | Field | Choice and menu-bar rules not enforced: `CHCACCEL` outside a `SNGCHCFLD` field in a `PULLDOWN` record, `CHCSLT` with `CHOICE` in a record without `PULLDOWN(*NOSLTIND)`, the `CHCCTL` control-field type and matching choice, the `MNUBARCHC` pull-down record needing `PULLDOWN`, the 12-line menu-bar limit | I-121l | Done | v0.10.331 |
-| [I-172](#i-172) | Field / Record | Choice and menu-bar follow-ups: the 12-line limit of a menu-bar field (how the reference counts lines is unclear) and panel rows that still offer a keyword the guard then refuses (`CHCACCEL` input on a `MLTCHCFLD` field, the colour-state rows on a field with no choice keyword) | I-171 | Done (panel rows; the 12-line limit is a deferred finding) | v0.10.332 |
-| [I-173](#i-173) | Field | `MNUBARCHC` 12-line limit of a menu-bar field (opened from the I-172 deferred finding; reading decided: width = smallest `DSPSIZ` width minus 2, whole-choice wrap, separator counts as 1 of the 12 unless `*NOSEPARATOR`) | I-172 | In progress | — |
+| [I-172](#i-172) | Field / Record | Choice and menu-bar follow-ups: the 12-line limit of a menu-bar field (how the reference counts lines is unclear) and panel rows that still offer a keyword the guard then refuses (`CHCACCEL` input on a `MLTCHCFLD` field, the colour-state rows on a field with no choice keyword) | I-171 | Done (panel rows; the 12-line limit became I-173) | v0.10.332 |
+| [I-173](#i-173) | Field | `MNUBARCHC` 12-line limit of a menu-bar field (opened from the I-172 deferred finding; reading decided: width = smallest `DSPSIZ` width minus 2, whole-choice wrap, separator counts as 1 of the 12 unless `*NOSEPARATOR`) | I-172 | Done | v0.10.334 |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -253,17 +253,15 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | 2 | [I-122](#i-122) | In progress (batch 1 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
 | 3 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
 | 4 | [I-121t](#i-121t) | Not started | Generate the keyword index from the spec. Needs I-121a – I-121s. Last. |
-| 5 | [I-173](#i-173) | In progress | `MNUBARCHC` 12-line limit of a menu-bar field. Size (estimate): Medium. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The I-121 umbrella row there stays open until its slices land, so it is counted in the headline but not listed here.
 
 ## Deferred findings (not yet tasks)
 
-Every finding so far has been opened as a task (I-61 – I-172, see the tables above), except the one in the table below. The four that were waiting here because the DDS Reference does not settle them were converted on request: I-153's open questions became [I-166](#i-166), I-154's became [I-167](#i-167), I-121g's became [I-168](#i-168) and I-160's became [I-169](#i-169) (done; the source turned out to state the whole-file scope). Each of those tasks starts with the decision or rule it is waiting on, so nothing in it is implemented on a guess. A new finding that cannot be implemented yet goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
+Every finding so far has been opened as a task (I-61 – I-173, see the tables above); the table below is empty. The four that were waiting here because the DDS Reference does not settle them were converted on request: I-153's open questions became [I-166](#i-166), I-154's became [I-167](#i-167), I-121g's became [I-168](#i-168) and I-160's became [I-169](#i-169) (done; the source turned out to state the whole-file scope). Each of those tasks starts with the decision or rule it is waiting on, so nothing in it is implemented on a guess. A new finding that cannot be implemented yet goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
 
 | Raised by | Finding |
 |-----------|---------|
-| I-172 | `MNUBARCHC`'s 12-line limit for a menu-bar field is not enforced. The reference (MNUBARCHC section) says the number of lines is "determined by the sum of the lengths of the choice-text parameters, plus 3 blank spaces between each choice" (trailing blanks of a literal dropped, a `&field` counted at its length), that the maximum is 12 lines "(this includes the separator line)", and that the first choice on a line starts at position 3 with a trailing blank always inserted. It does not say the line width (80 or 132 from the smallest `DSPSIZ`?), whether a choice may be split across two lines or moves whole to the next, or whether the 12 includes the separator line as one of the twelve. Each reading gives a different count at the boundary, so a guard needs one of them decided first. The spec already holds the 12 (`maxLinesForMenuBarField`) and the per-choice widths (`choiceText.maxLength`). |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
@@ -7808,5 +7806,21 @@ Raised by the I-171 slice.
 
 New `src/test/i172ChoicePanelRows.test.js` (29 checks): the shared reason for every companion rule, guard parity on one field (same sentence), colour-state and accelerator rows shown / hidden / kept, and Apply with the accelerator input hidden. Two older fixtures were adjusted because their fields had no choice keyword (`i121ChoiceColorStatesKeywordSpec`, `i65PshbtnChoiceControlColors`: F2 has `CHOICE` but its record has no `PULLDOWN(*NOSLTIND)`, so Selected is no longer offered). Full suite: 279 files, 16,473 checks, zero failures.
 
-**Not done here (moved to Deferred findings):** the 12-line limit of a menu-bar field. The reference gives the counting formula but not the line width or how a choice that does not fit is wrapped, so a guard would be a guess.
+**Not done here (opened as I-173, done v0.10.334):** the 12-line limit of a menu-bar field. The reference gives the counting formula but not the line width or how a choice that does not fit is wrapped, so a guard would be a guess.
+
+### I-173 — `MNUBARCHC` 12-line limit of a menu-bar field
+
+> **Area:** Field · **Status:** Done (v0.10.334) · **Depends on:** I-172
+
+Opened from I-172's deferred finding. The `MNUBARCHC` section says the number of lines a menu-bar field occupies "is determined by the sum of the lengths of the choice-text parameters, plus 3 blank spaces between each choice" and that the maximum is 12 lines "(this includes the separator line)". It does not say how wide a line is or how a choice that does not fit is wrapped, so two decisions were taken and recorded in the spec (`MNUBARCHC.lineLayout`, read through `KeywordSpec.menuBarLineRules()`):
+
+- **Line width = the smallest declared `DSPSIZ` width minus 4** (76 on 24x80, 128 on 27x132 - exactly the reference's own per-choice maximums, which the test pins to the existing `choiceText.maxLength`). Not width minus 2 (78 / 130): the reference's worked example says five 15-position choices plus 3 (78 positions) occupy 2 lines on a 24x80 display, which a 78-position line would contradict.
+- **A choice that does not fit moves whole to the next line**; it is never split. A single choice longer than a line is counted as one line (an over-long choice is a separate problem).
+- **The separator counts as one of the 12** unless the record's `MNUBAR` says `*NOSEPARATOR` (a record with no `MNUBAR` has none). A literal is counted without its trailing blanks, a `&field` at its own length; a `&field` that is not in the record is skipped (forward reference). Choices are laid out in ascending choice-number order, as they are displayed.
+
+**Done (v0.10.334).** `DspfWriter.menuBarFieldLineCount(model, record, field)` does the count; a `LINES` violation was added to `choiceMenuBarViolations`, so the rule rides the I-171 model-diff guard that every UI path and the raw editors already go through (no new wiring). Only an edit that *introduces* the violation is refused: adding a choice, lengthening a choice text field, dropping `*NOSEPARATOR`, removing a wider `DSPSIZ`; an already-over-limit hand-written file does not block unrelated edits. `DspfEngine.parseMenubarChoice` is now exported so the writer uses the engine's own choice parser.
+
+New `src/test/i173MenuBarLineLimit.test.js` (35 checks): the spec accessor, the counter (boundaries 76 / 77, trailing blanks, 132 columns, smallest size wins, `*NOSEPARATOR`, `&field` lengths, ascending order) , the diff semantics, and the raw keyword editor in jsdom. Three mutations (`>=` for `>`, separator not counted, width minus 2) each fail it. Fixture note: keyword text stops at column 80, so a one-line `MNUBARCHC` holds at most an 18-character literal with a one-character pull-down name; longer choices in the test come from `&field` text fields, defined *before* the menu-bar field (keyword lines attach to the field above them).
+
+Not done: a literal split over continuation lines is counted from the parser's joined text, which was not probed with a real continuation.
 ---

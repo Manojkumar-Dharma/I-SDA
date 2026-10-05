@@ -5677,6 +5677,43 @@
     var p = choiceFieldCompanionProblems(kw, fieldKeywords, recordKeywords, label || 'this field', recordName || 'this record');
     return p.length ? p[0].text : '';
   }
+  /** Task I-173 - the number of lines a menu-bar field occupies, or null when it has no MNUBARCHC.
+   *  The reference's formula: the lengths of the choice texts (a literal without its trailing blanks;
+   *  a &field at its own length) with 3 blanks between choices. Two decisions the reference leaves
+   *  open (KeywordSpec.menuBarLineRules): a line holds (smallest DSPSIZ width - 4) text positions,
+   *  and a choice that does not fit moves whole to the next line. The separator line counts as one
+   *  of the 12 unless the record's MNUBAR says *NOSEPARATOR (or has no MNUBAR). A &field that does
+   *  not exist in the record is skipped (a forward reference is left to the compiler). */
+  function menuBarFieldLineCount(model, record, field) {
+    var choices = (field.keywords || []).filter(function (k) { return k.name === 'MNUBARCHC'; });
+    if (!choices.length) return null;
+    var rules = KeywordSpec.menuBarLineRules();
+    var sizes = getDisplaySizesList((model && model.fileKeywords) || []);
+    var def = KeywordSpec.defaultDisplaySize();
+    var columns = sizes.length ? Math.min.apply(null, sizes.map(function (z) { return z.columns; })) : def.columns;
+    var capacity = columns - rules.columnsMinus;
+    var parsed = choices.map(function (k) { return DspfEngine.parseMenubarChoice(k.parameters); })
+      .sort(function (a, b) { return parseInt(a.id, 10) - parseInt(b.id, 10); });
+    var lines = 0, used = 0;
+    parsed.forEach(function (c) {
+      var len;
+      if (String(c.text || '').charAt(0) === '&') {
+        var fname = String(c.text).slice(1).toUpperCase();
+        var tf = (record.fields || []).filter(function (g) { return String(g.name || '').toUpperCase() === fname; })[0];
+        if (!tf) return;
+        len = Number(tf.length) || 0;
+      } else {
+        len = String(c.text || '').replace(/\s+$/, '').length;
+      }
+      len = Math.min(len, capacity);
+      if (!lines) { lines = 1; used = len; }
+      else if (used + rules.blanksBetweenChoices + len <= capacity) { used += rules.blanksBetweenChoices + len; }
+      else { lines++; used = len; }
+    });
+    var mb = (record.keywords || []).filter(function (k) { return k.name === 'MNUBAR'; })[0];
+    var separator = !!mb && rules.separatorCountsAsLine && String(mb.parameters || '').toUpperCase().indexOf('*NOSEPARATOR') < 0;
+    return { text: lines, separator: separator, total: lines + (separator ? 1 : 0), max: rules.maxLines };
+  }
   /** Task I-171 - the choice and menu-bar companion-keyword rules the I-121l slice recorded as
    *  spec facts (KeywordSpec.choiceCompanionRules / chcctlRules / mnubarchcPullDownRecordKeyword -
    *  nothing hand-copied here). Each is a "must also be specified" the DDS Reference states:
@@ -5745,6 +5782,12 @@
             out[rname + '|MNUBARCHC|PULLDOWN|' + fname + '#' + target] = 'MNUBARCHC on field ' + label + ' names record format ' + rec.name + ', which has no ' + need + ' keyword: the record must contain ' + need + ' (per the DDS Reference).';
           }
         });
+        var lines = menuBarFieldLineCount(model, r, f);
+        if (lines && lines.total > lines.max) {
+          out[rname + '|MNUBARCHC|LINES|' + fname] = 'Menu-bar field ' + label + ' in record format ' + r.name + ' would occupy ' + lines.total + ' lines' +
+            (lines.separator ? ' (' + lines.text + ' for the choices plus the separator line)' : '') + ', but a menu-bar field can occupy at most ' + lines.max +
+            ' lines, separator line included (per the DDS Reference for MNUBARCHC).';
+        }
       });
     });
     return out;
@@ -11491,6 +11534,7 @@
     multiLevelEligibilityNewConflictReason: multiLevelEligibilityNewConflictReason,
     referenceFieldNewConflictReason: referenceFieldNewConflictReason,
     choiceMenuBarNewConflictReason: choiceMenuBarNewConflictReason,
+    menuBarFieldLineCount: menuBarFieldLineCount,
     choiceFieldCompanionReason: choiceFieldCompanionReason,
     multiLevelFieldReason: multiLevelFieldReason,
     putretainDspmodAdvisory: putretainDspmodAdvisory,

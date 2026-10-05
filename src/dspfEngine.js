@@ -2733,6 +2733,7 @@
   return {
     conditionsSatisfied: conditionsSatisfied,
     parseScreenSizes: parseScreenSizes,
+    parseMenubarChoice: parseMenubarChoice,
     resolveScreen: resolveScreen,
     setJobDateFormat: setJobDateFormat,
     getJobDateFormat: getJobDateFormat,
