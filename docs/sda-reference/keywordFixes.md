@@ -183,7 +183,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-121q](#i-121q) | Cross-level | Audit the remaining `*ConflictReason` functions | I-121a – I-121o (alongside) | Done v0.10.333 | — |
 | [I-121r](#i-121r) | Tooling | Webview constant tables | I-121 | Done v0.10.287 (four value-domain lists from the spec; the rest guarded or classified as screen text) | v0.10.287 |
 | [I-121s](#i-121s) | Tooling | Engine and writer constant tables | I-121 | Done v0.10.286 (writer tables in the spec; engine/message tables classified as presentation) | v0.10.286 |
-| [I-121t](#i-121t) | Tooling | Generate the keyword index from the spec (do last) | I-121a – I-121s | Not started | — |
+| [I-121t](#i-121t) | Tooling | Generate the keyword index from the spec (do last) | I-121a – I-121s | Claimed (in progress) | — |
 | [I-122](#i-122) | Tooling | Generated keyword x dimension test matrix; retire duplicate and stale tests | I-120, I-121 | In progress (batch 1 done, v0.10.274: the six keywords with no tests; next: batch 2) | — |
 | [I-123](#i-123) | Tooling | Move "Task I-nn" history out of source comments | I-121 | Not started | — |
 | [I-124](#i-124) | Tooling | Test-only exports that still carry a "kept for backward compatibility / API completeness" note (decision first) | I-118 | Done | v0.10.202 |
@@ -252,7 +252,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | 1 | [I-121q](#i-121q) | Not started | Audit the remaining `*ConflictReason` functions. Size (estimate): Large. |
 | 2 | [I-122](#i-122) | In progress (batch 1 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
 | 3 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
-| 4 | [I-121t](#i-121t) | Not started | Generate the keyword index from the spec. Needs I-121a – I-121s. Last. |
+| 4 | [I-121t](#i-121t) | Claimed | Generate the keyword index from the spec. Needs I-121a – I-121s. Last. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The I-121 umbrella row there stays open until its slices land, so it is counted in the headline but not listed here.
 
@@ -6734,7 +6734,7 @@ No new findings.
 
 ### I-121t — Generate the keyword index from the spec (do last)
 
-> **Area:** Tooling · **Status:** Not started · **Depends on:** I-121a – I-121s · **Size (estimate):** Large
+> **Area:** Tooling · **Status:** Claimed (in progress) · **Depends on:** I-121a – I-121s · **Size (estimate):** Large
 
 The goal stated in I-121 itself: make `KEYWORD-INDEX.json` / `KEYWORD-LOOKUP.json` / `KEYWORD-INDEX.md` come from `keywordSpec.js` so I-40 is the last hand regeneration (`build_index.py`, `build_lookup_and_md.py`). Start only when a-s are done, because every earlier slice changes the spec. Acceptance: regenerated files differ from the I-40 baseline only where a spec entry is more correct, each difference explained.
 
