@@ -6302,6 +6302,15 @@
       separatorCountsAsLine: e.lineLayout.separatorCountsAsLine
     };
   }
+  /** Task I-175 - the menu-bar record rules of the two menu-bar field keywords, read from their own
+   *  entries (a copy): { requiresOnRecord:[..], conflictsWithMnubarParameter } for MNUBARCHC and
+   *  MNUBARSEP (the latter is the MNUBAR parameter the keyword cannot sit beside). Null for any other keyword. */
+  function menuBarRecordRules(name) {
+    var n = String(name == null ? '' : name).trim().toUpperCase();
+    if (n !== 'MNUBARCHC' && n !== 'MNUBARSEP') return null;
+    var e = RECORD_TYPES[n];
+    return { requiresOnRecord: (e.requiresOnRecord || []).slice(), conflictsWithMnubarParameter: e.conflictsWithMnubarParameter || null };
+  }
   // ---- end I-121l ----
   // ---- I-121f: accessors ----
   // DSPSIZ's size table is DSPSIZ_DOMAIN (defined above); copy it into the entry
@@ -6445,6 +6454,7 @@
     chcctlRules: chcctlRules,
     mnubarchcPullDownRecordKeyword: mnubarchcPullDownRecordKeyword,
     menuBarLineRules: menuBarLineRules,
+    menuBarRecordRules: menuBarRecordRules,
     choiceMenuBarKeywords: choiceMenuBarKeywords,
     choiceMenuBarIndicatorMode: choiceMenuBarIndicatorMode,
     choiceMenuBarRequiresOneOf: choiceMenuBarRequiresOneOf,

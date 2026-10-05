@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-193 of 203 tasks done; 10 open (see [Open work](#open-work)). Current version: **v0.10.339**.
+194 of 203 tasks done; 9 open (see [Open work](#open-work)). Current version: **v0.10.340**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -244,7 +244,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-172](#i-172) | Field / Record | Choice and menu-bar follow-ups: the 12-line limit of a menu-bar field (how the reference counts lines is unclear) and panel rows that still offer a keyword the guard then refuses (`CHCACCEL` input on a `MLTCHCFLD` field, the colour-state rows on a field with no choice keyword) | I-171 | Done (panel rows; the 12-line limit became I-173) | v0.10.332 |
 | [I-173](#i-173) | Field | `MNUBARCHC` 12-line limit of a menu-bar field (opened from the I-172 deferred finding; reading decided: width = smallest `DSPSIZ` width minus 2, whole-choice wrap, separator counts as 1 of the 12 unless `*NOSEPARATOR`) | I-172 | Done | v0.10.334 |
 | [I-174](#i-174) | Tooling | `takesNoParameters` / `optionIndicatorsAllowed` answer only for the I-121b keywords, so they say "no" for `MSGALARM`, `CSRINPONLY` and `HLPEXCLD` although their spec entries say the opposite (opened from I-122 batch 2) | I-121 | Done | v0.10.337 |
-| [I-175](#i-175) | Field | `MNUBARSEP` and `MNUBARCHC` need `MNUBAR` on their record, and `MNUBARSEP` cannot be used where `MNUBAR` says `*NOSEPARATOR`; the spec records the rules and nothing enforces them (found logging I-122 batch 3; not asserted as correct) | I-171 | In progress | — |
+| [I-175](#i-175) | Field | `MNUBARSEP` and `MNUBARCHC` need `MNUBAR` on their record, and `MNUBARSEP` cannot be used where `MNUBAR` says `*NOSEPARATOR`; the spec records the rules and nothing enforces them (found logging I-122 batch 3; not asserted as correct) | I-171 | Done | v0.10.340 |
 | [I-176](#i-176) | Tooling | `optionIndicatorsAllowed` still answers "no" for the 11 keywords whose entries spell the fact `optionIndicatorsValid: true` (`ALARM`, `BLINK`, `CSRLOC`, `ERASE`, `ERASEINP`, `OVERLAY`, `PUTOVR`, `FRCDTA`, `PROTECT`, `MDTOFF`, `LOCK`); left over from I-174 | I-174 | Done | v0.10.339 |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
@@ -268,7 +268,6 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | 7 | [I-122i](#i-122i) | Not started | Generated per-keyword matrix (L1-L4 from the I-121 spec). Size (estimate): Large. |
 | 8 | [I-122j](#i-122j) | Not started | Retire overlapping tests, each deletion backed by a stash-based mutation run (do last, serially). Size (estimate): Large. |
 | 9 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
-| 10 | [I-175](#i-175) | In progress | `MNUBAR` required by `MNUBARSEP` / `MNUBARCHC`, and `MNUBARSEP` against `*NOSEPARATOR`. Size (estimate): Small. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The I-121 umbrella row there stays open until its slices land, so it is counted in the headline but not listed here.
 
@@ -7958,13 +7957,17 @@ New `src/test/i174AccessorsReadEveryEntry.test.js` (20 checks): the three keywor
 
 ### I-175 — `MNUBARSEP` / `MNUBARCHC` need `MNUBAR` on the record; `MNUBARSEP` cannot sit beside `*NOSEPARATOR`
 
-> **Area:** Field · **Status:** In progress · **Depends on:** I-171
+> **Area:** Field · **Status:** Done (v0.10.340) · **Depends on:** I-171
 
-Found while logging I-122 batch 3; not asserted as correct until probed. The spec records (`keywordSpec.js`): `MNUBARSEP.requiresOnRecord: ['MNUBAR']`, `MNUBARSEP.conflictsWithMnubarParameter: '*NOSEPARATOR'` (\"the `*NOSEPARATOR` parameter cannot be used on `MNUBAR` if `MNUBARSEP` is specified\"), and `MNUBARCHC.requiresOnRecord: ['MNUBAR']` (\"The MNUBAR keyword is required at the record level\"). `choiceMenuBarViolations` enforces none of them.
+Found while logging I-122 batch 3; logged as a task and not asserted as correct until probed. The spec (`keywordSpec.js`) records three facts: `MNUBARSEP.requiresOnRecord: ['MNUBAR']`, `MNUBARSEP.conflictsWithMnubarParameter: '*NOSEPARATOR'` (the DDS Reference: the `*NOSEPARATOR` parameter cannot be used on `MNUBAR` if `MNUBARSEP` is specified) and `MNUBARCHC.requiresOnRecord: ['MNUBAR']` (the `MNUBAR` keyword is required at the record level). `choiceMenuBarViolations` enforced none of them.
 
-Probed on v0.10.337 at model level (the raw keyword editor and every panel reach the same `choiceMenuBarNewConflictReason`): adding `MNUBARSEP` beside `MNUBAR(*NOSEPARATOR)`, adding `*NOSEPARATOR` to an `MNUBAR` whose field has `MNUBARSEP`, adding `MNUBARSEP` on a record with no `MNUBAR`, and removing `MNUBAR` while `MNUBARSEP` stays are all accepted.
+**Probe (v0.10.337, model level; the raw keyword editor and every panel reach the same `choiceMenuBarNewConflictReason`).** All four edits were accepted: adding `MNUBARSEP` beside `MNUBAR(*NOSEPARATOR)`, adding `*NOSEPARATOR` to an `MNUBAR` whose field has `MNUBARSEP`, adding `MNUBARSEP` on a record with no `MNUBAR`, and removing `MNUBAR` while `MNUBARSEP` stays. `MNUBARCHC` had the same gap for the "no `MNUBAR`" rule, so both keywords were taken as one task (on request).
 
-To do: add `MNUBAR` and `NOSEP` violations to `choiceMenuBarViolations`, read from the spec through a new accessor, in the I-171 diff shape (refuse only what an edit adds, in either direction); the same `MNUBAR` rule for `MNUBARCHC`.
+**Fix.** `KeywordSpec.menuBarRecordRules(name)` returns a copy of the two facts from the keyword's own entry (`requiresOnRecord`, `conflictsWithMnubarParameter`), and null for any other keyword. `choiceMenuBarViolations` gained two violations built from it, in the I-171 diff shape (an edit is refused only for what it adds, in either direction; an already-invalid hand-written record is not re-reported and does not block an unrelated edit): `MNUBAR` (`MNUBARSEP` or `MNUBARCHC` on a record with no `MNUBAR`; also refuses removing `MNUBAR` while either stays) and `NOSEP` (`MNUBARSEP` on a record whose `MNUBAR` specifies `*NOSEPARATOR`, matched case-insensitively). `MNUBARCHC` beside `*NOSEPARATOR` and `MNUBARSEP` with `*SEPARATOR` or a plain `MNUBAR` stay allowed. The alert wording follows I-171's: "MNUBARSEP on field F cannot be used while MNUBAR on record format R specifies *NOSEPARATOR (per the DDS Reference)" and "MNUBARSEP on field F needs MNUBAR on record format R: the MNUBAR keyword must be on the record (per the DDS Reference)".
+
+**Tests.** `src/test/i175MenuBarRecordRules.test.js` (20 checks): the accessor (both keywords, any case, other keywords null, copies); the model guard in both directions for each rule, the allowed cases, and the already-invalid-record cases; and the raw keyword editor in jsdom (the edit is refused with the DDS wording and nothing is posted). Mutation-checked: disabling the `*NOSEPARATOR` check fails 4 checks, disabling the "`MNUBAR` required" check fails 5. The webview tests run against the compiled `dist/`, so a writer change needs `npm run compile` to take effect. Check count +20.
+
+Not done: panel rows that still offer `MNUBARSEP` where the guard now refuses it were not changed (the I-172 shape); no case found, nothing opened.
 
 ---
 

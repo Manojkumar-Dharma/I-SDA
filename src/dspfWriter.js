@@ -5782,6 +5782,22 @@
             out[rname + '|MNUBARCHC|PULLDOWN|' + fname + '#' + target] = 'MNUBARCHC on field ' + label + ' names record format ' + rec.name + ', which has no ' + need + ' keyword: the record must contain ' + need + ' (per the DDS Reference).';
           }
         });
+        // Task I-175 - MNUBARCHC and MNUBARSEP need MNUBAR on the record; MNUBARSEP cannot sit
+        // beside MNUBAR(*NOSEPARATOR). Both read from the spec (KeywordSpec.menuBarRecordRules).
+        ['MNUBARCHC', 'MNUBARSEP'].forEach(function (mk) {
+          if (!hasKeywordNamed(kws, mk)) return;
+          var mr = KeywordSpec.menuBarRecordRules(mk);
+          mr.requiresOnRecord.forEach(function (need) {
+            if (!hasKeywordNamed(r.keywords, need)) {
+              out[rname + '|' + mk + '|MNUBAR|' + fname] = mk + ' on field ' + label + ' needs ' + need + ' on record format ' + r.name + ': the ' + need + ' keyword must be on the record (per the DDS Reference).';
+            }
+          });
+          var bad = mr.conflictsWithMnubarParameter;
+          var mbk = (r.keywords || []).filter(function (k) { return k.name === 'MNUBAR'; })[0];
+          if (bad && mbk && String(mbk.parameters || '').toUpperCase().indexOf(bad) >= 0) {
+            out[rname + '|' + mk + '|NOSEP|' + fname] = mk + ' on field ' + label + ' cannot be used while ' + mbk.name + ' on record format ' + r.name + ' specifies ' + bad + ' (per the DDS Reference).';
+          }
+        });
         var lines = menuBarFieldLineCount(model, r, f);
         if (lines && lines.total > lines.max) {
           out[rname + '|MNUBARCHC|LINES|' + fname] = 'Menu-bar field ' + label + ' in record format ' + r.name + ' would occupy ' + lines.total + ' lines' +
