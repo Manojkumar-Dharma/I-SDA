@@ -85,10 +85,8 @@ console.log('=== spec: what the DDS Reference says about each keyword ===');
   check('HLPEXCLD: help-specification level, no parameters, needs HLPPNLGRP', T.HLPEXCLD.levels.join() === 'help' && T.HLPEXCLD.noParameters === true && T.HLPEXCLD.requiresOnHelpSpecification.join() === 'HLPPNLGRP');
   check('HLPEXCLD and HLPBDY are mutually exclusive on one H specification', T.HLPEXCLD.atMostOneOfPerHelpSpecification.join() === 'HLPBDY,HLPEXCLD');
   check('KEYBRD is recorded as not a DDS keyword', T.KEYBRD.notADdsKeyword === true);
-  // takesNoParameters / optionIndicatorsAllowed read only the I-121b table, so they
-  // answer for RETLCKSTS and INZINP but not for the others; that gap is logged as a
-  // finding in keywordFixes.md and deliberately not asserted here.
-  check('the accessors agree with the spec for the two I-121b keywords (RETLCKSTS, INZINP)', ['RETLCKSTS', 'INZINP'].every((k) => DspfWriter.takesNoParameters(k) && DspfWriter.optionIndicatorsAllowed(k)));
+  // I-174: the accessors read each keyword's own entry, so all five answer as their entries say.
+  check('the accessors agree with the spec for MSGALARM, CSRINPONLY, HLPEXCLD, RETLCKSTS and INZINP', ['MSGALARM', 'CSRINPONLY', 'HLPEXCLD', 'RETLCKSTS', 'INZINP'].every((k) => DspfWriter.takesNoParameters(k) && DspfWriter.optionIndicatorsAllowed(k)));
 }
 
 console.log('\n=== L1/L2 writer: parse and flag round trip ===');

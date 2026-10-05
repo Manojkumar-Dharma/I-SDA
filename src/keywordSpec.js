@@ -6074,11 +6074,20 @@
   }
   /** The seven initialize / retain / return keywords, in the slice's order. */
   function initRetainReturnKeywords() { return I121B_KEYWORDS.slice(); }
-  /** Whether `name` is documented as taking no parameters (every I-121b keyword is; so are RMVWDW, USRRSTDSP, HLPCLR, HLPCMDKEY, LOGINP, LOGOUT). */
-  function takesNoParameters(name) { var e = i121bEntry(name); return !!(e && e.noParameters); }
-  /** Whether option indicators are valid on `name` (false for a keyword with
-   *  no such entry). */
-  function optionIndicatorsAllowed(name) { var e = i121bEntry(name); return !!(e && e.optionIndicators === 'valid'); }
+  /** Task I-174 - the entry of any keyword in RECORD_TYPES, whichever task owns it (null for a
+   *  name that has no entry). takesNoParameters / optionIndicatorsAllowed read the keyword's own
+   *  entry rather than the I-121 slices' table, so a keyword added later cannot be silently
+   *  answered "no". */
+  function recordTypeEntry(name) {
+    var n = String(name == null ? '' : name).trim().toUpperCase();
+    return Object.prototype.hasOwnProperty.call(RECORD_TYPES, n) ? RECORD_TYPES[n] : null;
+  }
+  /** Whether `name` is documented as taking no parameters: its entry says `noParameters: true` or
+   *  `parameters: 'none'`. False for a keyword with no entry. */
+  function takesNoParameters(name) { var e = recordTypeEntry(name); return !!(e && (e.noParameters === true || e.parameters === 'none')); }
+  /** Whether option indicators are valid on `name`: its entry says `optionIndicators: 'valid'`
+   *  (false for 'notValid' / 'required' / unstated, and for a keyword with no entry). */
+  function optionIndicatorsAllowed(name) { var e = recordTypeEntry(name); return !!(e && e.optionIndicators === 'valid'); }
   /** Keywords that must be on the same record as `name` (copy; [] if none). */
   function recordRequires(name) { return i121bList(name, 'requiresOnRecord'); }
   /** Task I-148 - the three I-121b keywords whose record-level requires / excludes
