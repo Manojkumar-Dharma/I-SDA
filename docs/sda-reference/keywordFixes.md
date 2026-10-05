@@ -180,7 +180,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-121n](#i-121n) | Field | Input, format and display field keywords (8) | I-121 | Done v0.10.291 (8 of 8 specified) | v0.10.291 |
 | [I-121o](#i-121o) | Field | Reference and database-inherit field keywords (5) | I-121 | Done v0.10.325 (5 of 5 specified) | v0.10.325 |
 | [I-121p](#i-121p) | Cross-level | S36E restriction table into the spec | I-121 | Done | v0.10.285 |
-| [I-121q](#i-121q) | Cross-level | Audit the remaining `*ConflictReason` functions | I-121a – I-121o (alongside) | Not started | — |
+| [I-121q](#i-121q) | Cross-level | Audit the remaining `*ConflictReason` functions | I-121a – I-121o (alongside) | Claimed (in progress) | — |
 | [I-121r](#i-121r) | Tooling | Webview constant tables | I-121 | Done v0.10.287 (four value-domain lists from the spec; the rest guarded or classified as screen text) | v0.10.287 |
 | [I-121s](#i-121s) | Tooling | Engine and writer constant tables | I-121 | Done v0.10.286 (writer tables in the spec; engine/message tables classified as presentation) | v0.10.286 |
 | [I-121t](#i-121t) | Tooling | Generate the keyword index from the spec (do last) | I-121a – I-121s | Not started | — |
@@ -6533,7 +6533,7 @@ Original scope: Scope: `S36E_KEYWORD_RESTRICTIONS` in `dspfWriter.js` (CHANGE, H
 
 ### I-121q — Audit the remaining `*ConflictReason` functions
 
-> **Area:** Cross-level · **Status:** Not started · **Depends on:** I-121a – I-121o (alongside) · **Size (estimate):** Large
+> **Area:** Cross-level · **Status:** Claimed (in progress) · **Depends on:** I-121a – I-121o (alongside) · **Size (estimate):** Large
 
 The writer has 86 `*ConflictReason`-style functions. A first pass (v0.10.284) found 36 with no direct `KeywordSpec.` call in their body - some delegate through a helper (for example `usrdfnConflictReason` goes through `usrdfnWhitelistCheck`), so this is a starting list, not a verdict: edtmskNewConflictReason, chkmsgidBasicEditConflictReason, chkmsgidMsgDataNewConflictReason, messageIdMsgDataNewConflictReason, chridBasicEditConflictReason, wrdwrapReverseConflictReason, igcalttypBasicEditConflictReason, igcalttypNewConflictReason, noOptionIndicatorsNewConflictReason, msgidSflNewConflictReason, msgidExclusionNewConflictReason, valnumNewConflictReason, valnumBasicEditConflictReason, editKeywordDataTypeNewConflictReason, editKeywordDataTypeBasicEditConflictReason, dupFloatNewConflictReason, blkfoldFloatNewConflictReason, rangeFloatNewConflictReason, compFloatNewConflictReason, valuesFloatNewConflictReason, usrdfnConflictReason, usrdfnWhitelistConflictReason, pshbtnfldNewConflictReason, pshbtnfldBasicEditConflictReason, passrcdRecordConflictReason, altKeyFileExclusionNewConflictReason, sflcsrrrnNewConflictReason, sflctlDependencyNewConflictReason, optionIndicatorRequiredNewConflictReason, sfllinRecordEditConflictReason, sflcsrprgFieldEditConflictReason, sflscrollSizeRecordEditConflictReason, scrbarReservedNewConflictReason, sflscrollBasicEditConflictReason, sflchcctlBasicEditConflictReason, referencedFieldResolveConflictReason. Deliverable: a table of all 86 marked *spec-backed* / *procedural by design* / *needs a spec fact* (and the fact moved), plus the file-vs-record scoping in `mnuBarKeyConflictReason`. Do the keyword-owning slices a-o first or in parallel; this slice only closes what they leave.
 
