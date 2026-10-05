@@ -2,7 +2,7 @@
   "meta": {
     "title": "iSDA Keyword Index",
     "purpose": "Full inventory of DDS keywords iSDA's visual designer exposes, organized by level and UI category, for comparison against IBM i SDA's own screens and to power quick keyword search/navigation.",
-    "generated": "2026-09-23",
+    "generated": "2026-10-05",
     "source_repo": "github.com/Manojkumar-Dharma/I-SDA",
     "notes": [
       "Extracted directly from src/webviewClientHelpers.js and src/dspfWriter.js (ground truth), cross-checked against docs/sda-reference/screens/* (real SDA reference screenshots) during the A1/A2 audit.",
@@ -17,7 +17,7 @@
       "Task I-40: full regeneration pass, run after I-41/I-42/I-57/I-67/I-76 all landed. Applied 6 of the 7 level-label corrections the task's own original audit found: HLPPNLGRP/HLPDOC moved out of a mislabeled 'record' slot into a new dedicated 'help-specification' level (HLPPNLGRP and HLPDOC each keep a SEPARATE file-level entry too - both keywords are genuinely valid at both levels, not one or the other); SFLMSGKEY/SFLPGMQ/SFLRCDNBR/SFLROLVAL/SFLSCROLL moved from 'record' to 'field' (confirmed via subfileFieldKeywordsHtml and the SFLMSG message-record panel, both field-scoped). Did NOT apply the audit's 7th claimed correction (CHECK, 'field-only'): a fresh trace against the current codebase found genuine hand-wired file-level (fk-check-ab/rltb/rl) and record-level (recordCheckGuard-guarded rows in the Input panel) CHECK(AB)/CHECK(RL)/CHECK(RLTB) wiring, predating this task's original claim, and IBM's own DDS Reference text confirms CHECK(AB) is explicitly valid 'at the file level, record level, or field level' - the index's existing file/record/field labeling for CHECK was already correct, so it's unchanged. Also folded in 8 keywords (BLKFOLD, CSRINPONLY [file+record], FLTFIXDEC, FLTPCN, MAPVAL, SFLCHCCTL, SFLCSRPRG, SFLRTNSEL) that Task I-39 had hand-edited directly into KEYWORD-INDEX.json/.md without updating this generator script - preserved at I-39's own category placement per this task's own note, rather than being silently dropped by the regeneration. Added the 9 keywords the audit found missing: DATE/TIME/USER/SYSNAME/MSGCON (field-level constant value sources, Task I-33), SFL/USRDFN (record-type marker keywords, previously only mentioned in 'sharedWith' notes, never as their own entries), WDWTITLE (record-level window title, Task I-12 area), HLPDOC (file + help-specification level, Tasks I-38/I-67)."
     ],
     "totalCategories": 49,
-    "totalKeywordEntries": 225
+    "totalKeywordEntries": 226
   },
   "levels": [
     {
@@ -826,7 +826,7 @@
               "keyword": "ERASE",
               "description": "Erase all records below this one",
               "parameters": "",
-              "repeatable": false
+              "repeatable": true
             }
           ]
         },
@@ -1142,7 +1142,7 @@
               "keyword": "WDWTITLE",
               "description": "Window title text, embedded in the window's top or bottom border - iSDA exposes the quoted title-text portion via a plain text box (getWindowTitleText/setWindowTitleText); any position/*COLOR/*DSPATR modifiers already present are preserved verbatim but not separately editable (Task I-40: was missing from this index entirely)",
               "parameters": "[(*TEXT 'title-text'|&field)] [(*COLOR c)] [(*DSPATR a)] [*CENTER|*LEFT|*RIGHT] [*TOP|*BOTTOM] - at least one parameter required",
-              "repeatable": false
+              "repeatable": true
             }
           ]
         },
@@ -1240,6 +1240,12 @@
               "description": "Display attribute(s)",
               "parameters": "HI RI CS BL ND UL PC MDT PR OID SP (each independently toggleable; Task I-30 corrected two stray values - UH/RE do not exist)",
               "repeatable": true
+            },
+            {
+              "keyword": "ENTFLDATR",
+              "description": "Default attribute while the cursor is in this input-capable field (Task I-121t: the field-level accordion 'Entry field attribute' exists since Task I-42 but this index never listed it; the reference documents ENTFLDATR at field, record and file level)",
+              "parameters": "[(*COLOR color)] [(*DSPATR attr ...)]",
+              "repeatable": false
             }
           ]
         },

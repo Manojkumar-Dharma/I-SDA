@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-188 of 193 tasks done; 5 open (see [Open work](#open-work); the I-121 umbrella row counts as one open task until its slices land). Current version: **v0.10.334**.
+191 of 193 tasks done; 2 open (see [Open work](#open-work)). Current version: **v0.10.335**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -163,7 +163,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-118](#i-118) | Tooling | Remove dead code, test-only exports and unreferenced fixtures | I-40 | Done | v0.10.200 |
 | [I-119](#i-119) | Tooling | De-duplicate copied helpers (`escapeHtml`, `isPulldownRecord`, `assembleParams`, ...) | I-118 | Done | v0.10.204 |
 | [I-120](#i-120) | Tooling | Shared test harness: one `check`, one jsdom builder, a real runner | I-40 | Done | v0.10.201 |
-| [I-121](#i-121) | Cross-level | One declarative rule spec per keyword (constraints, parameters, dependencies, display) | I-40, I-119 | In progress - remaining work split into [I-121a – I-121t](#i-121-slices) | v0.10.278 |
+| [I-121](#i-121) | Cross-level | One declarative rule spec per keyword (constraints, parameters, dependencies, display) | I-40, I-119 | Done - every slice I-121a – I-121t landed, the last in v0.10.335 ([slices](#i-121-slices)) | v0.10.335 |
 | [I-121a](#i-121a) | Record | Output, cursor and screen-control keywords (13) | I-121 | Done v0.10.294 (13 entries; relations not enforced opened as I-151) | v0.10.294 |
 | [I-121b](#i-121b) | Record | Initialize, retain and return keywords (7) | I-121 | Done v0.10.288 (RETKEY/RETCMDKEY take no option indicators) | v0.10.288 |
 | [I-121c](#i-121c) | Record | Subfile control keywords (8) | I-121 | Done v0.10.289 (all eight specified; SFLDLT fact folded in; five unguarded rules logged) | v0.10.289 |
@@ -183,7 +183,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-121q](#i-121q) | Cross-level | Audit the remaining `*ConflictReason` functions | I-121a – I-121o (alongside) | Done v0.10.333 | — |
 | [I-121r](#i-121r) | Tooling | Webview constant tables | I-121 | Done v0.10.287 (four value-domain lists from the spec; the rest guarded or classified as screen text) | v0.10.287 |
 | [I-121s](#i-121s) | Tooling | Engine and writer constant tables | I-121 | Done v0.10.286 (writer tables in the spec; engine/message tables classified as presentation) | v0.10.286 |
-| [I-121t](#i-121t) | Tooling | Generate the keyword index from the spec (do last) | I-121a – I-121s | Claimed (in progress) | — |
+| [I-121t](#i-121t) | Tooling | Generate the keyword index from the spec (do last) | I-121a – I-121s | Done | v0.10.335 |
 | [I-122](#i-122) | Tooling | Generated keyword x dimension test matrix; retire duplicate and stale tests | I-120, I-121 | In progress (batch 1 done, v0.10.274: the six keywords with no tests; next: batch 2) | — |
 | [I-123](#i-123) | Tooling | Move "Task I-nn" history out of source comments | I-121 | Not started | — |
 | [I-124](#i-124) | Tooling | Test-only exports that still carry a "kept for backward compatibility / API completeness" note (decision first) | I-118 | Done | v0.10.202 |
@@ -249,10 +249,8 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-121q](#i-121q) | Not started | Audit the remaining `*ConflictReason` functions. Size (estimate): Large. |
-| 2 | [I-122](#i-122) | In progress (batch 1 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
-| 3 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
-| 4 | [I-121t](#i-121t) | Claimed | Generate the keyword index from the spec. Needs I-121a – I-121s. Last. |
+| 1 | [I-122](#i-122) | In progress (batch 1 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
+| 2 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The I-121 umbrella row there stays open until its slices land, so it is counted in the headline but not listed here.
 
@@ -5556,7 +5554,7 @@ Every test file defines its own `check()` (145 copies), and 223 `new JSDOM()` ca
 
 ### I-121 — One declarative rule spec per keyword
 
-> **Area:** Cross-level · **Status:** In progress - remaining work is split into slices I-121a – I-121t ([below](#i-121-slices)); finished slices are under *Completed slices* · **Depends on:** I-40, I-119
+> **Area:** Cross-level · **Status:** Done (v0.10.335) - every slice I-121a – I-121t landed ([below](#i-121-slices)); finished slices are under *Completed slices* · **Depends on:** I-40, I-119
 
 Rules for one keyword currently live in `*ConflictReason` functions (67), rule tables (~15), UI row/guard wiring and hand-generated docs. Scope: a spec module (levels, record types, data types and usage, parameter grammar and sub-parameters, requires / excludes, whitelist membership, option-indicator rules, UI panel, row and gating), seeded from the existing tables and `KEYWORD-LOOKUP.json`, and **each entry verified against `DDS_Keyword_V7r6.txt`**, not against the code. Then re-express the `*ConflictReason` functions over it, one record type at a time, with the existing tests as the safety net. Make the keyword index generated from the spec so I-40 is the last hand regeneration.
 
@@ -6734,9 +6732,29 @@ No new findings.
 
 ### I-121t — Generate the keyword index from the spec (do last)
 
-> **Area:** Tooling · **Status:** Claimed (in progress) · **Depends on:** I-121a – I-121s · **Size (estimate):** Large
+> **Area:** Tooling · **Status:** Done (v0.10.335) · **Depends on:** I-121a – I-121s · **Size (estimate):** Large
 
 The goal stated in I-121 itself: make `KEYWORD-INDEX.json` / `KEYWORD-LOOKUP.json` / `KEYWORD-INDEX.md` come from `keywordSpec.js` so I-40 is the last hand regeneration (`build_index.py`, `build_lookup_and_md.py`). Start only when a-s are done, because every earlier slice changes the spec. Acceptance: regenerated files differ from the I-40 baseline only where a spec entry is more correct, each difference explained.
+
+**Done (v0.10.335).** The index is generated from a separate data table, as agreed:
+
+- `src/keywordIndexData.js` is the one place the index is edited by hand: for each keyword, its level, picker category, description, parameter label, repeatable flag, System/36 note and screenshot folder. It was taken from the I-40 baseline, which `build_index.py` and `build_lookup_and_md.py` had been proven to reproduce byte for byte. It is not packaged (`src/**` is in `.vscodeignore`).
+- `docs/sda-reference/keyword-index/generate_keyword_index.js` writes `KEYWORD-INDEX.json`, `KEYWORD-LOOKUP.json` and `KEYWORD-INDEX.md` from it, in the form Python's `json.dump(indent=2)` used (ASCII escapes, no trailing newline), so a regeneration changes only the lines whose data changed. `--check` exits 1 when a file is out of date and `--date` stamps a day. The two Python builders are deleted and the README says how to regenerate.
+- Not every field can be derived: the spec has no picker category, description, parameter label or screenshot folder, and only some entries carry a levels list or a repeatable flag. So the table stays the source for placement and the spec is the check on it (`src/test/i121tKeywordIndexGeneration.test.js`, 29 checks).
+
+**Where the regenerated files differ from the I-40 baseline (the spec and the reference are right, the index was stale):**
+
+| Change | Why |
+|--------|-----|
+| `ENTFLDATR` gains a field-level entry (Display Attributes) | The reference documents it at field, record and file level and the field-level "Entry field attribute" accordion has existed since I-42; the index never listed it. The spec's levels are `field, file, record`. |
+| `ERASE` and `WDWTITLE` marked repeatable | The reference says each can be specified more than once (`ERASE can be specified more than once`; `You can specify more than one WDWTITLE on a record`); the spec says so too. |
+| 225 to 226 entries, date 2026-09-23 to 2026-10-05 | Follow from the above and the regeneration. |
+
+**Differences kept, each pinned in the test:** `CA01-CA24` / `CF01-CF24` are one Cmd keys panel listed once at file level with the record panel under "shared with" (the spec says file and record); `MSGLOC`'s repeatable flag in the spec means once per display size, not a repeated keyword; the spec's level `help` is the index's `help-specification`.
+
+**Cross-checks now enforced:** the committed files are exactly what the generator writes; the table has every spec keyword and no keyword without a spec entry; the levels agree wherever the spec names them; the keywords with a System/36 note are exactly the spec's `S36E_RESTRICTIONS` set plus the `USRDSPMGT` gate; every response and option indicator keyword and the error-message pair are repeatable. Confirmed failing against a stale table. Full suite: 282 files, 16,551 checks, zero failures.
+
+With this slice the I-121 umbrella is complete: every keyword in the lookup has a spec entry, every `*ConflictReason` function is audited, and the index is generated.
 
 ---
 

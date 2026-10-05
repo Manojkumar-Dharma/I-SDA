@@ -2,7 +2,7 @@
   "meta": {
     "purpose": "Flat keyword -> location map for quick-find/navigation. Look up a keyword name (e.g. 'COLOR') to see every level/category it appears under in iSDA's UI.",
     "uniqueKeywords": 186,
-    "generated": "2026-09-23"
+    "generated": "2026-10-05"
   },
   "keywords": {
     "*AUTOENT": [
@@ -867,6 +867,15 @@
           "MNUBAR",
           "USRDFN (4-of-8 subset)"
         ]
+      },
+      {
+        "level": "field",
+        "category": "Display Attributes",
+        "description": "Default attribute while the cursor is in this input-capable field (Task I-121t: the field-level accordion 'Entry field attribute' exists since Task I-42 but this index never listed it; the reference documents ENTFLDATR at field, record and file level)",
+        "parameters": "[(*COLOR color)] [(*DSPATR attr ...)]",
+        "repeatable": false,
+        "screenshotDir": "screens/field-level/character/display-attributes",
+        "sharedWith": []
       }
     ],
     "ERASE": [
@@ -875,7 +884,7 @@
         "category": "Overlay",
         "description": "Erase all records below this one",
         "parameters": "",
-        "repeatable": false,
+        "repeatable": true,
         "screenshotDir": "screens/record-level/base-record-keywords/overlay",
         "sharedWith": []
       }
@@ -2706,7 +2715,7 @@
         "category": "Window Parameters",
         "description": "Window title text, embedded in the window's top or bottom border - iSDA exposes the quoted title-text portion via a plain text box (getWindowTitleText/setWindowTitleText); any position/*COLOR/*DSPATR modifiers already present are preserved verbatim but not separately editable (Task I-40: was missing from this index entirely)",
         "parameters": "[(*TEXT 'title-text'|&field)] [(*COLOR c)] [(*DSPATR a)] [*CENTER|*LEFT|*RIGHT] [*TOP|*BOTTOM] - at least one parameter required",
-        "repeatable": false,
+        "repeatable": true,
         "screenshotDir": "screens/record-level/window/window-parameters-size-roll",
         "sharedWith": [
           "WNDSFCTL",

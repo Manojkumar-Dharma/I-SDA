@@ -2,7 +2,7 @@
 
 Full inventory of DDS keywords iSDA's visual designer exposes, organized by level and UI category, for comparison against IBM i SDA's own screens and to power quick keyword search/navigation.
 
-Generated 2026-09-23 · 225 keyword entries across 49 categories · 186 unique keyword names.
+Generated 2026-10-05 · 226 keyword entries across 49 categories · 186 unique keyword names.
 
 For notes on scope/methodology, see the JSON files' own `meta` block: `KEYWORD-INDEX.json` (structured by level/category, matches iSDA's own UI tabs) and `KEYWORD-LOOKUP.json` (flat keyword -> location map, for quick search).
 
@@ -72,7 +72,7 @@ For notes on scope/methodology, see the JSON files' own `meta` block: `KEYWORD-I
 | `EDTCDE` | field → Editing Keywords (numeric only) |
 | `EDTMSK` | field → Editing Keywords (numeric only) |
 | `EDTWRD` | field → Editing Keywords (numeric only) |
-| `ENTFLDATR` | file → General; record → General |
+| `ENTFLDATR` | file → General; record → General; field → Display Attributes |
 | `ERASE` | record → Overlay |
 | `ERASEINP` | record → Overlay |
 | `ERRMSG` | field → Error Messages |
@@ -497,7 +497,7 @@ Overlay-without-erasing behavior.
 | `INZINP` | Initialize input fields |  |  |  |
 | `MDTOFF` | Reset all modified data tags | *UNPR or *ALL (optional) |  |  |
 | `ERASEINP` | Erase all input fields | *MDTON or *ALL (optional) |  |  |
-| `ERASE` | Erase all records below this one |  |  |  |
+| `ERASE` | Erase all records below this one |  | yes |  |
 
 ### Print
 
@@ -635,7 +635,7 @@ WINDOW keyword in all 3 forms (referenced / default-start / explicit start+size)
 | Keyword | Description | Parameters | Repeatable | S36E |
 |---|---|---|---|---|
 | `WINDOW` | Window definition or reference to another window | referenced-window-name \| start-line start-col lines cols [*NOMSGLIN] [*RSTCSR\|*NORSTCSR] |  |  |
-| `WDWTITLE` | Window title text, embedded in the window's top or bottom border - iSDA exposes the quoted title-text portion via a plain text box (getWindowTitleText/setWindowTitleText); any position/*COLOR/*DSPATR modifiers already present are preserved verbatim but not separately editable (Task I-40: was missing from this index entirely) | [(*TEXT 'title-text'\|&field)] [(*COLOR c)] [(*DSPATR a)] [*CENTER\|*LEFT\|*RIGHT] [*TOP\|*BOTTOM] - at least one parameter required |  |  |
+| `WDWTITLE` | Window title text, embedded in the window's top or bottom border - iSDA exposes the quoted title-text portion via a plain text box (getWindowTitleText/setWindowTitleText); any position/*COLOR/*DSPATR modifiers already present are preserved verbatim but not separately editable (Task I-40: was missing from this index entirely) | [(*TEXT 'title-text'\|&field)] [(*COLOR c)] [(*DSPATR a)] [*CENTER\|*LEFT\|*RIGHT] [*TOP\|*BOTTOM] - at least one parameter required | yes |  |
 
 ### Border Parameters / Border Color / Border Display Attributes / Border Characters
 
@@ -695,6 +695,7 @@ DSPATR keyword, up to 7 conditioned instances (shared with COLOR - one combined 
 | Keyword | Description | Parameters | Repeatable | S36E |
 |---|---|---|---|---|
 | `DSPATR` | Display attribute(s) | HI RI CS BL ND UL PC MDT PR OID SP (each independently toggleable; Task I-30 corrected two stray values - UH/RE do not exist) | yes |  |
+| `ENTFLDATR` | Default attribute while the cursor is in this input-capable field (Task I-121t: the field-level accordion 'Entry field attribute' exists since Task I-42 but this index never listed it; the reference documents ENTFLDATR at field, record and file level) | [(*COLOR color)] [(*DSPATR attr ...)] |  |  |
 
 ### Keying Options
 

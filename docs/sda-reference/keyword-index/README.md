@@ -25,10 +25,16 @@ category/tab iSDA shows it under. Built to support two things directly:
   panels) lists every one.
 - **`KEYWORD-INDEX.md`** — human-readable rendering of both of the above:
   one big alphabetical lookup table, then the full level/category breakdown.
-- **`build_index.py`** / **`build_lookup_and_md.py`** — the two scripts that
-  generate all three files above from hand-curated data. Not run as part of
-  `npm run compile` or `npm test` — this is documentation tooling, not part
-  of the extension's runtime.
+- **`generate_keyword_index.js`** — generates all three files above from
+  `src/keywordIndexData.js`, the one table where the placement of each keyword
+  (level, category, description, parameter label, repeatable, System/36 note,
+  screenshot folder) is edited by hand. It replaced the two Python scripts
+  (`build_index.py`, `build_lookup_and_md.py`) in Task I-121t and reproduces
+  their output byte for byte. Not run as part of `npm run compile`; the test
+  `src/test/i121tKeywordIndexGeneration.test.js` (part of `npm test`) fails if
+  the committed files are not what the generator writes, and cross-checks the
+  table against the keyword spec (`src/keywordSpec.js`). Documentation
+  tooling, not part of the extension's runtime.
 
 ## Scope and accuracy
 
@@ -43,19 +49,24 @@ category placement is ground-truth as of the date in each JSON file's own
 **This is a point-in-time snapshot, not a live view.** It does not
 auto-regenerate when keywords are added, removed, or moved between panels.
 If iSDA's own picker structure changes, re-run the extraction against the
-current `webviewClientHelpers.js`/`dspfWriter.js` and update
-`build_index.py` accordingly — treat a stale entry here as a documentation
-bug, not a reflection of the extension's current behavior.
+current `webviewClientHelpers.js`/`dspfWriter.js`, update
+`src/keywordIndexData.js` accordingly and regenerate — treat a stale entry
+here as a documentation bug, not a reflection of the extension's current
+behavior.
 
 ## Regenerating
 
+Edit `src/keywordIndexData.js` (set `META.generated` to the day), then, from
+the repo root:
+
 ```bash
-python3 build_index.py            # writes KEYWORD-INDEX.json
-python3 build_lookup_and_md.py    # writes KEYWORD-LOOKUP.json + KEYWORD-INDEX.md
+node docs/sda-reference/keyword-index/generate_keyword_index.js          # writes the three files
+node docs/sda-reference/keyword-index/generate_keyword_index.js --check  # exit 1 if they are out of date
 ```
 
-Requires only Python 3's standard library (`json`, `datetime`, `collections`)
-— no extra dependencies.
+Requires only Node — no extra dependencies. The JSON is written the way
+Python's `json.dump(indent=2)` wrote it, so a regeneration changes only the
+lines whose data changed.
 
 ## Checking spec coverage
 
