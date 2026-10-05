@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-192 of 195 tasks done; 3 open (see [Open work](#open-work)). Current version: **v0.10.337**.
+192 of 196 tasks done; 4 open (see [Open work](#open-work)). Current version: **v0.10.337**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -238,6 +238,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-173](#i-173) | Field | `MNUBARCHC` 12-line limit of a menu-bar field (opened from the I-172 deferred finding; reading decided: width = smallest `DSPSIZ` width minus 2, whole-choice wrap, separator counts as 1 of the 12 unless `*NOSEPARATOR`) | I-172 | Done | v0.10.334 |
 | [I-174](#i-174) | Tooling | `takesNoParameters` / `optionIndicatorsAllowed` answer only for the I-121b keywords, so they say "no" for `MSGALARM`, `CSRINPONLY` and `HLPEXCLD` although their spec entries say the opposite (opened from I-122 batch 2) | I-121 | Done | v0.10.337 |
 | [I-175](#i-175) | Field | `MNUBARSEP` and `MNUBARCHC` need `MNUBAR` on their record, and `MNUBARSEP` cannot be used where `MNUBAR` says `*NOSEPARATOR`; the spec records the rules and nothing enforces them (found logging I-122 batch 3; not asserted as correct) | I-171 | In progress | — |
+| [I-176](#i-176) | Tooling | `optionIndicatorsAllowed` still answers "no" for the 11 keywords whose entries spell the fact `optionIndicatorsValid: true` (`ALARM`, `BLINK`, `CSRLOC`, `ERASE`, `ERASEINP`, `OVERLAY`, `PUTOVR`, `FRCDTA`, `PROTECT`, `MDTOFF`, `LOCK`); left over from I-174 | I-174 | In progress | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -254,12 +255,13 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | 1 | [I-122](#i-122) | In progress (batches 1-2 done, batch 3 claimed) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
 | 2 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
 | 3 | [I-175](#i-175) | In progress | `MNUBAR` required by `MNUBARSEP` / `MNUBARCHC`, and `MNUBARSEP` against `*NOSEPARATOR`. Size (estimate): Small. |
+| 4 | [I-176](#i-176) | In progress | `optionIndicatorsAllowed` ignores the `optionIndicatorsValid: true` spelling (11 keywords). Size (estimate): Small. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The I-121 umbrella row there stays open until its slices land, so it is counted in the headline but not listed here.
 
 ## Deferred findings (not yet tasks)
 
-Every finding so far has been opened as a task (I-61 – I-175, see the tables above); the table below is empty. The four that were waiting here because the DDS Reference does not settle them were converted on request: I-153's open questions became [I-166](#i-166), I-154's became [I-167](#i-167), I-121g's became [I-168](#i-168) and I-160's became [I-169](#i-169) (done; the source turned out to state the whole-file scope). Each of those tasks starts with the decision or rule it is waiting on, so nothing in it is implemented on a guess. A new finding that cannot be implemented yet goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
+Every finding so far has been opened as a task (I-61 – I-176, see the tables above); the table below is empty. The four that were waiting here because the DDS Reference does not settle them were converted on request: I-153's open questions became [I-166](#i-166), I-154's became [I-167](#i-167), I-121g's became [I-168](#i-168) and I-160's became [I-169](#i-169) (done; the source turned out to state the whole-file scope). Each of those tasks starts with the decision or rule it is waiting on, so nothing in it is implemented on a guess. A new finding that cannot be implemented yet goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
 
 | Raised by | Finding |
 |-----------|---------|
