@@ -2836,6 +2836,120 @@
     return null;
   }
 
+  // ---------------------------------------------------------------------
+  // Task I-179 - DATFMT / DATSEP (date fields, data type L) and TIMFMT /
+  // TIMSEP (time fields, data type T): the rules their own sections state,
+  // enforced at the writer through the commitEdit choke point (the raw keyword
+  // editor, every panel and the General rows all end there). Until now only
+  // the panel's Apply handler checked the fixed-separator rule; the raw editor
+  // accepted any of them on any field with any value. Every fact is read from
+  // RECORD_TYPES (`validDataType`, `validValues`, `fixedSeparatorFormats`).
+  // Decision: DATSEP with no DATFMT is allowed. DATFMT's own text makes *ISO
+  // the default, a fixed-separator format, but the restriction is worded about
+  // a DATFMT value the user specified ("If you specify ... *ISO ..."), and the
+  // panel's Apply (dateSeparatorConflictReason('')) already treats a blank
+  // format as fine; refusing it would also block building the pair one
+  // keyword at a time. Same diff-based posture as I-131 / I-138: only an edit
+  // that introduces or changes a keyword is judged, so a hand-written field
+  // already carrying a problem stays editable and removal is always allowed.
+  // ---------------------------------------------------------------------
+  var DATE_TIME_FORMAT_KEYWORDS = ['DATFMT', 'DATSEP', 'TIMFMT', 'TIMSEP'];
+  function dateTimeFormatTypeLabel(dataType) {
+    var dt = String(dataType == null ? '' : dataType).trim().toUpperCase();
+    return dt || 'blank';
+  }
+  /** Whether `dataType` is `keywordName`'s own valid data type (L for the
+   *  date pair, T for the time pair). A blank data type is a character field
+   *  (not L or T), so it is refused - the same strictness as VALNUM. */
+  function dateTimeFormatDataTypeReason(keywordName, dataType) {
+    var want = KeywordSpec.validDataType(keywordName);
+    var dt = String(dataType == null ? '' : dataType).trim().toUpperCase();
+    if (!want || dt === want) return null;
+    return keywordName + ' can only be specified on a field with data type ' + want +
+      (want === 'L' ? ' (a date field)' : ' (a time field)') + ', not ' + dateTimeFormatTypeLabel(dataType) + ' (per the DDS Reference).';
+  }
+  /** `keywordName`'s parameter against its own value list. DATFMT / TIMFMT
+   *  take one bare format; DATSEP / TIMSEP take *JOB or one separator
+   *  character in single quotes. Returns a reason or null. */
+  function dateTimeFormatValueReason(keywordName, parameters) {
+    var values = KeywordSpec.validValues(keywordName);
+    if (!values) return null;
+    var raw = String(parameters == null ? '' : parameters).trim();
+    var isSep = keywordName === 'DATSEP' || keywordName === 'TIMSEP';
+    if (!raw) {
+      return keywordName + ' needs a parameter (per the DDS Reference).';
+    }
+    if (!isSep) {
+      if (values.indexOf(raw.toUpperCase()) >= 0) return null;
+      return keywordName + '(' + raw + ') is not a valid format. Valid values: ' + values.join(', ') + ' (per the DDS Reference).';
+    }
+    if (raw.toUpperCase() === '*JOB') return null;
+    var m = raw.match(/^'(.)'$/);
+    if (m && values.indexOf(m[1]) >= 0) return null;
+    return keywordName + '(' + raw + ') is not a valid separator. Use *JOB or one separator character in single quotes (' +
+      values.filter(function (v) { return v !== '*JOB'; }).map(function (v) { return v === ' ' ? 'blank' : v; }).join(' ') + ') (per the DDS Reference).';
+  }
+  /** Task I-179 - diff-based add/change guard for all four keywords, judged
+   *  on the field's data type as it will be AFTER the edit
+   *  (`fieldKind.dataType`): eligibility when a keyword is introduced, the
+   *  value domain when it is introduced or its parameter changes, and the
+   *  fixed-separator pairing (DATFMT *ISO/*USA/*EUR/*JIS with DATSEP, TIMFMT
+   *  likewise with TIMSEP) in both directions when the pair becomes
+   *  conflicting. Returns a reason string or null. */
+  function dateTimeFormatNewConflictReason(oldKeywords, newKeywords, fieldKind) {
+    var find = function (kws, n) { return (kws || []).find(function (k) { return k.name === n; }); };
+    var kind = fieldKind || {};
+    var reason;
+    var i;
+    for (i = 0; i < DATE_TIME_FORMAT_KEYWORDS.length; i++) {
+      var name = DATE_TIME_FORMAT_KEYWORDS[i];
+      var added = find(newKeywords, name);
+      if (!added) continue;
+      var before = find(oldKeywords, name);
+      if (!before) {
+        reason = dateTimeFormatDataTypeReason(name, kind.dataType);
+        if (reason) return reason;
+      }
+      if (!before || (before.parameters || '') !== (added.parameters || '')) {
+        reason = dateTimeFormatValueReason(name, added.parameters);
+        if (reason) return reason;
+      }
+    }
+    var conflicts = function (kws, sepName) {
+      var sep = find(kws, sepName);
+      var fmt = find(kws, KeywordSpec.fixedSeparatorPartner(sepName));
+      return !!(sep && fmt && KeywordSpec.isFixedSeparatorFormat(sepName, String(fmt.parameters || '').trim()));
+    };
+    for (i = 0; i < 2; i++) {
+      var sepName = i === 0 ? 'DATSEP' : 'TIMSEP';
+      if (conflicts(newKeywords, sepName) && !conflicts(oldKeywords, sepName)) {
+        var fmtParam = String(find(newKeywords, KeywordSpec.fixedSeparatorPartner(sepName)).parameters || '').trim();
+        return sepName === 'DATSEP' ? dateSeparatorConflictReason(fmtParam) : timeSeparatorConflictReason(fmtParam);
+      }
+    }
+    return null;
+  }
+  /** Task I-179 - Basic tab Apply guard: a data type CHANGE on a field that
+   *  ALREADY carries one of the four keywords, to a type that is not the
+   *  keyword's own (L for DATFMT / DATSEP, T for TIMFMT / TIMSEP). Diff-based
+   *  like editKeywordDataTypeBasicEditConflictReason: only a changed data
+   *  type counts, unrelated edits are never blocked. */
+  function dateTimeFormatBasicEditConflictReason(fieldKeywords, field, updates) {
+    var f = field || {};
+    var u = updates || {};
+    if (!Object.prototype.hasOwnProperty.call(u, 'dataType')) return null;
+    var norm = function (v) { return String(v == null ? '' : v).trim().toUpperCase(); };
+    if (norm(u.dataType) === norm(f.dataType)) return null;
+    for (var i = 0; i < DATE_TIME_FORMAT_KEYWORDS.length; i++) {
+      var name = DATE_TIME_FORMAT_KEYWORDS[i];
+      if ((fieldKeywords || []).some(function (k) { return k.name === name; })) {
+        var reason = dateTimeFormatDataTypeReason(name, u.dataType);
+        if (reason) return reason + ' Remove ' + name + ' first.';
+      }
+    }
+    return null;
+  }
+
   function wrdwrapUsageReason(usage) {
     var u = (usage || '').toUpperCase();
     if (u && KeywordSpec.allowedUsage('WRDWRAP').indexOf(u) < 0) {
@@ -11490,6 +11604,8 @@
     valnumBasicEditConflictReason: valnumBasicEditConflictReason,
     edtmskNewConflictReason: edtmskNewConflictReason,
     dateTimeUsageConflictReason: dateTimeUsageConflictReason,
+    dateTimeFormatNewConflictReason: dateTimeFormatNewConflictReason,
+    dateTimeFormatBasicEditConflictReason: dateTimeFormatBasicEditConflictReason,
     getDateFormat: getDateFormat,
     setDateFormat: setDateFormat,
     getDateSeparator: getDateSeparator,

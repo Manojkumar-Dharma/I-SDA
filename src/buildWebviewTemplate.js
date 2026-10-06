@@ -4885,6 +4885,13 @@ const htmlTemplate = `<!DOCTYPE html>
           window.alert(valnumEditReason);
           return;
         }
+        // Task I-179: DATFMT / DATSEP need data type L and TIMFMT / TIMSEP
+        // data type T - blocks a data type CHANGE that would strand them.
+        const dateTimeFmtEditReason = DspfWriter.dateTimeFormatBasicEditConflictReason(field.keywords, field, updates);
+        if (dateTimeFmtEditReason) {
+          window.alert(dateTimeFmtEditReason);
+          return;
+        }
         // Task I-138: EDTCDE (Y or blank) / EDTWRD (Y) - blocks a data type
         // CHANGE that would leave a field carrying one on any other type.
         const edtTypeEditReason = DspfWriter.editKeywordDataTypeBasicEditConflictReason(field.keywords, field, updates);
@@ -6952,6 +6959,17 @@ const htmlTemplate = `<!DOCTYPE html>
       });
       if (valnumReason) {
         window.alert(valnumReason);
+        render();
+        return;
+      }
+      // Task I-179: DATFMT / DATSEP / TIMFMT / TIMSEP - data type (L / T),
+      // value domain and the fixed-separator pairing, for an edit that
+      // introduces or changes one, judged on the data type after the edit.
+      const dateTimeFmtReason = DspfWriter.dateTimeFormatNewConflictReason(field.keywords, updates.keywords, {
+        dataType: Object.prototype.hasOwnProperty.call(updates, 'dataType') ? updates.dataType : field.dataType,
+      });
+      if (dateTimeFmtReason) {
+        window.alert(dateTimeFmtReason);
         render();
         return;
       }

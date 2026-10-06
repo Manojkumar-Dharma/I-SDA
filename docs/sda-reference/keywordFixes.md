@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-198 of 209 tasks done; 11 open (see [Open work](#open-work)). Current version: **v0.10.345**.
+201 of 212 tasks done; 11 open (see [Open work](#open-work)). Current version: **v0.10.347**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -248,7 +248,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-176](#i-176) | Tooling | `optionIndicatorsAllowed` still answers "no" for the 11 keywords whose entries spell the fact `optionIndicatorsValid: true` (`ALARM`, `BLINK`, `CSRLOC`, `ERASE`, `ERASEINP`, `OVERLAY`, `PUTOVR`, `FRCDTA`, `PROTECT`, `MDTOFF`, `LOCK`); left over from I-174 | I-174 | Done | v0.10.339 |
 | [I-177](#i-177) | Field | `SFLRCDNBR` rules nothing enforces: not on the same field as `SFLROLVAL`, parameters only `CURSOR` / `*TOP`, field shape (zoned, 0 decimals, signed, up to 4 digits, usage O, B or H) | I-122d | Done | v0.10.346 |
 | [I-178](#i-178) | Tooling | Spec entries for `SFLCSRPRG`, `SFLRCDNBR`, `SFLROLVAL`, `SFLRTNSEL`, `SFLNXTCHG` state no level, parameter or option-indicator fact, so `takesNoParameters` / `optionIndicatorsAllowed` answer wrongly | I-122d | Done | v0.10.345 |
-| [I-179](#i-179) | Field | Date/time format keywords: `DATFMT` / `DATSEP` accepted off data type L and `TIMFMT` / `TIMSEP` off T, values outside IBM's lists, the fixed-separator rule only in the panel Apply, and a Basic-tab type change that strands them | I-122e | In progress (claimed) | — |
+| [I-179](#i-179) | Field | Date/time format keywords: `DATFMT` / `DATSEP` accepted off data type L and `TIMFMT` / `TIMSEP` off T, values outside IBM's lists, the fixed-separator rule only in the panel Apply, and a Basic-tab type change that strands them | I-122e | Done (eligibility, values, pairing, Basic tab) | v0.10.347 |
 | [I-180](#i-180) | Field | `FLTPCN` (type F, `*SINGLE` / `*DOUBLE`, length caps, option indicators not valid) and `CNTFLD` (numeric width, its exclusion list) rules nothing enforces | I-122e | Not started | — |
 | [I-181](#i-181) | Tooling | Spec entries for `HLPDOC`, `HLPID`, `WDWBORDER` and `NOCCSID` state no level, parameter or option-indicator fact, so `optionIndicatorsAllowed` answers "no" for `HLPDOC` and `WDWBORDER` although their sections say option indicators are valid | I-122f | Not started | — |
 | [I-182](#i-182) | Record | `WDWBORDER` and `WDWTITLE` rules nothing enforces: record-level `WDWBORDER` needs `WINDOW` or `PULLDOWN` on the record, at least one parameter, colour and display-attribute values, `*TOP` / `*BOTTOM` and the three alignments each at most once | I-122f | Not started | — |
@@ -273,13 +273,12 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | 3 | [I-122i](#i-122i) | Not started | Generated per-keyword matrix (L1-L4 from the I-121 spec). Size (estimate): Large. |
 | 4 | [I-122j](#i-122j) | Not started | Retire overlapping tests, each deletion backed by a stash-based mutation run (do last, serially). Size (estimate): Large. |
 | 5 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
-| 6 | [I-179](#i-179) | In progress (claimed) | Date/time format keyword eligibility, values, fixed-separator rule and Basic-tab type change. Size (estimate): Small. |
-| 7 | [I-180](#i-180) | Not started | `FLTPCN` and `CNTFLD` parameter, type and exclusion rules. Size (estimate): Small. |
-| 8 | [I-181](#i-181) | Not started | Level, parameter and option-indicator facts missing from four help / window / field keyword entries. Size (estimate): Small. |
-| 9 | [I-182](#i-182) | Not started | `WDWBORDER` / `WDWTITLE` requirement and parameter rules. Size (estimate): Medium. |
-| 10 | [I-183](#i-183) | Not started | Choice keyword value rules (`CHCAVAIL` / `CHCUNAVAIL` / `CHCSLT` values, `CHCACCEL` / `CHCCTL` ranges and text). Size (estimate): Medium. |
-| 11 | [I-184](#i-184) | Not started | `SFLSNGCHC` / `SFLMLTCHC` subfile shape, record-level and number-selected field rules. Size (estimate): Medium. |
-| 12 | [I-185](#i-185) | Not started | Level, parameter and option-indicator facts missing from three subfile choice keyword entries. Size (estimate): Small. |
+| 6 | [I-180](#i-180) | Not started | `FLTPCN` and `CNTFLD` parameter, type and exclusion rules. Size (estimate): Small. |
+| 7 | [I-181](#i-181) | Not started | Level, parameter and option-indicator facts missing from four help / window / field keyword entries. Size (estimate): Small. |
+| 8 | [I-182](#i-182) | Not started | `WDWBORDER` / `WDWTITLE` requirement and parameter rules. Size (estimate): Medium. |
+| 9 | [I-183](#i-183) | Not started | Choice keyword value rules (`CHCAVAIL` / `CHCUNAVAIL` / `CHCSLT` values, `CHCACCEL` / `CHCCTL` ranges and text). Size (estimate): Medium. |
+| 10 | [I-184](#i-184) | Not started | `SFLSNGCHC` / `SFLMLTCHC` subfile shape, record-level and number-selected field rules. Size (estimate): Medium. |
+| 11 | [I-185](#i-185) | Not started | Level, parameter and option-indicator facts missing from three subfile choice keyword entries. Size (estimate): Small. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The I-121 umbrella row there stays open until its slices land, so it is counted in the headline but not listed here.
 
@@ -6602,6 +6601,8 @@ Audit table (a new `*ConflictReason` function must be added here; `i121qConflict
 | `commandKeyNumberNewConflictReason` | spec-backed | Via `commandKeyNumberViolations`. |
 | `compFloatNewConflictReason` | spec-backed | Via `floatIncompatibleKeywordNewConflictReason`. |
 | `dateSeparatorConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `dateTimeFormatBasicEditConflictReason` | spec-backed | Via `dateTimeFormatDataTypeReason` (I-179). |
+| `dateTimeFormatNewConflictReason` | spec-backed | Via `dateTimeFormatDataTypeReason`, `dateTimeFormatValueReason` and `KeywordSpec.isFixedSeparatorFormat` (I-179). |
 | `dateTimeUsageConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
 | `dftGroupConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
 | `dftGroupFloatNewConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
@@ -8084,11 +8085,13 @@ Do: add the missing facts to the five entries from their reference sections, the
 
 ### I-179 — Date/time format keyword rules nothing enforces
 
-> **Area:** Field · **Status:** In progress (claimed) · **Depends on:** I-122e · **Size (estimate):** Small
+> **Area:** Field · **Status:** Done (v0.10.347) · **Depends on:** I-122e · **Size (estimate):** Small
 
 Opened from I-122e. `DATFMT` and `DATSEP` are valid only for data type L, `TIMFMT` and `TIMSEP` only for T, `TIMFMT` has no `*JOB`, and `DATFMT` / `TIMFMT` say a fixed-separator format (`*ISO`, `*USA`, `*EUR`, `*JIS`) cannot be used with the separator keyword. Probed on v0.10.341 with the jsdom raw keyword editor: `DATFMT` / `DATSEP` are accepted on a character field, `TIMFMT` on a character and on a date field, `DATSEP('x')`, `DATFMT(*FOO)` and `TIMFMT(*JOB)` with no message, and raw-adding `DATFMT(*ISO)` to a field that already has `DATSEP('/')` is accepted. The separator rule lives only in the panel's Apply handler (`wireDateTimeFormat`). On the Basic tab, changing a date field with `DATFMT` and `DATSEP` to data type A applies and leaves both on the character field. The spec already holds `validDataType`, `validValues` and `fixedSeparatorFormats`.
 
 Do: a diff-based guard through `commitEdit` (the I-131 / I-150 shape) reading those facts: data type, value domain, the pairing in both directions, and the Basic-tab type change. Decision first: `DATSEP` with no `DATFMT` (the default is `*ISO`, which has a fixed separator; the panel treats blank as allowed). Cases go beside the I-122e ones.
+
+**Done (v0.10.347).** New `DspfWriter.dateTimeFormatNewConflictReason` (diff-based, in the field `commitEdit` chain, so the raw editor, every panel and the General rows are covered) and `dateTimeFormatBasicEditConflictReason` (Basic tab data type change). Eligibility reads `KeywordSpec.validDataType` (L for DATFMT / DATSEP, T for TIMFMT / TIMSEP; a blank data type is a character field, so refused); values read `validValues` (DATFMT and TIMFMT bare formats, TIMFMT has no `*JOB`; DATSEP / TIMSEP `*JOB` or one separator in single quotes, a bare keyword refused); the pairing reads `fixedSeparatorFormats` / `fixedSeparatorPartner` and blocks the pair becoming conflicting in either direction. **Decision:** `DATSEP` / `TIMSEP` with no format keyword is allowed (the restriction is worded about a format the user specified, the panel already treats a blank format as fine, and refusing it would block building the pair one keyword at a time). Hand-written problems already on a field stay editable and removal is always allowed. New `i179DateTimeFormatGuard.test.js` (writer, raw editor and Basic tab in jsdom; three mutations checked). Full suite: 293 files, 17,483 checks, zero failures (run on upstream v0.10.345 with the audit-table rows added; after pulling v0.10.346 the I-177, I-121q and I-179 files and the field-guard files were rerun and pass).
 
 *Raised by I-122e. Size (estimate): Small.*
 
