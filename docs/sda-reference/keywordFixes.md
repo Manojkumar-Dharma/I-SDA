@@ -249,7 +249,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-177](#i-177) | Field | `SFLRCDNBR` rules nothing enforces: not on the same field as `SFLROLVAL`, parameters only `CURSOR` / `*TOP`, field shape (zoned, 0 decimals, signed, up to 4 digits, usage O, B or H) | I-122d | Done | v0.10.346 |
 | [I-178](#i-178) | Tooling | Spec entries for `SFLCSRPRG`, `SFLRCDNBR`, `SFLROLVAL`, `SFLRTNSEL`, `SFLNXTCHG` state no level, parameter or option-indicator fact, so `takesNoParameters` / `optionIndicatorsAllowed` answer wrongly | I-122d | Done | v0.10.345 |
 | [I-179](#i-179) | Field | Date/time format keywords: `DATFMT` / `DATSEP` accepted off data type L and `TIMFMT` / `TIMSEP` off T, values outside IBM's lists, the fixed-separator rule only in the panel Apply, and a Basic-tab type change that strands them | I-122e | Done (eligibility, values, pairing, Basic tab) | v0.10.347 |
-| [I-180](#i-180) | Field | `FLTPCN` (type F, `*SINGLE` / `*DOUBLE`, length caps, option indicators not valid) and `CNTFLD` (numeric width, its exclusion list) rules nothing enforces | I-122e | Not started | — |
+| [I-180](#i-180) | Field | `FLTPCN` (type F, `*SINGLE` / `*DOUBLE`, length caps, option indicators not valid) and `CNTFLD` (numeric width, its exclusion list) rules nothing enforces | I-122e | In progress (claimed) | — |
 | [I-181](#i-181) | Tooling | Spec entries for `HLPDOC`, `HLPID`, `WDWBORDER` and `NOCCSID` state no level, parameter or option-indicator fact, so `optionIndicatorsAllowed` answers "no" for `HLPDOC` and `WDWBORDER` although their sections say option indicators are valid | I-122f | In progress (claimed) | — |
 | [I-182](#i-182) | Record | `WDWBORDER` and `WDWTITLE` rules nothing enforces: record-level `WDWBORDER` needs `WINDOW` or `PULLDOWN` on the record, at least one parameter, colour and display-attribute values, `*TOP` / `*BOTTOM` and the three alignments each at most once | I-122f | Not started | — |
 | [I-183](#i-183) | Field | Choice keyword values nothing enforces: a bare or out-of-list `CHCAVAIL` / `CHCUNAVAIL` / `CHCSLT`, `CHCACCEL` / `CHCCTL` choice number outside 1-99, `CHCACCEL` with no text, the `CHCCTL` message fields' shapes | I-122g | Not started | — |
@@ -273,7 +273,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | 3 | [I-122i](#i-122i) | Not started | Generated per-keyword matrix (L1-L4 from the I-121 spec). Size (estimate): Large. |
 | 4 | [I-122j](#i-122j) | Not started | Retire overlapping tests, each deletion backed by a stash-based mutation run (do last, serially). Size (estimate): Large. |
 | 5 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
-| 6 | [I-180](#i-180) | Not started | `FLTPCN` and `CNTFLD` parameter, type and exclusion rules. Size (estimate): Small. |
+| 6 | [I-180](#i-180) | In progress (claimed) | `FLTPCN` and `CNTFLD` parameter, type and exclusion rules. Size (estimate): Small. |
 | 7 | [I-181](#i-181) | In progress (claimed) | Level, parameter and option-indicator facts missing from four help / window / field keyword entries. Size (estimate): Small. |
 | 8 | [I-182](#i-182) | Not started | `WDWBORDER` / `WDWTITLE` requirement and parameter rules. Size (estimate): Medium. |
 | 9 | [I-183](#i-183) | Not started | Choice keyword value rules (`CHCAVAIL` / `CHCUNAVAIL` / `CHCSLT` values, `CHCACCEL` / `CHCCTL` ranges and text). Size (estimate): Medium. |
@@ -8101,7 +8101,7 @@ Do: a diff-based guard through `commitEdit` (the I-131 / I-150 shape) reading th
 
 ### I-180 — `FLTPCN` and `CNTFLD` rules nothing enforces
 
-> **Area:** Field · **Status:** Not started · **Depends on:** I-122e · **Size (estimate):** Small
+> **Area:** Field · **Status:** In progress (claimed) · **Depends on:** I-122e · **Size (estimate):** Small
 
 Opened from I-122e. `FLTPCN`'s section: valid for data type F only, parameter `*SINGLE` or `*DOUBLE`, single precision up to 9 digits and double up to 17 (otherwise "the file is not created"), "Option indicators are not valid for this keyword". Probed on v0.10.341: the raw editor accepts `FLTPCN` on a character field and `FLTPCN(*FOO)` on a float field; the length caps are not checked; `noOptionIndicatorsFact('FLTPCN')` is null and `noOptionIndicatorsNewConflictReason('FLTPCN', ...)` accepts an indicator condition. `CNTFLD`'s section: one numeric width parameter, and `AUTO(RAB, RAZ)`, `CHECK(AB, MF, RB, RZ, RLTB)`, `CHOICE`, `DSPATR(OID SP)` and `EDTMSK` cannot be on the same field. Probed: `CNTFLD(abc)` is accepted, and raw-adding `CNTFLD(20)` to a field with `CHECK(AB)`, `DSPATR(SP)` or `AUTO(RAB)` is accepted; only the `EDTMSK` side is refused (I-130). The "fits the display or window width" and "two spaces from other fields" rules were not probed.
 
