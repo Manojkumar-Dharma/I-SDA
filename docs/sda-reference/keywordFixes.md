@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-197 of 209 tasks done; 12 open (see [Open work](#open-work)). Current version: **v0.10.343**.
+198 of 209 tasks done; 11 open (see [Open work](#open-work)). Current version: **v0.10.345**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -247,7 +247,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-175](#i-175) | Field | `MNUBARSEP` and `MNUBARCHC` need `MNUBAR` on their record, and `MNUBARSEP` cannot be used where `MNUBAR` says `*NOSEPARATOR`; the spec records the rules and nothing enforces them (found logging I-122 batch 3; not asserted as correct) | I-171 | Done | v0.10.340 |
 | [I-176](#i-176) | Tooling | `optionIndicatorsAllowed` still answers "no" for the 11 keywords whose entries spell the fact `optionIndicatorsValid: true` (`ALARM`, `BLINK`, `CSRLOC`, `ERASE`, `ERASEINP`, `OVERLAY`, `PUTOVR`, `FRCDTA`, `PROTECT`, `MDTOFF`, `LOCK`); left over from I-174 | I-174 | Done | v0.10.339 |
 | [I-177](#i-177) | Field | `SFLRCDNBR` rules nothing enforces: not on the same field as `SFLROLVAL`, parameters only `CURSOR` / `*TOP`, field shape (zoned, 0 decimals, signed, up to 4 digits, usage O, B or H) | I-122d | In progress (claimed) | — |
-| [I-178](#i-178) | Tooling | Spec entries for `SFLCSRPRG`, `SFLRCDNBR`, `SFLROLVAL`, `SFLRTNSEL`, `SFLNXTCHG` state no level, parameter or option-indicator fact, so `takesNoParameters` / `optionIndicatorsAllowed` answer wrongly | I-122d | Not started | — |
+| [I-178](#i-178) | Tooling | Spec entries for `SFLCSRPRG`, `SFLRCDNBR`, `SFLROLVAL`, `SFLRTNSEL`, `SFLNXTCHG` state no level, parameter or option-indicator fact, so `takesNoParameters` / `optionIndicatorsAllowed` answer wrongly | I-122d | Done | v0.10.345 |
 | [I-179](#i-179) | Field | Date/time format keywords: `DATFMT` / `DATSEP` accepted off data type L and `TIMFMT` / `TIMSEP` off T, values outside IBM's lists, the fixed-separator rule only in the panel Apply, and a Basic-tab type change that strands them | I-122e | Not started | — |
 | [I-180](#i-180) | Field | `FLTPCN` (type F, `*SINGLE` / `*DOUBLE`, length caps, option indicators not valid) and `CNTFLD` (numeric width, its exclusion list) rules nothing enforces | I-122e | Not started | — |
 | [I-181](#i-181) | Tooling | Spec entries for `HLPDOC`, `HLPID`, `WDWBORDER` and `NOCCSID` state no level, parameter or option-indicator fact, so `optionIndicatorsAllowed` answers "no" for `HLPDOC` and `WDWBORDER` although their sections say option indicators are valid | I-122f | Not started | — |
@@ -274,14 +274,13 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | 4 | [I-122j](#i-122j) | Not started | Retire overlapping tests, each deletion backed by a stash-based mutation run (do last, serially). Size (estimate): Large. |
 | 5 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
 | 6 | [I-177](#i-177) | In progress (claimed) | `SFLRCDNBR` with `SFLROLVAL` on one field, its parameter text and field shape. Size (estimate): Small. |
-| 7 | [I-178](#i-178) | Not started | Facts missing from five subfile-control keyword entries. Size (estimate): Small. |
-| 8 | [I-179](#i-179) | Not started | Date/time format keyword eligibility, values, fixed-separator rule and Basic-tab type change. Size (estimate): Small. |
-| 9 | [I-180](#i-180) | Not started | `FLTPCN` and `CNTFLD` parameter, type and exclusion rules. Size (estimate): Small. |
-| 10 | [I-181](#i-181) | Not started | Level, parameter and option-indicator facts missing from four help / window / field keyword entries. Size (estimate): Small. |
-| 11 | [I-182](#i-182) | Not started | `WDWBORDER` / `WDWTITLE` requirement and parameter rules. Size (estimate): Medium. |
-| 12 | [I-183](#i-183) | Not started | Choice keyword value rules (`CHCAVAIL` / `CHCUNAVAIL` / `CHCSLT` values, `CHCACCEL` / `CHCCTL` ranges and text). Size (estimate): Medium. |
-| 13 | [I-184](#i-184) | Not started | `SFLSNGCHC` / `SFLMLTCHC` subfile shape, record-level and number-selected field rules. Size (estimate): Medium. |
-| 14 | [I-185](#i-185) | Not started | Level, parameter and option-indicator facts missing from three subfile choice keyword entries. Size (estimate): Small. |
+| 7 | [I-179](#i-179) | Not started | Date/time format keyword eligibility, values, fixed-separator rule and Basic-tab type change. Size (estimate): Small. |
+| 8 | [I-180](#i-180) | Not started | `FLTPCN` and `CNTFLD` parameter, type and exclusion rules. Size (estimate): Small. |
+| 9 | [I-181](#i-181) | Not started | Level, parameter and option-indicator facts missing from four help / window / field keyword entries. Size (estimate): Small. |
+| 10 | [I-182](#i-182) | Not started | `WDWBORDER` / `WDWTITLE` requirement and parameter rules. Size (estimate): Medium. |
+| 11 | [I-183](#i-183) | Not started | Choice keyword value rules (`CHCAVAIL` / `CHCUNAVAIL` / `CHCSLT` values, `CHCACCEL` / `CHCCTL` ranges and text). Size (estimate): Medium. |
+| 12 | [I-184](#i-184) | Not started | `SFLSNGCHC` / `SFLMLTCHC` subfile shape, record-level and number-selected field rules. Size (estimate): Medium. |
+| 13 | [I-185](#i-185) | Not started | Level, parameter and option-indicator facts missing from three subfile choice keyword entries. Size (estimate): Small. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The I-121 umbrella row there stays open until its slices land, so it is counted in the headline but not listed here.
 
@@ -8057,13 +8056,15 @@ Do: add the `SFLRCDNBR` x `SFLROLVAL` same-field mutex to the spec (the `SFLSCRO
 
 ### I-178 — Spec entries for five subfile-control keywords carry no level, parameter or option-indicator fact
 
-> **Area:** Tooling · **Status:** Not started · **Depends on:** I-122d · **Size (estimate):** Small
+> **Area:** Tooling · **Status:** Done (v0.10.345) · **Depends on:** I-122d · **Size (estimate):** Small
 
 Opened from I-122d. `RECORD_TYPES` holds only a rule fragment for `SFLCSRPRG` (`crossRecordExclusion`), `SFLRCDNBR` and `SFLROLVAL` (`validOnlyInSubfileControlRecord`), `SFLRTNSEL` (`qualifyingNames`) and `SFLNXTCHG` (`mutex`). None states `levels`, `parameters` / `noParameters` or `optionIndicators`, although each DDS Reference section does ("This keyword has no parameters" for `SFLCSRPRG` and `SFLRTNSEL` and `SFLNXTCHG`; "Option indicators are not valid" for `SFLCSRPRG`, `SFLRCDNBR`, `SFLRTNSEL`; "Option indicators are valid" for `SFLNXTCHG`). Probed on v0.10.340: `takesNoParameters` answers false for `SFLCSRPRG`, `SFLRTNSEL` and `SFLNXTCHG`, and `optionIndicatorsAllowed('SFLNXTCHG')` answers false although the panel offers it a Conditioning toggle (the panels pass literal values, as I-176 found for eleven others, so nothing is wrong on screen). Same family of gap as I-174 / I-176; `I-122i` (the generated matrix) cannot derive these cells until the facts exist.
 
 Do: add the missing facts to the five entries from their reference sections, then extend the I-174 / I-176 accessor tables over them. The `SFLRCDNBR` parameter grammar belongs with I-177.
 
 *Raised by I-122d. Size (estimate): Small.*
+
+**Done (v0.10.345).** The five `RECORD_TYPES` entries now state the facts their DDS Reference sections state, in the I-121c spelling (`levels`, `parameters: 'none'`, `optionIndicators`): `SFLCSRPRG` field / no parameters / indicators not valid; `SFLRCDNBR` field / indicators not valid; `SFLROLVAL` field / no parameters / indicators not valid; `SFLRTNSEL` record / no parameters / indicators not valid; `SFLNXTCHG` record / no parameters / indicators valid. `takesNoParameters` and `optionIndicatorsAllowed` already read the entry (I-174 / I-176), so they now answer correctly with no code change; the I-174 every-entry table test covers the new facts. `SFLRCDNBR` states no `parameters` fact (its `[([CURSOR] [*TOP])]` grammar is I-177's). New `src/test/i178SubfileControlSpecFacts.test.js` (24 checks, mutation-checked) also pins that the four "not valid" entries agree with the no-option-indicators table at the same level. No behaviour change.
 
 ---
 

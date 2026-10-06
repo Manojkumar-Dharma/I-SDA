@@ -1711,6 +1711,12 @@
     // guard function (sflNxtchgSflMsgRcdConflictReason, Task I-23;
     // dspmodSflConflictReason).
     SFLNXTCHG: {
+      // Task I-178: the level, parameter and option-indicator facts from the same section (line ~11790):
+      // "You use this record-level keyword on the subfile record format", "This keyword has no
+      // parameters." and "Option indicators are valid for this keyword."
+      levels: ['record'],
+      parameters: 'none',
+      optionIndicators: 'valid',
       // DDS_Keyword_V7r6.txt, "SFLNXTCHG (Subfile Next Changed) keyword
       // for display files" section (line ~11826): "You cannot specify
       // SFLNXTCHG with the SFLMSGRCD keyword." A plain, symmetric
@@ -2484,6 +2490,11 @@
       crossRecordExclusion: SFLLIN_SFLCSRPRG_RULE
     },
     SFLCSRPRG: {
+      // Task I-178 - SFLCSRPRG's section (line ~10663): "You use this field-level keyword", "This
+      // keyword has no parameters." and "Option indicators are not valid for this keyword."
+      levels: ['field'],
+      parameters: 'none',
+      optionIndicators: 'notValid',
       crossRecordExclusion: SFLLIN_SFLCSRPRG_RULE
     },
 
@@ -2495,6 +2506,12 @@
     // unchanged with no CHECK-code variant. Previously the two names were
     // hard-coded in sflrtnselNewConflictReason (I-81).
     SFLRTNSEL: {
+      // Task I-178 - SFLRTNSEL's section (line ~12273): "You use this record-level keyword on a
+      // selection-list subfile control record", "This keyword has no parameters." and "Option
+      // indicators are not valid for this keyword."
+      levels: ['record'],
+      parameters: 'none',
+      optionIndicators: 'notValid',
       ddsReference:
         'If this keyword is specified then SFLMLTCHC or SFLSNGCHC must be specified.',
       qualifyingNames: SFL_CHOICE_KEYWORDS_LIST.slice(),
@@ -2606,11 +2623,22 @@
     // entries carry only that fact; their same-field mutex with SFLSCROLL
     // stays stated once, on SFLSCROLL's entry.
     SFLRCDNBR: {
+      // Task I-178 - SFLRCDNBR's section (line ~12062): "You use this field-level keyword on the
+      // subfile-control record format" and "Option indicators are not valid for this keyword." Its
+      // parameter grammar SFLRCDNBR[([CURSOR] [*TOP])] is I-177's, so no `parameters` fact here.
+      levels: ['field'],
+      optionIndicators: 'notValid',
       validOnlyInSubfileControlRecord: {
         ddsReference: 'This optional keyword is valid only for the subfile-control record format.'
       }
     },
     SFLROLVAL: {
+      // Task I-178 - SFLROLVAL's section (line ~12173): "You use this field-level keyword in the
+      // subfile-control record format", "This keyword has no parameters." and "Option indicators are
+      // not valid for this keyword."
+      levels: ['field'],
+      parameters: 'none',
+      optionIndicators: 'notValid',
       validOnlyInSubfileControlRecord: {
         ddsReference: 'This keyword is valid only for the subfile-control record format.'
       }
