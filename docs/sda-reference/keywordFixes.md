@@ -248,7 +248,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-176](#i-176) | Tooling | `optionIndicatorsAllowed` still answers "no" for the 11 keywords whose entries spell the fact `optionIndicatorsValid: true` (`ALARM`, `BLINK`, `CSRLOC`, `ERASE`, `ERASEINP`, `OVERLAY`, `PUTOVR`, `FRCDTA`, `PROTECT`, `MDTOFF`, `LOCK`); left over from I-174 | I-174 | Done | v0.10.339 |
 | [I-177](#i-177) | Field | `SFLRCDNBR` rules nothing enforces: not on the same field as `SFLROLVAL`, parameters only `CURSOR` / `*TOP`, field shape (zoned, 0 decimals, signed, up to 4 digits, usage O, B or H) | I-122d | In progress (claimed) | — |
 | [I-178](#i-178) | Tooling | Spec entries for `SFLCSRPRG`, `SFLRCDNBR`, `SFLROLVAL`, `SFLRTNSEL`, `SFLNXTCHG` state no level, parameter or option-indicator fact, so `takesNoParameters` / `optionIndicatorsAllowed` answer wrongly | I-122d | Done | v0.10.345 |
-| [I-179](#i-179) | Field | Date/time format keywords: `DATFMT` / `DATSEP` accepted off data type L and `TIMFMT` / `TIMSEP` off T, values outside IBM's lists, the fixed-separator rule only in the panel Apply, and a Basic-tab type change that strands them | I-122e | Not started | — |
+| [I-179](#i-179) | Field | Date/time format keywords: `DATFMT` / `DATSEP` accepted off data type L and `TIMFMT` / `TIMSEP` off T, values outside IBM's lists, the fixed-separator rule only in the panel Apply, and a Basic-tab type change that strands them | I-122e | In progress (claimed) | — |
 | [I-180](#i-180) | Field | `FLTPCN` (type F, `*SINGLE` / `*DOUBLE`, length caps, option indicators not valid) and `CNTFLD` (numeric width, its exclusion list) rules nothing enforces | I-122e | Not started | — |
 | [I-181](#i-181) | Tooling | Spec entries for `HLPDOC`, `HLPID`, `WDWBORDER` and `NOCCSID` state no level, parameter or option-indicator fact, so `optionIndicatorsAllowed` answers "no" for `HLPDOC` and `WDWBORDER` although their sections say option indicators are valid | I-122f | Not started | — |
 | [I-182](#i-182) | Record | `WDWBORDER` and `WDWTITLE` rules nothing enforces: record-level `WDWBORDER` needs `WINDOW` or `PULLDOWN` on the record, at least one parameter, colour and display-attribute values, `*TOP` / `*BOTTOM` and the three alignments each at most once | I-122f | Not started | — |
@@ -274,7 +274,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | 4 | [I-122j](#i-122j) | Not started | Retire overlapping tests, each deletion backed by a stash-based mutation run (do last, serially). Size (estimate): Large. |
 | 5 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
 | 6 | [I-177](#i-177) | In progress (claimed) | `SFLRCDNBR` with `SFLROLVAL` on one field, its parameter text and field shape. Size (estimate): Small. |
-| 7 | [I-179](#i-179) | Not started | Date/time format keyword eligibility, values, fixed-separator rule and Basic-tab type change. Size (estimate): Small. |
+| 7 | [I-179](#i-179) | In progress (claimed) | Date/time format keyword eligibility, values, fixed-separator rule and Basic-tab type change. Size (estimate): Small. |
 | 8 | [I-180](#i-180) | Not started | `FLTPCN` and `CNTFLD` parameter, type and exclusion rules. Size (estimate): Small. |
 | 9 | [I-181](#i-181) | Not started | Level, parameter and option-indicator facts missing from four help / window / field keyword entries. Size (estimate): Small. |
 | 10 | [I-182](#i-182) | Not started | `WDWBORDER` / `WDWTITLE` requirement and parameter rules. Size (estimate): Medium. |
@@ -8074,7 +8074,7 @@ Do: add the missing facts to the five entries from their reference sections, the
 
 ### I-179 — Date/time format keyword rules nothing enforces
 
-> **Area:** Field · **Status:** Not started · **Depends on:** I-122e · **Size (estimate):** Small
+> **Area:** Field · **Status:** In progress (claimed) · **Depends on:** I-122e · **Size (estimate):** Small
 
 Opened from I-122e. `DATFMT` and `DATSEP` are valid only for data type L, `TIMFMT` and `TIMSEP` only for T, `TIMFMT` has no `*JOB`, and `DATFMT` / `TIMFMT` say a fixed-separator format (`*ISO`, `*USA`, `*EUR`, `*JIS`) cannot be used with the separator keyword. Probed on v0.10.341 with the jsdom raw keyword editor: `DATFMT` / `DATSEP` are accepted on a character field, `TIMFMT` on a character and on a date field, `DATSEP('x')`, `DATFMT(*FOO)` and `TIMFMT(*JOB)` with no message, and raw-adding `DATFMT(*ISO)` to a field that already has `DATSEP('/')` is accepted. The separator rule lives only in the panel's Apply handler (`wireDateTimeFormat`). On the Basic tab, changing a date field with `DATFMT` and `DATSEP` to data type A applies and leaves both on the character field. The spec already holds `validDataType`, `validValues` and `fixedSeparatorFormats`.
 
