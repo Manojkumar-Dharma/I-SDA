@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-194 of 203 tasks done; 9 open (see [Open work](#open-work)). Current version: **v0.10.340**.
+195 of 205 tasks done; 10 open (see [Open work](#open-work)). Current version: **v0.10.341**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -184,8 +184,8 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-121r](#i-121r) | Tooling | Webview constant tables | I-121 | Done v0.10.287 (four value-domain lists from the spec; the rest guarded or classified as screen text) | v0.10.287 |
 | [I-121s](#i-121s) | Tooling | Engine and writer constant tables | I-121 | Done v0.10.286 (writer tables in the spec; engine/message tables classified as presentation) | v0.10.286 |
 | [I-121t](#i-121t) | Tooling | Generate the keyword index from the spec (do last) | I-121a – I-121s | Done | v0.10.335 |
-| [I-122](#i-122) | Tooling | Generated keyword x dimension test matrix; retire duplicate and stale tests | I-120, I-121 | In progress (batch 1 done v0.10.274; batch 2 done v0.10.336: MSGALARM, CSRINPONLY, RETLCKSTS, MAPVAL, INZINP, HLPEXCLD; batch 3 done v0.10.338: HLPFULL, MNUBARSEP, LOCK, DSPRL, FRCDTA, ALWGPH) | — |
-| [I-122d](#i-122d) | Tooling | Subfile-control family tests: SFLCLR, SFLCSRPRG, SFLRCDNBR, SFLMODE, SFLRTNSEL, SFLRNA, SFLROLVAL, SFLNXTCHG | I-122 | In progress | — |
+| [I-122](#i-122) | Tooling | Generated keyword x dimension test matrix; retire duplicate and stale tests | I-120, I-121 | In progress (batch 1 done v0.10.274; batch 2 done v0.10.336: MSGALARM, CSRINPONLY, RETLCKSTS, MAPVAL, INZINP, HLPEXCLD; batch 3 done v0.10.338: HLPFULL, MNUBARSEP, LOCK, DSPRL, FRCDTA, ALWGPH; I-122d done v0.10.341: the subfile-control family) | — |
+| [I-122d](#i-122d) | Tooling | Subfile-control family tests: SFLCLR, SFLCSRPRG, SFLRCDNBR, SFLMODE, SFLRTNSEL, SFLRNA, SFLROLVAL, SFLNXTCHG | I-122 | Done (130 checks; findings I-177, I-178) | v0.10.341 |
 | [I-122e](#i-122e) | Tooling | Field format and edit family tests: TIMSEP, TIMFMT, DATSEP, DATFMT, FLTPCN, FLTFIXDEC, BLANKS, CNTFLD, FLDCSRPRG, VALNUM | I-122 | Not started | — |
 | [I-122f](#i-122f) | Tooling | Help and window family tests: HLPSCHIDX, HLPBDY, HLPDOC, HLPID, IGCCNV, WDWTITLE, WDWBORDER, NOCCSID | I-122 | Not started | — |
 | [I-122g](#i-122g) | Tooling | Choice family tests: CHCSLT, CHCCTL, CHCUNAVAIL, CHCAVAIL, CHCACCEL, SFLCHCCTL, SFLSNGCHC, SFLMLTCHC | I-122 | Not started | — |
@@ -246,6 +246,8 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-174](#i-174) | Tooling | `takesNoParameters` / `optionIndicatorsAllowed` answer only for the I-121b keywords, so they say "no" for `MSGALARM`, `CSRINPONLY` and `HLPEXCLD` although their spec entries say the opposite (opened from I-122 batch 2) | I-121 | Done | v0.10.337 |
 | [I-175](#i-175) | Field | `MNUBARSEP` and `MNUBARCHC` need `MNUBAR` on their record, and `MNUBARSEP` cannot be used where `MNUBAR` says `*NOSEPARATOR`; the spec records the rules and nothing enforces them (found logging I-122 batch 3; not asserted as correct) | I-171 | Done | v0.10.340 |
 | [I-176](#i-176) | Tooling | `optionIndicatorsAllowed` still answers "no" for the 11 keywords whose entries spell the fact `optionIndicatorsValid: true` (`ALARM`, `BLINK`, `CSRLOC`, `ERASE`, `ERASEINP`, `OVERLAY`, `PUTOVR`, `FRCDTA`, `PROTECT`, `MDTOFF`, `LOCK`); left over from I-174 | I-174 | Done | v0.10.339 |
+| [I-177](#i-177) | Field | `SFLRCDNBR` rules nothing enforces: not on the same field as `SFLROLVAL`, parameters only `CURSOR` / `*TOP`, field shape (zoned, 0 decimals, signed, up to 4 digits, usage O, B or H) | I-122d | Not started | — |
+| [I-178](#i-178) | Tooling | Spec entries for `SFLCSRPRG`, `SFLRCDNBR`, `SFLROLVAL`, `SFLRTNSEL`, `SFLNXTCHG` state no level, parameter or option-indicator fact, so `takesNoParameters` / `optionIndicatorsAllowed` answer wrongly | I-122d | Not started | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -259,15 +261,16 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-122](#i-122) | In progress (batches 1-3 done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
-| 2 | [I-122d](#i-122d) | In progress | Subfile-control family tests. Size (estimate): Small. |
-| 3 | [I-122e](#i-122e) | Not started | Field format and edit family tests. Size (estimate): Medium. |
-| 4 | [I-122f](#i-122f) | Not started | Help and window family tests. Size (estimate): Small. |
-| 5 | [I-122g](#i-122g) | Not started | Choice family tests. Size (estimate): Medium. |
-| 6 | [I-122h](#i-122h) | Not started | Command-key family tests. Size (estimate): Medium. |
-| 7 | [I-122i](#i-122i) | Not started | Generated per-keyword matrix (L1-L4 from the I-121 spec). Size (estimate): Large. |
-| 8 | [I-122j](#i-122j) | Not started | Retire overlapping tests, each deletion backed by a stash-based mutation run (do last, serially). Size (estimate): Large. |
-| 9 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
+| 1 | [I-122](#i-122) | In progress (batches 1-3 and I-122d done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
+| 2 | [I-122e](#i-122e) | Not started | Field format and edit family tests. Size (estimate): Medium. |
+| 3 | [I-122f](#i-122f) | Not started | Help and window family tests. Size (estimate): Small. |
+| 4 | [I-122g](#i-122g) | Not started | Choice family tests. Size (estimate): Medium. |
+| 5 | [I-122h](#i-122h) | Not started | Command-key family tests. Size (estimate): Medium. |
+| 6 | [I-122i](#i-122i) | Not started | Generated per-keyword matrix (L1-L4 from the I-121 spec). Size (estimate): Large. |
+| 7 | [I-122j](#i-122j) | Not started | Retire overlapping tests, each deletion backed by a stash-based mutation run (do last, serially). Size (estimate): Large. |
+| 8 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
+| 9 | [I-177](#i-177) | Not started | `SFLRCDNBR` with `SFLROLVAL` on one field, its parameter text and field shape. Size (estimate): Small. |
+| 10 | [I-178](#i-178) | Not started | Facts missing from five subfile-control keyword entries. Size (estimate): Small. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The I-121 umbrella row there stays open until its slices land, so it is counted in the headline but not listed here.
 
@@ -6791,7 +6794,7 @@ Generate tests from the I-121 spec: L1 pure rule checks, L2 parse/write round-tr
 
 **Batch 3 (v0.10.338) - the next-thinnest keywords.** The same inventory on the synced repo still put `HLPFULL`, `MNUBARSEP`, `DSPRL`, `ALWGPH`, `FRCDTA` and `LOCK` among the fewest (6-7 test files each, once the already-covered batch 1 and 2 keywords are set aside), so the batch the earlier claim named was kept. `src/test/i122Batch3ThinCoverageKeywords.test.js` (79 checks) covers: the spec facts against each keyword's DDS Reference section; flag round trips at file and record level (idempotence, neighbours and conditions kept); the `HLPFULL` rule (needs `HLPPNLGRP` at the file level or on a help specification, in both directions, an already-invalid file not re-reported); the record-type rules (`ALWGPH` refused on SFL, USRDFN and menu-bar records, `LOCK` refused on USRDFN and allowed on a menu bar, `FRCDTA` refused on a menu bar and once per record format, raw editor included); the `MNUBARSEP` groups (read, write in the reference's order, a group left unchecked not written, removal when none is enabled, one character only, conditions kept or cleared); and in jsdom the file panel (`HLPFULL`, `DSPRL`, `ALWGPH` rows, Conditioning only where option indicators are valid, `HLPFULL` refused without `HLPPNLGRP` with its message), the record rows with saved state and Conditioning, the menu-bar record offering `LOCK` but not `FRCDTA` / `ALWGPH`, and the separator group on a menu-bar field (saved state, Apply with all three groups, Apply with none). Test-source lesson: a `MNUBARSEP` line with all three groups is longer than the 36-column keyword area, and the parser then drops the tail silently (the first probe read the character as empty); the test keeps each source line inside column 80, and the page keeps its edits between steps, so each step is written against the state the earlier ones left. Mutation-checked: switching off the `HLPFULL` guard fails 3 checks, swapping the `MNUBARSEP` group order fails 2, turning off `FRCDTA`'s once-per-record fact fails 3, and mis-keying the `DSPRL` file row fails 3 (the last needs `npm run compile`). Tests only. Two gaps it found are logged and not asserted as correct: I-175 (the `MNUBARSEP` rules) and I-176 (while the test was in progress I-174 landed, and `optionIndicatorsAllowed` still answers false for `LOCK` and `FRCDTA` because their entries spell the fact `optionIndicatorsValid: true`; the test asserts the accessor answers for the other keywords). Check count +81. Full suite: 285 files, 16,711 checks, zero failures.
 
-Not yet done for I-122: the generated per-keyword matrix itself (batch 4 onward, from the I-121 spec) and the retirement of overlapping tests; the cells for the other keywords are covered unevenly by the existing hand-written files. The remaining work is split into [I-122d](#i-122d) – [I-122j](#i-122j) so sessions can take them in parallel.
+Not yet done for I-122: the generated per-keyword matrix itself (batch 4 onward, from the I-121 spec) and the retirement of overlapping tests; the cells for the other keywords are covered unevenly by the existing hand-written files. **Batch 4 (v0.10.341) is [I-122d](#i-122d)** (the subfile-control family, 130 checks). The remaining work is split into [I-122e](#i-122e) – [I-122j](#i-122j) so sessions can take them in parallel.
 
 ---
 
@@ -6799,9 +6802,17 @@ Not yet done for I-122: the generated per-keyword matrix itself (batch 4 onward,
 
 ### I-122d — Subfile-control family tests: SFLCLR, SFLCSRPRG, SFLRCDNBR, SFLMODE, SFLRTNSEL, SFLRNA, SFLROLVAL, SFLNXTCHG
 
-> **Area:** Tooling · **Status:** In progress · **Depends on:** I-122 · **Size (estimate):** Small
+> **Area:** Tooling · **Status:** Done (v0.10.341) · **Depends on:** I-122 · **Size (estimate):** Small
 
 Opened from I-122 as one batch of the hand-written coverage pass (same method as batches 1-3): a new `src/test/i122D…test.js` file covering the spec facts against each keyword's DDS Reference section, flag and parameter round trips, the rule guards (both directions), and the jsdom panel, saved-state, Conditioning and raw-editor paths; mutation-check every group; log gaps as new tasks and do not assert them as correct. Keyword list by the inventory run on v0.10.339 (test files mentioning each name, thinnest first).
+
+**Done (v0.10.341).** New `src/test/i122dSubfileControlFamilyKeywords.test.js` (130 checks), one file for the whole family:
+
+- **Spec (15).** Each keyword's level, record type, parameters and option-indicator fact against its DDS Reference section: `SFLCLR` (option indicator required, no display size names), `SFLRNA` (needs `SFLINZ`, not on a message subfile, not with field selection, the seven-keyword field-selection list), `SFLMODE` (`SFLMODE(&mode)`, field A / 1 / H), `SFLRTNSEL` qualifiers, `SFLNXTCHG` x `SFLMSGRCD`, `SFLCSRPRG` x `SFLLIN`, `SFLRCDNBR` / `SFLROLVAL` valid only on the control record.
+- **Writer (about 70).** Round trips with neighbours and conditions kept; every guard in both directions (adding, removing the thing it needs, already-invalid left alone, turning off never blocked): `optionIndicatorRequiredNewConflictReason`, `subfileKeywordNewConflictReason` / `subfileKeywordViolations` for `SFLRNA` and `SFLMODE`, `sflrtnselNewConflictReason`, `sflNxtchgSflMsgRcdConflictReason`, `sflcsrprgFieldEditConflictReason` and `sfllinRecordEditConflictReason`, `subfileControlOnlyFieldNewConflictReason`, field selection through `subfileFoldDropNewConflictReason`, and the `SFLCLR` "needs an option indicator" note.
+- **Panels (about 45, jsdom).** The control-record rows and their saved state, Conditioning toggle present for `SFLCLR` and `SFLNXTCHG` and absent for `SFLRNA` / `SFLMODE`; `SFLINZ` off refused while `SFLRNA` is on; `SFLMODE` with a field that does not exist refused; `SFLRTNSEL` on with no choice type refused, then accepted beside `SFLSNGCHC`, and removing the type refused while it is on; `SFLNXTCHG` conditioning and the raw editor refusing `SFLMSGRCD` and `SFLRTNSEL`; the field panel's `SFLRCDNBR` selector (none / `CURSOR` / `*TOP`), `SFLROLVAL` and `SFLCSRPRG` checkboxes, and both control-only keywords refused on a field of an SFL record.
+
+Mutation-checked: 12 rule and spec mutations (each guard disabled in turn, `SFLRNA.requiresOnRecord` and `SFLNXTCHG.mutex` emptied) and 4 panel mutations (`SFLCSRPRG` checkbox unwired, `SFLRCDNBR` selector writing a fixed value, a Conditioning toggle on `SFLRNA`, the `SFLCLR` note dropped; these need `npm run compile` after the edit because the test reads the generated template) each fail the file; a no-op control did not. Gaps found while writing it are not asserted and are logged as I-177 and I-178.
 
 ---
 
@@ -7988,3 +7999,32 @@ New `src/test/i176OptionIndicatorsSpellings.test.js` (23 checks): the 11 keyword
 *Raised by I-122 batch 3. Size (estimate): Small.*
 
 ---
+
+<a id="i-177"></a>
+
+### I-177 — `SFLRCDNBR` rules nothing enforces
+
+> **Area:** Field · **Status:** Not started · **Depends on:** I-122d · **Size (estimate):** Small
+
+Opened from I-122d. `SFLRCDNBR`'s DDS Reference section says: "You cannot specify both SFLRCDNBR and SFLROLVAL for the same field", the parameter is `[CURSOR] [*TOP]`, and the field "must be a zoned decimal field with zero decimal positions ... signed numeric (S in position 35), and it can be up to 4 digits in length ... output-only, an input/output, or a hidden field". Probed on v0.10.340 with the jsdom panel and the raw keyword editor on a control-record field that already carries `SFLROLVAL`: choosing `CURSOR` in the `SFLRCDNBR` selector writes `SFLROLVAL` and `SFLRCDNBR(CURSOR)` together with no message, and the raw editor then accepts `SFLRCDNBR(FOO)` as a second keyword with no message. The field shape is not checked anywhere in `dspfWriter.js` (the only `SFLRCDNBR` code is the control-record-only guard from I-129 and the field-selection list from I-146). `SFLSCROLL` already has all three kinds of check (same-field mutex with both, exact shape, I-126), so the shape to follow exists.
+
+Do: add the `SFLRCDNBR` x `SFLROLVAL` same-field mutex to the spec (the `SFLSCROLL` entry already records its two), a parameter grammar check (at most `CURSOR` and `*TOP`, each once), and the field-shape check, all diff-based through `commitEdit` like `sflscrollNewConflictReason`; decide whether the selector should rewrite the field's shape on enable (as `SFLCHCCTL` / `SFLSCROLL` do) or only refuse. `src/test/i122dSubfileControlFamilyKeywords.test.js` has the spec for the control-only guard and the selector round trip; add the three cases beside them.
+
+*Raised by I-122d. Size (estimate): Small.*
+
+---
+
+<a id="i-178"></a>
+
+### I-178 — Spec entries for five subfile-control keywords carry no level, parameter or option-indicator fact
+
+> **Area:** Tooling · **Status:** Not started · **Depends on:** I-122d · **Size (estimate):** Small
+
+Opened from I-122d. `RECORD_TYPES` holds only a rule fragment for `SFLCSRPRG` (`crossRecordExclusion`), `SFLRCDNBR` and `SFLROLVAL` (`validOnlyInSubfileControlRecord`), `SFLRTNSEL` (`qualifyingNames`) and `SFLNXTCHG` (`mutex`). None states `levels`, `parameters` / `noParameters` or `optionIndicators`, although each DDS Reference section does ("This keyword has no parameters" for `SFLCSRPRG` and `SFLRTNSEL` and `SFLNXTCHG`; "Option indicators are not valid" for `SFLCSRPRG`, `SFLRCDNBR`, `SFLRTNSEL`; "Option indicators are valid" for `SFLNXTCHG`). Probed on v0.10.340: `takesNoParameters` answers false for `SFLCSRPRG`, `SFLRTNSEL` and `SFLNXTCHG`, and `optionIndicatorsAllowed('SFLNXTCHG')` answers false although the panel offers it a Conditioning toggle (the panels pass literal values, as I-176 found for eleven others, so nothing is wrong on screen). Same family of gap as I-174 / I-176; `I-122i` (the generated matrix) cannot derive these cells until the facts exist.
+
+Do: add the missing facts to the five entries from their reference sections, then extend the I-174 / I-176 accessor tables over them. The `SFLRCDNBR` parameter grammar belongs with I-177.
+
+*Raised by I-122d. Size (estimate): Small.*
+
+---
+
