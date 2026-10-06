@@ -184,12 +184,12 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-121r](#i-121r) | Tooling | Webview constant tables | I-121 | Done v0.10.287 (four value-domain lists from the spec; the rest guarded or classified as screen text) | v0.10.287 |
 | [I-121s](#i-121s) | Tooling | Engine and writer constant tables | I-121 | Done v0.10.286 (writer tables in the spec; engine/message tables classified as presentation) | v0.10.286 |
 | [I-121t](#i-121t) | Tooling | Generate the keyword index from the spec (do last) | I-121a – I-121s | Done | v0.10.335 |
-| [I-122](#i-122) | Tooling | Generated keyword x dimension test matrix; retire duplicate and stale tests | I-120, I-121 | In progress (batch 1 done v0.10.274; batch 2 done v0.10.336: MSGALARM, CSRINPONLY, RETLCKSTS, MAPVAL, INZINP, HLPEXCLD; batch 3 done v0.10.338: HLPFULL, MNUBARSEP, LOCK, DSPRL, FRCDTA, ALWGPH; I-122d done v0.10.341: the subfile-control family; I-122e done v0.10.342: the field format and edit family; I-122f done v0.10.343: the help and window family; I-122g done v0.10.344: the choice family) | — |
+| [I-122](#i-122) | Tooling | Generated keyword x dimension test matrix; retire duplicate and stale tests | I-120, I-121 | In progress (batch 1 done v0.10.274; batch 2 done v0.10.336: MSGALARM, CSRINPONLY, RETLCKSTS, MAPVAL, INZINP, HLPEXCLD; batch 3 done v0.10.338: HLPFULL, MNUBARSEP, LOCK, DSPRL, FRCDTA, ALWGPH; I-122d done v0.10.341: the subfile-control family; I-122e done v0.10.342: the field format and edit family; I-122f done v0.10.343: the help and window family; I-122g done v0.10.344: the choice family; I-122h done v0.10.348: the command-key family) | — |
 | [I-122d](#i-122d) | Tooling | Subfile-control family tests: SFLCLR, SFLCSRPRG, SFLRCDNBR, SFLMODE, SFLRTNSEL, SFLRNA, SFLROLVAL, SFLNXTCHG | I-122 | Done (130 checks; findings I-177, I-178) | v0.10.341 |
 | [I-122e](#i-122e) | Tooling | Field format and edit family tests: TIMSEP, TIMFMT, DATSEP, DATFMT, FLTPCN, FLTFIXDEC, BLANKS, CNTFLD, FLDCSRPRG, VALNUM | I-122 | Done (171 checks; findings I-179, I-180) | v0.10.342 |
 | [I-122f](#i-122f) | Tooling | Help and window family tests: HLPSCHIDX, HLPBDY, HLPDOC, HLPID, IGCCNV, WDWTITLE, WDWBORDER, NOCCSID | I-122 | Done (138 checks; findings I-181, I-182) | v0.10.343 |
 | [I-122g](#i-122g) | Tooling | Choice family tests: CHCSLT, CHCCTL, CHCUNAVAIL, CHCAVAIL, CHCACCEL, SFLCHCCTL, SFLSNGCHC, SFLMLTCHC | I-122 | Done (147 checks; findings I-183, I-184, I-185) | v0.10.344 |
-| [I-122h](#i-122h) | Tooling | Command-key family tests: CA01-CA24, CF01-CF24, ALTPAGEDWN, ALTPAGEUP, DLTCHK, DLTEDT, RETCMDKEY, MNUBARSW, MNUCNL, GETRETAIN | I-122 | In progress (claimed) | — |
+| [I-122h](#i-122h) | Tooling | Command-key family tests: CA01-CA24, CF01-CF24, ALTPAGEDWN, ALTPAGEUP, DLTCHK, DLTEDT, RETCMDKEY, MNUBARSW, MNUCNL, GETRETAIN | I-122 | Done (107 checks; findings I-186, I-187, I-188, I-189) | v0.10.348 |
 | [I-122i](#i-122i) | Tooling | Generated per-keyword matrix (L1-L4 from the I-121 spec): generator and harness, then the keywords no hand-written batch covers | I-122, I-121 | Not started | — |
 | [I-122j](#i-122j) | Tooling | Retire overlapping tests, each deletion backed by a stash-based mutation run (do last, serially) | I-122i | Not started | — |
 | [I-123](#i-123) | Tooling | Move "Task I-nn" history out of source comments | I-121 | Not started | — |
@@ -255,6 +255,10 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-183](#i-183) | Field | Choice keyword values nothing enforces: a bare or out-of-list `CHCAVAIL` / `CHCUNAVAIL` / `CHCSLT`, `CHCACCEL` / `CHCCTL` choice number outside 1-99, `CHCACCEL` with no text, the `CHCCTL` message fields' shapes | I-122g | Not started | — |
 | [I-184](#i-184) | Record | `SFLSNGCHC` / `SFLMLTCHC` rules nothing enforces: the subfile shape (one output field, no input-capable fields), control-record-only, and the `&number-selected` field shape | I-122g | Not started | — |
 | [I-185](#i-185) | Tooling | Spec entries for `SFLCHCCTL`, `SFLSNGCHC` and `SFLMLTCHC` carry no level, parameter or option-indicator fact, and the `SFLCHCCTL` control-value table is not in the spec | I-122g | Not started | — |
+| [I-186](#i-186) | Field | Command-key numbers outside 01-24 accepted (`CA00`, `CA25`), and `MNUBARSW(CF05)` / `MNUBARSW(CA25)` pass the menu-bar key guard | I-122h | Not started | — |
+| [I-187](#i-187) | Record | `MNUBARSW` / `MNUCNL` claim a CA key but the CA / CF number guard does not read them: their key can be reused as a CF key on another record | I-122h | Not started | — |
+| [I-188](#i-188) | Record | `RETKEY` / `RETCMDKEY` accepted on a subfile (`SFL`) or user-defined (`USRDFN`) record, though the spec records they are not valid there | I-122h | Not started | — |
+| [I-189](#i-189) | Tooling | `MNUBARSW`, `MNUCNL`, `ALTPAGEDWN`, `ALTPAGEUP`, `DLTCHK` and `DLTEDT` carry no level, parameter or option-indicator fact; `optionIndicatorsAllowed` answers false for `MNUBARSW` / `MNUCNL` (reference: valid) and for a concrete `CA05` | I-122h | Not started | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -268,8 +272,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-122](#i-122) | In progress (batches 1-3, I-122d, I-122e, I-122f and I-122g done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
-| 2 | [I-122h](#i-122h) | Not started | Command-key family tests. Size (estimate): Medium. |
+| 1 | [I-122](#i-122) | In progress (batches 1-3, I-122d, I-122e, I-122f, I-122g and I-122h done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
 | 3 | [I-122i](#i-122i) | Not started | Generated per-keyword matrix (L1-L4 from the I-121 spec). Size (estimate): Large. |
 | 4 | [I-122j](#i-122j) | Not started | Retire overlapping tests, each deletion backed by a stash-based mutation run (do last, serially). Size (estimate): Large. |
 | 5 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
@@ -6795,7 +6798,7 @@ With this slice the I-121 umbrella is complete: every keyword in the lookup has 
 
 ### I-122 — Generated keyword x dimension test matrix; retire duplicate and stale tests
 
-> **Area:** Tooling · **Status:** In progress (batches 1-3, I-122d, I-122e, I-122f and I-122g done) · **Depends on:** I-120, I-121
+> **Area:** Tooling · **Status:** In progress (batches 1-3, I-122d, I-122e, I-122f, I-122g and I-122h done) · **Depends on:** I-120, I-121
 
 Generate tests from the I-121 spec: L1 pure rule checks, L2 parse/write round-trip of parameters and sub-parameters, L3 UI display and selection (one jsdom per record type iterating rows), L4 behaviour through each commit path (checkbox, raw keyword editor, Basic tab). Cover the keywords with no tests today (`RMVWDW`, `SFLCSRRRN`, `SFLDLT`, `USRRSTDSP`, ...). Migration rule: map each existing `check()` to a keyword x dimension cell; delete it only when a generated cell covers it **and** a stash-based mutation run shows the generated cell fails when the rule is broken; keep unique regressions. Report the before/after check count and suite time.
 
@@ -6807,7 +6810,7 @@ Generate tests from the I-121 spec: L1 pure rule checks, L2 parse/write round-tr
 
 **Batch 3 (v0.10.338) - the next-thinnest keywords.** The same inventory on the synced repo still put `HLPFULL`, `MNUBARSEP`, `DSPRL`, `ALWGPH`, `FRCDTA` and `LOCK` among the fewest (6-7 test files each, once the already-covered batch 1 and 2 keywords are set aside), so the batch the earlier claim named was kept. `src/test/i122Batch3ThinCoverageKeywords.test.js` (79 checks) covers: the spec facts against each keyword's DDS Reference section; flag round trips at file and record level (idempotence, neighbours and conditions kept); the `HLPFULL` rule (needs `HLPPNLGRP` at the file level or on a help specification, in both directions, an already-invalid file not re-reported); the record-type rules (`ALWGPH` refused on SFL, USRDFN and menu-bar records, `LOCK` refused on USRDFN and allowed on a menu bar, `FRCDTA` refused on a menu bar and once per record format, raw editor included); the `MNUBARSEP` groups (read, write in the reference's order, a group left unchecked not written, removal when none is enabled, one character only, conditions kept or cleared); and in jsdom the file panel (`HLPFULL`, `DSPRL`, `ALWGPH` rows, Conditioning only where option indicators are valid, `HLPFULL` refused without `HLPPNLGRP` with its message), the record rows with saved state and Conditioning, the menu-bar record offering `LOCK` but not `FRCDTA` / `ALWGPH`, and the separator group on a menu-bar field (saved state, Apply with all three groups, Apply with none). Test-source lesson: a `MNUBARSEP` line with all three groups is longer than the 36-column keyword area, and the parser then drops the tail silently (the first probe read the character as empty); the test keeps each source line inside column 80, and the page keeps its edits between steps, so each step is written against the state the earlier ones left. Mutation-checked: switching off the `HLPFULL` guard fails 3 checks, swapping the `MNUBARSEP` group order fails 2, turning off `FRCDTA`'s once-per-record fact fails 3, and mis-keying the `DSPRL` file row fails 3 (the last needs `npm run compile`). Tests only. Two gaps it found are logged and not asserted as correct: I-175 (the `MNUBARSEP` rules) and I-176 (while the test was in progress I-174 landed, and `optionIndicatorsAllowed` still answers false for `LOCK` and `FRCDTA` because their entries spell the fact `optionIndicatorsValid: true`; the test asserts the accessor answers for the other keywords). Check count +81. Full suite: 285 files, 16,711 checks, zero failures.
 
-Not yet done for I-122: the generated per-keyword matrix itself (batch 4 onward, from the I-121 spec) and the retirement of overlapping tests; the cells for the other keywords are covered unevenly by the existing hand-written files. **Batch 4 (v0.10.341) is [I-122d](#i-122d)** (the subfile-control family, 130 checks) and **batch 5 (v0.10.342) is [I-122e](#i-122e)** (the field format and edit family, 171 checks) and **batch 6 (v0.10.343) is [I-122f](#i-122f)** (the help and window family, 138 checks) and **batch 7 (v0.10.344) is [I-122g](#i-122g)** (the choice family, 147 checks). The remaining work is split into [I-122h](#i-122h) – [I-122j](#i-122j) so sessions can take them in parallel.
+Not yet done for I-122: the generated per-keyword matrix itself (batch 4 onward, from the I-121 spec) and the retirement of overlapping tests; the cells for the other keywords are covered unevenly by the existing hand-written files. **Batch 4 (v0.10.341) is [I-122d](#i-122d)** (the subfile-control family, 130 checks) and **batch 5 (v0.10.342) is [I-122e](#i-122e)** (the field format and edit family, 171 checks) and **batch 6 (v0.10.343) is [I-122f](#i-122f)** (the help and window family, 138 checks) and **batch 7 (v0.10.344) is [I-122g](#i-122g)** (the choice family, 147 checks). and **batch 8 (v0.10.348) is [I-122h](#i-122h)** (the command-key family, 107 checks). The remaining work is split into [I-122i](#i-122i) – [I-122j](#i-122j) so sessions can take them in parallel.
 
 ---
 
@@ -6891,9 +6894,19 @@ Mutation-checked: 14 rule, spec and panel mutations (each recompiled, then rever
 
 ### I-122h — Command-key family tests: CA01-CA24, CF01-CF24, ALTPAGEDWN, ALTPAGEUP, DLTCHK, DLTEDT, RETCMDKEY, MNUBARSW, MNUCNL, GETRETAIN
 
-> **Area:** Tooling · **Status:** In progress (claimed) · **Depends on:** I-122 · **Size (estimate):** Medium
+> **Area:** Tooling · **Status:** Done (v0.10.348) · **Depends on:** I-122 · **Size (estimate):** Medium
 
 Opened from I-122 as one batch of the hand-written coverage pass (same method as batches 1-3): a new `src/test/i122H…test.js` file covering the spec facts against each keyword's DDS Reference section, flag and parameter round trips, the rule guards (both directions), and the jsdom panel, saved-state, Conditioning and raw-editor paths; mutation-check every group; log gaps as new tasks and do not assert them as correct. Keyword list by the inventory run on v0.10.339 (test files mentioning each name, thinnest first).
+
+
+**Done (v0.10.348).** New `src/test/i122hCommandKeyFamilyKeywords.test.js` (107 checks), one file for the whole family:
+
+- **Spec (17).** Each keyword's fact against its DDS Reference section, quoted from `DDS_Keyword_V7r6.txt`: `CAnn` / `CFnn` (format, 01-24 with the leading zero, indicators 1-99, file and record level, the same number as CA and CF refused file-wide), `ALTPAGEDWN` / `ALTPAGEUP` (defaults CF08 / CF07 and the exclusion lists with their relations), `DLTCHK` / `DLTEDT` (no parameters, R in position 29, no indicators), `RETCMDKEY`, `MNUBARSW` / `MNUCNL` (defaults CA10 / CA12, the partner rule) and `GETRETAIN` (a bare `UNLOCK`).
+- **Writer (76).** Parse and round trip with Conditioning and neighbours kept (`parseCommandKeys`, `setCommandKeyAt`, `removeCommandKeyAt`, `getFileFlagKeyword`) and every guard in both directions (adding, removing what it needs, already-invalid left alone, removing never blocked): `commandKeyNumberNewConflictReason`, `altKeyFileExclusionNewConflictReason` (bare and parameterised keys, the `caOnly` and `opposite` relations, the ALTPAGEUP / ALTPAGEDWN pair), `referenceFieldNewConflictReason` for `DLTCHK` / `DLTEDT`, `retKeyNewConflictReason` for `RETCMDKEY`, `mnuBarKeyConflictReason` and `initRetainReturnNewConflictReason` for `GETRETAIN`.
+- **Panel (7, jsdom).** The command-keys section: saved rows, Conditioning count, the add form, + Add with a guard reason, and the remove button.
+- **Raw editor (7, jsdom webview).** `DLTCHK` and `DLTEDT` refused on a field without R in position 29 (nothing posted) and accepted on a field with it.
+
+Mutation-checked: 10 spec, guard and panel mutations (each recompiled, then reverted) each fail the file. Gaps found are not asserted and are logged as I-186, I-187, I-188 and I-189.
 
 ---
 
@@ -8189,5 +8202,61 @@ Opened from I-122g. `RECORD_TYPES.SFLCHCCTL` holds `definitionRequirements`, `mu
 Do: add the three facts to the three entries, share the control-value table between `CHCCTL` and `SFLCHCCTL`, then pin the accessor answers in `i122gChoiceFamilyKeywords.test.js`.
 
 *Raised by I-122g. Size (estimate): Small.*
+
+---
+
+<a id="i-186"></a>
+
+### I-186 — Command-key numbers outside 01-24 accepted
+
+> **Area:** Field · **Status:** Not started · **Depends on:** I-122h · **Size (estimate):** Small
+
+Opened from I-122h; probed on v0.10.347. `CAnn` / `CFnn` are "nn = 01-24" (spec `pattern.first` / `last`), but `KeywordSpec.parseCommandKey` and `isCommandKeyName` read the grammar only (`CA00` and `CA25` both parse; the I-121 test says the range "is a separate domain fact"), `parseCommandKeys` returns both, and no guard reads the range. `mnuBarKeyConflictReason('MNUBARSW', 'CF05', ...)` and `('MNUBARSW', 'CA25', ...)` return null: it checks the collision only, not that the parameter is a CA key in 01-24 (the panel may restrict the input; the raw editor was not probed). `ALTPAGEDWN(CF25)` was not probed.
+
+Do: a diff-based guard reading the spec range for `CAnn`, `CFnn`, `ALTPAGEDWN` / `ALTPAGEUP`, `MNUBARSW` and `MNUCNL` values, with tests in both directions.
+
+*Raised by I-122h. Size (estimate): Small.*
+
+---
+
+<a id="i-187"></a>
+
+### I-187 — MNUBARSW / MNUCNL keys are not CA claims for the CA / CF number guard
+
+> **Area:** Record · **Status:** Not started · **Depends on:** I-122h · **Size (estimate):** Small
+
+Opened from I-122h. Both sections say that with the keyword on a record "the CAnn key or default CA10 / CA12 key can be used only as a CA key on other records, not as a CF key". `commandKeyNumberNewConflictReason` accepts `MNUBARSW(CA10)` on one record with `CF10` on another, `MNUBARSW` (default CA10) with `CF10` on the same record, and a default `MNUCNL` (CA12) with a file-level `CF12`; `commandKeyClaimsInModel` already reads the alt keys and `MNUBARSW` / `MNUCNL` for the alt-key guard, but `commandKeyNumberClash` sees only plain `CAnn` / `CFnn` names.
+
+Do: make the number guard count a `MNUBARSW` / `MNUCNL` key (explicit or default) as a CA use, file-wide, with tests in both directions and for the file-level extension.
+
+*Raised by I-122h. Size (estimate): Small.*
+
+---
+
+<a id="i-188"></a>
+
+### I-188 — RETKEY / RETCMDKEY accepted on SFL and USRDFN records
+
+> **Area:** Record · **Status:** Not started · **Depends on:** I-122h · **Size (estimate):** Small
+
+Opened from I-122h. The `RETCMDKEY` spec entry (and `RETKEY`'s, same rules) records `notOnRecordTypes: ['SFL', 'USRDFN']` and `retKeyNewConflictReason` reads the INDARA, file and record exclusions, but a `RETKEY` or `RETCMDKEY` added to a record carrying `SFL` or `USRDFN` (with `INDARA` in the file) returns null. The reference sentence for the two record types was not located in the converted text while writing the test; read it first.
+
+Do: add the record-type rule to the guard, with tests in both directions (adding the keyword; adding `SFL` / `USRDFN` to a record that has it).
+
+*Raised by I-122h. Size (estimate): Small.*
+
+---
+
+<a id="i-189"></a>
+
+### I-189 — Spec entries for MNUBARSW, MNUCNL, ALTPAGEDWN, ALTPAGEUP, DLTCHK and DLTEDT carry no level, parameter or option-indicator fact
+
+> **Area:** Tooling · **Status:** Not started · **Depends on:** I-122h · **Size (estimate):** Small
+
+Opened from I-122h. `MNUBARSW` and `MNUCNL` hold only `caKeyPartner`, `caKeyDefault` and `ddsReference`; `ALTPAGEDWN` / `ALTPAGEUP` hold `claimedKeyType`, `defaultKey` and `excluded`; `DLTCHK` / `DLTEDT` hold `requiresReferenceFlag`, `noParameters` and `deletes`. None states `levels`, parameter grammar or `optionIndicators`, though the sections say: `MNUBARSW` and `MNUCNL` file or record level, indicators valid, allowed only in a file with a menu-bar record; `ALTPAGEDWN` / `ALTPAGEUP` file level; `DLTCHK` / `DLTEDT` field level, indicators not valid. So `optionIndicatorsAllowed('MNUBARSW')` and `('MNUCNL')` answer false where the reference says valid, and `optionIndicatorsAllowed('CA05')` answers false because it looks a concrete name up as an entry key (the pattern entry `CA01-CA24` answers true; `commandKeyEntry('CA05')` resolves it). "Allowed only in a file containing a menu-bar record" is a second fact no guard was seen to read.
+
+Do: add the facts to the six entries, resolve concrete command-key names in the accessors, then pin the answers in `i122hCommandKeyFamilyKeywords.test.js`.
+
+*Raised by I-122h. Size (estimate): Small.*
 
 ---
