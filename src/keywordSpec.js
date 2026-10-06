@@ -2622,12 +2622,48 @@
     // a field of an SFL detail record or of a plain record. These two
     // entries carry only that fact; their same-field mutex with SFLSCROLL
     // stays stated once, on SFLSCROLL's entry.
+    //
+    // Task I-177 - the three further rules in SFLRCDNBR's own section,
+    // previously unenforced anywhere (opened from I-122d), now stated here:
+    //  - `mutex` (SFLROLVAL): "You cannot specify both SFLRCDNBR and
+    //    SFLROLVAL for the same field." The same-field shape SFLSCROLL's
+    //    entry already uses (SFLSCROLL's own two stay on its entry).
+    //  - `parameterWords`: the format is SFLRCDNBR[([CURSOR] [*TOP])], so
+    //    the parameter text holds at most CURSOR and *TOP, each once.
+    //  - `definitionRequirements`: "This field must be a zoned decimal
+    //    field with zero decimal positions. It must have the keyboard shift
+    //    attribute of signed numeric (S in position 35), and it can be up
+    //    to 4 digits in length. It must be defined as an output-only, an
+    //    input/output, or a hidden field." SFLSCROLL's shape with a length
+    //    RANGE (`lengthMin`..`lengthMax`, no exact `length`) and three
+    //    usages (O, B, H); `usageDefault` H is what enabling the keyword
+    //    rewrites a wrong usage to (IBM's example is `F2 4S 0H`).
     SFLRCDNBR: {
       // Task I-178 - SFLRCDNBR's section (line ~12062): "You use this field-level keyword on the
       // subfile-control record format" and "Option indicators are not valid for this keyword." Its
       // parameter grammar SFLRCDNBR[([CURSOR] [*TOP])] is I-177's, so no `parameters` fact here.
       levels: ['field'],
       optionIndicators: 'notValid',
+      mutex: ['SFLROLVAL'],
+      parameterWords: {
+        allowed: ['CURSOR', '*TOP'],
+        eachAtMostOnce: true,
+        ddsReference: 'SFLRCDNBR[([CURSOR] [*TOP])]'
+      },
+      definitionRequirements: {
+        dataType: 'S',
+        dataTypeBlankWithDecimals: true,
+        lengthMin: 1,
+        lengthMax: 4,
+        decimalPositions: 0,
+        usage: ['O', 'B', 'H'],
+        usageDefault: 'H',
+        ddsReference:
+          'This field must be a zoned decimal field with zero decimal positions. ' +
+          'It must have the keyboard shift attribute of signed numeric (S in position 35), ' +
+          'and it can be up to 4 digits in length. It must be defined as an output-only, ' +
+          'an input/output, or a hidden field.'
+      },
       validOnlyInSubfileControlRecord: {
         ddsReference: 'This optional keyword is valid only for the subfile-control record format.'
       }
@@ -4390,6 +4426,14 @@
     var pair = REQUIRE_PAIRS.filter(function (p) { return p.indexOf(keywordName) !== -1; })[0];
     if (!pair) return null;
     return pair[0] === keywordName ? pair[1] : pair[0];
+  }
+
+  /** Task I-177 - `recordType`'s closed parameter-word rule (SFLRCDNBR:
+   *  CURSOR and *TOP, each at most once), a copy, or null. */
+  function parameterWords(recordType) {
+    var spec = RECORD_TYPES[recordType];
+    if (!spec || !spec.parameterWords) return null;
+    return Object.assign({}, spec.parameterWords, { allowed: spec.parameterWords.allowed.slice() });
   }
 
   /** `recordType`'s own field-definition requirements (the PSHBTNFLD
@@ -6506,6 +6550,7 @@
     groupMutexKeywords: groupMutexKeywords,
     requiredPartner: requiredPartner,
     definitionRequirements: definitionRequirements,
+    parameterWords: parameterWords,
     ineligibleUsageLabel: ineligibleUsageLabel,
     ineligibleWhenDecimalsSpecified: ineligibleWhenDecimalsSpecified,
     ineligibleOnConstant: ineligibleOnConstant,

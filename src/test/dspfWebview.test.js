@@ -5145,15 +5145,16 @@ function runNumericFieldPickerScenario() {
     const sflrolvalOwnerKey = sflrcdnbrEl.id.replace('-sflrcdnbr', '');
     const sflrolvalEl = doc.getElementById(sflrolvalOwnerKey + '-sflrolval');
     check('SFLROLVAL checkbox present', !!sflrolvalEl);
+    // Task I-177: SFLROLVAL cannot be put on a field that already has SFLRCDNBR (the DDS Reference's same-field
+    // mutex) - the checkbox alerts and reverts and no edit is posted. (This step used to assert both keywords
+    // being written on RECNBR as "independent commits"; i177SflrcdnbrRules.test.js covers the refusal in depth.)
     sflrolvalEl.checked = true;
     sflrolvalEl.dispatchEvent(new Event('change', { bubbles: true }));
-    applyEdit = posted.find((m) => m.type === 'applyEdit');
-    reparsed = DspfParser.parseDspf(applyEdit.text);
-    recnbrField = reparsed.records.find((r) => r.name === 'DTLCTL').fields.find((f) => f.name === 'RECNBR');
-    check('SFLROLVAL written', recnbrField.keywords.some((k) => k.name === 'SFLROLVAL'));
-    check('SFLRCDNBR from the previous step is still there (independent commits)', recnbrField.keywords.some((k) => k.name === 'SFLRCDNBR'));
+    check('SFLROLVAL is refused beside SFLRCDNBR on the same field: no edit posted', !posted.some((m) => m.type === 'applyEdit'));
+    check('...and the SFLROLVAL checkbox reverts to unticked', sflrolvalEl.checked === false);
+    posted.length = 0;
 
-    console.log('  Task I-26: SFLSCROLL is blocked (alert + revert) on this same field - it already carries SFLROLVAL/SFLRCDNBR');
+    console.log('  Task I-26: SFLSCROLL is blocked (alert + revert) on this same field - it already carries SFLRCDNBR');
     const sflscrollEl = doc.getElementById(sflrolvalOwnerKey + '-sflscroll');
     check('SFLSCROLL checkbox present', !!sflscrollEl);
     sflscrollEl.checked = true;

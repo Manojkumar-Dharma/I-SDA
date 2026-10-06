@@ -23,7 +23,7 @@
  *  L4    commit paths: checkbox, select, Conditioning, raw editor.
  *
  * Gaps found while writing it are NOT asserted as correct; they are logged in
- * docs/sda-reference/keywordFixes.md (I-177 and I-178).
+ * docs/sda-reference/keywordFixes.md (I-177, since done, and I-178).
  *
  * Run with: node src/test/i122dSubfileControlFamilyKeywords.test.js
  */
@@ -123,8 +123,7 @@ console.log('=== spec: what the DDS Reference says about each keyword ===');
   check('optionIndicatorsAllowed: false for SFLRNA and SFLMODE (not valid)', !DspfWriter.optionIndicatorsAllowed('SFLRNA') && !DspfWriter.optionIndicatorsAllowed('SFLMODE'));
   // Not asserted (logged as I-178): SFLCSRPRG, SFLRCDNBR, SFLROLVAL, SFLRTNSEL and SFLNXTCHG carry no
   // levels / parameters / optionIndicators fact in the spec, so takesNoParameters and optionIndicatorsAllowed
-  // answer false for SFLCSRPRG and SFLRTNSEL (no parameters) and SFLNXTCHG (option indicators valid);
-  // SFLRCDNBR and SFLROLVAL have no mutex fact against each other.
+  // answer false for SFLCSRPRG and SFLRTNSEL (no parameters) and SFLNXTCHG (option indicators valid).
 }
 
 console.log('\n=== L1/L2 writer: parse, flag and parameter round trips ===');
@@ -283,8 +282,8 @@ console.log('\n=== L1 SFLCSRPRG / SFLRCDNBR / SFLROLVAL: where they may go ===')
   check('both are accepted on the control record', only([], [K('SFLRCDNBR'), K('SFLROLVAL')], true) === null);
   check('one that is already there, or being turned off, is not blocked', only([K('SFLROLVAL')], [K('SFLROLVAL')], false) === null && only([K('SFLROLVAL')], [], false) === null);
   check('SFLCSRPRG is not restricted to the control record by that guard (it is a subfile-detail field keyword)', only([], [K('SFLCSRPRG')], false) === null);
-  // Not asserted (logged as I-177): SFLRCDNBR and SFLROLVAL on ONE field are not refused, SFLRCDNBR's parameter
-  // text is not validated (SFLRCDNBR(FOO) is accepted by the raw editor) and its field shape is not checked.
+  // I-177 (src/test/i177SflrcdnbrRules.test.js) covers SFLRCDNBR beside SFLROLVAL on one field, its parameter
+  // text and its field shape.
 }
 
 console.log('\n=== L3/L4 the panels (jsdom) ===');

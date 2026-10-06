@@ -37,10 +37,13 @@ console.log('\nKeywordSpec.validOnlyInSubfileControlRecord');
   check('undefined is not', !KeywordSpec.validOnlyInSubfileControlRecord(undefined));
   const holders = Object.keys(KeywordSpec.RECORD_TYPES).filter((n) => KeywordSpec.RECORD_TYPES[n].validOnlyInSubfileControlRecord);
   check('exactly SFLRCDNBR, SFLROLVAL, SFLSCROLL carry the fact', holders.sort().join(',') === 'SFLRCDNBR,SFLROLVAL,SFLSCROLL');
-  check('SFLRCDNBR/SFLROLVAL entries carry no other rule', ['SFLRCDNBR', 'SFLROLVAL'].every((n) => {
+  // SFLRCDNBR gained its own mutex (SFLROLVAL), parameter words and field shape in I-177 (covered by
+  // i177SflrcdnbrRules.test.js); neither entry has a one-per-record or equal-value rule, and SFLROLVAL has no other rule.
+  check('SFLRCDNBR/SFLROLVAL entries carry no one-per-record or equal-value rule', ['SFLRCDNBR', 'SFLROLVAL'].every((n) => {
     const e = KeywordSpec.RECORD_TYPES[n];
-    return !e.mutex && !e.onePerRecord && !e.definitionRequirements && !e.notAllowedWhenEqual;
+    return !e.onePerRecord && !e.notAllowedWhenEqual;
   }));
+  check('SFLROLVAL carries no mutex or shape rule', (() => { const e = KeywordSpec.RECORD_TYPES.SFLROLVAL; return !e.mutex && !e.definitionRequirements; })());
   check('SFLSCROLL keeps its own earlier facts', KeywordSpec.isMutex('SFLSCROLL', 'SFLROLVAL') && KeywordSpec.isOnePerRecord('SFLSCROLL'));
 }
 

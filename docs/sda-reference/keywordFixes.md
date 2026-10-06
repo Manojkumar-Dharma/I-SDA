@@ -246,7 +246,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-174](#i-174) | Tooling | `takesNoParameters` / `optionIndicatorsAllowed` answer only for the I-121b keywords, so they say "no" for `MSGALARM`, `CSRINPONLY` and `HLPEXCLD` although their spec entries say the opposite (opened from I-122 batch 2) | I-121 | Done | v0.10.337 |
 | [I-175](#i-175) | Field | `MNUBARSEP` and `MNUBARCHC` need `MNUBAR` on their record, and `MNUBARSEP` cannot be used where `MNUBAR` says `*NOSEPARATOR`; the spec records the rules and nothing enforces them (found logging I-122 batch 3; not asserted as correct) | I-171 | Done | v0.10.340 |
 | [I-176](#i-176) | Tooling | `optionIndicatorsAllowed` still answers "no" for the 11 keywords whose entries spell the fact `optionIndicatorsValid: true` (`ALARM`, `BLINK`, `CSRLOC`, `ERASE`, `ERASEINP`, `OVERLAY`, `PUTOVR`, `FRCDTA`, `PROTECT`, `MDTOFF`, `LOCK`); left over from I-174 | I-174 | Done | v0.10.339 |
-| [I-177](#i-177) | Field | `SFLRCDNBR` rules nothing enforces: not on the same field as `SFLROLVAL`, parameters only `CURSOR` / `*TOP`, field shape (zoned, 0 decimals, signed, up to 4 digits, usage O, B or H) | I-122d | In progress (claimed) | — |
+| [I-177](#i-177) | Field | `SFLRCDNBR` rules nothing enforces: not on the same field as `SFLROLVAL`, parameters only `CURSOR` / `*TOP`, field shape (zoned, 0 decimals, signed, up to 4 digits, usage O, B or H) | I-122d | Done | v0.10.346 |
 | [I-178](#i-178) | Tooling | Spec entries for `SFLCSRPRG`, `SFLRCDNBR`, `SFLROLVAL`, `SFLRTNSEL`, `SFLNXTCHG` state no level, parameter or option-indicator fact, so `takesNoParameters` / `optionIndicatorsAllowed` answer wrongly | I-122d | Done | v0.10.345 |
 | [I-179](#i-179) | Field | Date/time format keywords: `DATFMT` / `DATSEP` accepted off data type L and `TIMFMT` / `TIMSEP` off T, values outside IBM's lists, the fixed-separator rule only in the panel Apply, and a Basic-tab type change that strands them | I-122e | In progress (claimed) | — |
 | [I-180](#i-180) | Field | `FLTPCN` (type F, `*SINGLE` / `*DOUBLE`, length caps, option indicators not valid) and `CNTFLD` (numeric width, its exclusion list) rules nothing enforces | I-122e | Not started | — |
@@ -273,14 +273,13 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | 3 | [I-122i](#i-122i) | Not started | Generated per-keyword matrix (L1-L4 from the I-121 spec). Size (estimate): Large. |
 | 4 | [I-122j](#i-122j) | Not started | Retire overlapping tests, each deletion backed by a stash-based mutation run (do last, serially). Size (estimate): Large. |
 | 5 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
-| 6 | [I-177](#i-177) | In progress (claimed) | `SFLRCDNBR` with `SFLROLVAL` on one field, its parameter text and field shape. Size (estimate): Small. |
-| 7 | [I-179](#i-179) | In progress (claimed) | Date/time format keyword eligibility, values, fixed-separator rule and Basic-tab type change. Size (estimate): Small. |
-| 8 | [I-180](#i-180) | Not started | `FLTPCN` and `CNTFLD` parameter, type and exclusion rules. Size (estimate): Small. |
-| 9 | [I-181](#i-181) | Not started | Level, parameter and option-indicator facts missing from four help / window / field keyword entries. Size (estimate): Small. |
-| 10 | [I-182](#i-182) | Not started | `WDWBORDER` / `WDWTITLE` requirement and parameter rules. Size (estimate): Medium. |
-| 11 | [I-183](#i-183) | Not started | Choice keyword value rules (`CHCAVAIL` / `CHCUNAVAIL` / `CHCSLT` values, `CHCACCEL` / `CHCCTL` ranges and text). Size (estimate): Medium. |
-| 12 | [I-184](#i-184) | Not started | `SFLSNGCHC` / `SFLMLTCHC` subfile shape, record-level and number-selected field rules. Size (estimate): Medium. |
-| 13 | [I-185](#i-185) | Not started | Level, parameter and option-indicator facts missing from three subfile choice keyword entries. Size (estimate): Small. |
+| 6 | [I-179](#i-179) | In progress (claimed) | Date/time format keyword eligibility, values, fixed-separator rule and Basic-tab type change. Size (estimate): Small. |
+| 7 | [I-180](#i-180) | Not started | `FLTPCN` and `CNTFLD` parameter, type and exclusion rules. Size (estimate): Small. |
+| 8 | [I-181](#i-181) | Not started | Level, parameter and option-indicator facts missing from four help / window / field keyword entries. Size (estimate): Small. |
+| 9 | [I-182](#i-182) | Not started | `WDWBORDER` / `WDWTITLE` requirement and parameter rules. Size (estimate): Medium. |
+| 10 | [I-183](#i-183) | Not started | Choice keyword value rules (`CHCAVAIL` / `CHCUNAVAIL` / `CHCSLT` values, `CHCACCEL` / `CHCCTL` ranges and text). Size (estimate): Medium. |
+| 11 | [I-184](#i-184) | Not started | `SFLSNGCHC` / `SFLMLTCHC` subfile shape, record-level and number-selected field rules. Size (estimate): Medium. |
+| 12 | [I-185](#i-185) | Not started | Level, parameter and option-indicator facts missing from three subfile choice keyword entries. Size (estimate): Small. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The I-121 umbrella row there stays open until its slices land, so it is counted in the headline but not listed here.
 
@@ -6671,6 +6670,9 @@ Audit table (a new `*ConflictReason` function must be added here; `i121qConflict
 | `sflendNewConflictReason` | spec-backed | Via `sflendParameterProblem`. |
 | `sfllinRecordEditConflictReason` | spec-backed | Reads `SFLLIN_RULE` (`KeywordSpec.crossRecordExclusion`); `sflctlTargetName` now uses the spec`s SFLCTL record reference (I-121q). |
 | `sflmsgkeyFieldNewConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `sflrcdnbrBasicEditConflictReason` | spec-backed | Via `sflrcdnbrDefinitionUpdates` (I-177). |
+| `sflrcdnbrFieldConflictReason` | spec-backed | Via `sflrcdnbrMutexReason` (I-177). |
+| `sflrcdnbrNewConflictReason` | spec-backed | Via `sflrcdnbrMutexReason`, `sflrcdnbrParameterIssue` and `sflrcdnbrDefinitionUpdates` (I-177). |
 | `sflrtnselNewConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
 | `sflscrollBasicEditConflictReason` | spec-backed | Via `sflscrollDefinitionUpdates`. |
 | `sflscrollNewConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
@@ -8042,11 +8044,19 @@ New `src/test/i176OptionIndicatorsSpellings.test.js` (23 checks): the 11 keyword
 
 ### I-177 — `SFLRCDNBR` rules nothing enforces
 
-> **Area:** Field · **Status:** In progress (claimed) · **Depends on:** I-122d · **Size (estimate):** Small
+> **Area:** Field · **Status:** Done (v0.10.346) · **Depends on:** I-122d · **Size (estimate):** Small
 
 Opened from I-122d. `SFLRCDNBR`'s DDS Reference section says: "You cannot specify both SFLRCDNBR and SFLROLVAL for the same field", the parameter is `[CURSOR] [*TOP]`, and the field "must be a zoned decimal field with zero decimal positions ... signed numeric (S in position 35), and it can be up to 4 digits in length ... output-only, an input/output, or a hidden field". Probed on v0.10.340 with the jsdom panel and the raw keyword editor on a control-record field that already carries `SFLROLVAL`: choosing `CURSOR` in the `SFLRCDNBR` selector writes `SFLROLVAL` and `SFLRCDNBR(CURSOR)` together with no message, and the raw editor then accepts `SFLRCDNBR(FOO)` as a second keyword with no message. The field shape is not checked anywhere in `dspfWriter.js` (the only `SFLRCDNBR` code is the control-record-only guard from I-129 and the field-selection list from I-146). `SFLSCROLL` already has all three kinds of check (same-field mutex with both, exact shape, I-126), so the shape to follow exists.
 
 Do: add the `SFLRCDNBR` x `SFLROLVAL` same-field mutex to the spec (the `SFLSCROLL` entry already records its two), a parameter grammar check (at most `CURSOR` and `*TOP`, each once), and the field-shape check, all diff-based through `commitEdit` like `sflscrollNewConflictReason`; decide whether the selector should rewrite the field's shape on enable (as `SFLCHCCTL` / `SFLSCROLL` do) or only refuse. `src/test/i122dSubfileControlFamilyKeywords.test.js` has the spec for the control-only guard and the selector round trip; add the three cases beside them.
+
+**Fix.** Three new facts on `RECORD_TYPES.SFLRCDNBR`, each cited verbatim from its DDS Reference section: `mutex: ['SFLROLVAL']` (the same-field shape `SFLSCROLL` uses; `SFLSCROLL`'s own two stay on its entry), `parameterWords` (`allowed: ['CURSOR', '*TOP']`, `eachAtMostOnce`, the format `SFLRCDNBR[([CURSOR] [*TOP])]`; new accessor `KeywordSpec.parameterWords`, returns a copy) and `definitionRequirements` (data type `S`, a blank type with decimals counts, 1 to 4 digits as `lengthMin` / `lengthMax`, 0 decimals, usage `O`, `B` or `H`, default `H`). `dspfWriter.js` gained `sflrcdnbrParameterIssue`, `sflrcdnbrDefinitionUpdates`, `sflrcdnbrFieldConflictReason` (panel guard, either direction), `sflrcdnbrBasicEditConflictReason` (Basic tab Apply and Resolve Referenced Field, diff-based) and `sflrcdnbrNewConflictReason` (the `commitEdit` backstop: the mutex, the parameter text when the keyword is added or its parameters change, and the field as it will be after the edit when the keyword is added; an already-invalid hand-written field is not re-reported, turning the keyword off is never blocked).
+
+**Decision.** The selector brings the field into shape when `SFLRCDNBR` is turned on, as the `SFLSCROLL` and `SFLCHCCTL` checkboxes do, but rewrites only the properties that are wrong: the length and usage are ranges, so a conforming 2-digit input/output field is left alone, a 5-digit field is cut to 4, and an alpha input field becomes `S` / 4 / 0 / `H`. Choosing a value beside `SFLROLVAL`, or ticking `SFLROLVAL` beside `SFLRCDNBR`, alerts and reverts with no edit posted.
+
+**Tests.** `src/test/i177SflrcdnbrRules.test.js`: the spec facts and their citations verbatim, the five functions (every accepted and refused case, copies, already-invalid fields), and in jsdom the selector refusal and revert, the `SFLROLVAL` checkbox refusal, the rewrite-on-enable for an alpha input field and a 5-digit field, and the raw keyword editor (`SFLRCDNBR(FOO)`, `SFLROLVAL` beside `SFLRCDNBR`, an alpha field). Mutation-checked: 8 mutations (spec mutex dropped, parameter check off, shape backstop off, selector rewrite off, `SFLROLVAL` guard off, `commitEdit` hook off, selector guard off, `lengthMax` 5) each fail the file. The I-122d and I-129 tests were updated where they described the old gap, and the three new functions were added to the I-121q audit table (spec-backed).
+
+Not done: the raw editor still accepts `SFLRCDNBR` or `SFLROLVAL` added to a field that already has `SFLSCROLL` (only `SFLSCROLL`'s own checkbox refuses that pair); not probed in this task, so it is not opened as a task.
 
 *Raised by I-122d. Size (estimate): Small.*
 

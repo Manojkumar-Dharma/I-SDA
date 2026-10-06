@@ -10496,6 +10496,143 @@
     return recordKeywords ? sflsizPagEqualReason(recordKeywords) : null;
   }
 
+  // -----------------------------------------------------------------------
+  // Task I-177 - SFLRCDNBR's own DDS Reference section states three rules
+  // nothing enforced: "You cannot specify both SFLRCDNBR and SFLROLVAL for
+  // the same field", the format SFLRCDNBR[([CURSOR] [*TOP])], and the
+  // field's shape (zoned decimal / signed numeric S, 0 decimals, up to 4
+  // digits, output-only, input/output or hidden). Same three-part split
+  // SFLSCROLL uses (I-126): the facts live in KeywordSpec (mutex,
+  // parameterWords, definitionRequirements); the selector brings the field
+  // into shape in the same edit when the keyword is turned ON (only the
+  // wrong properties are rewritten - the length and usage are ranges, so a
+  // conforming 2-digit input field is left alone); a later change AWAY from
+  // the shape is blocked (diff-based); and commitEdit's backstop covers
+  // every path that does not (the raw keyword editor).
+  // -----------------------------------------------------------------------
+  var SFLRCDNBR_SHAPE_TEXT = 'SFLRCDNBR requires a signed numeric (data type S), 0-decimal field of at most 4 digits, defined as output-only (O), input/output (B) or hidden (H) (per the DDS Reference)';
+
+  /** A reason string when `parameters` (the keyword's parameter text, e.g.
+   *  "CURSOR *TOP") is not within SFLRCDNBR[([CURSOR] [*TOP])] - a word
+   *  other than CURSOR / *TOP, or one repeated - else null. */
+  function sflrcdnbrParameterIssue(parameters) {
+    var rule = KeywordSpec.parameterWords('SFLRCDNBR');
+    var words = String(parameters == null ? '' : parameters).split(/[\s,]+/).filter(Boolean);
+    var seen = {};
+    for (var i = 0; i < words.length; i++) {
+      var w = words[i].toUpperCase();
+      if (rule.allowed.indexOf(w) < 0) {
+        return 'SFLRCDNBR accepts only CURSOR and *TOP as parameters (' + rule.ddsReference + ') - "' + words[i] + '" is not one of them.';
+      }
+      if (rule.eachAtMostOnce && seen[w]) return 'SFLRCDNBR accepts each of CURSOR and *TOP at most once (' + rule.ddsReference + ') - ' + w + ' is repeated.';
+      seen[w] = true;
+    }
+    return null;
+  }
+
+  /** The properties of `field` (dataType, length, decimalPositions, usage)
+   *  that must change for SFLRCDNBR, or null when it already conforms. */
+  function sflrcdnbrDefinitionUpdates(field) {
+    var f = field || {};
+    var req = KeywordSpec.definitionRequirements('SFLRCDNBR');
+    var dt = String(f.dataType == null ? '' : f.dataType).trim().toUpperCase();
+    var dp = f.decimalPositions;
+    var decSpecified = dp != null && String(dp).trim() !== '' && !isNaN(Number(dp));
+    var len = Number(f.length);
+    var updates = {};
+    if (!(dt === req.dataType || (dt === '' && req.dataTypeBlankWithDecimals && decSpecified))) updates.dataType = req.dataType;
+    if (!(f.length != null && String(f.length).trim() !== '' && Math.floor(len) === len && len >= req.lengthMin && len <= req.lengthMax)) updates.length = req.lengthMax;
+    if (!decSpecified || Number(dp) !== req.decimalPositions) updates.decimalPositions = req.decimalPositions;
+    if (req.usage.indexOf(String(f.usage == null ? '' : f.usage).trim().toUpperCase()) < 0) updates.usage = req.usageDefault;
+    return Object.keys(updates).length ? updates : null;
+  }
+
+  function sflrcdnbrShapeIssues(field, wrong) {
+    var str = function (v) { return String(v == null ? '' : v).trim().toUpperCase(); };
+    var shown = function (v) { return v == null || v === '' ? 'blank' : v; };
+    var f = field || {};
+    var issues = [];
+    if (wrong.dataType !== undefined) issues.push('data type ' + shown(str(f.dataType)) + ' (must be S)');
+    if (wrong.length !== undefined) issues.push('length ' + shown(f.length) + ' (must be 1 to 4)');
+    if (wrong.decimalPositions !== undefined) issues.push('decimal positions ' + shown(f.decimalPositions) + ' (must be 0)');
+    if (wrong.usage !== undefined) issues.push('usage ' + shown(str(f.usage)) + ' (must be O, B or H)');
+    return issues;
+  }
+
+  /** The same-field mutex: a reason when `fieldKeywords` carries both
+   *  SFLRCDNBR and SFLROLVAL, else null. */
+  function sflrcdnbrMutexReason(fieldKeywords) {
+    var present = function (n) { return (fieldKeywords || []).some(function (kw) { return kw.name === n; }); };
+    if (KeywordSpec.isMutex('SFLRCDNBR', 'SFLROLVAL') && present('SFLRCDNBR') && present('SFLROLVAL')) {
+      return 'SFLRCDNBR and SFLROLVAL cannot be specified on the same field (mutually exclusive per the DDS Reference).';
+    }
+    return null;
+  }
+
+  /** Panel guard, called BEFORE the SFLRCDNBR selector or the SFLROLVAL
+   *  checkbox commits: `keywordName` is the one being turned on, against
+   *  the field's keywords as they are now. Returns a reason string or null. */
+  function sflrcdnbrFieldConflictReason(fieldKeywords, keywordName) {
+    var other = keywordName === 'SFLRCDNBR' ? 'SFLROLVAL' : (keywordName === 'SFLROLVAL' ? 'SFLRCDNBR' : null);
+    if (!other) return null;
+    var both = (fieldKeywords || []).filter(function (kw) { return kw.name === other; }).concat([{ name: keywordName }]);
+    return sflrcdnbrMutexReason(both);
+  }
+
+  /** A data type, length, decimals or usage CHANGE (Basic tab Apply,
+   *  Resolve Referenced Field) on a field that ALREADY carries SFLRCDNBR.
+   *  Same shape as sflscrollBasicEditConflictReason. */
+  function sflrcdnbrBasicEditConflictReason(fieldKeywords, oldField, updates) {
+    if (!(fieldKeywords || []).some(function (k) { return k.name === 'SFLRCDNBR'; })) return null;
+    var oldF = oldField || {};
+    var upd = updates || {};
+    var has = function (key) { return Object.prototype.hasOwnProperty.call(upd, key); };
+    var before = { dataType: oldF.dataType, length: oldF.length, decimalPositions: oldF.decimalPositions, usage: oldF.usage };
+    var after = {
+      dataType: has('dataType') ? upd.dataType : before.dataType,
+      length: has('length') ? upd.length : before.length,
+      decimalPositions: has('decimalPositions') ? upd.decimalPositions : before.decimalPositions,
+      usage: has('usage') ? upd.usage : before.usage
+    };
+    var norm = function (v) { return String(v == null ? '' : v).trim().toUpperCase(); };
+    var wrong = sflrcdnbrDefinitionUpdates(after) || {};
+    var changedWrong = {};
+    Object.keys(wrong).forEach(function (key) {
+      if (norm(after[key]) !== norm(before[key])) changedWrong[key] = wrong[key];
+    });
+    var issues = sflrcdnbrShapeIssues(after, changedWrong);
+    if (!issues.length) return null;
+    return SFLRCDNBR_SHAPE_TEXT + ' - cannot set ' + issues.join(', ') + '.';
+  }
+
+  /** Commit choke point (commitEdit). Diff-based, for an edit that
+   *  INTRODUCES SFLRCDNBR (or changes its parameter text) or INTRODUCES
+   *  SFLROLVAL: the parameter text, the same-field mutex with SFLROLVAL and
+   *  - for a newly introduced SFLRCDNBR - the field as it will be AFTER the
+   *  edit (`resultingField`). A field that already had the keyword in an
+   *  invalid state is not re-reported on an unrelated edit, and turning a
+   *  keyword OFF is never blocked. */
+  function sflrcdnbrNewConflictReason(oldKeywords, newKeywords, resultingField) {
+    var find = function (kws, n) { return (kws || []).find(function (k) { return k.name === n; }); };
+    var oldR = find(oldKeywords, 'SFLRCDNBR');
+    var newR = find(newKeywords, 'SFLRCDNBR');
+    var rolvalAdded = !find(oldKeywords, 'SFLROLVAL') && !!find(newKeywords, 'SFLROLVAL');
+    var rcdnbrAdded = !oldR && !!newR;
+    if (rcdnbrAdded || rolvalAdded) {
+      var mutex = sflrcdnbrMutexReason(newKeywords);
+      if (mutex) return mutex;
+    }
+    if (newR && (rcdnbrAdded || String(oldR.parameters || '').trim() !== String(newR.parameters || '').trim())) {
+      var pIssue = sflrcdnbrParameterIssue(newR.parameters);
+      if (pIssue) return pIssue;
+    }
+    if (rcdnbrAdded) {
+      var wrong = sflrcdnbrDefinitionUpdates(resultingField);
+      if (wrong) return SFLRCDNBR_SHAPE_TEXT + ' - this field has ' + sflrcdnbrShapeIssues(resultingField, wrong).join(', ') + '.';
+    }
+    return null;
+  }
+
   /** Task I-79 - SFLCHCCTL's own DDS Reference section: "That field must be
    *  the first field defined in the subfile record. That field must have a
    *  length of 1, data type of Y, decimal positions of zero, and have a
@@ -10728,6 +10865,7 @@
       valnumBasicEditConflictReason(kws, f, u) ||
       sflchcctlBasicEditConflictReason(kws, f, u) ||
       sflscrollBasicEditConflictReason(kws, f, u) ||
+      sflrcdnbrBasicEditConflictReason(kws, f, u) ||
       null;
   }
 
@@ -11623,6 +11761,11 @@
     sflscrollDefinitionUpdates: sflscrollDefinitionUpdates,
     sflscrollBasicEditConflictReason: sflscrollBasicEditConflictReason,
     sflscrollNewConflictReason: sflscrollNewConflictReason,
+    sflrcdnbrParameterIssue: sflrcdnbrParameterIssue,
+    sflrcdnbrDefinitionUpdates: sflrcdnbrDefinitionUpdates,
+    sflrcdnbrFieldConflictReason: sflrcdnbrFieldConflictReason,
+    sflrcdnbrBasicEditConflictReason: sflrcdnbrBasicEditConflictReason,
+    sflrcdnbrNewConflictReason: sflrcdnbrNewConflictReason,
     sflchcctlDefinitionUpdates: sflchcctlDefinitionUpdates,
     sflchcctlFieldConflictReason: sflchcctlFieldConflictReason,
     sflchcctlBasicEditConflictReason: sflchcctlBasicEditConflictReason,

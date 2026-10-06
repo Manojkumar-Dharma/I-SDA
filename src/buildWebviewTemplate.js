@@ -4909,6 +4909,13 @@ const htmlTemplate = `<!DOCTYPE html>
           window.alert(sflscrollEditReason);
           return;
         }
+        // Task I-177: SFLRCDNBR requires a signed numeric, 0-decimal field of
+        // at most 4 digits, usage O, B or H - same blocking Apply check.
+        const sflrcdnbrEditReason = DspfWriter.sflrcdnbrBasicEditConflictReason(field.keywords, field, updates);
+        if (sflrcdnbrEditReason) {
+          window.alert(sflrcdnbrEditReason);
+          return;
+        }
       }
       commitEdit(ownerRecordName, field, updates);
     });
@@ -7066,6 +7073,21 @@ const htmlTemplate = `<!DOCTYPE html>
       }, (model.records.find((r) => r.name === recordName) || {}).keywords);
       if (sflscrollNewReason) {
         window.alert(sflscrollNewReason);
+        render();
+        return;
+      }
+      // Task I-177: and SFLRCDNBR's own rules at the same choke point - an
+      // edit that introduces it (or changes its parameters) must keep to
+      // [CURSOR] [*TOP], leave the field a signed numeric / 0-decimal /
+      // up-to-4-digit / O, B or H field, and not put it beside SFLROLVAL.
+      const sflrcdnbrNewReason = DspfWriter.sflrcdnbrNewConflictReason(field.keywords, updates.keywords, {
+        dataType: Object.prototype.hasOwnProperty.call(updates, 'dataType') ? updates.dataType : field.dataType,
+        length: Object.prototype.hasOwnProperty.call(updates, 'length') ? updates.length : field.length,
+        decimalPositions: Object.prototype.hasOwnProperty.call(updates, 'decimalPositions') ? updates.decimalPositions : field.decimalPositions,
+        usage: Object.prototype.hasOwnProperty.call(updates, 'usage') ? updates.usage : field.usage,
+      });
+      if (sflrcdnbrNewReason) {
+        window.alert(sflrcdnbrNewReason);
         render();
         return;
       }

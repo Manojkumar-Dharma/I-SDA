@@ -3204,13 +3204,36 @@
   function wireSubfileFieldKeywords(keywords, onChange, ownerKey, siblingFieldsKeywords, isFirstField, getField, recordKeywords) {
     var rcdnbrEl = document.getElementById(ownerKey + '-sflrcdnbr');
     if (rcdnbrEl) {
+      var rcdnbrBefore = DspfWriter.getFileFlagKeyword(keywords, 'SFLRCDNBR');
       rcdnbrEl.addEventListener('change', function () {
-        onChange(DspfWriter.setFileFlagKeyword(keywords, 'SFLRCDNBR', !!rcdnbrEl.value, rcdnbrEl.value));
+        if (rcdnbrEl.value) {
+          // Task I-177: not beside SFLROLVAL on one field (alert + revert,
+          // no edit posted), and the field is brought into SFLRCDNBR's
+          // required shape in the SAME edit, as SFLSCROLL's checkbox does.
+          var rcdReason = DspfWriter.sflrcdnbrFieldConflictReason(keywords, 'SFLRCDNBR');
+          if (rcdReason) {
+            window.alert(rcdReason);
+            rcdnbrEl.value = rcdnbrBefore.present ? rcdnbrBefore.parameters : '';
+            return;
+          }
+          onChange(DspfWriter.setFileFlagKeyword(keywords, 'SFLRCDNBR', true, rcdnbrEl.value), DspfWriter.sflrcdnbrDefinitionUpdates(getField ? getField() : null));
+          return;
+        }
+        onChange(DspfWriter.setFileFlagKeyword(keywords, 'SFLRCDNBR', false, ''), null);
       });
     }
     var rolvalEl = document.getElementById(ownerKey + '-sflrolval');
     if (rolvalEl) {
       rolvalEl.addEventListener('change', function () {
+        if (rolvalEl.checked) {
+          // Task I-177: SFLROLVAL cannot share a field with SFLRCDNBR.
+          var rolReason = DspfWriter.sflrcdnbrFieldConflictReason(keywords, 'SFLROLVAL');
+          if (rolReason) {
+            window.alert(rolReason);
+            rolvalEl.checked = false;
+            return;
+          }
+        }
         onChange(DspfWriter.setFileFlagKeyword(keywords, 'SFLROLVAL', rolvalEl.checked));
       });
     }
