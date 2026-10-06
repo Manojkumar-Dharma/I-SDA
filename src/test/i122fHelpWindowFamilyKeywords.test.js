@@ -116,9 +116,12 @@ console.log('=== spec: what the DDS Reference says about each keyword ===');
   check('the accessors agree with the spec: HLPSCHIDX / IGCCNV refuse option indicators, HLPBDY / WDWTITLE accept them, HLPBDY takes no parameters',
     !DspfWriter.optionIndicatorsAllowed('HLPSCHIDX') && !DspfWriter.optionIndicatorsAllowed('IGCCNV') &&
     DspfWriter.optionIndicatorsAllowed('HLPBDY') && DspfWriter.optionIndicatorsAllowed('WDWTITLE') && DspfWriter.takesNoParameters('HLPBDY') && !DspfWriter.takesNoParameters('WDWTITLE'));
-  // Not asserted (logged as I-181): HLPDOC, HLPID, WDWBORDER and NOCCSID carry no `levels` / `optionIndicators`
-  // fact in their spec entries, so optionIndicatorsAllowed answers false for WDWBORDER and HLPDOC although their
-  // reference sections say "Option indicators are valid for this keyword" (the panels hard-code the toggle instead).
+  // Task I-181: the four entries now state their level / option-indicator facts (pinned in full in
+  // i181HelpWindowSpecFacts.test.js); the accessors answer from the reference here too.
+  check('the accessors agree with the reference for the four entries I-181 completed: HLPDOC and WDWBORDER accept option indicators, HLPID and NOCCSID do not',
+    DspfWriter.optionIndicatorsAllowed('HLPDOC') && DspfWriter.optionIndicatorsAllowed('WDWBORDER') &&
+    !DspfWriter.optionIndicatorsAllowed('HLPID') && !DspfWriter.optionIndicatorsAllowed('NOCCSID') &&
+    has('Option indicators are valid for this keyword.') && has('Option indicators are not valid for this keyword.'));
 }
 
 console.log('\n=== L1/L2 HLPSCHIDX: file-level requirements, parse, round trip ===');

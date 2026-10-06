@@ -1778,7 +1778,14 @@
       // above; relationship 4 (HLPPNLGRP<->HLPRCD, which doesn't involve
       // HLPDOC at all) is on the HLPPNLGRP entry below instead.
       ddsReference: 'You cannot specify HLPDOC with HLPBDY, HLPPNLGRP, or HLPRTN.',
-      mutex: ['HLPBDY', 'HLPPNLGRP', 'HLPRTN']
+      mutex: ['HLPBDY', 'HLPPNLGRP', 'HLPRTN'],
+      // Task I-181: the level, parameter-grammar and option-indicator facts from the same section
+      // (line ~6937): "You use this file- or help-specification-level keyword", the format line
+      // HLPDOC(online-help-information-text-label-name document-name folder-name) and "Option
+      // indicators are valid for this keyword."
+      levels: ['file', 'help'],
+      parameterForm: 'HLPDOC(online-help-information-text-label-name document-name folder-name)',
+      optionIndicators: 'valid'
     },
     HLPPNLGRP: {
       // DDS_Keyword_V7r6.txt, "HLPPNLGRP (Help Panel Group) keyword for
@@ -2226,7 +2233,14 @@
       ddsReference: 'WDWBORDER([color] [display-attribute] [characters]): the color parameter takes the COLOR values ' +
         '(default BLU); the display-attribute values are BL, CS, HI, ND, RI, UL.',
       displayAttributeValues: ['BL', 'CS', 'HI', 'ND', 'RI', 'UL'],
-      colorValuesFrom: 'COLOR'
+      colorValuesFrom: 'COLOR',
+      // Task I-181: WDWBORDER's section (line ~13293): "You use this file-level or record-level
+      // keyword", the format line WDWBORDER([color] [display-attribute] [characters]) and "Option
+      // indicators are valid for this keyword." ("At least one parameter must be specified" is an
+      // enforcement rule, I-182, not stated here.)
+      levels: ['file', 'record'],
+      parameterForm: 'WDWBORDER([color] [display-attribute] [characters])',
+      optionIndicators: 'valid'
     },
     CHGINPDFT: {
       ddsReference: 'CHGINPDFT[(input-default1 input-default2 . . .)]: valid parameter values are BL, CS, HI, RI, UL ' +
@@ -3108,6 +3122,11 @@
         'value you specify must be unique within the record you are ' +
         'defining.',
       parameterForm: 'HLPID(help-identifier)',
+      // Task I-181: HLPID's section (line ~7070): "You use this constant field-level keyword" and
+      // "Option indicators are not valid for this keyword." (the same fact the no-option-indicators
+      // table carries; its parameter facts are the ones above).
+      levels: ['field'],
+      optionIndicators: 'notValid',
       validOnlyOnConstantField: true,
       parameterRequired: true,
       identifierRange: { min: 1, max: 999 },
@@ -3262,7 +3281,11 @@
         'You use this field-level keyword to specify that CCSID conversion ' +
         'of the field is not done. This keyword has no parameters.',
       noParameters: true,
-      fieldLevel: true
+      fieldLevel: true,
+      // Task I-181: NOCCSID's section (line ~9147): "You use this field-level keyword" and "This
+      // keyword has no parameters." It states nothing about option indicators, so no
+      // `optionIndicators` fact is added (the panels' Conditioning toggle is not read from the spec).
+      levels: ['field']
     },
 
     // ---- I-121a: output, cursor and screen-control keywords ----

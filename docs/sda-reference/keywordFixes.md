@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-201 of 212 tasks done; 11 open (see [Open work](#open-work)). Current version: **v0.10.347**.
+203 of 216 tasks done; 13 open (see [Open work](#open-work)). Current version: **v0.10.349**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -250,7 +250,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-178](#i-178) | Tooling | Spec entries for `SFLCSRPRG`, `SFLRCDNBR`, `SFLROLVAL`, `SFLRTNSEL`, `SFLNXTCHG` state no level, parameter or option-indicator fact, so `takesNoParameters` / `optionIndicatorsAllowed` answer wrongly | I-122d | Done | v0.10.345 |
 | [I-179](#i-179) | Field | Date/time format keywords: `DATFMT` / `DATSEP` accepted off data type L and `TIMFMT` / `TIMSEP` off T, values outside IBM's lists, the fixed-separator rule only in the panel Apply, and a Basic-tab type change that strands them | I-122e | Done (eligibility, values, pairing, Basic tab) | v0.10.347 |
 | [I-180](#i-180) | Field | `FLTPCN` (type F, `*SINGLE` / `*DOUBLE`, length caps, option indicators not valid) and `CNTFLD` (numeric width, its exclusion list) rules nothing enforces | I-122e | In progress (claimed) | — |
-| [I-181](#i-181) | Tooling | Spec entries for `HLPDOC`, `HLPID`, `WDWBORDER` and `NOCCSID` state no level, parameter or option-indicator fact, so `optionIndicatorsAllowed` answers "no" for `HLPDOC` and `WDWBORDER` although their sections say option indicators are valid | I-122f | In progress (claimed) | — |
+| [I-181](#i-181) | Tooling | Spec entries for `HLPDOC`, `HLPID`, `WDWBORDER` and `NOCCSID` state no level, parameter or option-indicator fact, so `optionIndicatorsAllowed` answers "no" for `HLPDOC` and `WDWBORDER` although their sections say option indicators are valid | I-122f | Done (levels, parameter forms, option indicators) | v0.10.349 |
 | [I-182](#i-182) | Record | `WDWBORDER` and `WDWTITLE` rules nothing enforces: record-level `WDWBORDER` needs `WINDOW` or `PULLDOWN` on the record, at least one parameter, colour and display-attribute values, `*TOP` / `*BOTTOM` and the three alignments each at most once | I-122f | Not started | — |
 | [I-183](#i-183) | Field | Choice keyword values nothing enforces: a bare or out-of-list `CHCAVAIL` / `CHCUNAVAIL` / `CHCSLT`, `CHCACCEL` / `CHCCTL` choice number outside 1-99, `CHCACCEL` with no text, the `CHCCTL` message fields' shapes | I-122g | Not started | — |
 | [I-184](#i-184) | Record | `SFLSNGCHC` / `SFLMLTCHC` rules nothing enforces: the subfile shape (one output field, no input-capable fields), control-record-only, and the `&number-selected` field shape | I-122g | Not started | — |
@@ -277,11 +277,10 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | 4 | [I-122j](#i-122j) | Not started | Retire overlapping tests, each deletion backed by a stash-based mutation run (do last, serially). Size (estimate): Large. |
 | 5 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
 | 6 | [I-180](#i-180) | In progress (claimed) | `FLTPCN` and `CNTFLD` parameter, type and exclusion rules. Size (estimate): Small. |
-| 7 | [I-181](#i-181) | In progress (claimed) | Level, parameter and option-indicator facts missing from four help / window / field keyword entries. Size (estimate): Small. |
-| 8 | [I-182](#i-182) | Not started | `WDWBORDER` / `WDWTITLE` requirement and parameter rules. Size (estimate): Medium. |
-| 9 | [I-183](#i-183) | Not started | Choice keyword value rules (`CHCAVAIL` / `CHCUNAVAIL` / `CHCSLT` values, `CHCACCEL` / `CHCCTL` ranges and text). Size (estimate): Medium. |
-| 10 | [I-184](#i-184) | Not started | `SFLSNGCHC` / `SFLMLTCHC` subfile shape, record-level and number-selected field rules. Size (estimate): Medium. |
-| 11 | [I-185](#i-185) | Not started | Level, parameter and option-indicator facts missing from three subfile choice keyword entries. Size (estimate): Small. |
+| 7 | [I-182](#i-182) | Not started | `WDWBORDER` / `WDWTITLE` requirement and parameter rules. Size (estimate): Medium. |
+| 8 | [I-183](#i-183) | Not started | Choice keyword value rules (`CHCAVAIL` / `CHCUNAVAIL` / `CHCSLT` values, `CHCACCEL` / `CHCCTL` ranges and text). Size (estimate): Medium. |
+| 9 | [I-184](#i-184) | Not started | `SFLSNGCHC` / `SFLMLTCHC` subfile shape, record-level and number-selected field rules. Size (estimate): Medium. |
+| 10 | [I-185](#i-185) | Not started | Level, parameter and option-indicator facts missing from three subfile choice keyword entries. Size (estimate): Small. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The I-121 umbrella row there stays open until its slices land, so it is counted in the headline but not listed here.
 
@@ -8128,11 +8127,13 @@ Do: add `FLTPCN` to the no-option-indicator table, a parameter and length check,
 
 ### I-181 — Spec entries for HLPDOC, HLPID, WDWBORDER and NOCCSID carry no level, parameter or option-indicator fact
 
-> **Area:** Tooling · **Status:** In progress (claimed) · **Depends on:** I-122f · **Size (estimate):** Small
+> **Area:** Tooling · **Status:** Done (v0.10.349) · **Depends on:** I-122f · **Size (estimate):** Small
 
 Opened from I-122f. `RECORD_TYPES.HLPDOC` holds only `mutex`, `HLPID` only the identifier rules, `WDWBORDER` only its value lists, `NOCCSID` only `noParameters` / `fieldLevel`. None states `levels` or `optionIndicators`, so `optionIndicatorsAllowed` answers false for `HLPDOC` and `WDWBORDER`, whose sections say "Option indicators are valid for this keyword" (the panels hard-code the Conditioning toggle instead of reading the spec). `HLPDOC` is also a file- or help-specification-level keyword and `WDWBORDER` a file- or record-level one; neither entry says so.
 
 Do: add `levels`, parameter and option-indicator facts to the four entries from their reference sections (`HLPDOC` valid, `HLPID` not valid, `WDWBORDER` valid, `NOCCSID` none stated), then pin the accessor answers in `i122fHelpWindowFamilyKeywords.test.js`.
+
+**Done (v0.10.349).** The four `RECORD_TYPES` entries now state the facts their DDS Reference sections state, in the I-178 spelling: `HLPDOC` `levels: ['file', 'help']` ("file- or help-specification-level"), its three-parameter `parameterForm` and `optionIndicators: 'valid'`; `HLPID` `levels: ['field']` and `optionIndicators: 'notValid'` (agreeing with the no-option-indicators table; its parameter facts were already there); `WDWBORDER` `levels: ['file', 'record']`, its `parameterForm` and `optionIndicators: 'valid'`; `NOCCSID` `levels: ['field']` only, because its section states nothing on option indicators (so `optionIndicatorsAllowed` stays false and the panels' hard-coded Conditioning toggle is unchanged). `WDWBORDER`'s "At least one parameter must be specified" is left to I-182, which enforces it. No behaviour change beyond `optionIndicatorsAllowed('HLPDOC')` and `('WDWBORDER')` now answering true. New `i181HelpWindowSpecFacts.test.js` (reference sentences, entries, accessors, untouched fragments) and the I-122f accessor check pinned; mutation-checked (a removed `levels` and a flipped `optionIndicators` fail both files).
 
 *Raised by I-122f. Size (estimate): Small.*
 
