@@ -187,7 +187,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-122](#i-122) | Tooling | Generated keyword x dimension test matrix; retire duplicate and stale tests | I-120, I-121 | In progress (batch 1 done v0.10.274; batch 2 done v0.10.336: MSGALARM, CSRINPONLY, RETLCKSTS, MAPVAL, INZINP, HLPEXCLD; batch 3 done v0.10.338: HLPFULL, MNUBARSEP, LOCK, DSPRL, FRCDTA, ALWGPH; I-122d done v0.10.341: the subfile-control family) | — |
 | [I-122d](#i-122d) | Tooling | Subfile-control family tests: SFLCLR, SFLCSRPRG, SFLRCDNBR, SFLMODE, SFLRTNSEL, SFLRNA, SFLROLVAL, SFLNXTCHG | I-122 | Done (130 checks; findings I-177, I-178) | v0.10.341 |
 | [I-122e](#i-122e) | Tooling | Field format and edit family tests: TIMSEP, TIMFMT, DATSEP, DATFMT, FLTPCN, FLTFIXDEC, BLANKS, CNTFLD, FLDCSRPRG, VALNUM | I-122 | Not started | — |
-| [I-122f](#i-122f) | Tooling | Help and window family tests: HLPSCHIDX, HLPBDY, HLPDOC, HLPID, IGCCNV, WDWTITLE, WDWBORDER, NOCCSID | I-122 | Not started | — |
+| [I-122f](#i-122f) | Tooling | Help and window family tests: HLPSCHIDX, HLPBDY, HLPDOC, HLPID, IGCCNV, WDWTITLE, WDWBORDER, NOCCSID | I-122 | In progress | — |
 | [I-122g](#i-122g) | Tooling | Choice family tests: CHCSLT, CHCCTL, CHCUNAVAIL, CHCAVAIL, CHCACCEL, SFLCHCCTL, SFLSNGCHC, SFLMLTCHC | I-122 | Not started | — |
 | [I-122h](#i-122h) | Tooling | Command-key family tests: CA01-CA24, CF01-CF24, ALTPAGEDWN, ALTPAGEUP, DLTCHK, DLTEDT, RETCMDKEY, MNUBARSW, MNUCNL, GETRETAIN | I-122 | Not started | — |
 | [I-122i](#i-122i) | Tooling | Generated per-keyword matrix (L1-L4 from the I-121 spec): generator and harness, then the keywords no hand-written batch covers | I-122, I-121 | Not started | — |
@@ -263,7 +263,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 |-------|------|--------|-------|
 | 1 | [I-122](#i-122) | In progress (batches 1-3 and I-122d done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
 | 2 | [I-122e](#i-122e) | Not started | Field format and edit family tests. Size (estimate): Medium. |
-| 3 | [I-122f](#i-122f) | Not started | Help and window family tests. Size (estimate): Small. |
+| 3 | [I-122f](#i-122f) | In progress | Help and window family tests. Size (estimate): Small. |
 | 4 | [I-122g](#i-122g) | Not started | Choice family tests. Size (estimate): Medium. |
 | 5 | [I-122h](#i-122h) | Not started | Command-key family tests. Size (estimate): Medium. |
 | 6 | [I-122i](#i-122i) | Not started | Generated per-keyword matrix (L1-L4 from the I-121 spec). Size (estimate): Large. |
@@ -6830,7 +6830,7 @@ Opened from I-122 as one batch of the hand-written coverage pass (same method as
 
 ### I-122f — Help and window family tests: HLPSCHIDX, HLPBDY, HLPDOC, HLPID, IGCCNV, WDWTITLE, WDWBORDER, NOCCSID
 
-> **Area:** Tooling · **Status:** Not started · **Depends on:** I-122 · **Size (estimate):** Small
+> **Area:** Tooling · **Status:** In progress · **Depends on:** I-122 · **Size (estimate):** Small
 
 Opened from I-122 as one batch of the hand-written coverage pass (same method as batches 1-3): a new `src/test/i122F…test.js` file covering the spec facts against each keyword's DDS Reference section, flag and parameter round trips, the rule guards (both directions), and the jsdom panel, saved-state, Conditioning and raw-editor paths; mutation-check every group; log gaps as new tasks and do not assert them as correct. Keyword list by the inventory run on v0.10.339 (test files mentioning each name, thinnest first).
 
