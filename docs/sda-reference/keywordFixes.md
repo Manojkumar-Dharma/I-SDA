@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-195 of 205 tasks done; 10 open (see [Open work](#open-work)). Current version: **v0.10.341**.
+196 of 207 tasks done; 11 open (see [Open work](#open-work)). Current version: **v0.10.342**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -184,9 +184,9 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-121r](#i-121r) | Tooling | Webview constant tables | I-121 | Done v0.10.287 (four value-domain lists from the spec; the rest guarded or classified as screen text) | v0.10.287 |
 | [I-121s](#i-121s) | Tooling | Engine and writer constant tables | I-121 | Done v0.10.286 (writer tables in the spec; engine/message tables classified as presentation) | v0.10.286 |
 | [I-121t](#i-121t) | Tooling | Generate the keyword index from the spec (do last) | I-121a – I-121s | Done | v0.10.335 |
-| [I-122](#i-122) | Tooling | Generated keyword x dimension test matrix; retire duplicate and stale tests | I-120, I-121 | In progress (batch 1 done v0.10.274; batch 2 done v0.10.336: MSGALARM, CSRINPONLY, RETLCKSTS, MAPVAL, INZINP, HLPEXCLD; batch 3 done v0.10.338: HLPFULL, MNUBARSEP, LOCK, DSPRL, FRCDTA, ALWGPH; I-122d done v0.10.341: the subfile-control family) | — |
+| [I-122](#i-122) | Tooling | Generated keyword x dimension test matrix; retire duplicate and stale tests | I-120, I-121 | In progress (batch 1 done v0.10.274; batch 2 done v0.10.336: MSGALARM, CSRINPONLY, RETLCKSTS, MAPVAL, INZINP, HLPEXCLD; batch 3 done v0.10.338: HLPFULL, MNUBARSEP, LOCK, DSPRL, FRCDTA, ALWGPH; I-122d done v0.10.341: the subfile-control family; I-122e done v0.10.342: the field format and edit family) | — |
 | [I-122d](#i-122d) | Tooling | Subfile-control family tests: SFLCLR, SFLCSRPRG, SFLRCDNBR, SFLMODE, SFLRTNSEL, SFLRNA, SFLROLVAL, SFLNXTCHG | I-122 | Done (130 checks; findings I-177, I-178) | v0.10.341 |
-| [I-122e](#i-122e) | Tooling | Field format and edit family tests: TIMSEP, TIMFMT, DATSEP, DATFMT, FLTPCN, FLTFIXDEC, BLANKS, CNTFLD, FLDCSRPRG, VALNUM | I-122 | Not started | — |
+| [I-122e](#i-122e) | Tooling | Field format and edit family tests: TIMSEP, TIMFMT, DATSEP, DATFMT, FLTPCN, FLTFIXDEC, BLANKS, CNTFLD, FLDCSRPRG, VALNUM | I-122 | Done (171 checks; findings I-179, I-180) | v0.10.342 |
 | [I-122f](#i-122f) | Tooling | Help and window family tests: HLPSCHIDX, HLPBDY, HLPDOC, HLPID, IGCCNV, WDWTITLE, WDWBORDER, NOCCSID | I-122 | In progress | — |
 | [I-122g](#i-122g) | Tooling | Choice family tests: CHCSLT, CHCCTL, CHCUNAVAIL, CHCAVAIL, CHCACCEL, SFLCHCCTL, SFLSNGCHC, SFLMLTCHC | I-122 | Not started | — |
 | [I-122h](#i-122h) | Tooling | Command-key family tests: CA01-CA24, CF01-CF24, ALTPAGEDWN, ALTPAGEUP, DLTCHK, DLTEDT, RETCMDKEY, MNUBARSW, MNUCNL, GETRETAIN | I-122 | Not started | — |
@@ -248,6 +248,8 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-176](#i-176) | Tooling | `optionIndicatorsAllowed` still answers "no" for the 11 keywords whose entries spell the fact `optionIndicatorsValid: true` (`ALARM`, `BLINK`, `CSRLOC`, `ERASE`, `ERASEINP`, `OVERLAY`, `PUTOVR`, `FRCDTA`, `PROTECT`, `MDTOFF`, `LOCK`); left over from I-174 | I-174 | Done | v0.10.339 |
 | [I-177](#i-177) | Field | `SFLRCDNBR` rules nothing enforces: not on the same field as `SFLROLVAL`, parameters only `CURSOR` / `*TOP`, field shape (zoned, 0 decimals, signed, up to 4 digits, usage O, B or H) | I-122d | Not started | — |
 | [I-178](#i-178) | Tooling | Spec entries for `SFLCSRPRG`, `SFLRCDNBR`, `SFLROLVAL`, `SFLRTNSEL`, `SFLNXTCHG` state no level, parameter or option-indicator fact, so `takesNoParameters` / `optionIndicatorsAllowed` answer wrongly | I-122d | Not started | — |
+| [I-179](#i-179) | Field | Date/time format keywords: `DATFMT` / `DATSEP` accepted off data type L and `TIMFMT` / `TIMSEP` off T, values outside IBM's lists, the fixed-separator rule only in the panel Apply, and a Basic-tab type change that strands them | I-122e | Not started | — |
+| [I-180](#i-180) | Field | `FLTPCN` (type F, `*SINGLE` / `*DOUBLE`, length caps, option indicators not valid) and `CNTFLD` (numeric width, its exclusion list) rules nothing enforces | I-122e | Not started | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -261,16 +263,17 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-122](#i-122) | In progress (batches 1-3 and I-122d done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
-| 2 | [I-122e](#i-122e) | Not started | Field format and edit family tests. Size (estimate): Medium. |
-| 3 | [I-122f](#i-122f) | In progress | Help and window family tests. Size (estimate): Small. |
-| 4 | [I-122g](#i-122g) | Not started | Choice family tests. Size (estimate): Medium. |
-| 5 | [I-122h](#i-122h) | Not started | Command-key family tests. Size (estimate): Medium. |
-| 6 | [I-122i](#i-122i) | Not started | Generated per-keyword matrix (L1-L4 from the I-121 spec). Size (estimate): Large. |
-| 7 | [I-122j](#i-122j) | Not started | Retire overlapping tests, each deletion backed by a stash-based mutation run (do last, serially). Size (estimate): Large. |
-| 8 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
-| 9 | [I-177](#i-177) | Not started | `SFLRCDNBR` with `SFLROLVAL` on one field, its parameter text and field shape. Size (estimate): Small. |
-| 10 | [I-178](#i-178) | Not started | Facts missing from five subfile-control keyword entries. Size (estimate): Small. |
+| 1 | [I-122](#i-122) | In progress (batches 1-3, I-122d and I-122e done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
+| 2 | [I-122f](#i-122f) | In progress | Help and window family tests. Size (estimate): Small. |
+| 3 | [I-122g](#i-122g) | Not started | Choice family tests. Size (estimate): Medium. |
+| 4 | [I-122h](#i-122h) | Not started | Command-key family tests. Size (estimate): Medium. |
+| 5 | [I-122i](#i-122i) | Not started | Generated per-keyword matrix (L1-L4 from the I-121 spec). Size (estimate): Large. |
+| 6 | [I-122j](#i-122j) | Not started | Retire overlapping tests, each deletion backed by a stash-based mutation run (do last, serially). Size (estimate): Large. |
+| 7 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
+| 8 | [I-177](#i-177) | Not started | `SFLRCDNBR` with `SFLROLVAL` on one field, its parameter text and field shape. Size (estimate): Small. |
+| 9 | [I-178](#i-178) | Not started | Facts missing from five subfile-control keyword entries. Size (estimate): Small. |
+| 10 | [I-179](#i-179) | Not started | Date/time format keyword eligibility, values, fixed-separator rule and Basic-tab type change. Size (estimate): Small. |
+| 11 | [I-180](#i-180) | Not started | `FLTPCN` and `CNTFLD` parameter, type and exclusion rules. Size (estimate): Small. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The I-121 umbrella row there stays open until its slices land, so it is counted in the headline but not listed here.
 
@@ -6782,7 +6785,7 @@ With this slice the I-121 umbrella is complete: every keyword in the lookup has 
 
 ### I-122 — Generated keyword x dimension test matrix; retire duplicate and stale tests
 
-> **Area:** Tooling · **Status:** In progress (batches 1-3 done) · **Depends on:** I-120, I-121
+> **Area:** Tooling · **Status:** In progress (batches 1-3, I-122d and I-122e done) · **Depends on:** I-120, I-121
 
 Generate tests from the I-121 spec: L1 pure rule checks, L2 parse/write round-trip of parameters and sub-parameters, L3 UI display and selection (one jsdom per record type iterating rows), L4 behaviour through each commit path (checkbox, raw keyword editor, Basic tab). Cover the keywords with no tests today (`RMVWDW`, `SFLCSRRRN`, `SFLDLT`, `USRRSTDSP`, ...). Migration rule: map each existing `check()` to a keyword x dimension cell; delete it only when a generated cell covers it **and** a stash-based mutation run shows the generated cell fails when the rule is broken; keep unique regressions. Report the before/after check count and suite time.
 
@@ -6794,7 +6797,7 @@ Generate tests from the I-121 spec: L1 pure rule checks, L2 parse/write round-tr
 
 **Batch 3 (v0.10.338) - the next-thinnest keywords.** The same inventory on the synced repo still put `HLPFULL`, `MNUBARSEP`, `DSPRL`, `ALWGPH`, `FRCDTA` and `LOCK` among the fewest (6-7 test files each, once the already-covered batch 1 and 2 keywords are set aside), so the batch the earlier claim named was kept. `src/test/i122Batch3ThinCoverageKeywords.test.js` (79 checks) covers: the spec facts against each keyword's DDS Reference section; flag round trips at file and record level (idempotence, neighbours and conditions kept); the `HLPFULL` rule (needs `HLPPNLGRP` at the file level or on a help specification, in both directions, an already-invalid file not re-reported); the record-type rules (`ALWGPH` refused on SFL, USRDFN and menu-bar records, `LOCK` refused on USRDFN and allowed on a menu bar, `FRCDTA` refused on a menu bar and once per record format, raw editor included); the `MNUBARSEP` groups (read, write in the reference's order, a group left unchecked not written, removal when none is enabled, one character only, conditions kept or cleared); and in jsdom the file panel (`HLPFULL`, `DSPRL`, `ALWGPH` rows, Conditioning only where option indicators are valid, `HLPFULL` refused without `HLPPNLGRP` with its message), the record rows with saved state and Conditioning, the menu-bar record offering `LOCK` but not `FRCDTA` / `ALWGPH`, and the separator group on a menu-bar field (saved state, Apply with all three groups, Apply with none). Test-source lesson: a `MNUBARSEP` line with all three groups is longer than the 36-column keyword area, and the parser then drops the tail silently (the first probe read the character as empty); the test keeps each source line inside column 80, and the page keeps its edits between steps, so each step is written against the state the earlier ones left. Mutation-checked: switching off the `HLPFULL` guard fails 3 checks, swapping the `MNUBARSEP` group order fails 2, turning off `FRCDTA`'s once-per-record fact fails 3, and mis-keying the `DSPRL` file row fails 3 (the last needs `npm run compile`). Tests only. Two gaps it found are logged and not asserted as correct: I-175 (the `MNUBARSEP` rules) and I-176 (while the test was in progress I-174 landed, and `optionIndicatorsAllowed` still answers false for `LOCK` and `FRCDTA` because their entries spell the fact `optionIndicatorsValid: true`; the test asserts the accessor answers for the other keywords). Check count +81. Full suite: 285 files, 16,711 checks, zero failures.
 
-Not yet done for I-122: the generated per-keyword matrix itself (batch 4 onward, from the I-121 spec) and the retirement of overlapping tests; the cells for the other keywords are covered unevenly by the existing hand-written files. **Batch 4 (v0.10.341) is [I-122d](#i-122d)** (the subfile-control family, 130 checks). The remaining work is split into [I-122e](#i-122e) – [I-122j](#i-122j) so sessions can take them in parallel.
+Not yet done for I-122: the generated per-keyword matrix itself (batch 4 onward, from the I-121 spec) and the retirement of overlapping tests; the cells for the other keywords are covered unevenly by the existing hand-written files. **Batch 4 (v0.10.341) is [I-122d](#i-122d)** (the subfile-control family, 130 checks) and **batch 5 (v0.10.342) is [I-122e](#i-122e)** (the field format and edit family, 171 checks). The remaining work is split into [I-122f](#i-122f) – [I-122j](#i-122j) so sessions can take them in parallel.
 
 ---
 
@@ -6820,9 +6823,19 @@ Mutation-checked: 12 rule and spec mutations (each guard disabled in turn, `SFLR
 
 ### I-122e — Field format and edit family tests: TIMSEP, TIMFMT, DATSEP, DATFMT, FLTPCN, FLTFIXDEC, BLANKS, CNTFLD, FLDCSRPRG, VALNUM
 
-> **Area:** Tooling · **Status:** Not started · **Depends on:** I-122 · **Size (estimate):** Medium
+> **Area:** Tooling · **Status:** Done (v0.10.342) · **Depends on:** I-122 · **Size (estimate):** Medium
 
 Opened from I-122 as one batch of the hand-written coverage pass (same method as batches 1-3): a new `src/test/i122E…test.js` file covering the spec facts against each keyword's DDS Reference section, flag and parameter round trips, the rule guards (both directions), and the jsdom panel, saved-state, Conditioning and raw-editor paths; mutation-check every group; log gaps as new tasks and do not assert them as correct. Keyword list by the inventory run on v0.10.339 (test files mentioning each name, thinnest first).
+
+**Done (v0.10.342).** New `src/test/i122eFieldFormatEditFamilyKeywords.test.js` (171 checks), one file for the whole family:
+
+- **Spec (about 25).** Each keyword's data type, usage, value list, display lengths, subfile and exclusion facts and option-indicator kind against its DDS Reference section (`DATFMT` nine formats and default `*ISO`; `TIMFMT` five formats, no `*JOB`; `DATSEP` / `TIMSEP` lists and fixed-separator formats; `FLTFIXDEC` B/O and F; `BLANKS` I/B; `CNTFLD` I/B, A, not in a subfile, width below length; `FLDCSRPRG`; `VALNUM` I/B and Y at three levels).
+- **Writer (about 85).** Get / set round trips for every value of the four date/time keywords (quoting, `*JOB` bare, replace not duplicate, neighbours kept, written through `applyFieldUpdate` and re-parsed); the fixed-separator rule for all four formats on both pairs; the L/T/Z usage rule; `fieldKindNewConflictReason` for `FLTFIXDEC`, `BLANKS`, `CNTFLD` and `FLDCSRPRG` in both directions (already-invalid not re-reported, removal never blocked); `valnumEligibilityReason`, `valnumNewConflictReason` and the Basic-tab guard.
+- **Panels (about 60, jsdom).** Date and time selects only on L and T fields with their option lists and saved state, Apply writing and refusing (`*ISO` with a separator), no Conditioning toggles, `FLTPCN` / `FLTFIXDEC` rows only on floating-point fields, `BLANKS`, `CNTFLD` (width equal to length refused), `FLDCSRPRG` (unknown target refused) and `VALNUM` rows and toggles, the raw editor's refusals and accepts, and the Basic-tab usage guard.
+
+Mutation-checked: 14 mutations (fixed-format list, both separator guards, quoting, `setDateFormat` replace, `FLTFIXDEC` usage, `CNTFLD` width, `FLDCSRPRG` target, `VALNUM` guard, the usage rule, and four panel changes that need `npm run compile`) each fail the file; a no-op control did not. Test-source lesson: the page applies edits to its own copy of the source, so a field's source line moves after an earlier field gains a continuation line - the test finds fields by name and reads the line when picking.
+
+Gaps found while writing it are not asserted and are logged as I-179 and I-180. One more observation is not logged: `dateTimeUsageConflictReason('L', '')` refuses a blank usage, although a blank usage means O.
 
 ---
 
@@ -8028,3 +8041,32 @@ Do: add the missing facts to the five entries from their reference sections, the
 
 ---
 
+---
+
+<a id="i-179"></a>
+
+### I-179 — Date/time format keyword rules nothing enforces
+
+> **Area:** Field · **Status:** Not started · **Depends on:** I-122e · **Size (estimate):** Small
+
+Opened from I-122e. `DATFMT` and `DATSEP` are valid only for data type L, `TIMFMT` and `TIMSEP` only for T, `TIMFMT` has no `*JOB`, and `DATFMT` / `TIMFMT` say a fixed-separator format (`*ISO`, `*USA`, `*EUR`, `*JIS`) cannot be used with the separator keyword. Probed on v0.10.341 with the jsdom raw keyword editor: `DATFMT` / `DATSEP` are accepted on a character field, `TIMFMT` on a character and on a date field, `DATSEP('x')`, `DATFMT(*FOO)` and `TIMFMT(*JOB)` with no message, and raw-adding `DATFMT(*ISO)` to a field that already has `DATSEP('/')` is accepted. The separator rule lives only in the panel's Apply handler (`wireDateTimeFormat`). On the Basic tab, changing a date field with `DATFMT` and `DATSEP` to data type A applies and leaves both on the character field. The spec already holds `validDataType`, `validValues` and `fixedSeparatorFormats`.
+
+Do: a diff-based guard through `commitEdit` (the I-131 / I-150 shape) reading those facts: data type, value domain, the pairing in both directions, and the Basic-tab type change. Decision first: `DATSEP` with no `DATFMT` (the default is `*ISO`, which has a fixed separator; the panel treats blank as allowed). Cases go beside the I-122e ones.
+
+*Raised by I-122e. Size (estimate): Small.*
+
+---
+
+<a id="i-180"></a>
+
+### I-180 — `FLTPCN` and `CNTFLD` rules nothing enforces
+
+> **Area:** Field · **Status:** Not started · **Depends on:** I-122e · **Size (estimate):** Small
+
+Opened from I-122e. `FLTPCN`'s section: valid for data type F only, parameter `*SINGLE` or `*DOUBLE`, single precision up to 9 digits and double up to 17 (otherwise "the file is not created"), "Option indicators are not valid for this keyword". Probed on v0.10.341: the raw editor accepts `FLTPCN` on a character field and `FLTPCN(*FOO)` on a float field; the length caps are not checked; `noOptionIndicatorsFact('FLTPCN')` is null and `noOptionIndicatorsNewConflictReason('FLTPCN', ...)` accepts an indicator condition. `CNTFLD`'s section: one numeric width parameter, and `AUTO(RAB, RAZ)`, `CHECK(AB, MF, RB, RZ, RLTB)`, `CHOICE`, `DSPATR(OID SP)` and `EDTMSK` cannot be on the same field. Probed: `CNTFLD(abc)` is accepted, and raw-adding `CNTFLD(20)` to a field with `CHECK(AB)`, `DSPATR(SP)` or `AUTO(RAB)` is accepted; only the `EDTMSK` side is refused (I-130). The "fits the display or window width" and "two spaces from other fields" rules were not probed.
+
+Do: add `FLTPCN` to the no-option-indicator table, a parameter and length check, and the `CNTFLD` numeric-parameter check and its side of the exclusion list (reusing I-130's `conditionalMutex` shape), diff-based through `commitEdit`.
+
+*Raised by I-122e. Size (estimate): Small.*
+
+---
