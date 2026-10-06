@@ -190,7 +190,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-122f](#i-122f) | Tooling | Help and window family tests: HLPSCHIDX, HLPBDY, HLPDOC, HLPID, IGCCNV, WDWTITLE, WDWBORDER, NOCCSID | I-122 | Done (138 checks; findings I-181, I-182) | v0.10.343 |
 | [I-122g](#i-122g) | Tooling | Choice family tests: CHCSLT, CHCCTL, CHCUNAVAIL, CHCAVAIL, CHCACCEL, SFLCHCCTL, SFLSNGCHC, SFLMLTCHC | I-122 | Done (147 checks; findings I-183, I-184, I-185) | v0.10.344 |
 | [I-122h](#i-122h) | Tooling | Command-key family tests: CA01-CA24, CF01-CF24, ALTPAGEDWN, ALTPAGEUP, DLTCHK, DLTEDT, RETCMDKEY, MNUBARSW, MNUCNL, GETRETAIN | I-122 | Done (107 checks; findings I-186, I-187, I-188, I-189) | v0.10.348 |
-| [I-122i](#i-122i) | Tooling | Generated per-keyword matrix (L1-L4 from the I-121 spec): generator and harness, then the keywords no hand-written batch covers | I-122, I-121 | Not started | — |
+| [I-122i](#i-122i) | Tooling | Generated per-keyword matrix (L1-L4 from the I-121 spec): generator and harness, then the keywords no hand-written batch covers | I-122, I-121 | Done (1,328 checks on 61 keywords, 3,380 with `MATRIX_ALL`; findings I-190, I-191) | v0.10.350 |
 | [I-122j](#i-122j) | Tooling | Retire overlapping tests, each deletion backed by a stash-based mutation run (do last, serially) | I-122i | Not started | — |
 | [I-123](#i-123) | Tooling | Move "Task I-nn" history out of source comments | I-121 | Not started | — |
 | [I-124](#i-124) | Tooling | Test-only exports that still carry a "kept for backward compatibility / API completeness" note (decision first) | I-118 | Done | v0.10.202 |
@@ -259,6 +259,8 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-187](#i-187) | Record | `MNUBARSW` / `MNUCNL` claim a CA key but the CA / CF number guard does not read them: their key can be reused as a CF key on another record | I-122h | Not started | — |
 | [I-188](#i-188) | Record | `RETKEY` / `RETCMDKEY` accepted on a subfile (`SFL`) or user-defined (`USRDFN`) record, though the spec records they are not valid there | I-122h | Not started | — |
 | [I-189](#i-189) | Tooling | `MNUBARSW`, `MNUCNL`, `ALTPAGEDWN`, `ALTPAGEUP`, `DLTCHK` and `DLTEDT` carry no level, parameter or option-indicator fact; `optionIndicatorsAllowed` answers false for `MNUBARSW` / `MNUCNL` (reference: valid) and for a concrete `CA05` | I-122h | Not started | — |
+| [I-190](#i-190) | Tooling | `HLPRCD`'s spec entry says `levels: ['file']`; the Reference says file level or help-specification level | I-122i | Not started | — |
+| [I-191](#i-191) | Tooling | Twelve `RECORD_TYPES` entries state no level and their Reference section names none (`SFLMSG`, `IGCALTTYP`, `ERRMSGID`, `SFLMSGID`, `ERRMSG`, `SFLCSRRRN`, `COLOR`, `CHECK`, `ALTPAGEDWN`, `ALTPAGEUP`, `KEYBRD`, `FLTPCN`): the generated matrix cannot place them | I-122i | Not started | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -272,8 +274,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-122](#i-122) | In progress (batches 1-3, I-122d, I-122e, I-122f, I-122g and I-122h done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
-| 3 | [I-122i](#i-122i) | Not started | Generated per-keyword matrix (L1-L4 from the I-121 spec). Size (estimate): Large. |
+| 1 | [I-122](#i-122) | In progress (batches 1-3, I-122d, I-122e, I-122f, I-122g, I-122h and I-122i done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
 | 4 | [I-122j](#i-122j) | Not started | Retire overlapping tests, each deletion backed by a stash-based mutation run (do last, serially). Size (estimate): Large. |
 | 5 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
 | 6 | [I-180](#i-180) | In progress (claimed) | `FLTPCN` and `CNTFLD` parameter, type and exclusion rules. Size (estimate): Small. |
@@ -6797,7 +6798,7 @@ With this slice the I-121 umbrella is complete: every keyword in the lookup has 
 
 ### I-122 — Generated keyword x dimension test matrix; retire duplicate and stale tests
 
-> **Area:** Tooling · **Status:** In progress (batches 1-3, I-122d, I-122e, I-122f, I-122g and I-122h done) · **Depends on:** I-120, I-121
+> **Area:** Tooling · **Status:** In progress (batches 1-3, I-122d, I-122e, I-122f, I-122g, I-122h and I-122i done) · **Depends on:** I-120, I-121
 
 Generate tests from the I-121 spec: L1 pure rule checks, L2 parse/write round-trip of parameters and sub-parameters, L3 UI display and selection (one jsdom per record type iterating rows), L4 behaviour through each commit path (checkbox, raw keyword editor, Basic tab). Cover the keywords with no tests today (`RMVWDW`, `SFLCSRRRN`, `SFLDLT`, `USRRSTDSP`, ...). Migration rule: map each existing `check()` to a keyword x dimension cell; delete it only when a generated cell covers it **and** a stash-based mutation run shows the generated cell fails when the rule is broken; keep unique regressions. Report the before/after check count and suite time.
 
@@ -6809,7 +6810,7 @@ Generate tests from the I-121 spec: L1 pure rule checks, L2 parse/write round-tr
 
 **Batch 3 (v0.10.338) - the next-thinnest keywords.** The same inventory on the synced repo still put `HLPFULL`, `MNUBARSEP`, `DSPRL`, `ALWGPH`, `FRCDTA` and `LOCK` among the fewest (6-7 test files each, once the already-covered batch 1 and 2 keywords are set aside), so the batch the earlier claim named was kept. `src/test/i122Batch3ThinCoverageKeywords.test.js` (79 checks) covers: the spec facts against each keyword's DDS Reference section; flag round trips at file and record level (idempotence, neighbours and conditions kept); the `HLPFULL` rule (needs `HLPPNLGRP` at the file level or on a help specification, in both directions, an already-invalid file not re-reported); the record-type rules (`ALWGPH` refused on SFL, USRDFN and menu-bar records, `LOCK` refused on USRDFN and allowed on a menu bar, `FRCDTA` refused on a menu bar and once per record format, raw editor included); the `MNUBARSEP` groups (read, write in the reference's order, a group left unchecked not written, removal when none is enabled, one character only, conditions kept or cleared); and in jsdom the file panel (`HLPFULL`, `DSPRL`, `ALWGPH` rows, Conditioning only where option indicators are valid, `HLPFULL` refused without `HLPPNLGRP` with its message), the record rows with saved state and Conditioning, the menu-bar record offering `LOCK` but not `FRCDTA` / `ALWGPH`, and the separator group on a menu-bar field (saved state, Apply with all three groups, Apply with none). Test-source lesson: a `MNUBARSEP` line with all three groups is longer than the 36-column keyword area, and the parser then drops the tail silently (the first probe read the character as empty); the test keeps each source line inside column 80, and the page keeps its edits between steps, so each step is written against the state the earlier ones left. Mutation-checked: switching off the `HLPFULL` guard fails 3 checks, swapping the `MNUBARSEP` group order fails 2, turning off `FRCDTA`'s once-per-record fact fails 3, and mis-keying the `DSPRL` file row fails 3 (the last needs `npm run compile`). Tests only. Two gaps it found are logged and not asserted as correct: I-175 (the `MNUBARSEP` rules) and I-176 (while the test was in progress I-174 landed, and `optionIndicatorsAllowed` still answers false for `LOCK` and `FRCDTA` because their entries spell the fact `optionIndicatorsValid: true`; the test asserts the accessor answers for the other keywords). Check count +81. Full suite: 285 files, 16,711 checks, zero failures.
 
-Not yet done for I-122: the generated per-keyword matrix itself (batch 4 onward, from the I-121 spec) and the retirement of overlapping tests; the cells for the other keywords are covered unevenly by the existing hand-written files. **Batch 4 (v0.10.341) is [I-122d](#i-122d)** (the subfile-control family, 130 checks) and **batch 5 (v0.10.342) is [I-122e](#i-122e)** (the field format and edit family, 171 checks) and **batch 6 (v0.10.343) is [I-122f](#i-122f)** (the help and window family, 138 checks) and **batch 7 (v0.10.344) is [I-122g](#i-122g)** (the choice family, 147 checks). and **batch 8 (v0.10.348) is [I-122h](#i-122h)** (the command-key family, 107 checks). The remaining work is split into [I-122i](#i-122i) – [I-122j](#i-122j) so sessions can take them in parallel.
+Not yet done for I-122: the retirement of overlapping tests; the cells for the other keywords are covered unevenly by the existing hand-written files. **Batch 4 (v0.10.341) is [I-122d](#i-122d)** (the subfile-control family, 130 checks) and **batch 5 (v0.10.342) is [I-122e](#i-122e)** (the field format and edit family, 171 checks) and **batch 6 (v0.10.343) is [I-122f](#i-122f)** (the help and window family, 138 checks) and **batch 7 (v0.10.344) is [I-122g](#i-122g)** (the choice family, 147 checks). and **batch 8 (v0.10.348) is [I-122h](#i-122h)** (the command-key family, 107 checks). **The generated matrix (v0.10.350) is [I-122i](#i-122i)** (generator, harness and 1,328 checks on the 61 keywords no hand-written batch covers). What remains is [I-122j](#i-122j), the retirement of overlapping tests.
 
 ---
 
@@ -6913,9 +6914,17 @@ Mutation-checked: 10 spec, guard and panel mutations (each recompiled, then reve
 
 ### I-122i — Generated per-keyword matrix (L1-L4 from the I-121 spec): generator and harness, then the keywords no hand-written batch covers
 
-> **Area:** Tooling · **Status:** Not started · **Depends on:** I-122, I-121 · **Size (estimate):** Large
+> **Area:** Tooling · **Status:** Done (v0.10.350) · **Depends on:** I-122, I-121 · **Size (estimate):** Large
 
 Opened from I-122. The generated matrix itself, which the hand-written batches do not replace. Decision first: generate at test time from `RECORD_TYPES`, or commit generated files. Cover the keywords not claimed by I-122d–h.
+
+**Decision: generate at test time, commit nothing generated.** `src/test/helpers/keywordMatrix.js` reads `RECORD_TYPES` and the DDS Reference text on every run, so a spec change moves the matrix with it and there is no second copy to drift. `src/test/i122iGeneratedKeywordMatrix.test.js` names no keyword. It covers every keyword no other hand-written `i122*.test.js` mentions (found by scanning those files; 61 on v0.10.349, the ten claimed by I-122h excluded until that file landed); `MATRIX_ALL=1` runs all 175 (3,380 checks, 195 L2 cells), and `MATRIX_DEBUG=1` prints the detail of an unexpected L4 mismatch.
+
+Facts are resolved spec-first, with the Reference where the spec states no `levels`, each tagged with its source. Four layers: **L1** the spec's levels, option-indicator mode and "no parameters" against the keyword's own Reference section (compared only where the section speaks: the exact "not valid for this keyword" / "valid for" / "allowed on" sentences, "This keyword has no parameters", a `NAME(` form) and against the writer's own tables (`noOptionIndicatorsReason`, `takesNoParameters`); **L2** at each file / record / field level the keyword is valid at, parse finds it (parameters byte-exact, the N10 indicator carried), writing the unchanged list back re-parses to the same keywords and a second write is a fixed point, a neighbour added to the list is written and leaves both entries alone, and removing it leaves no trace; **L3** one jsdom page built from a composite source: the raw keyword list shows the keyword, "No option indicators" in place of the Conditioning toggle exactly where the writer (and the spec) say option indicators are not valid, and a warning when one is carried anyway; **L4** one raw-editor add per keyword and level, reset between adds with two `externalUpdate` messages (the webview applies its own edit, so adds would otherwise accumulate): written with exactly one new keyword and nothing lost, or refused with a reason, never both and never neither, and a bare add of a keyword with no relational constraint must be accepted. The writer moves the first unconditioned keyword onto the R / field line, so L2 compares keywords, not bytes.
+
+Disagreements are not asserted as correct: `KNOWN_GAPS` lists the one found (`HLPRCD:levels`, I-190) and a new one fails. Where the Reference is silent the matrix does not compare and prints the list instead (option indicators: `MNUBARDSP`, `ALTNAME`, `ENTFLDATR`, `HLPTITLE`, `USRDSPMGT`, `HELP`, `PRINT`; "no parameters": `SFLRNA`, `SFLROLVAL`, `PUTOVR`). Keywords with no level in either source are skipped in L2-L4 and logged as I-191. Mutation-checked: flipping `HLPCMDKEY`'s option-indicator mode in the spec fails 3 checks (Reference, writer and UI cells); making `applyFileKeywordsUpdate` ignore a changed list fails 22 (L2 and L4); a raw add that silently does nothing fails 100. Tests only; full suite 295 files / 19,122 checks / zero failures (matrix file about 43 s under load; the Reference-sentence facts and cells are what I-122j can map existing checks onto).
+
+*Opened from I-122. Findings: I-190, I-191.*
 
 ---
 
@@ -8259,5 +8268,29 @@ Opened from I-122h. `MNUBARSW` and `MNUCNL` hold only `caKeyPartner`, `caKeyDefa
 Do: add the facts to the six entries, resolve concrete command-key names in the accessors, then pin the answers in `i122hCommandKeyFamilyKeywords.test.js`.
 
 *Raised by I-122h. Size (estimate): Small.*
+
+---
+
+<a id="i-190"></a>
+
+### I-190 — `HLPRCD`'s spec entry says file level only; the Reference says file level or help-specification level
+
+> **Area:** Tooling · **Status:** Not started · **Depends on:** I-122i · **Size (estimate):** Small
+
+Opened from I-122i. The matrix's L1 level cell compares `levels` with the first "...level..." sentence of the keyword's Reference section. `HLPRCD` states `levels: ['file']`; the section opens "You use this file-level or help-specification-level keyword". Every other mismatch the matrix checked was extraction noise or none. Do: add the help-specification level to the entry (the `levels` vocabulary already holds `'help'`, used by `HLPARA` / `HLPBDY` / `HLPEXCLD`), check the writer's and panel's HLPRCD paths against it, then remove `HLPRCD:levels` from `KNOWN_GAPS`.
+
+*Raised by I-122i. Size (estimate): Small.*
+
+---
+
+<a id="i-191"></a>
+
+### I-191 — Twelve spec entries state no level and their Reference section names none
+
+> **Area:** Tooling · **Status:** Not started · **Depends on:** I-122i · **Size (estimate):** Small
+
+Opened from I-122i. With neither a `levels` fact in the entry nor a level in the Reference section, the generated matrix cannot place the keyword, so L2-L4 skip it: `SFLMSG`, `IGCALTTYP`, `ERRMSGID`, `SFLMSGID`, `ERRMSG` on the default set, plus `SFLCSRRRN`, `COLOR`, `CHECK`, `ALTPAGEDWN`, `ALTPAGEUP`, `KEYBRD`, `FLTPCN` under `MATRIX_ALL`. Overlaps: `ALTPAGEDWN` / `ALTPAGEUP` are in I-189, `FLTPCN` in the claimed I-180, and `KEYBRD` is not a DDS keyword (the spec records it as position 35, see I-122 batch 2). Do: add `levels` (and parameter and option-indicator facts where the section states them) to the rest, so the matrix runs on them; the matrix prints its own skip list, which should end up empty apart from `KEYBRD`.
+
+*Raised by I-122i. Size (estimate): Small.*
 
 ---
