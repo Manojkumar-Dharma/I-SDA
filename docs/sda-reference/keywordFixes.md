@@ -246,7 +246,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-174](#i-174) | Tooling | `takesNoParameters` / `optionIndicatorsAllowed` answer only for the I-121b keywords, so they say "no" for `MSGALARM`, `CSRINPONLY` and `HLPEXCLD` although their spec entries say the opposite (opened from I-122 batch 2) | I-121 | Done | v0.10.337 |
 | [I-175](#i-175) | Field | `MNUBARSEP` and `MNUBARCHC` need `MNUBAR` on their record, and `MNUBARSEP` cannot be used where `MNUBAR` says `*NOSEPARATOR`; the spec records the rules and nothing enforces them (found logging I-122 batch 3; not asserted as correct) | I-171 | Done | v0.10.340 |
 | [I-176](#i-176) | Tooling | `optionIndicatorsAllowed` still answers "no" for the 11 keywords whose entries spell the fact `optionIndicatorsValid: true` (`ALARM`, `BLINK`, `CSRLOC`, `ERASE`, `ERASEINP`, `OVERLAY`, `PUTOVR`, `FRCDTA`, `PROTECT`, `MDTOFF`, `LOCK`); left over from I-174 | I-174 | Done | v0.10.339 |
-| [I-177](#i-177) | Field | `SFLRCDNBR` rules nothing enforces: not on the same field as `SFLROLVAL`, parameters only `CURSOR` / `*TOP`, field shape (zoned, 0 decimals, signed, up to 4 digits, usage O, B or H) | I-122d | Not started | — |
+| [I-177](#i-177) | Field | `SFLRCDNBR` rules nothing enforces: not on the same field as `SFLROLVAL`, parameters only `CURSOR` / `*TOP`, field shape (zoned, 0 decimals, signed, up to 4 digits, usage O, B or H) | I-122d | In progress (claimed) | — |
 | [I-178](#i-178) | Tooling | Spec entries for `SFLCSRPRG`, `SFLRCDNBR`, `SFLROLVAL`, `SFLRTNSEL`, `SFLNXTCHG` state no level, parameter or option-indicator fact, so `takesNoParameters` / `optionIndicatorsAllowed` answer wrongly | I-122d | Not started | — |
 | [I-179](#i-179) | Field | Date/time format keywords: `DATFMT` / `DATSEP` accepted off data type L and `TIMFMT` / `TIMSEP` off T, values outside IBM's lists, the fixed-separator rule only in the panel Apply, and a Basic-tab type change that strands them | I-122e | Not started | — |
 | [I-180](#i-180) | Field | `FLTPCN` (type F, `*SINGLE` / `*DOUBLE`, length caps, option indicators not valid) and `CNTFLD` (numeric width, its exclusion list) rules nothing enforces | I-122e | Not started | — |
@@ -273,7 +273,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | 3 | [I-122i](#i-122i) | Not started | Generated per-keyword matrix (L1-L4 from the I-121 spec). Size (estimate): Large. |
 | 4 | [I-122j](#i-122j) | Not started | Retire overlapping tests, each deletion backed by a stash-based mutation run (do last, serially). Size (estimate): Large. |
 | 5 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
-| 6 | [I-177](#i-177) | Not started | `SFLRCDNBR` with `SFLROLVAL` on one field, its parameter text and field shape. Size (estimate): Small. |
+| 6 | [I-177](#i-177) | In progress (claimed) | `SFLRCDNBR` with `SFLROLVAL` on one field, its parameter text and field shape. Size (estimate): Small. |
 | 7 | [I-178](#i-178) | Not started | Facts missing from five subfile-control keyword entries. Size (estimate): Small. |
 | 8 | [I-179](#i-179) | Not started | Date/time format keyword eligibility, values, fixed-separator rule and Basic-tab type change. Size (estimate): Small. |
 | 9 | [I-180](#i-180) | Not started | `FLTPCN` and `CNTFLD` parameter, type and exclusion rules. Size (estimate): Small. |
@@ -8043,7 +8043,7 @@ New `src/test/i176OptionIndicatorsSpellings.test.js` (23 checks): the 11 keyword
 
 ### I-177 — `SFLRCDNBR` rules nothing enforces
 
-> **Area:** Field · **Status:** Not started · **Depends on:** I-122d · **Size (estimate):** Small
+> **Area:** Field · **Status:** In progress (claimed) · **Depends on:** I-122d · **Size (estimate):** Small
 
 Opened from I-122d. `SFLRCDNBR`'s DDS Reference section says: "You cannot specify both SFLRCDNBR and SFLROLVAL for the same field", the parameter is `[CURSOR] [*TOP]`, and the field "must be a zoned decimal field with zero decimal positions ... signed numeric (S in position 35), and it can be up to 4 digits in length ... output-only, an input/output, or a hidden field". Probed on v0.10.340 with the jsdom panel and the raw keyword editor on a control-record field that already carries `SFLROLVAL`: choosing `CURSOR` in the `SFLRCDNBR` selector writes `SFLROLVAL` and `SFLRCDNBR(CURSOR)` together with no message, and the raw editor then accepts `SFLRCDNBR(FOO)` as a second keyword with no message. The field shape is not checked anywhere in `dspfWriter.js` (the only `SFLRCDNBR` code is the control-record-only guard from I-129 and the field-selection list from I-146). `SFLSCROLL` already has all three kinds of check (same-field mutex with both, exact shape, I-126), so the shape to follow exists.
 
