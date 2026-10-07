@@ -257,7 +257,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-185](#i-185) | Tooling | Spec entries for `SFLCHCCTL`, `SFLSNGCHC` and `SFLMLTCHC` carry no level, parameter or option-indicator fact, and the `SFLCHCCTL` control-value table is not in the spec | I-122g | Done (5 checks added to `i122gChoiceFamilyKeywords`, 155 in all) | v0.10.358 |
 | [I-186](#i-186) | Field | Command-key numbers outside 01-24 accepted (`CA00`, `CA25`), and `MNUBARSW(CF05)` / `MNUBARSW(CA25)` pass the menu-bar key guard | I-122h | Done (range, key type, panel guard, raw editors) | v0.10.359 |
 | [I-187](#i-187) | Record | `MNUBARSW` / `MNUCNL` claim a CA key but the CA / CF number guard does not read them: their key can be reused as a CF key on another record | I-122h | Done (explicit and default key, file level, both directions) | v0.10.360 |
-| [I-188](#i-188) | Record | `RETKEY` / `RETCMDKEY` accepted on a subfile (`SFL`) or user-defined (`USRDFN`) record, though the spec records they are not valid there | I-122h | Not started | — |
+| [I-188](#i-188) | Record | `RETKEY` / `RETCMDKEY` accepted on a subfile (`SFL`) or user-defined (`USRDFN`) record, though the spec records they are not valid there | I-122h | In progress | — |
 | [I-189](#i-189) | Tooling | `MNUBARSW`, `MNUCNL`, `ALTPAGEDWN`, `ALTPAGEUP`, `DLTCHK` and `DLTEDT` carry no level, parameter or option-indicator fact; `optionIndicatorsAllowed` answers false for `MNUBARSW` / `MNUCNL` (reference: valid) and for a concrete `CA05` | I-122h | Not started | — |
 | [I-190](#i-190) | Tooling | `HLPRCD`'s spec entry says `levels: ['file']`; the Reference says file level or help-specification level | I-122i | Not started | — |
 | [I-191](#i-191) | Tooling | Twelve `RECORD_TYPES` entries state no level and their Reference section names none (`SFLMSG`, `IGCALTTYP`, `ERRMSGID`, `SFLMSGID`, `ERRMSG`, `SFLCSRRRN`, `COLOR`, `CHECK`, `ALTPAGEDWN`, `ALTPAGEUP`, `KEYBRD`, `FLTPCN`): the generated matrix cannot place them | I-122i | Not started | — |
@@ -277,7 +277,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 3 | [I-188](#i-188) | Not started | `RETKEY` / `RETCMDKEY` accepted on `SFL` and `USRDFN` records; read the reference sentence first. Size (estimate): Small. |
+| 3 | [I-188](#i-188) | In progress | `RETKEY` / `RETCMDKEY` accepted on `SFL` and `USRDFN` records; read the reference sentence first. Size (estimate): Small. |
 | 4 | [I-190](#i-190) | Not started | `HLPRCD` spec entry says file level only; the Reference says file or help-specification level. Size (estimate): Small. |
 | 5 | [I-189](#i-189) | Not started | Level, parameter and option-indicator facts missing from `MNUBARSW`, `MNUCNL`, `ALTPAGEDWN`, `ALTPAGEUP`, `DLTCHK`, `DLTEDT`. Size (estimate): Small. |
 | 6 | [I-191](#i-191) | Not started | Twelve spec entries state no level, so the generated matrix skips them; re-run the matrix skip list first, I-180 and I-189 shorten it. Size (estimate): Small. |
@@ -8285,7 +8285,7 @@ Opened from I-122h. Both sections say that with the keyword on a record "the CAn
 
 ### I-188 — RETKEY / RETCMDKEY accepted on SFL and USRDFN records
 
-> **Area:** Record · **Status:** Not started · **Depends on:** I-122h · **Size (estimate):** Small
+> **Area:** Record · **Status:** In progress · **Depends on:** I-122h · **Size (estimate):** Small
 
 Opened from I-122h. The `RETCMDKEY` spec entry (and `RETKEY`'s, same rules) records `notOnRecordTypes: ['SFL', 'USRDFN']` and `retKeyNewConflictReason` reads the INDARA, file and record exclusions, but a `RETKEY` or `RETCMDKEY` added to a record carrying `SFL` or `USRDFN` (with `INDARA` in the file) returns null. The reference sentence for the two record types was not located in the converted text while writing the test; read it first.
 
