@@ -7027,6 +7027,44 @@
    *  character for CNTFLD when no decimal positions are given. Violations are
    *  keyed record | keyword | rule | n (n = nth violating field of that kind in
    *  the record), so renaming an already-wrong field is not a new violation. */
+  // Task I-192 - CNTFLD's layout rules. The width a continued-entry column
+  // must fit within is the record's WINDOW width (numeric forms, or one
+  // named reference resolved in the same model) and otherwise the narrowest
+  // display the file declares (24 x 80 when it declares none).
+  function windowColumnsOf(model, rec, depth) {
+    var w = getWindowParamsKeyword(rec && rec.keywords);
+    if (w.mode === 'sized' || w.mode === 'positioned') {
+      var n = parseInt(w.columns, 10);
+      return isNaN(n) ? null : n;
+    }
+    if (w.mode === 'reference' && (depth || 0) < 4) {
+      var target = ((model && model.records) || []).find(function (x) { return String(x.name).toUpperCase() === String(w.referenceName).toUpperCase(); });
+      return target && target !== rec ? windowColumnsOf(model, target, (depth || 0) + 1) : null;
+    }
+    return null;
+  }
+  function cntfldWidthLimit(model, rec) {
+    var win = windowColumnsOf(model, rec, 0);
+    if (win !== null) return { columns: win, what: 'window' };
+    var sizes = getDisplaySizesList(model && model.fileKeywords);
+    var narrowest = sizes.length ? Math.min.apply(null, sizes.map(function (z) { return z.columns; })) : 80;
+    return { columns: narrowest, what: 'display' };
+  }
+  // The screen cells a positioned, visible, non-constant field occupies on
+  // each row: one row of `length` columns, or - for a CNTFLD field - the
+  // continued-entry rectangle (width columns, as many rows as the length needs).
+  function fieldExtent(f) {
+    if (!f || f.nameType === 'CONSTANT' || !f.location) return null;
+    var usage = String(f.usage == null ? '' : f.usage).trim().toUpperCase() || 'O';
+    var line = f.location.line, col = f.location.column;
+    var len = Number(f.length);
+    if (usage === 'H' || !(line > 0) || !(col > 0) || !(len > 0) || f.location.relativeColumnOffset) return null;
+    var cnt = keywordNamed(f.keywords, 'CNTFLD');
+    var w = cnt ? parseInt(String(cnt.parameters || '').trim(), 10) : NaN;
+    if (cnt && w > 0 && w < len) return { line: line, rows: Math.ceil(len / w), first: col, last: col + w - 1 };
+    return { line: line, rows: 1, first: col, last: col + len - 1 };
+  }
+
   function fieldKindViolations(model) {
     var out = {};
     ((model && model.records) || []).forEach(function (r) {
@@ -7091,6 +7129,28 @@
             var hit = KeywordSpec.conditionalMutexHit(kw, other);
             if (hit) add(kw, 'WITH|' + hit, kw + ' cannot be specified with ' + hit + ' on field ' + fname + ' (per the DDS Reference).');
           });
+          // Task I-192 - the width fits the display or window, and 2 spaces from other fields.
+          if (KeywordSpec.widthMustFitDisplay(kw) && /^\d+$/.test(param) && Number(param) > 0) {
+            var limit = cntfldWidthLimit(model, r);
+            if (Number(param) > limit.columns) {
+              add(kw, 'FIT', kw + '(' + param + ') on field ' + fname + ': the width is more than the ' + limit.columns + ' columns of the ' + limit.what + ' (per the DDS Reference).');
+            }
+          }
+          var minSpaces = KeywordSpec.minSpacesFromOtherFields(kw);
+          var mine = minSpaces ? fieldExtent(f) : null;
+          if (mine) {
+            (r.fields || []).forEach(function (o) {
+              if (o === f) return;
+              var theirs = fieldExtent(o);
+              if (!theirs) return;
+              var shareRow = mine.line < theirs.line + theirs.rows && theirs.line < mine.line + mine.rows;
+              if (!shareRow) return;
+              var spaces = Math.max(theirs.first - mine.last - 1, mine.first - theirs.last - 1);
+              if (spaces < minSpaces) {
+                add(kw, 'GAP', kw + '(' + param + ') on field ' + fname + ' (line ' + mine.line + ', column ' + mine.first + '): field ' + String(o.name || '').toUpperCase() + ' (line ' + theirs.line + ', column ' + theirs.first + ') is closer than ' + minSpaces + ' spaces to the continued-entry area (per the DDS Reference).');
+              }
+            });
+          }
           if (kw === 'FLDCSRPRG' && param) {
             var target = (r.fields || []).find(function (g) { return String(g.name || '').toUpperCase() === param.toUpperCase(); });
             var tu = target ? (String(target.usage == null ? '' : target.usage).trim().toUpperCase() || 'O') : '';

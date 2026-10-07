@@ -2996,6 +2996,18 @@
       // shape EDTMSK's own list uses (I-130), read from CNTFLD's side;
       // EDTMSK's side stays on EDTMSK's entry.
       widthParameterIsNumber: true,
+      // Task I-192: "This value must fit within the width of the display or
+      // window." and "The CNTFLD keyword must be defined with at least 2
+      // spaces separating it from other fields." Both need the screen (the
+      // file's DSPSIZ, the record's WINDOW, the other fields' positions), so
+      // the guard reads them from the model; the numbers live here.
+      widthMustFitDisplay: true,
+      minSpacesFromOtherFields: 2,
+      layoutReference:
+        'This value must fit within the width of the display or window. ' +
+        'This value must be less than the length of the field.',
+      spacingReference:
+        'The CNTFLD keyword must be defined with at least 2 spaces separating it from other fields.',
       conditionalMutex: {
         AUTO: ['RAB', 'RAZ'],
         CHECK: ['AB', 'MF', 'RB', 'RZ', 'RLTB'],
@@ -6149,6 +6161,10 @@
   /** The DDS Reference sentence stating those length caps, or ''. */
   function maxLengthReference(name) { var e = i150Entry(name); return (e && e.maxLengthReference) || ''; }
   /** Whether the keyword's one parameter must be a whole number (CNTFLD's column width). */
+  /** Task I-192 - whether the keyword's width parameter must fit within the display or window width (CNTFLD). */
+  function widthMustFitDisplay(name) { var e = i150Entry(name); return !!(e && e.widthMustFitDisplay); }
+  /** Task I-192 - the least number of blank columns between the keyword's field and any other field (CNTFLD: 2), else 0. */
+  function minSpacesFromOtherFields(name) { var e = i150Entry(name); return (e && e.minSpacesFromOtherFields) || 0; }
   function widthParameterIsNumber(name) { var e = i150Entry(name); return !!(e && e.widthParameterIsNumber); }
   // ---- end I-150 ----
   // ---- I-121c: accessors ----
@@ -6721,6 +6737,8 @@
     maxLengthByParameter: maxLengthByParameter,
     maxLengthReference: maxLengthReference,
     widthParameterIsNumber: widthParameterIsNumber,
+    widthMustFitDisplay: widthMustFitDisplay,
+    minSpacesFromOtherFields: minSpacesFromOtherFields,
     notInSubfile: notInSubfile,
     notWithKeywords: notWithKeywords,
     blankDataTypeIsCharacter: blankDataTypeIsCharacter,
