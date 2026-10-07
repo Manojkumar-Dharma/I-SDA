@@ -41,7 +41,8 @@ const dspfSource =
     // this record's SCRL1 gets SFLSCROLL below - so its SFLSIZ differs.
     '     A                                      SFLSIZ(34)',
     '     A                                      SFLPAG(17)',
-    "     A            NUMSEL         4S 0H",
+    // Task I-184: the Reference says the &number-selected field is hidden, data type Y, length 4, 0 decimals.
+    "     A            NUMSEL         4Y 0H",
     "     A            SCRL1          5S 0H",
     "     A            SCRL2          5S 0H",
     '     A          R PDNCTLR                    SFLCTL(SFLREC)',

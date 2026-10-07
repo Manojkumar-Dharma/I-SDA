@@ -78,6 +78,11 @@ const SUB = [
   dds({ name: 'MODE', len: 1, type: 'A', usage: 'H' }),
   dds({ name: 'RCD', len: 4, type: 'S', dec: 0, usage: 'H', fn: 'SFLRCDNBR(CURSOR *TOP)' }),
   dds({ name: 'ROLL', len: 4, type: 'S', dec: 0, usage: 'B', line: 2, pos: 2, fn: 'SFLROLVAL' }),
+  // I-184: SFLSNGCHC / SFLMLTCHC need a subfile with one output field and no input-capable field, so the
+  // selection-list-type checks (SFLRTNSEL) run on this pair rather than on SFL1 / CTL1 (two input/output fields).
+  dds({ rec: 1, name: 'SFL3', fn: 'SFL' }),
+  dds({ name: 'C1', len: 10, type: 'A', usage: 'O', line: 5, pos: 5 }),
+  dds({ rec: 1, name: 'CTL3', fn: 'SFLCTL(SFL3)' }),
 ];
 const SOURCE = build(SUB);
 const model = DspfParser.parseDspf(SOURCE);
@@ -380,28 +385,28 @@ setTimeout(() => {
     check('...with a message naming NOPE', alerts.some((a) => /NOPE/.test(a)));
   }
   {
-    selectRecord('CTL1');
-    const t = toggle('sflctl-CTL1-sflrtnsel', true);
+    selectRecord('CTL3');
+    const t = toggle('sflctl-CTL3-sflrtnsel', true);
     check('SFLRTNSEL on with no SFLSNGCHC / SFLMLTCHC is refused: no edit posted', t === null);
     check('...naming SFLRTNSEL, SFLSNGCHC and SFLMLTCHC', alerts.some((a) => /SFLRTNSEL/.test(a) && /SFLSNGCHC/.test(a) && /SFLMLTCHC/.test(a)));
-    selectRecord('CTL1');
+    selectRecord('CTL3');
     posted.length = 0; alerts.length = 0;
-    el('sflctl-CTL1-selchc-type').value = 'SFLSNGCHC';
-    fire(el('sflctl-CTL1-selchc-type'));
+    el('sflctl-CTL3-selchc-type').value = 'SFLSNGCHC';
+    fire(el('sflctl-CTL3-selchc-type'));
     const t1 = lastText();
-    check('choosing SFLSNGCHC adds it to the record', !!t1 && !!kwOf(recFrom(t1, 'CTL1').keywords, 'SFLSNGCHC'));
-    selectRecord('CTL1');
-    const t2 = toggle('sflctl-CTL1-sflrtnsel', true);
-    const r2 = recFrom(t2, 'CTL1');
+    check('choosing SFLSNGCHC adds it to the record', !!t1 && !!kwOf(recFrom(t1, 'CTL3').keywords, 'SFLSNGCHC'));
+    selectRecord('CTL3');
+    const t2 = toggle('sflctl-CTL3-sflrtnsel', true);
+    const r2 = recFrom(t2, 'CTL3');
     check('SFLRTNSEL on beside SFLSNGCHC is accepted, bare', !!r2 && !!kwOf(r2.keywords, 'SFLRTNSEL') && kwOf(r2.keywords, 'SFLRTNSEL').parameters.trim() === '' && !!kwOf(r2.keywords, 'SFLSNGCHC'));
-    selectRecord('CTL1');
+    selectRecord('CTL3');
     posted.length = 0; alerts.length = 0;
-    el('sflctl-CTL1-selchc-type').value = '';
-    fire(el('sflctl-CTL1-selchc-type'));
+    el('sflctl-CTL3-selchc-type').value = '';
+    fire(el('sflctl-CTL3-selchc-type'));
     check('removing the selection-list type while SFLRTNSEL is on is refused: no edit posted, message names SFLRTNSEL', lastText() === null && alerts.some((x) => /SFLRTNSEL/.test(x) && /cannot be removed/.test(x)));
-    selectRecord('CTL1');
-    const t3 = toggle('sflctl-CTL1-sflrtnsel', false);
-    check('SFLRTNSEL off is fine and leaves SFLSNGCHC', !!t3 && !kwOf(recFrom(t3, 'CTL1').keywords, 'SFLRTNSEL') && !!kwOf(recFrom(t3, 'CTL1').keywords, 'SFLSNGCHC'));
+    selectRecord('CTL3');
+    const t3 = toggle('sflctl-CTL3-sflrtnsel', false);
+    check('SFLRTNSEL off is fine and leaves SFLSNGCHC', !!t3 && !kwOf(recFrom(t3, 'CTL3').keywords, 'SFLRTNSEL') && !!kwOf(recFrom(t3, 'CTL3').keywords, 'SFLSNGCHC'));
   }
   console.log('  -- subfile record SFL2 (SFLNXTCHG)');
   selectRecord('SFL2');

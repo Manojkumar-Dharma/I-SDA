@@ -5977,6 +5977,50 @@
       STATE.forEach(function (kw) {
         choiceStateValueProblems(kw, r.keywords, 'record format ' + r.name).forEach(function (p) { out[rname + '|' + kw + '|VAL|' + p.key] = p.text; });
       });
+      // Task I-184: SFLSNGCHC / SFLMLTCHC - valid only on a subfile control record; the subfile it names has
+      // one output field and no input-capable fields (hidden fields are fine); SFLMLTCHC's &number-selected
+      // names a hidden Y 4,0 field. A subfile or field that does not exist yet is a forward reference: not a violation.
+      KeywordSpec.sflChoiceKeywords().forEach(function (kw) {
+        var ck = keywordNamed(r.keywords, kw);
+        if (!ck) return;
+        var cr = KeywordSpec.sflChoiceRules(kw);
+        var sflctl = keywordNamed(r.keywords, 'SFLCTL');
+        if (cr.controlRecordOnly && !sflctl) {
+          out[rname + '|' + kw + '|CTLONLY|'] = kw + ' on record format ' + r.name + ' is valid only on a subfile control record (one with SFLCTL); ' +
+            'it defines the subfile as a selection list (per the DDS Reference).';
+          return;
+        }
+        var subName = String(sflctl && sflctl.parameters != null ? sflctl.parameters : '').trim().toUpperCase();
+        var sub = subName && records.filter(function (x) { return String(x.name || '').toUpperCase() === subName && hasKeywordNamed(x.keywords, 'SFL'); })[0];
+        if (sub) {
+          var outputs = 0;
+          (sub.fields || []).forEach(function (f) {
+            if (f.nameType === 'CONSTANT') return;
+            var u = String(f.usage || '').toUpperCase();
+            if (u === 'O') outputs++;
+            if (u === 'I' || u === 'B') {
+              var fn = String(f.name || '').toUpperCase();
+              out[rname + '|' + kw + '|INPUT|' + fn] = kw + ' on record format ' + r.name + ': field ' + fn + ' in subfile ' + sub.name +
+                ' is input capable, but a subfile with ' + kw + ' cannot contain input capable fields (per the DDS Reference).';
+            }
+          });
+          if (outputs > cr.subfileShape.outputFields) {
+            out[rname + '|' + kw + '|OUT|'] = kw + ' on record format ' + r.name + ': subfile ' + sub.name + ' has ' + outputs +
+              ' output fields, but a subfile with ' + kw + ' must contain only ' + cr.subfileShape.outputFields + ' output field (per the DDS Reference).';
+          }
+        }
+        if (cr.numberSelectedField) {
+          var ref = String(ck.parameters == null ? '' : ck.parameters).split(/\s+/).filter(function (t) { return t.charAt(0) === '&'; })[0];
+          var want = cr.numberSelectedField;
+          var nm = ref ? ref.slice(1).toUpperCase() : '';
+          var nf = nm && (r.fields || []).concat(sub ? (sub.fields || []) : []).filter(function (f) { return String(f.name || '').toUpperCase() === nm; })[0];
+          if (nf && !(String(nf.dataType || '').toUpperCase() === want.dataType && Number(nf.length) === want.length &&
+              (nf.decimalPositions === want.decimalPositions) && String(nf.usage || '').toUpperCase() === want.usage)) {
+            out[rname + '|' + kw + '|NUMSEL|' + nm] = kw + '(&' + nm + ') on record format ' + r.name + ': the number-selected field must be a hidden field with a length of ' +
+              want.length + ', data type ' + want.dataType + ' and ' + want.decimalPositions + ' decimal positions (per the DDS Reference).';
+          }
+        }
+      });
       (r.fields || []).forEach(function (f) {
         var fname = String(f.name || '').toUpperCase();
         var label = fname || ('in ' + rname);

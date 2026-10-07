@@ -2553,13 +2553,41 @@
       ddsReference:
         'The following subfile control record keywords cannot be specified ' +
         'on a record with the SFLSNGCHC keyword: SFLDROP, SFLFOLD, SFLMLTCHC.',
-      mutex: ['SFLMLTCHC', 'SFLDROP', 'SFLFOLD']
+      mutex: ['SFLMLTCHC', 'SFLDROP', 'SFLFOLD'],
+      // Task I-184 - the subfile shape and the record it is valid on, each from the section.
+      controlRecordOnly: {
+        ddsReference: 'This optional keyword is valid only for the subfile-control record format.'
+      },
+      subfileShape: {
+        outputFields: 1, inputCapableFields: false, hiddenFields: 'allowed',
+        ddsReference:
+          'A subfile containing the SFLSNGCHC keyword must: Contain only one output field; ' +
+          'Cannot contain input capable fields; Can contain hidden fields.'
+      }
     },
     SFLMLTCHC: {
       ddsReference:
         'The following subfile control record keywords cannot be specified ' +
         'on a record with the SFLMLTCHC keyword: SFLDROP, SFLFOLD, SFLSNGCHC.',
-      mutex: ['SFLSNGCHC', 'SFLDROP', 'SFLFOLD']
+      mutex: ['SFLSNGCHC', 'SFLDROP', 'SFLFOLD'],
+      // Task I-184 - as SFLSNGCHC (the section says "Might contain hidden fields"), plus the
+      // &number-selected parameter's field shape.
+      controlRecordOnly: {
+        ddsReference: 'This optional keyword is valid only for the subfile-control record format.'
+      },
+      subfileShape: {
+        outputFields: 1, inputCapableFields: false, hiddenFields: 'allowed',
+        ddsReference:
+          'A subfile containing the SFLMLTCHC keyword must: Contain only one output field; ' +
+          'Cannot contain input capable fields; Might contain hidden fields.'
+      },
+      numberSelectedField: {
+        dataType: 'Y', length: 4, decimalPositions: 0, usage: 'H',
+        ddsReference:
+          'The &number-selected parameter allows the application to find the number of items that were selected ' +
+          'in the multiple-selection list. This parameter must name a hidden field with a length of 4, data type ' +
+          'of Y, and zero decimal positions.'
+      }
     },
 
     // Task I-121 message-data-field slice - ERRMSGID's and SFLMSGID's own
@@ -6452,6 +6480,20 @@
       choiceWithoutMnubarchcRecordNeeds: e.whenChoiceInsteadOfMnubarchcRecordNeeds || null
     };
   }
+  /** Task I-184 - SFLSNGCHC / SFLMLTCHC record and subfile rules (copies), or null for any other
+   *  keyword: { controlRecordOnly, subfileShape:{outputFields,inputCapableFields,hiddenFields},
+   *  numberSelectedField:{dataType,length,decimalPositions,usage} | null }. */
+  function sflChoiceRules(name) {
+    var e = SFL_CHOICE_KEYWORDS_LIST.indexOf(name) >= 0 ? RECORD_TYPES[name] : null;
+    if (!e) return null;
+    return {
+      controlRecordOnly: !!e.controlRecordOnly,
+      subfileShape: { outputFields: e.subfileShape.outputFields, inputCapableFields: e.subfileShape.inputCapableFields, hiddenFields: e.subfileShape.hiddenFields },
+      numberSelectedField: e.numberSelectedField
+        ? { dataType: e.numberSelectedField.dataType, length: e.numberSelectedField.length, decimalPositions: e.numberSelectedField.decimalPositions, usage: e.numberSelectedField.usage }
+        : null
+    };
+  }
   /** Task I-171 - CHCCTL's control-field shape and the choice keywords that must carry the same number
    *  (a copy): { controlField:{dataType,length,decimalPositions,usage}, sameNumberOneOf:[..] }. */
   function chcctlRules() {
@@ -6648,6 +6690,7 @@
     isValidValue: isValidValue,
     choiceCompanionRules: choiceCompanionRules,
     chcctlRules: chcctlRules,
+    sflChoiceRules: sflChoiceRules,
     choiceStateValueRules: choiceStateValueRules,
     choiceNumberRange: choiceNumberRange,
     choiceTextAndMessageRules: choiceTextAndMessageRules,
