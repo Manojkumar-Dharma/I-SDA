@@ -261,6 +261,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-189](#i-189) | Tooling | `MNUBARSW`, `MNUCNL`, `ALTPAGEDWN`, `ALTPAGEUP`, `DLTCHK` and `DLTEDT` carry no level, parameter or option-indicator fact; `optionIndicatorsAllowed` answers false for `MNUBARSW` / `MNUCNL` (reference: valid) and for a concrete `CA05` | I-122h | Not started | — |
 | [I-190](#i-190) | Tooling | `HLPRCD`'s spec entry says `levels: ['file']`; the Reference says file level or help-specification level | I-122i | Not started | — |
 | [I-191](#i-191) | Tooling | Twelve `RECORD_TYPES` entries state no level and their Reference section names none (`SFLMSG`, `IGCALTTYP`, `ERRMSGID`, `SFLMSGID`, `ERRMSG`, `SFLCSRRRN`, `COLOR`, `CHECK`, `ALTPAGEDWN`, `ALTPAGEUP`, `KEYBRD`, `FLTPCN`): the generated matrix cannot place them | I-122i | Not started | — |
+| [I-192](#i-192) | Field | `CNTFLD`'s layout rules: the column width must fit within the width of the display or window, and the field needs at least 2 spaces between it and other fields | I-180 | In progress (claimed) | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -281,6 +282,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | 7 | [I-183](#i-183) | Not started | Choice keyword value rules (`CHCAVAIL` / `CHCUNAVAIL` / `CHCSLT` values, `CHCACCEL` / `CHCCTL` ranges and text). Size (estimate): Medium. |
 | 8 | [I-184](#i-184) | Not started | `SFLSNGCHC` / `SFLMLTCHC` subfile shape, record-level and number-selected field rules. Size (estimate): Medium. |
 | 9 | [I-185](#i-185) | Not started | Level, parameter and option-indicator facts missing from three subfile choice keyword entries. Size (estimate): Small. |
+| 10 | [I-192](#i-192) | In progress (claimed) | `CNTFLD` width fits the display or window; 2 spaces from other fields. Size (estimate): Medium. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The I-121 umbrella row there stays open until its slices land, so it is counted in the headline but not listed here.
 
@@ -8298,4 +8300,12 @@ Opened from I-122i. With neither a `levels` fact in the entry nor a level in the
 
 *Raised by I-122i. Size (estimate): Small.*
 
+
+### I-192 — `CNTFLD`'s layout rules nothing enforces
+
+> **Area:** Field · **Status:** In progress (claimed) · **Depends on:** I-180 · **Size (estimate):** Medium
+
+Opened from I-180. `CNTFLD`'s section states two layout rules that need the screen, not the field alone: "This value must fit within the width of the display or window" (the width parameter) and "The CNTFLD keyword must be defined with at least 2 spaces separating it from other fields". Do: refuse `CNTFLD(w)` when `w` is wider than the narrowest declared `DSPSIZ` width (80 by default) or, when the record has a numeric `WINDOW(line pos height width)`, wider than the window; and refuse a field that sits within 1 column of the continued-entry rectangle (its start line and column, `w` columns wide, as many rows as the field length needs) on any of those rows. Both go through the same model-diff guard as I-180's rules, so only a violation an edit adds is reported. Not done by design: the DBCS width rules (even number of at least 4 bytes for data types J, E and G, at least 4 for O) and "`WRDWRAP` cannot be used on DBCS continued-entry fields", because `CNTFLD` already requires data type A, so a DBCS field can never carry it.
+
+*Raised by I-180. Size (estimate): Medium.*
 ---
