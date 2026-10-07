@@ -120,9 +120,36 @@ console.log('=== spec: what the DDS Reference says about each keyword ===');
     ['DLTCHK', 'DLTEDT', 'RETCMDKEY', 'GETRETAIN'].every((n) => DspfWriter.takesNoParameters(n)) && ['MNUCNL', 'MNUBARSW', 'ALTPAGEDWN', 'ALTPAGEUP'].every((n) => !DspfWriter.takesNoParameters(n)));
   check('the accessor agrees for RETCMDKEY and GETRETAIN (indicators not valid) and for the pattern entry CA01-CA24 (valid)',
     !DspfWriter.optionIndicatorsAllowed('RETCMDKEY') && !DspfWriter.optionIndicatorsAllowed('GETRETAIN') && DspfWriter.optionIndicatorsAllowed('CA01-CA24'));
-  // Not asserted (logged as I-189): MNUBARSW / MNUCNL / ALTPAGEDWN / ALTPAGEUP / DLTCHK / DLTEDT carry no `levels`,
-  // `parameters` or `optionIndicators` fact, and optionIndicatorsAllowed answers false for MNUBARSW / MNUCNL (the
-  // reference says valid) and for a concrete name such as CA05 (its pattern entry says valid).
+  // Task I-189: the level, parameter-form and option-indicator facts the six entries now state, each traced to the
+  // keyword's own section, and the accessors that read them.
+  check('MNUBARSW / MNUCNL: file- or record-level, indicators valid, the format lines, allowed only with a menu-bar record',
+    has('You use this file- or record-level keyword to assign a command attention (CA) key to be the Switch-to- menu-bar key.') &&
+    has('You use this file- or record-level keyword to assign a command attention (CA) key to be the cancel key') &&
+    has('Option indicators are valid for this keyword.') &&
+    JSON.stringify(T.MNUBARSW.levels) === '["file","record"]' && JSON.stringify(T.MNUCNL.levels) === '["file","record"]' &&
+    T.MNUBARSW.parameterForm === 'MNUBARSW [(CAnn)]' && T.MNUCNL.parameterForm === 'MNUCNL[(CAnn [response-indicator])]' &&
+    T.MNUBARSW.optionIndicators === 'valid' && T.MNUCNL.optionIndicators === 'valid' &&
+    T.MNUBARSW.requiresMenuBarRecordInFile === true && T.MNUCNL.requiresMenuBarRecordInFile === true);
+  check('ALTPAGEDWN / ALTPAGEUP: file level only, the format lines, and no option-indicator fact (the section states none for them)',
+    has('You use these file-level keywords to assign command function (CF) keys as alternative Page Down/Page Up keys.') &&
+    JSON.stringify(T.ALTPAGEDWN.levels) === '["file"]' && JSON.stringify(T.ALTPAGEUP.levels) === '["file"]' &&
+    T.ALTPAGEDWN.parameterForm === 'ALTPAGEDWN[(CFnn)]' && T.ALTPAGEUP.parameterForm === 'ALTPAGEUP[(CFnn)]' &&
+    T.ALTPAGEDWN.optionIndicators === undefined && T.ALTPAGEUP.optionIndicators === undefined);
+  check('DLTCHK / DLTEDT: field level and option indicators not valid, as facts in the entries',
+    has('You use this field-level keyword to specify that the IBM i operating system is to ignore all validity checking') &&
+    has('You use this field-level keyword to specify that the IBM i operating system is to ignore the EDTCDE or EDTWRD keyword') &&
+    JSON.stringify(T.DLTCHK.levels) === '["field"]' && JSON.stringify(T.DLTEDT.levels) === '["field"]' &&
+    T.DLTCHK.optionIndicators === 'notValid' && T.DLTEDT.optionIndicators === 'notValid');
+  check('optionIndicatorsAllowed: MNUBARSW and MNUCNL yes (reference: valid), in any letter case',
+    DspfWriter.optionIndicatorsAllowed('MNUBARSW') && DspfWriter.optionIndicatorsAllowed('MNUCNL') && DspfWriter.optionIndicatorsAllowed('mnubarsw'));
+  check('optionIndicatorsAllowed: a concrete command key answers as its pattern entry (CA05, CF24 yes); CA00, CA25 and CA5 are not keys',
+    DspfWriter.optionIndicatorsAllowed('CA05') && DspfWriter.optionIndicatorsAllowed('CF24') && DspfWriter.optionIndicatorsAllowed('CA01') &&
+    !DspfWriter.optionIndicatorsAllowed('CA00') && !DspfWriter.optionIndicatorsAllowed('CA25') && !DspfWriter.optionIndicatorsAllowed('CA5'));
+  check('optionIndicatorsAllowed: ALTPAGEDWN / ALTPAGEUP stay false (nothing stated), DLTCHK / DLTEDT false (not valid)',
+    !DspfWriter.optionIndicatorsAllowed('ALTPAGEDWN') && !DspfWriter.optionIndicatorsAllowed('ALTPAGEUP') &&
+    !DspfWriter.optionIndicatorsAllowed('DLTCHK') && !DspfWriter.optionIndicatorsAllowed('DLTEDT'));
+  check('takesNoParameters on a concrete command key is false (CAnn takes a response indicator and text), CA00 false',
+    !DspfWriter.takesNoParameters('CA05') && !DspfWriter.takesNoParameters('CA00'));
 }
 
 console.log('\n=== L1/L2 CAnn / CFnn: parse, round trip, bounds ===');

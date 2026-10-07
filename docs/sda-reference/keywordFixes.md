@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-216 of 222 tasks done; 6 open (see [Open work](#open-work)). Current version: **v0.10.362**.
+217 of 223 tasks done; 6 open (see [Open work](#open-work)). Current version: **v0.10.363**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -258,13 +258,14 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-186](#i-186) | Field | Command-key numbers outside 01-24 accepted (`CA00`, `CA25`), and `MNUBARSW(CF05)` / `MNUBARSW(CA25)` pass the menu-bar key guard | I-122h | Done (range, key type, panel guard, raw editors) | v0.10.359 |
 | [I-187](#i-187) | Record | `MNUBARSW` / `MNUCNL` claim a CA key but the CA / CF number guard does not read them: their key can be reused as a CF key on another record | I-122h | Done (explicit and default key, file level, both directions) | v0.10.360 |
 | [I-188](#i-188) | Record | `RETKEY` / `RETCMDKEY` accepted on a subfile (`SFL`) or user-defined (`USRDFN`) record, though the spec records they are not valid there | I-122h | Done (both keywords, both record types, both directions) | v0.10.361 |
-| [I-189](#i-189) | Tooling | `MNUBARSW`, `MNUCNL`, `ALTPAGEDWN`, `ALTPAGEUP`, `DLTCHK` and `DLTEDT` carry no level, parameter or option-indicator fact; `optionIndicatorsAllowed` answers false for `MNUBARSW` / `MNUCNL` (reference: valid) and for a concrete `CA05` | I-122h | In progress | — |
+| [I-189](#i-189) | Tooling | `MNUBARSW`, `MNUCNL`, `ALTPAGEDWN`, `ALTPAGEUP`, `DLTCHK` and `DLTEDT` carry no level, parameter or option-indicator fact; `optionIndicatorsAllowed` answers false for `MNUBARSW` / `MNUCNL` (reference: valid) and for a concrete `CA05` | I-122h | Done (six entries, accessor resolves concrete command keys; 7 checks in `i122hCommandKeyFamilyKeywords`) | v0.10.363 |
 | [I-190](#i-190) | Tooling | `HLPRCD`'s spec entry says `levels: ['file']`; the Reference says file level or help-specification level | I-122i | Not started | — |
 | [I-191](#i-191) | Tooling | Twelve `RECORD_TYPES` entries state no level and their Reference section names none (`SFLMSG`, `IGCALTTYP`, `ERRMSGID`, `SFLMSGID`, `ERRMSG`, `SFLCSRRRN`, `COLOR`, `CHECK`, `ALTPAGEDWN`, `ALTPAGEUP`, `KEYBRD`, `FLTPCN`): the generated matrix cannot place them | I-122i | Not started | — |
 | [I-192](#i-192) | Field | `CNTFLD`'s layout rules: the column width must fit within the width of the display or window, and the field needs at least 2 spaces between it and other fields | I-180 | Done | v0.10.353 |
 | [I-193](#i-193) | Tooling | Matrix cells for the writer paths and UI paths it does not call (`setFileFlagKeyword`, webview Apply round trip), then retire the hand-written duplicates | I-122j | Not started | — |
 | [I-194](#i-194) | Field | Command-key values that no guard reads: `MOUBTN` / `PSHBTNCHC` / `IGCCNV` keys outside 01-24 or of the wrong type, and a key written in a shape that is not `CAnn` / `CFnn` (`MNUBARSW(CA5)`, `ALTHELP(XYZ)`) | I-186 | Done (MOUBTN, PSHBTNCHC, malformed key shapes) | v0.10.362 |
 | [I-195](#i-195) | Cross-level | Comment lines are captured and written only up to column 80: text past it is dropped from the panel, and editing the comment cuts the line to 80 columns. Read the source file's real record length and keep, show and store the whole line | — | In progress | — |
+| [I-196](#i-196) | File | `MNUBARSW` / `MNUCNL` are allowed only in a file containing a menu-bar record (their own sections); no guard reads the spec's `requiresMenuBarRecordInFile` fact | I-189 | Not started | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -279,7 +280,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
 | 1 | [I-190](#i-190) | Not started | `HLPRCD` spec entry says file level only; the Reference says file or help-specification level. Size (estimate): Small. |
-| 2 | [I-189](#i-189) | In progress | Level, parameter and option-indicator facts missing from `MNUBARSW`, `MNUCNL`, `ALTPAGEDWN`, `ALTPAGEUP`, `DLTCHK`, `DLTEDT`. Size (estimate): Small. |
+| 2 | [I-196](#i-196) | Not started | `MNUBARSW` / `MNUCNL` allowed only in a file containing a menu-bar record; the spec fact exists, no guard reads it. Size (estimate): Small. |
 | 3 | [I-191](#i-191) | Not started | Twelve spec entries state no level, so the generated matrix skips them; re-run the matrix skip list first, I-180 and I-189 shorten it. Size (estimate): Small. |
 | 4 | [I-193](#i-193) | Not started | Matrix cells for the writer paths and UI paths the generated matrix does not call (`setFileFlagKeyword`, webview Apply round trip), so more overlapping hand-written checks can be retired. Size (estimate): Medium. |
 | 5 | [I-195](#i-195) | In progress | Comment lines: keep, show and store text past column 80 (parser, writer, Comments panel), find the source file's record length (SRCDTA width on IBM i, longest line for local files), and warn past column 80 and stop past the record length. Size (estimate): Medium. |
@@ -8299,11 +8300,13 @@ Opened from I-122h. The `RETCMDKEY` spec entry (and `RETKEY`'s, same rules) reco
 
 ### I-189 — Spec entries for MNUBARSW, MNUCNL, ALTPAGEDWN, ALTPAGEUP, DLTCHK and DLTEDT carry no level, parameter or option-indicator fact
 
-> **Area:** Tooling · **Status:** In progress · **Depends on:** I-122h · **Size (estimate):** Small
+> **Area:** Tooling · **Status:** Done (v0.10.363) · **Depends on:** I-122h · **Size (estimate):** Small
 
 Opened from I-122h. `MNUBARSW` and `MNUCNL` hold only `caKeyPartner`, `caKeyDefault` and `ddsReference`; `ALTPAGEDWN` / `ALTPAGEUP` hold `claimedKeyType`, `defaultKey` and `excluded`; `DLTCHK` / `DLTEDT` hold `requiresReferenceFlag`, `noParameters` and `deletes`. None states `levels`, parameter grammar or `optionIndicators`, though the sections say: `MNUBARSW` and `MNUCNL` file or record level, indicators valid, allowed only in a file with a menu-bar record; `ALTPAGEDWN` / `ALTPAGEUP` file level; `DLTCHK` / `DLTEDT` field level, indicators not valid. So `optionIndicatorsAllowed('MNUBARSW')` and `('MNUCNL')` answer false where the reference says valid, and `optionIndicatorsAllowed('CA05')` answers false because it looks a concrete name up as an entry key (the pattern entry `CA01-CA24` answers true; `commandKeyEntry('CA05')` resolves it). "Allowed only in a file containing a menu-bar record" is a second fact no guard was seen to read.
 
 Do: add the facts to the six entries, resolve concrete command-key names in the accessors, then pin the answers in `i122hCommandKeyFamilyKeywords.test.js`.
+
+**Done (v0.10.363).** The six entries now state what their own sections say: `MNUBARSW` and `MNUCNL` `levels: ['file', 'record']`, `parameterForm` (`MNUBARSW [(CAnn)]`, `MNUCNL[(CAnn [response-indicator])]`), `optionIndicators: 'valid'` and `requiresMenuBarRecordInFile: true`; `ALTPAGEDWN` / `ALTPAGEUP` `levels: ['file']` and their format lines, with **no** `optionIndicators` fact because the shared section states none for the keywords themselves (it says `PAGEDOWN` / `PAGEUP`'s indicators apply to them); `DLTCHK` / `DLTEDT` `levels: ['field']` and `optionIndicators: 'notValid'`. `KeywordSpec.recordTypeEntry` now falls back to `commandKeyEntry`, so `takesNoParameters` / `optionIndicatorsAllowed` answer a concrete key (`CA05`, `CF24`) as its `CA01-CA24` / `CF01-CF24` pattern entry (false for `CA00`, `CA25`, `CA5`). `i122hCommandKeyFamilyKeywords.test.js` replaced its "not asserted" note with 7 checks (five fail against the pre-fix spec, confirmed by stash). "Allowed only in a file containing a menu-bar record" is recorded as a spec fact only; no guard reads it, so it is opened as I-196. Whether the generated matrix's `MATRIX_ALL` skip list shrinks was not measured here (I-191 owns that re-check). Full suite: 306 files, 19,599 checks, zero failures.
 
 *Raised by I-122h. Size (estimate): Small.*
 
@@ -8374,6 +8377,20 @@ Do: read `MOUBTN`'s `commandKeyRanges` and `PSHBTNCHC` / `IGCCNV`'s key from the
 **Done (v0.10.362).** Probed again on v0.10.361 before changing anything: `IGCCNV(CF25 5)` was already refused at file level (`fileLevelDisplayNewConflictReason`; the I-186 probe placed it on a record, where the keyword is not valid), so it needed nothing. `MOUBTN` and `PSHBTNCHC` were the real gaps. `KeywordSpec.commandKeyNumberRange(type, keyword)` and `isCommandKeyOutOfRange(token, keyword)` now read `MOUBTN`'s `commandKeyRanges` and `PSHBTNCHC`'s command-key domain (both CA01-CA24 and CF01-CF24, "CA01 through CA24" in the MOUBTN section, "CA01 to CA24, CF01 to CF24" in the PSHBTNCHC one). `DspfWriter.embeddedCommandKeyToken` reads the key out of the parameters (MOUBTN's is the last parameter before an optional `*QUEUE` / `*NOQUEUE`; PSHBTNCHC's is any key-shaped word after the id and the choice text, so a key-shaped word inside the quoted text or a `&field` is text), and the I-186 `commandKeyRangeViolations` scan runs `commandKeyValueProblem` on it, on the file, every record and every field; it is already in the webview guard chain. The decision on malformed keys: a keyword whose parameter is a command key (`MNUBARSW`, `MNUCNL`, `ALTHELP`, `ALTPAGEDWN`, `ALTPAGEUP`, `SFLDROP`, `SFLENTER`, `SFLFOLD`) refuses a first parameter that is not `CAnn` / `CFnn` shaped (`CA5`, `CA005`, `XYZ`), since each format line shows only the key form and the CAnn section requires the leading zero; `MOUBTN` and `PSHBTNCHC` only have their key-shaped token range-checked (ENTER, an event id and the other words are other values). Pinned by `i194CommandKeyValues.test.js` (facts, per-keyword range, key reader, value problem, model guard with diff semantics, jsdom raw editors); eight mutations each fail it (the ninth, ignoring the keyword argument, is equivalent because the three ranges are equal). No new finding.
 
 *Raised by I-186. Size (estimate): Small.*
+
+---
+
+<a id="i-196"></a>
+
+### I-196 — `MNUBARSW` / `MNUCNL` accepted in a file with no menu-bar record
+
+> **Area:** File · **Status:** Not started · **Depends on:** I-189 · **Size (estimate):** Small
+
+Opened from I-189. Both sections end "The MNUBARSW keyword is allowed only in a file containing a menu-bar record" (and the same for `MNUCNL`); I-189 recorded it as `requiresMenuBarRecordInFile: true` in both spec entries, but no guard reads it (searched the writer and the webview for a menu-bar-record-in-file check: none). Probe first which paths accept the keyword in a file with no `MNUBAR` record, and when the last menu-bar record is removed from a file that has either keyword.
+
+Do: add a model-diff guard in the same chain as the other file-level relation guards, reading the spec fact, with tests in both directions (adding the keyword to a file with no menu-bar record; removing or retyping the last menu-bar record). Decide and record whether a half-built file is allowed while the menu-bar record is still being added.
+
+*Raised by I-189. Size (estimate): Small.*
 
 ---
 

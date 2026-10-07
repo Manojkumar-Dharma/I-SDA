@@ -2163,6 +2163,11 @@
         'MOUBTN(...CAnn), PSHBTNCHC(...CAnn), SFLDROP(CAnn | CFnn), SFLENTER(CAnn | CFnn), SFLFOLD(CAnn | CFnn).',
       claimedKeyType: 'CF',
       defaultKey: 'CF08',
+      // Task I-189: ALTPAGEDWN / ALTPAGEUP's shared section (~line 1945): \"You use these file-level keywords\"
+      // and the format lines ALTPAGEDWN[(CFnn)] / ALTPAGEUP[(CFnn)]. The section states no option-indicator
+      // fact for the keywords themselves (it says PAGEDOWN / PAGEUP's indicators apply to them), so none is added.
+      levels: ['file'],
+      parameterForm: 'ALTPAGEDWN[(CFnn)]',
       excluded: [
         { keyword: 'ALTHELP', relation: 'any' }, { keyword: 'ALTPAGEUP', relation: 'any' },
         { keyword: 'CAnn', relation: 'any' }, { keyword: 'CFnn', relation: 'any' },
@@ -2177,6 +2182,9 @@
         'MOUBTN(...CAnn), PSHBTNCHC(...CAnn), SFLDROP(CAnn | CFnn), SFLENTER(CAnn | CFnn), SFLFOLD(CAnn | CFnn).',
       claimedKeyType: 'CF',
       defaultKey: 'CF07',
+      // Task I-189: see ALTPAGEDWN (the two share one section).
+      levels: ['file'],
+      parameterForm: 'ALTPAGEUP[(CFnn)]',
       excluded: [
         { keyword: 'ALTHELP', relation: 'any' }, { keyword: 'ALTPAGEDWN', relation: 'any' },
         { keyword: 'CAnn', relation: 'any' }, { keyword: 'CFnn', relation: 'any' },
@@ -2984,6 +2992,15 @@
     MNUBARSW: {
       caKeyPartner: 'MNUCNL',
       caKeyDefault: 'CA10',
+      // Task I-189: the level, parameter-grammar and option-indicator facts from the same section
+      // (DDS_Keyword_V7r6.txt ~line 8611): \"You use this file- or record-level keyword\", \"The format of the
+      // keyword is MNUBARSW [(CAnn)].\", \"Option indicators are valid for this keyword.\" and \"The MNUBARSW
+      // keyword is allowed only in a file containing a menu-bar record.\" (the last is a spec fact only: no
+      // guard reads it, see I-196).
+      levels: ['file', 'record'],
+      parameterForm: 'MNUBARSW [(CAnn)]',
+      optionIndicators: 'valid',
+      requiresMenuBarRecordInFile: true,
       // Task I-187: "If the MNUBARSW keyword is specified on the record, the CAnn key or default CA10 key can be
       // used only as a CA key on other records, not as a CF key" - and a file-level MNUBARSW extends to every
       // record, so the scope is the whole file (same reading as I-169's CAnn / CFnn entries).
@@ -2996,6 +3013,13 @@
     MNUCNL: {
       caKeyPartner: 'MNUBARSW',
       caKeyDefault: 'CA12',
+      // Task I-189: the same facts from MNUCNL's section (~line 8655): \"file- or record-level keyword\", the
+      // format line MNUCNL[(CAnn [response-indicator])], \"Option indicators are valid for this keyword.\" and
+      // \"The MNUCNL keyword is allowed only in a file containing a menu-bar record.\" (spec fact only, I-196).
+      levels: ['file', 'record'],
+      parameterForm: 'MNUCNL[(CAnn [response-indicator])]',
+      optionIndicators: 'valid',
+      requiresMenuBarRecordInFile: true,
       // Task I-187: "If the MNUCNL keyword is specified on the record, the CAnn key or default CA12 key can be
       // used only as a CA key on other records, not as a CF key" - and a file-level MNUCNL extends to every
       // record, so the scope is the whole file (same reading as I-169's CAnn / CFnn entries).
@@ -3218,6 +3242,10 @@
         'keywords, DLTCHK is unnecessary.',
       requiresReferenceFlag: true,
       noParameters: true,
+      // Task I-189: DLTCHK's section (~line 4785): \"You use this field-level keyword\" and \"Option indicators
+      // are not valid for this keyword.\" (the no-option-indicators table carries the same fact).
+      levels: ['field'],
+      optionIndicators: 'notValid',
       deletes: 'VALIDITY'
     },
     DLTEDT: {
@@ -3230,6 +3258,9 @@
         'is unnecessary.',
       requiresReferenceFlag: true,
       noParameters: true,
+      // Task I-189: DLTEDT's section (~line 4805): field-level, option indicators not valid.
+      levels: ['field'],
+      optionIndicators: 'notValid',
       deletes: 'EDIT'
     },
     HLPID: {
@@ -6305,7 +6336,10 @@
    *  answered "no". */
   function recordTypeEntry(name) {
     var n = String(name == null ? '' : name).trim().toUpperCase();
-    return Object.prototype.hasOwnProperty.call(RECORD_TYPES, n) ? RECORD_TYPES[n] : null;
+    if (Object.prototype.hasOwnProperty.call(RECORD_TYPES, n)) return RECORD_TYPES[n];
+    // Task I-189: a concrete command key ('CA05', 'CF24') has no entry of its own - it answers as its
+    // pattern entry ('CA01-CA24' / 'CF01-CF24'). null for CA00, CA25 and anything that is not a key.
+    return commandKeyEntry(n);
   }
   /** Whether `name` is documented as taking no parameters: its entry says `noParameters: true` or
    *  `parameters: 'none'`. False for a keyword with no entry. */
