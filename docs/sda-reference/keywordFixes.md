@@ -258,7 +258,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-186](#i-186) | Field | Command-key numbers outside 01-24 accepted (`CA00`, `CA25`), and `MNUBARSW(CF05)` / `MNUBARSW(CA25)` pass the menu-bar key guard | I-122h | Done (range, key type, panel guard, raw editors) | v0.10.359 |
 | [I-187](#i-187) | Record | `MNUBARSW` / `MNUCNL` claim a CA key but the CA / CF number guard does not read them: their key can be reused as a CF key on another record | I-122h | Done (explicit and default key, file level, both directions) | v0.10.360 |
 | [I-188](#i-188) | Record | `RETKEY` / `RETCMDKEY` accepted on a subfile (`SFL`) or user-defined (`USRDFN`) record, though the spec records they are not valid there | I-122h | Done (both keywords, both record types, both directions) | v0.10.361 |
-| [I-189](#i-189) | Tooling | `MNUBARSW`, `MNUCNL`, `ALTPAGEDWN`, `ALTPAGEUP`, `DLTCHK` and `DLTEDT` carry no level, parameter or option-indicator fact; `optionIndicatorsAllowed` answers false for `MNUBARSW` / `MNUCNL` (reference: valid) and for a concrete `CA05` | I-122h | Not started | — |
+| [I-189](#i-189) | Tooling | `MNUBARSW`, `MNUCNL`, `ALTPAGEDWN`, `ALTPAGEUP`, `DLTCHK` and `DLTEDT` carry no level, parameter or option-indicator fact; `optionIndicatorsAllowed` answers false for `MNUBARSW` / `MNUCNL` (reference: valid) and for a concrete `CA05` | I-122h | In progress | — |
 | [I-190](#i-190) | Tooling | `HLPRCD`'s spec entry says `levels: ['file']`; the Reference says file level or help-specification level | I-122i | Not started | — |
 | [I-191](#i-191) | Tooling | Twelve `RECORD_TYPES` entries state no level and their Reference section names none (`SFLMSG`, `IGCALTTYP`, `ERRMSGID`, `SFLMSGID`, `ERRMSG`, `SFLCSRRRN`, `COLOR`, `CHECK`, `ALTPAGEDWN`, `ALTPAGEUP`, `KEYBRD`, `FLTPCN`): the generated matrix cannot place them | I-122i | Not started | — |
 | [I-192](#i-192) | Field | `CNTFLD`'s layout rules: the column width must fit within the width of the display or window, and the field needs at least 2 spaces between it and other fields | I-180 | Done | v0.10.353 |
@@ -279,7 +279,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
 | 1 | [I-190](#i-190) | Not started | `HLPRCD` spec entry says file level only; the Reference says file or help-specification level. Size (estimate): Small. |
-| 2 | [I-189](#i-189) | Not started | Level, parameter and option-indicator facts missing from `MNUBARSW`, `MNUCNL`, `ALTPAGEDWN`, `ALTPAGEUP`, `DLTCHK`, `DLTEDT`. Size (estimate): Small. |
+| 2 | [I-189](#i-189) | In progress | Level, parameter and option-indicator facts missing from `MNUBARSW`, `MNUCNL`, `ALTPAGEDWN`, `ALTPAGEUP`, `DLTCHK`, `DLTEDT`. Size (estimate): Small. |
 | 3 | [I-191](#i-191) | Not started | Twelve spec entries state no level, so the generated matrix skips them; re-run the matrix skip list first, I-180 and I-189 shorten it. Size (estimate): Small. |
 | 4 | [I-193](#i-193) | Not started | Matrix cells for the writer paths and UI paths the generated matrix does not call (`setFileFlagKeyword`, webview Apply round trip), so more overlapping hand-written checks can be retired. Size (estimate): Medium. |
 | 5 | [I-195](#i-195) | In progress | Comment lines: keep, show and store text past column 80 (parser, writer, Comments panel), find the source file's record length (SRCDTA width on IBM i, longest line for local files), and warn past column 80 and stop past the record length. Size (estimate): Medium. |
@@ -8299,7 +8299,7 @@ Opened from I-122h. The `RETCMDKEY` spec entry (and `RETKEY`'s, same rules) reco
 
 ### I-189 — Spec entries for MNUBARSW, MNUCNL, ALTPAGEDWN, ALTPAGEUP, DLTCHK and DLTEDT carry no level, parameter or option-indicator fact
 
-> **Area:** Tooling · **Status:** Not started · **Depends on:** I-122h · **Size (estimate):** Small
+> **Area:** Tooling · **Status:** In progress · **Depends on:** I-122h · **Size (estimate):** Small
 
 Opened from I-122h. `MNUBARSW` and `MNUCNL` hold only `caKeyPartner`, `caKeyDefault` and `ddsReference`; `ALTPAGEDWN` / `ALTPAGEUP` hold `claimedKeyType`, `defaultKey` and `excluded`; `DLTCHK` / `DLTEDT` hold `requiresReferenceFlag`, `noParameters` and `deletes`. None states `levels`, parameter grammar or `optionIndicators`, though the sections say: `MNUBARSW` and `MNUCNL` file or record level, indicators valid, allowed only in a file with a menu-bar record; `ALTPAGEDWN` / `ALTPAGEUP` file level; `DLTCHK` / `DLTEDT` field level, indicators not valid. So `optionIndicatorsAllowed('MNUBARSW')` and `('MNUCNL')` answer false where the reference says valid, and `optionIndicatorsAllowed('CA05')` answers false because it looks a concrete name up as an entry key (the pattern entry `CA01-CA24` answers true; `commandKeyEntry('CA05')` resolves it). "Allowed only in a file containing a menu-bar record" is a second fact no guard was seen to read.
 
