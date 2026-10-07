@@ -7422,39 +7422,78 @@
    *  is a CAnn / CFnn with nn in the type's stated range (KeywordSpec.commandKeyNumberRange, 01-24), and a
    *  keyword that takes a command-key parameter takes only its stated type (KeywordSpec.commandKeyValueTypes:
    *  MNUBARSW / MNUCNL / ALTHELP a CA key, ALTPAGEDWN / ALTPAGEUP a CF key). A blank value is not checked (it
-   *  means the keyword's default key), and a value that does not have the CAnn / CFnn shape at all is left to the
-   *  keyword's own parameter rules. `keywordName` may be a plain CAnn / CFnn name (then `token` is that name). */
+   *  means the keyword's default key); for a keyword that takes a command-key parameter a value that is not CAnn /
+   *  CFnn shaped (CA5, XYZ) is refused (I-194), while MOUBTN and PSHBTNCHC (whose key sits among other
+   *  parameters) are only range-checked. `keywordName` may be a plain CAnn / CFnn name (then `token` is that name). */
   function commandKeyValueProblem(keywordName, token) {
     var t = String(token || '').trim().toUpperCase();
     if (!t) return null;
-    var k = KeywordSpec.parseCommandKey(t);
-    if (!k) return null;
     var name = String(keywordName || '').toUpperCase();
-    if (KeywordSpec.isCommandKeyOutOfRange(t)) {
-      var r = KeywordSpec.commandKeyNumberRange(k.type);
-      var lo = (r.first < 10 ? '0' : '') + r.first, hi = String(r.last);
-      return t + ' is not a valid command key: ' + k.type + 'nn takes nn = ' + lo + '-' + hi + ' (per the DDS Reference).';
-    }
     var types = KeywordSpec.commandKeyValueTypes(name);
+    var k = KeywordSpec.parseCommandKey(t);
+    if (!k) {
+      // Task I-194 - a keyword whose parameter IS a command key (MNUBARSW(CAnn), ALTPAGEDWN(CFnn), SFLDROP(CAnn | CFnn)...)
+      // takes one in the CAnn / CFnn shape with its leading zero; CA5, CA005 and XYZ are not keys.
+      if (!types) return null;
+      return name + ' takes ' + (types.length === 1 ? 'a ' + types[0] : 'a ' + types.join(' or ')) + ' key written ' +
+        types.map(function (x) { return x + 'nn'; }).join(' or ') + ' with a two-digit number, not "' + t + '" (per the DDS Reference).';
+    }
+    if (KeywordSpec.isCommandKeyOutOfRange(t, name)) {
+      var r = KeywordSpec.commandKeyNumberRange(k.type, name);
+      var lo = (r.first < 10 ? '0' : '') + r.first, hi = String(r.last);
+      return t + ' is not a valid command key' + (name === 'MOUBTN' || name === 'PSHBTNCHC' ? ' for ' + name : '') + ': ' + k.type + 'nn takes nn = ' + lo + '-' + hi + ' (per the DDS Reference).';
+    }
     if (types && types.indexOf(k.type) === -1) {
       return name + ' takes ' + (types.length === 1 ? 'a ' + types[0] + ' key' : types.join(' or ') + ' keys') + ', not ' + t +
         (KeywordSpec.commandKeyParameterReference(name) ? '. ' + KeywordSpec.commandKeyParameterReference(name) : ' (per the DDS Reference).');
     }
     return null;
   }
-  /** Task I-186 - every command-key value in the model that is out of range or the wrong type for its keyword:
-   *  a plain CAnn / CFnn keyword name (file level, a record, a field) and the first parameter token of the
-   *  alt keys and command-key parameter keywords. Keyed by owner, keyword and occurrence number so an edit that
-   *  adds one more is a new violation (firstNewViolation) while a hand-written file that already has one stays
-   *  editable. */
+  /** Task I-194 - the command-key token a MOUBTN / PSHBTNCHC carries, or null when there is none in the CAnn / CFnn
+   *  shape: MOUBTN's is the last parameter after the event(s) (before an optional *QUEUE / *NOQUEUE), PSHBTNCHC's is
+   *  any key-shaped token after the id and the choice text (the quoted text and a &field are skipped, so a literal
+   *  'CA25' is text, not a key). Only key-SHAPED tokens come back: ENTER, E05 and the like are other values. */
+  function embeddedCommandKeyToken(name, parameters) {
+    var rest = String(parameters || '').trim(), tokens;
+    if (name === 'MOUBTN') {
+      tokens = rest.split(/\s+/).filter(Boolean);
+      if (tokens.length && /^\*(NO)?QUEUE$/i.test(tokens[tokens.length - 1])) tokens.pop();
+      if (tokens.length < 2) return null;
+      var last = tokens[tokens.length - 1].toUpperCase();
+      return KeywordSpec.parseCommandKey(last) ? last : null;
+    }
+    if (name === 'PSHBTNCHC') {
+      var idM = /^(\d+)\s*([\s\S]*)$/.exec(rest);
+      if (!idM) return null;
+      rest = idM[2];
+      var litM = /^'((?:[^']|'')*)'\s*([\s\S]*)$/.exec(rest);
+      var fldM = !litM && /^(&\S+)\s*([\s\S]*)$/.exec(rest);
+      rest = litM ? litM[2] : fldM ? fldM[2] : rest;
+      tokens = rest.split(/\s+/).filter(Boolean);
+      for (var i = 0; i < tokens.length; i++) {
+        var u = tokens[i].toUpperCase();
+        if (KeywordSpec.parseCommandKey(u) && KeywordSpec.isCommandKeyOutOfRange(u, 'PSHBTNCHC')) return u;
+      }
+      return null;
+    }
+    return null;
+  }
+  /** Task I-186 / I-194 - every command-key value in the model that is out of range, malformed or the wrong type for
+   *  its keyword: a plain CAnn / CFnn keyword name (file level, a record, a field), the first parameter token of the
+   *  alt keys and command-key parameter keywords, and the command key inside MOUBTN and PSHBTNCHC. Keyed by owner,
+   *  keyword and occurrence number so an edit that adds one more is a new violation (firstNewViolation) while a
+   *  hand-written file that already has one stays editable. */
   function commandKeyRangeViolations(model) {
     var out = {};
     function scan(kws, owner) {
       var seen = {};
       (kws || []).forEach(function (k) {
         var name = String(k.name || '').toUpperCase();
-        var token = KeywordSpec.parseCommandKey(name) ? name : String(k.parameters || '').trim().split(/\s+/)[0];
-        if (!KeywordSpec.parseCommandKey(name) && !KeywordSpec.commandKeyValueTypes(name)) return;
+        var token;
+        if (KeywordSpec.parseCommandKey(name)) token = name;
+        else if (KeywordSpec.commandKeyValueTypes(name)) token = String(k.parameters || '').trim().split(/\s+/)[0];
+        else if (name === 'MOUBTN' || name === 'PSHBTNCHC') token = embeddedCommandKeyToken(name, k.parameters);
+        else return;
         var problem = commandKeyValueProblem(name, token);
         if (!problem) return;
         seen[name] = (seen[name] || 0) + 1;
@@ -12259,6 +12298,7 @@
     commandKeyValueProblem: commandKeyValueProblem,
     commandKeyRangeViolations: commandKeyRangeViolations,
     commandKeyRangeNewConflictReason: commandKeyRangeNewConflictReason,
+    embeddedCommandKeyToken: embeddedCommandKeyToken,
     commandFunctionPairingViolations: commandFunctionPairingViolations,
     fieldKindNewConflictReason: fieldKindNewConflictReason,
     fieldKindViolations: fieldKindViolations,

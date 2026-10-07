@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-215 of 222 tasks done; 7 open (see [Open work](#open-work)). Current version: **v0.10.361**.
+216 of 222 tasks done; 6 open (see [Open work](#open-work)). Current version: **v0.10.362**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -263,7 +263,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-191](#i-191) | Tooling | Twelve `RECORD_TYPES` entries state no level and their Reference section names none (`SFLMSG`, `IGCALTTYP`, `ERRMSGID`, `SFLMSGID`, `ERRMSG`, `SFLCSRRRN`, `COLOR`, `CHECK`, `ALTPAGEDWN`, `ALTPAGEUP`, `KEYBRD`, `FLTPCN`): the generated matrix cannot place them | I-122i | Not started | — |
 | [I-192](#i-192) | Field | `CNTFLD`'s layout rules: the column width must fit within the width of the display or window, and the field needs at least 2 spaces between it and other fields | I-180 | Done | v0.10.353 |
 | [I-193](#i-193) | Tooling | Matrix cells for the writer paths and UI paths it does not call (`setFileFlagKeyword`, webview Apply round trip), then retire the hand-written duplicates | I-122j | Not started | — |
-| [I-194](#i-194) | Field | Command-key values that no guard reads: `MOUBTN` / `PSHBTNCHC` / `IGCCNV` keys outside 01-24 or of the wrong type, and a key written in a shape that is not `CAnn` / `CFnn` (`MNUBARSW(CA5)`, `ALTHELP(XYZ)`) | I-186 | In progress | — |
+| [I-194](#i-194) | Field | Command-key values that no guard reads: `MOUBTN` / `PSHBTNCHC` / `IGCCNV` keys outside 01-24 or of the wrong type, and a key written in a shape that is not `CAnn` / `CFnn` (`MNUBARSW(CA5)`, `ALTHELP(XYZ)`) | I-186 | Done (MOUBTN, PSHBTNCHC, malformed key shapes) | v0.10.362 |
 | [I-195](#i-195) | Cross-level | Comment lines are captured and written only up to column 80: text past it is dropped from the panel, and editing the comment cuts the line to 80 columns. Read the source file's real record length and keep, show and store the whole line | — | In progress | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
@@ -282,9 +282,8 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | 2 | [I-189](#i-189) | Not started | Level, parameter and option-indicator facts missing from `MNUBARSW`, `MNUCNL`, `ALTPAGEDWN`, `ALTPAGEUP`, `DLTCHK`, `DLTEDT`. Size (estimate): Small. |
 | 3 | [I-191](#i-191) | Not started | Twelve spec entries state no level, so the generated matrix skips them; re-run the matrix skip list first, I-180 and I-189 shorten it. Size (estimate): Small. |
 | 4 | [I-193](#i-193) | Not started | Matrix cells for the writer paths and UI paths the generated matrix does not call (`setFileFlagKeyword`, webview Apply round trip), so more overlapping hand-written checks can be retired. Size (estimate): Medium. |
-| 5 | [I-194](#i-194) | In progress | Out-of-range / wrong-type command keys in `MOUBTN`, `PSHBTNCHC` and `IGCCNV`, and non-`CAnn` shapes in the other key-valued keywords. Size (estimate): Small. |
-| 6 | [I-195](#i-195) | In progress | Comment lines: keep, show and store text past column 80 (parser, writer, Comments panel), find the source file's record length (SRCDTA width on IBM i, longest line for local files), and warn past column 80 and stop past the record length. Size (estimate): Medium. |
-| 7 | [I-123](#i-123) | Not started | Task-history comments out of source. I-121 has landed, so each citation can now live in the spec. Size (estimate): Medium (mechanical). |
+| 5 | [I-195](#i-195) | In progress | Comment lines: keep, show and store text past column 80 (parser, writer, Comments panel), find the source file's record length (SRCDTA width on IBM i, longest line for local files), and warn past column 80 and stop past the record length. Size (estimate): Medium. |
+| 6 | [I-123](#i-123) | Not started | Task-history comments out of source. I-121 has landed, so each citation can now live in the spec. Size (estimate): Medium (mechanical). |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The headline there counts the same tasks, so when a task lands or opens, update this table, the headline count and the version together.
 
@@ -8366,11 +8365,13 @@ Opened from I-122j. The generated matrix goes through `applyFileKeywordsUpdate`,
 
 ### I-194 — Command-key values that no guard reads
 
-> **Area:** Field · **Status:** In progress · **Depends on:** I-186 · **Size (estimate):** Small
+> **Area:** Field · **Status:** Done (v0.10.362) · **Depends on:** I-186 · **Size (estimate):** Small
 
 Opened from I-186; probed on v0.10.359 through every `*NewConflictReason` function. `MOUBTN(*ULP CA25)` and `MOUBTN(*ULP CF00)` return null (the spec entry holds `commandKeyRanges` for the Command key but no guard reads them), `IGCCNV(CF25 5)` was probed on a record only (it is file level) and `PSHBTNCHC`'s command key was not probed. A key that is not `CAnn` / `CFnn` shaped at all (`MNUBARSW(CA5)`, `ALTHELP(XYZ)`) is accepted by the I-186 guard on purpose (a shape error is the keyword's own parameter rule) and no other guard refuses it.
 
 Do: read `MOUBTN`'s `commandKeyRanges` and `PSHBTNCHC` / `IGCCNV`'s key from the spec and refuse keys outside their range, then decide (and record in the spec) whether a malformed key in `MNUBARSW` / `MNUCNL` / the alt keys / `SFLDROP` / `SFLENTER` / `SFLFOLD` is refused, with tests in both directions.
+
+**Done (v0.10.362).** Probed again on v0.10.361 before changing anything: `IGCCNV(CF25 5)` was already refused at file level (`fileLevelDisplayNewConflictReason`; the I-186 probe placed it on a record, where the keyword is not valid), so it needed nothing. `MOUBTN` and `PSHBTNCHC` were the real gaps. `KeywordSpec.commandKeyNumberRange(type, keyword)` and `isCommandKeyOutOfRange(token, keyword)` now read `MOUBTN`'s `commandKeyRanges` and `PSHBTNCHC`'s command-key domain (both CA01-CA24 and CF01-CF24, "CA01 through CA24" in the MOUBTN section, "CA01 to CA24, CF01 to CF24" in the PSHBTNCHC one). `DspfWriter.embeddedCommandKeyToken` reads the key out of the parameters (MOUBTN's is the last parameter before an optional `*QUEUE` / `*NOQUEUE`; PSHBTNCHC's is any key-shaped word after the id and the choice text, so a key-shaped word inside the quoted text or a `&field` is text), and the I-186 `commandKeyRangeViolations` scan runs `commandKeyValueProblem` on it, on the file, every record and every field; it is already in the webview guard chain. The decision on malformed keys: a keyword whose parameter is a command key (`MNUBARSW`, `MNUCNL`, `ALTHELP`, `ALTPAGEDWN`, `ALTPAGEUP`, `SFLDROP`, `SFLENTER`, `SFLFOLD`) refuses a first parameter that is not `CAnn` / `CFnn` shaped (`CA5`, `CA005`, `XYZ`), since each format line shows only the key form and the CAnn section requires the leading zero; `MOUBTN` and `PSHBTNCHC` only have their key-shaped token range-checked (ENTER, an event id and the other words are other values). Pinned by `i194CommandKeyValues.test.js` (facts, per-keyword range, key reader, value problem, model guard with diff semantics, jsdom raw editors); eight mutations each fail it (the ninth, ignoring the keyword argument, is equivalent because the three ranges are equal). No new finding.
 
 *Raised by I-186. Size (estimate): Small.*
 

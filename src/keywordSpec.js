@@ -6663,17 +6663,25 @@
   }
   /** Task I-186 - the stated key-number range of a command-key type ('CA' -> { first: 1, last: 24 }), read from
    *  the type's pattern entry (CAnn / CFnn: "nn = 01-24"), or null for a type that has no entry. */
-  function commandKeyNumberRange(type) {
+  function commandKeyNumberRange(type, keywordName) {
+    // Task I-194 - MOUBTN and PSHBTNCHC state their own Command key range (MOUBTN's commandKeyRanges,
+    // PSHBTNCHC's command-key domain); both read CA01-CA24 / CF01-CF24, and are read here rather than assumed.
+    var up = typeof keywordName === 'string' ? keywordName.toUpperCase() : '';
+    var own = up === 'MOUBTN' ? RECORD_TYPES.MOUBTN.commandKeyRanges : up === 'PSHBTNCHC' ? PSHBTNCHC_COMMAND_KEY_DOMAIN.ranges : null;
+    if (own) {
+      for (var i = 0; i < own.length; i++) if (own[i].prefix === type) return { first: own[i].min, last: own[i].max };
+      return null;
+    }
     var e = (type === 'CA' || type === 'CF') ? RECORD_TYPES[type + '01-' + type + '24'] : null;
     return e && e.pattern ? { first: e.pattern.first, last: e.pattern.last } : null;
   }
   /** Task I-186 - whether `token` has the CAnn / CFnn shape but a number outside the type's stated range
    *  (CA00, CA25, CF99 -> true; CA05, CLEAR, CA3 -> false). parseCommandKey reads the grammar only, so the range
    *  is this separate domain fact. */
-  function isCommandKeyOutOfRange(token) {
+  function isCommandKeyOutOfRange(token, keywordName) {
     var k = parseCommandKey(token);
     if (!k) return false;
-    var r = commandKeyNumberRange(k.type);
+    var r = commandKeyNumberRange(k.type, keywordName);
     var n = Number(k.number);
     return !!r && (n < r.first || n > r.last);
   }

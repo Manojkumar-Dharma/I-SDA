@@ -72,7 +72,7 @@ check('ALTPAGEDWN(CF25) and ALTPAGEUP(CF00) are refused as out of range', say(/^
 check('the right types in range are accepted: MNUBARSW(CA05), MNUCNL(CA24), ALTHELP(CA01), ALTPAGEDWN(CF08), ALTPAGEUP(CF07)', vp('MNUBARSW', 'CA05') === null && vp('MNUCNL', 'CA24') === null && vp('ALTHELP', 'CA01') === null && vp('ALTPAGEDWN', 'CF08') === null && vp('ALTPAGEUP', 'CF07') === null);
 check('SFLDROP / SFLENTER / SFLFOLD take either type in range: CA03 and CF03 accepted, CA25 refused', ['SFLDROP', 'SFLENTER', 'SFLFOLD'].every((n) => vp(n, 'CA03') === null && vp(n, 'CF03') === null && say(/CA25 is not a valid/, vp(n, 'CA25'))));
 check('a blank value is not checked (it means the keyword\'s default key)', vp('MNUBARSW', '') === null && vp('ALTHELP', '   ') === null && vp('MNUCNL', undefined) === null);
-check('a value that is not a CAnn / CFnn at all is left to the keyword\'s own rules', vp('MNUBARSW', 'XYZ') === null && vp('MNUBARSW', 'CA5') === null);
+check('a value that is not a CAnn / CFnn at all is refused for these keywords since I-194 (i194CommandKeyValues.test.js); a plain key name is never a value', vp('MNUBARSW', 'XYZ') !== null && vp('MNUBARSW', 'CA5') !== null && vp('DUP', 'XYZ') === null);
 check('lower-case input is read as upper case', say(/CF05/, vp('mnubarsw', 'cf05')) && say(/^CA25 is not/, vp('MNUBARSW', 'ca25')));
 check('a keyword that has no command-key value is never refused on a key-shaped token', vp('DUP', 'CF05') === null);
 
