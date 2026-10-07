@@ -5828,6 +5828,120 @@
     var separator = !!mb && rules.separatorCountsAsLine && String(mb.parameters || '').toUpperCase().indexOf('*NOSEPARATOR') < 0;
     return { text: lines, separator: separator, total: lines + (separator ? 1 : 0), max: rules.maxLines };
   }
+  /** Task I-183 - the value rules for CHCAVAIL / CHCUNAVAIL / CHCSLT ("one parameter must be specified";
+   *  (*COLOR x) one of the colour list; (*DSPATR ...) each of the display-attribute list; only those two
+   *  parameter forms, one group of each), as { key, text } problems. `where` names the place for the
+   *  message ("field F1" or "record format R1"). Lists come from KeywordSpec.choiceStateValueRules. */
+  function choiceStateValueProblems(kw, list, where) {
+    var rules = KeywordSpec.choiceStateValueRules(kw);
+    var found = [];
+    if (!rules) return found;
+    instancesOf(list, kw).forEach(function (k, i) {
+      var items = windowParameterItems(k.parameters);
+      if (items.length < rules.minParameters) {
+        found.push({ key: kw + '|MIN|' + i, text: kw + ' on ' + where + ' needs a parameter: one of (*COLOR ...) or (*DSPATR ...) must be specified (per the DDS Reference).' });
+        return;
+      }
+      var seen = {};
+      items.forEach(function (it) {
+        if (it.kind !== 'group' || ['*COLOR', '*DSPATR'].indexOf(it.tag) < 0) {
+          var shown = it.kind === 'group' ? '(' + it.tag + ' ...)' : (it.kind === 'bare' ? it.token : 'text');
+          found.push({ key: kw + '|FORM|' + shown, text: kw + ' on ' + where + ' has ' + shown + ', which is not a parameter of this keyword; use (*COLOR ...) and (*DSPATR ...) (per the DDS Reference).' });
+          return;
+        }
+        if (seen[it.tag]) {
+          found.push({ key: kw + '|DUP|' + i + '|' + it.tag, text: kw + ' on ' + where + ' has more than one ' + it.tag + ' group in one keyword; the format takes one (per the DDS Reference).' });
+        }
+        seen[it.tag] = true;
+        if (it.tag === '*COLOR') {
+          var cv = it.values.length === 1 ? it.values[0].toUpperCase() : '';
+          if (rules.colors.indexOf(cv) < 0) {
+            found.push({ key: kw + '|COLOR|' + it.values.join(' ').toUpperCase(), text: kw + ' on ' + where + ': (*COLOR ' + it.values.join(' ') + ') is not valid; give one colour: ' + rules.colors.join(', ') + ' (per the DDS Reference).' });
+          }
+        } else {
+          it.values.forEach(function (v) {
+            if (rules.displayAttributes.indexOf(String(v).toUpperCase()) < 0) {
+              found.push({ key: kw + '|DSPATR|' + String(v).toUpperCase(), text: kw + ' on ' + where + ': display attribute ' + v + ' is not valid; use ' + rules.displayAttributes.join(', ') + ' (per the DDS Reference).' });
+            }
+          });
+        }
+      });
+    });
+    return found;
+  }
+  /** Task I-183 - CHCACCEL(choice-number accelerator-text) and CHCCTL(choice-number &control-field
+   *  [message]) value rules, as { key, text } problems: the choice number is a whole number in the
+   *  entry's range (1-99); CHCACCEL's text is required and is a quoted string or a &field (a field that
+   *  exists must be character, usage P); CHCCTL's control field is required (its own sentence, so a
+   *  missing one is no longer reported as a missing CHOICE) and a message id needs a message file; a
+   *  message id / file given as &field that exists must be character, usage P, 7 / 10 long. A &field that
+   *  does not exist yet is left to the compiler (forward references, as for every other field reference).
+   *  Everything comes from KeywordSpec.choiceNumberRange / choiceTextAndMessageRules. */
+  function choiceNumberedValueProblems(kws, fields, label) {
+    var found = [];
+    var shapes = KeywordSpec.choiceTextAndMessageRules();
+    function fieldNamed(ref) {
+      var n = String(ref || '').replace(/^&/, '').toUpperCase();
+      return n ? (fields || []).filter(function (g) { return String(g.name || '').toUpperCase() === n; })[0] : null;
+    }
+    function shapeBad(f, want) {
+      if (!f) return null;
+      var bits = [];
+      if (String(f.dataType || '').toUpperCase() !== want.dataType) bits.push('character (data type ' + want.dataType + ')');
+      if (String(f.usage || '').toUpperCase() !== want.usage) bits.push('usage ' + want.usage);
+      if (want.length !== undefined && Number(f.length) !== want.length) bits.push(want.length + ' long');
+      return bits.length ? 'must be ' + bits.join(', ') : null;
+    }
+    ['CHCACCEL', 'CHCCTL'].forEach(function (kw) {
+      var range = KeywordSpec.choiceNumberRange(kw);
+      instancesOf(kws, kw).forEach(function (k, i) {
+        var raw = String(k.parameters == null ? '' : k.parameters).trim();
+        var m = /^(\S+)(?:\s+([\s\S]*))?$/.exec(raw);
+        var tag = kw + '|' + i;
+        if (!m) {
+          found.push({ key: tag + '|NUM', text: kw + ' on field ' + label + ' needs a choice number (' + range.min + ' to ' + range.max + ') (per the DDS Reference).' });
+          return;
+        }
+        var numTok = m[1];
+        var rest = String(m[2] == null ? '' : m[2]).trim();
+        var n = /^\d+$/.test(numTok) ? parseInt(numTok, 10) : NaN;
+        if (!(n >= range.min && n <= range.max)) {
+          found.push({ key: tag + '|NUM|' + numTok, text: kw + '(' + numTok + ') on field ' + label + ': the choice number must be a whole number from ' + range.min + ' to ' + range.max + ' (per the DDS Reference).' });
+        }
+        if (kw === 'CHCACCEL') {
+          if (!rest) {
+            found.push({ key: tag + '|TEXT', text: 'CHCACCEL(' + numTok + ') on field ' + label + ' needs the accelerator text after the choice number (per the DDS Reference).' });
+          } else if (rest.charAt(0) === '&') {
+            var bad = shapeBad(fieldNamed(rest.split(/\s+/)[0]), shapes.acceleratorTextField);
+            if (bad) found.push({ key: tag + '|TEXTFIELD|' + rest.split(/\s+/)[0].toUpperCase(), text: 'CHCACCEL(' + numTok + ') on field ' + label + ': accelerator text field ' + rest.split(/\s+/)[0].replace(/^&/, '') + ' ' + bad + ' (per the DDS Reference).' });
+          } else if (!/^'(?:[^']|'')*'$/.test(rest)) {
+            found.push({ key: tag + '|TEXTFORM', text: 'CHCACCEL(' + numTok + ') on field ' + label + ': the accelerator text must be a character string in single quotes or a &field-name (per the DDS Reference).' });
+          }
+          return;
+        }
+        var tokens = rest.split(/\s+/).filter(Boolean);
+        if (!tokens.length) {
+          found.push({ key: tag + '|CTLFIELD', text: 'CHCCTL(' + numTok + ') on field ' + label + ' needs a control field (&field-name) after the choice number (per the DDS Reference).' });
+          return;
+        }
+        if (tokens[1] && !tokens[2] && shapes.messageFileRequiredWithId) {
+          found.push({ key: tag + '|MSGFILE', text: 'CHCCTL(' + numTok + ') on field ' + label + ' gives message ' + tokens[1] + ' without a message file; the message file is required with a message id (per the DDS Reference).' });
+        }
+        if (tokens[1] && tokens[1].charAt(0) === '&') {
+          var idBad = shapeBad(fieldNamed(tokens[1]), shapes.messageIdField);
+          if (idBad) found.push({ key: tag + '|MSGIDFIELD|' + tokens[1].toUpperCase(), text: 'CHCCTL(' + numTok + ') on field ' + label + ': message id field ' + tokens[1].replace(/^&/, '') + ' ' + idBad + ' (per the DDS Reference).' });
+        }
+        if (tokens[2]) {
+          tokens[2].split('/').forEach(function (part) {
+            if (part.charAt(0) !== '&') return;
+            var fileBad = shapeBad(fieldNamed(part), shapes.messageFileField);
+            if (fileBad) found.push({ key: tag + '|MSGFILEFIELD|' + part.toUpperCase(), text: 'CHCCTL(' + numTok + ') on field ' + label + ': message file / library field ' + part.replace(/^&/, '') + ' ' + fileBad + ' (per the DDS Reference).' });
+          });
+        }
+      });
+    });
+    return found;
+  }
   /** Task I-171 - the choice and menu-bar companion-keyword rules the I-121l slice recorded as
    *  spec facts (KeywordSpec.choiceCompanionRules / chcctlRules / mnubarchcPullDownRecordKeyword -
    *  nothing hand-copied here). Each is a "must also be specified" the DDS Reference states:
@@ -5860,6 +5974,9 @@
             ' on the same subfile control record (per the DDS Reference).';
         }
       });
+      STATE.forEach(function (kw) {
+        choiceStateValueProblems(kw, r.keywords, 'record format ' + r.name).forEach(function (p) { out[rname + '|' + kw + '|VAL|' + p.key] = p.text; });
+      });
       (r.fields || []).forEach(function (f) {
         var fname = String(f.name || '').toUpperCase();
         var label = fname || ('in ' + rname);
@@ -5870,13 +5987,19 @@
             out[rname + '|' + kw + '|' + p.rule + '|' + fname] = p.text;
           });
         });
+        // Task I-183: the colour / display-attribute values of the three state keywords, after the companion rules.
+        STATE.forEach(function (kw) {
+          choiceStateValueProblems(kw, kws, 'field ' + label).forEach(function (p) { out[rname + '|' + kw + '|VAL|' + fname + '|' + p.key] = p.text; });
+        });
+        // Task I-183: CHCACCEL / CHCCTL choice numbers (1-99), CHCACCEL's required text, CHCCTL's required control field.
+        choiceNumberedValueProblems(kws, r.fields, label).forEach(function (p) { out[rname + '|' + p.key + '|' + fname] = p.text; });
         var cr = KeywordSpec.chcctlRules();
         getChoiceControls(kws).forEach(function (c) {
           var tag = fname + '#' + parseInt(c.id, 10);
           var hasChoice = (kws || []).some(function (k) {
             return cr.sameNumberOneOf.indexOf(k.name) >= 0 && sameNumber(splitLeadingChoiceId(k.parameters).id, c.id);
           });
-          if (!hasChoice) {
+          if (!hasChoice && c.id !== '') {
             out[rname + '|CHCCTL|CHOICE|' + tag] = 'CHCCTL(' + c.id + ') on field ' + label + ' needs a ' + cr.sameNumberOneOf.join(' or ') + ' keyword with the same choice number on the same field (per the DDS Reference).';
           }
           var ctlName = String(c.controlField || '').replace(/^&/, '').toUpperCase();

@@ -6461,6 +6461,31 @@
       sameNumberOneOf: e.requiresOneOfOnFieldWithSameChoiceNumber.slice()
     };
   }
+  /** Task I-183 - CHCAVAIL / CHCUNAVAIL / CHCSLT value rules, read from each entry (copies):
+   *  { minParameters (\"one parameter must be specified\"), colors, displayAttributes }, or null. */
+  function choiceStateValueRules(name) {
+    var e = i121lEntry(name);
+    if (!e || !e.color || !e.displayAttribute) return null;
+    return { minParameters: e.onParameterRequired === 'one' ? 1 : 0, colors: e.color.values.slice(), displayAttributes: e.displayAttribute.values.slice() };
+  }
+  /** Task I-183 - the choice-number range CHCACCEL and CHCCTL state ({ min, max }), or null. */
+  function choiceNumberRange(name) {
+    var e = i121lEntry(name);
+    return e && e.choiceNumber ? { min: e.choiceNumber.min, max: e.choiceNumber.max } : null;
+  }
+  /** Task I-183 - CHCACCEL's text-field shape and CHCCTL's message-field shapes (copies):
+   *  { acceleratorTextField:{dataType,usage}, messageIdField:{dataType,usage,length},
+   *    messageFileField:{dataType,usage,length}, messageFileRequiredWithId }. */
+  function choiceTextAndMessageRules() {
+    var t = RECORD_TYPES.CHCACCEL.acceleratorText.textField;
+    var m = RECORD_TYPES.CHCCTL.message;
+    return {
+      acceleratorTextField: { dataType: t.dataType, usage: t.usage },
+      messageIdField: { dataType: m.messageIdField.dataType, usage: m.messageIdField.usage, length: m.messageIdField.length },
+      messageFileField: { dataType: m.messageFileOrLibraryField.dataType, usage: m.messageFileOrLibraryField.usage, length: m.messageFileOrLibraryField.length },
+      messageFileRequiredWithId: m.messageFileRequiredWithMessageId === true
+    };
+  }
   /** Task I-171 - the keyword the record named by an MNUBARCHC must carry. */
   function mnubarchcPullDownRecordKeyword() { return RECORD_TYPES.MNUBARCHC.pullDownRecord.mustHaveKeyword; }
   /** Task I-173 - the menu-bar field's line limit and how its lines are counted. */
@@ -6623,6 +6648,9 @@
     isValidValue: isValidValue,
     choiceCompanionRules: choiceCompanionRules,
     chcctlRules: chcctlRules,
+    choiceStateValueRules: choiceStateValueRules,
+    choiceNumberRange: choiceNumberRange,
+    choiceTextAndMessageRules: choiceTextAndMessageRules,
     mnubarchcPullDownRecordKeyword: mnubarchcPullDownRecordKeyword,
     menuBarLineRules: menuBarLineRules,
     menuBarRecordRules: menuBarRecordRules,

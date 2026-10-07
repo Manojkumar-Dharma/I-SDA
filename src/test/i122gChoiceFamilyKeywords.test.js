@@ -188,8 +188,10 @@ console.log('\n=== L1/L2 CHCAVAIL / CHCUNAVAIL / CHCSLT: companion guards, both 
   }
   check('choiceFieldCompanionProblems keys the rule: COMPANION for CHCAVAIL, NOSLTIND for CHCSLT with CHOICE',
     DspfWriter.choiceFieldCompanionReason('CHCAVAIL', [kw('SNGCHCFLD')], [], 'F1', 'R1').length > 0 && /needs PULLDOWN\(\*NOSLTIND\)/.test(DspfWriter.choiceFieldCompanionReason('CHCSLT', [kw('CHOICE', "1 'X'")], [kw('PULLDOWN')], 'F1', 'R1')));
-  // Not asserted (logged as I-183): a bare CHCAVAIL / CHCUNAVAIL / CHCSLT, or one with a colour or display attribute
-  // outside the reference lists, is accepted by the model guard; the reference says one parameter must be specified.
+  // Task I-183: a bare CHCAVAIL / CHCUNAVAIL / CHCSLT, or one with a colour or display attribute outside the
+  // reference lists, is now refused by the model guard (pinned in full in i183ChoiceKeywordValueRules.test.js).
+  check('the spec states the one-parameter minimum and the colour / display-attribute lists the I-183 guard reads',
+    ['CHCAVAIL', 'CHCUNAVAIL', 'CHCSLT'].every((k) => { const r = KeywordSpec.choiceStateValueRules(k); return r && r.minParameters === 1 && r.colors.length === 7 && r.displayAttributes.length === 6; }));
 }
 
 console.log('\n=== L1/L2 CHCCTL: parse, round trip, guards ===');
@@ -216,8 +218,10 @@ console.log('\n=== L1/L2 CHCCTL: parse, round trip, guards ===');
   check('a control field that does not exist yet is a forward reference, not refused', guard(pullBase, withLine(pullBase, CH1, K('CHCCTL(1 &LATER)'))) === null);
   check('a CHCCTL under a PSHBTNCHC with the same number is accepted too', guard(src(R('R1'), FLD('P1', 10, 'A', undefined, 'B', 'PSHBTNFLD'), K("PSHBTNCHC(1 '&OK' CF01)"), dds({ name: 'CTL1', len: 1, type: 'Y', dec: 0, use: 'H' })),
     src(R('R1'), FLD('P1', 10, 'A', undefined, 'B', 'PSHBTNFLD'), K("PSHBTNCHC(1 '&OK' CF01)"), K('CHCCTL(1 &CTL1)'), dds({ name: 'CTL1', len: 1, type: 'Y', dec: 0, use: 'H' }))) === null);
-  // Not asserted (logged as I-183): a choice number outside 1 to 99 is reported only as "needs a CHOICE ... with the same
-  // choice number", never as a range error; the message-id / message-file / library field shapes (A, P, 7 / 10) are not checked.
+  // Task I-183: a choice number outside 1 to 99 is a range error and the message-id / message-file field shapes
+  // (A, P, 7 / 10) are checked (pinned in i183ChoiceKeywordValueRules.test.js).
+  check('the spec states the 1 to 99 choice number range for CHCCTL and the message field shapes the I-183 guard reads',
+    KeywordSpec.choiceNumberRange('CHCCTL').max === 99 && KeywordSpec.choiceTextAndMessageRules().messageIdField.length === 7);
 }
 
 console.log('\n=== L1/L2 CHCACCEL: parse, round trip, guards ===');
@@ -237,8 +241,9 @@ console.log('\n=== L1/L2 CHCACCEL: parse, round trip, guards ===');
   check('removing SNGCHCFLD while CHCACCEL stays is refused', say(/CHCACCEL on field F1 needs SNGCHCFLD/, guard(text, text.replace('SNGCHCFLD', '         '))));
   check('removing PULLDOWN while CHCACCEL stays is refused', say(/CHCACCEL on field F1 needs PULLDOWN/, guard(text, text.replace('PULLDOWN', '        '))));
   check('removing CHCACCEL is never blocked', guard(text, pullBase) === null);
-  // Not asserted (logged as I-183): CHCACCEL(100 F4) and a CHCACCEL with no accelerator text are accepted; the
-  // 1 to 99 range and the required text are recorded in the spec and enforced nowhere.
+  // Task I-183: CHCACCEL(100 ...) and a CHCACCEL with no accelerator text are now refused (the 1 to 99 range and
+  // the required text are enforced by the model guard; pinned in i183ChoiceKeywordValueRules.test.js).
+  check('the spec states CHCACCEL\'s 1 to 99 range and its A / P accelerator text field', KeywordSpec.choiceNumberRange('CHCACCEL').min === 1 && KeywordSpec.choiceTextAndMessageRules().acceleratorTextField.usage === 'P');
 }
 
 console.log('\n=== L1/L2 SFLCHCCTL: parse, definition rewrite, guards ===');

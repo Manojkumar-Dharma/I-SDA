@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-206 of 219 tasks done; 13 open (see [Open work](#open-work)). Current version: **v0.10.352**.
+210 of 220 tasks done; 10 open (see [Open work](#open-work)). Current version: **v0.10.356**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -252,7 +252,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-180](#i-180) | Field | `FLTPCN` (type F, `*SINGLE` / `*DOUBLE`, length caps, option indicators not valid) and `CNTFLD` (numeric width, its exclusion list) rules nothing enforces | I-122e | Done | v0.10.351 |
 | [I-181](#i-181) | Tooling | Spec entries for `HLPDOC`, `HLPID`, `WDWBORDER` and `NOCCSID` state no level, parameter or option-indicator fact, so `optionIndicatorsAllowed` answers "no" for `HLPDOC` and `WDWBORDER` although their sections say option indicators are valid | I-122f | Done (levels, parameter forms, option indicators) | v0.10.349 |
 | [I-182](#i-182) | Record | `WDWBORDER` and `WDWTITLE` rules nothing enforces: record-level `WDWBORDER` needs `WINDOW` or `PULLDOWN` on the record, at least one parameter, colour and display-attribute values, `*TOP` / `*BOTTOM` and the three alignments each at most once | I-122f | Done (requirement, parameters, values, forms) | v0.10.352 |
-| [I-183](#i-183) | Field | Choice keyword values nothing enforces: a bare or out-of-list `CHCAVAIL` / `CHCUNAVAIL` / `CHCSLT`, `CHCACCEL` / `CHCCTL` choice number outside 1-99, `CHCACCEL` with no text, the `CHCCTL` message fields' shapes | I-122g | In progress (claimed) | — |
+| [I-183](#i-183) | Field | Choice keyword values nothing enforces: a bare or out-of-list `CHCAVAIL` / `CHCUNAVAIL` / `CHCSLT`, `CHCACCEL` / `CHCCTL` choice number outside 1-99, `CHCACCEL` with no text, the `CHCCTL` message fields' shapes | I-122g | Done (state values, numbers, text, control field, message fields) | v0.10.356 |
 | [I-184](#i-184) | Record | `SFLSNGCHC` / `SFLMLTCHC` rules nothing enforces: the subfile shape (one output field, no input-capable fields), control-record-only, and the `&number-selected` field shape | I-122g | Not started | — |
 | [I-185](#i-185) | Tooling | Spec entries for `SFLCHCCTL`, `SFLSNGCHC` and `SFLMLTCHC` carry no level, parameter or option-indicator fact, and the `SFLCHCCTL` control-value table is not in the spec | I-122g | Not started | — |
 | [I-186](#i-186) | Field | Command-key numbers outside 01-24 accepted (`CA00`, `CA25`), and `MNUBARSW(CF05)` / `MNUBARSW(CA25)` pass the menu-bar key guard | I-122h | Not started | — |
@@ -277,10 +277,9 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
 | 5 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
-| 6 | [I-183](#i-183) | In progress (claimed) | Choice keyword value rules (`CHCAVAIL` / `CHCUNAVAIL` / `CHCSLT` values, `CHCACCEL` / `CHCCTL` ranges and text). Size (estimate): Medium. |
-| 7 | [I-184](#i-184) | Not started | `SFLSNGCHC` / `SFLMLTCHC` subfile shape, record-level and number-selected field rules. Size (estimate): Medium. |
-| 8 | [I-185](#i-185) | Not started | Level, parameter and option-indicator facts missing from three subfile choice keyword entries. Size (estimate): Small. |
-| 9 | [I-193](#i-193) | Not started | Matrix cells for the writer paths and UI paths the generated matrix does not call (`setFileFlagKeyword`, webview Apply round trip), so more overlapping hand-written checks can be retired. Size (estimate): Medium. |
+| 6 | [I-184](#i-184) | Not started | `SFLSNGCHC` / `SFLMLTCHC` subfile shape, record-level and number-selected field rules. Size (estimate): Medium. |
+| 7 | [I-185](#i-185) | Not started | Level, parameter and option-indicator facts missing from three subfile choice keyword entries. Size (estimate): Small. |
+| 8 | [I-193](#i-193) | Not started | Matrix cells for the writer paths and UI paths the generated matrix does not call (`setFileFlagKeyword`, webview Apply round trip), so more overlapping hand-written checks can be retired. Size (estimate): Medium. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The I-121 umbrella row there stays open until its slices land, so it is counted in the headline but not listed here.
 
@@ -8197,7 +8196,7 @@ Do: one model-diff guard in the `windowHelpMenuNewConflictReason` chain reading 
 
 ### I-183 — Choice keyword values nothing enforces
 
-> **Area:** Field · **Status:** In progress (claimed) · **Depends on:** I-122g · **Size (estimate):** Medium
+> **Area:** Field · **Status:** Done (v0.10.356) · **Depends on:** I-122g · **Size (estimate):** Medium
 
 Opened from I-122g; probed on v0.10.343 through the model guard (`choiceMenuBarNewConflictReason`) on a `SNGCHCFLD` field with `CHOICE 1` in a `PULLDOWN` record, every case below was accepted:
 
@@ -8208,6 +8207,8 @@ Opened from I-122g; probed on v0.10.343 through the model guard (`choiceMenuBarN
 - `CHCCTL`'s message-id and message-file / library fields (character, usage P, 7 and 10 long) are not checked, and `CHCCTL` / `CHCACCEL` carrying an option indicator (reference: not valid) was not probed.
 
 Do: one model-diff guard reading the spec's `onParameterRequired`, `color.values`, `displayAttribute.values` and `choiceNumber`, with tests in both directions; decide whether a missing control field gets its own sentence.
+
+**Done (v0.10.356).** Inside `choiceMenuBarViolations` (so `choiceMenuBarNewConflictReason`, every source change), reading new spec accessors `choiceStateValueRules`, `choiceNumberRange` and `choiceTextAndMessageRules` (nothing hand-copied). `CHCAVAIL` / `CHCUNAVAIL` / `CHCSLT`, on a field and on a subfile control record: one parameter is required, `(*COLOR x)` takes one of the seven colours, `(*DSPATR ...)` values come from the six, only those two groups are accepted, one of each per keyword. `CHCACCEL`: choice number a whole number 1 to 99, the accelerator text required and a quoted string or a `&field` (an existing field must be usage P). `CHCCTL`: choice number 1 to 99 (a range error now, instead of the "needs a CHOICE" sentence), a message id needs a message file, and an existing `&field` message id / file / library must be character usage P and 7 / 10 long. **Decision:** a missing `CHCCTL` control field gets its own sentence ("needs a control field (&field-name) after the choice number") and `CHCCTL(1)` no longer reports the unrelated "needs a CHOICE ..." one; one group per parameter slot inside one keyword, as WDWBORDER / WDWTITLE (I-182). Not done: `CHCACCEL`'s accelerator text plus the longest choice text against the smallest display width, and option indicators on `CHCACCEL` / `CHCCTL` (the reference says not valid; the guard does not read them); a control field written without `&` is left alone. Diff-based, so a hand-written file already breaking a rule stays editable. New `i183ChoiceKeywordValueRules.test.js` (spec, every rule above, record level, diff-based, raw editor in jsdom) plus spot checks replacing the three "not asserted" notes in the I-122g test; mutation-checked (four of five rule removals fail the file; the fifth, the old "needs a CHOICE" sentence leaking for a missing control field, only adds a second violation that is never reported first, so it is not observable through the reason string).
 
 *Raised by I-122g. Size (estimate): Medium.*
 
