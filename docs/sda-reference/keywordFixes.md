@@ -256,7 +256,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-184](#i-184) | Record | `SFLSNGCHC` / `SFLMLTCHC` rules nothing enforces: the subfile shape (one output field, no input-capable fields), control-record-only, and the `&number-selected` field shape | I-122g | Done (68 checks) | v0.10.357 |
 | [I-185](#i-185) | Tooling | Spec entries for `SFLCHCCTL`, `SFLSNGCHC` and `SFLMLTCHC` carry no level, parameter or option-indicator fact, and the `SFLCHCCTL` control-value table is not in the spec | I-122g | Done (5 checks added to `i122gChoiceFamilyKeywords`, 155 in all) | v0.10.358 |
 | [I-186](#i-186) | Field | Command-key numbers outside 01-24 accepted (`CA00`, `CA25`), and `MNUBARSW(CF05)` / `MNUBARSW(CA25)` pass the menu-bar key guard | I-122h | Done (range, key type, panel guard, raw editors) | v0.10.359 |
-| [I-187](#i-187) | Record | `MNUBARSW` / `MNUCNL` claim a CA key but the CA / CF number guard does not read them: their key can be reused as a CF key on another record | I-122h | Not started | — |
+| [I-187](#i-187) | Record | `MNUBARSW` / `MNUCNL` claim a CA key but the CA / CF number guard does not read them: their key can be reused as a CF key on another record | I-122h | In progress | — |
 | [I-188](#i-188) | Record | `RETKEY` / `RETCMDKEY` accepted on a subfile (`SFL`) or user-defined (`USRDFN`) record, though the spec records they are not valid there | I-122h | Not started | — |
 | [I-189](#i-189) | Tooling | `MNUBARSW`, `MNUCNL`, `ALTPAGEDWN`, `ALTPAGEUP`, `DLTCHK` and `DLTEDT` carry no level, parameter or option-indicator fact; `optionIndicatorsAllowed` answers false for `MNUBARSW` / `MNUCNL` (reference: valid) and for a concrete `CA05` | I-122h | Not started | — |
 | [I-190](#i-190) | Tooling | `HLPRCD`'s spec entry says `levels: ['file']`; the Reference says file level or help-specification level | I-122i | Not started | — |
@@ -277,7 +277,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 2 | [I-187](#i-187) | Not started | `MNUBARSW` / `MNUCNL` keys (explicit or default) are not counted as CA uses by the CA / CF number guard. Size (estimate): Small. |
+| 2 | [I-187](#i-187) | In progress | `MNUBARSW` / `MNUCNL` keys (explicit or default) are not counted as CA uses by the CA / CF number guard. Size (estimate): Small. |
 | 3 | [I-188](#i-188) | Not started | `RETKEY` / `RETCMDKEY` accepted on `SFL` and `USRDFN` records; read the reference sentence first. Size (estimate): Small. |
 | 4 | [I-190](#i-190) | Not started | `HLPRCD` spec entry says file level only; the Reference says file or help-specification level. Size (estimate): Small. |
 | 5 | [I-189](#i-189) | Not started | Level, parameter and option-indicator facts missing from `MNUBARSW`, `MNUCNL`, `ALTPAGEDWN`, `ALTPAGEUP`, `DLTCHK`, `DLTEDT`. Size (estimate): Small. |
@@ -8272,7 +8272,7 @@ Do: a diff-based guard reading the spec range for `CAnn`, `CFnn`, `ALTPAGEDWN` /
 
 ### I-187 — MNUBARSW / MNUCNL keys are not CA claims for the CA / CF number guard
 
-> **Area:** Record · **Status:** Not started · **Depends on:** I-122h · **Size (estimate):** Small
+> **Area:** Record · **Status:** In progress · **Depends on:** I-122h · **Size (estimate):** Small
 
 Opened from I-122h. Both sections say that with the keyword on a record "the CAnn key or default CA10 / CA12 key can be used only as a CA key on other records, not as a CF key". `commandKeyNumberNewConflictReason` accepts `MNUBARSW(CA10)` on one record with `CF10` on another, `MNUBARSW` (default CA10) with `CF10` on the same record, and a default `MNUCNL` (CA12) with a file-level `CF12`; `commandKeyClaimsInModel` already reads the alt keys and `MNUBARSW` / `MNUCNL` for the alt-key guard, but `commandKeyNumberClash` sees only plain `CAnn` / `CFnn` names.
 
