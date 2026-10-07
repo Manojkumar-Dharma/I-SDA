@@ -184,7 +184,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-121r](#i-121r) | Tooling | Webview constant tables | I-121 | Done v0.10.287 (four value-domain lists from the spec; the rest guarded or classified as screen text) | v0.10.287 |
 | [I-121s](#i-121s) | Tooling | Engine and writer constant tables | I-121 | Done v0.10.286 (writer tables in the spec; engine/message tables classified as presentation) | v0.10.286 |
 | [I-121t](#i-121t) | Tooling | Generate the keyword index from the spec (do last) | I-121a – I-121s | Done | v0.10.335 |
-| [I-122](#i-122) | Tooling | Generated keyword x dimension test matrix; retire duplicate and stale tests | I-120, I-121 | In progress (batch 1 done v0.10.274; batch 2 done v0.10.336: MSGALARM, CSRINPONLY, RETLCKSTS, MAPVAL, INZINP, HLPEXCLD; batch 3 done v0.10.338: HLPFULL, MNUBARSEP, LOCK, DSPRL, FRCDTA, ALWGPH; I-122d done v0.10.341: the subfile-control family; I-122e done v0.10.342: the field format and edit family; I-122f done v0.10.343: the help and window family; I-122g done v0.10.344: the choice family; I-122h done v0.10.348: the command-key family) | — |
+| [I-122](#i-122) | Tooling | Generated keyword x dimension test matrix; retire duplicate and stale tests | I-120, I-121 | Done (batch 1 done v0.10.274; batch 2 done v0.10.336: MSGALARM, CSRINPONLY, RETLCKSTS, MAPVAL, INZINP, HLPEXCLD; batch 3 done v0.10.338: HLPFULL, MNUBARSEP, LOCK, DSPRL, FRCDTA, ALWGPH; I-122d done v0.10.341: the subfile-control family; I-122e done v0.10.342: the field format and edit family; I-122f done v0.10.343: the help and window family; I-122g done v0.10.344: the choice family; I-122h done v0.10.348: the command-key family; I-122i done v0.10.350: the generated matrix; I-122j done v0.10.354: nine overlapping checks retired) | — |
 | [I-122d](#i-122d) | Tooling | Subfile-control family tests: SFLCLR, SFLCSRPRG, SFLRCDNBR, SFLMODE, SFLRTNSEL, SFLRNA, SFLROLVAL, SFLNXTCHG | I-122 | Done (130 checks; findings I-177, I-178) | v0.10.341 |
 | [I-122e](#i-122e) | Tooling | Field format and edit family tests: TIMSEP, TIMFMT, DATSEP, DATFMT, FLTPCN, FLTFIXDEC, BLANKS, CNTFLD, FLDCSRPRG, VALNUM | I-122 | Done (171 checks; findings I-179, I-180) | v0.10.342 |
 | [I-122f](#i-122f) | Tooling | Help and window family tests: HLPSCHIDX, HLPBDY, HLPDOC, HLPID, IGCCNV, WDWTITLE, WDWBORDER, NOCCSID | I-122 | Done (138 checks; findings I-181, I-182) | v0.10.343 |
@@ -262,6 +262,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-190](#i-190) | Tooling | `HLPRCD`'s spec entry says `levels: ['file']`; the Reference says file level or help-specification level | I-122i | Not started | — |
 | [I-191](#i-191) | Tooling | Twelve `RECORD_TYPES` entries state no level and their Reference section names none (`SFLMSG`, `IGCALTTYP`, `ERRMSGID`, `SFLMSGID`, `ERRMSG`, `SFLCSRRRN`, `COLOR`, `CHECK`, `ALTPAGEDWN`, `ALTPAGEUP`, `KEYBRD`, `FLTPCN`): the generated matrix cannot place them | I-122i | Not started | — |
 | [I-192](#i-192) | Field | `CNTFLD`'s layout rules: the column width must fit within the width of the display or window, and the field needs at least 2 spaces between it and other fields | I-180 | Done | v0.10.353 |
+| [I-193](#i-193) | Tooling | Matrix cells for the writer paths and UI paths it does not call (`setFileFlagKeyword`, webview Apply round trip), then retire the hand-written duplicates | I-122j | Not started | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -275,12 +276,11 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-122](#i-122) | In progress (batches 1-3, I-122d, I-122e, I-122f, I-122g, I-122h, I-122i and I-122j done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
-| 4 | [I-122j](#i-122j) | Done | Retire overlapping tests, each deletion backed by a stash-based mutation run (do last, serially). Size (estimate): Large. |
 | 5 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
 | 6 | [I-183](#i-183) | In progress (claimed) | Choice keyword value rules (`CHCAVAIL` / `CHCUNAVAIL` / `CHCSLT` values, `CHCACCEL` / `CHCCTL` ranges and text). Size (estimate): Medium. |
 | 7 | [I-184](#i-184) | Not started | `SFLSNGCHC` / `SFLMLTCHC` subfile shape, record-level and number-selected field rules. Size (estimate): Medium. |
 | 8 | [I-185](#i-185) | Not started | Level, parameter and option-indicator facts missing from three subfile choice keyword entries. Size (estimate): Small. |
+| 9 | [I-193](#i-193) | Not started | Matrix cells for the writer paths and UI paths the generated matrix does not call (`setFileFlagKeyword`, webview Apply round trip), so more overlapping hand-written checks can be retired. Size (estimate): Medium. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The I-121 umbrella row there stays open until its slices land, so it is counted in the headline but not listed here.
 
@@ -6797,7 +6797,7 @@ With this slice the I-121 umbrella is complete: every keyword in the lookup has 
 
 ### I-122 — Generated keyword x dimension test matrix; retire duplicate and stale tests
 
-> **Area:** Tooling · **Status:** In progress (batches 1-3, I-122d, I-122e, I-122f, I-122g, I-122h, I-122i and I-122j done) · **Depends on:** I-120, I-121
+> **Area:** Tooling · **Status:** Done (batches 1-3, I-122d to I-122j) · **Depends on:** I-120, I-121
 
 Generate tests from the I-121 spec: L1 pure rule checks, L2 parse/write round-trip of parameters and sub-parameters, L3 UI display and selection (one jsdom per record type iterating rows), L4 behaviour through each commit path (checkbox, raw keyword editor, Basic tab). Cover the keywords with no tests today (`RMVWDW`, `SFLCSRRRN`, `SFLDLT`, `USRRSTDSP`, ...). Migration rule: map each existing `check()` to a keyword x dimension cell; delete it only when a generated cell covers it **and** a stash-based mutation run shows the generated cell fails when the rule is broken; keep unique regressions. Report the before/after check count and suite time.
 
@@ -8334,5 +8334,15 @@ Opened from I-180. `CNTFLD`'s section states two layout rules that need the scre
 
 **Tests.** `src/test/i192CntfldLayoutRules.test.js` (43 checks): the spec facts and citations, the width limit in each form (default, `*DS3 *DS4`, `*DS4` only, numeric `DSPSIZ`, positioned / sized / referenced `WINDOW`, an unresolvable reference), the spacing boundaries (2 spaces accepted, 1 refused, inside the area, the last row, rows above and below, left of the area, hidden fields, fields with no position, constants, stacked continued-entry areas), the diff behaviour, and the raw editor in jsdom. Mutation-checked: 8 of 9 mutations (width check off, spacing off, numeric `WINDOW` ignored, any-row matching, minimum 1, hidden fields counted, rows fixed at 1, `WINDOW` reference off) each fail the file; counting constants as fields is the ninth and cannot be detected, since a constant has no length and the guard skips it either way.
 *Raised by I-180. Size (estimate): Medium.*
+
+---
+
+### I-193 — Matrix cells for the paths it does not call, then retire the hand-written duplicates
+
+> **Area:** Tooling · **Status:** Not started · **Depends on:** I-122j · **Size (estimate):** Medium
+
+Opened from I-122j. The generated matrix goes through `applyFileKeywordsUpdate`, `applyRecordUpdate`, `applyFieldUpdate`, the parser and the raw keyword editor. It never calls `setFileFlagKeyword` / `getFileFlagKeyword` (the checkbox and flag path) or the webview Apply round trip, so the hand-written "off removes only X", "round trips as a bare flag" and Apply-round-trip checks are not redundant: with `setFileFlagKeyword` made to ignore every "off", the matrix failed 0 checks and `i122d`, `i122f` and `i122h` failed 2, 3 and 6. Do: add a flag-path cell (on, off, on again, neighbours and conditions kept, one entry) and an Apply-unchanged cell (no edit corrupts the line) to the matrix; mutation-check each against the hand-written checks it would replace; then retire only the checks the new cells provably cover, as I-122j did, and keep keywords in the default matrix through `RETAINED`. Report before/after check count and suite time. Not worth doing if the new cells cost more suite time than the retired checks save.
+
+*Raised by I-122j. Size (estimate): Medium.*
 
 ---
