@@ -191,7 +191,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-122g](#i-122g) | Tooling | Choice family tests: CHCSLT, CHCCTL, CHCUNAVAIL, CHCAVAIL, CHCACCEL, SFLCHCCTL, SFLSNGCHC, SFLMLTCHC | I-122 | Done (147 checks; findings I-183, I-184, I-185) | v0.10.344 |
 | [I-122h](#i-122h) | Tooling | Command-key family tests: CA01-CA24, CF01-CF24, ALTPAGEDWN, ALTPAGEUP, DLTCHK, DLTEDT, RETCMDKEY, MNUBARSW, MNUCNL, GETRETAIN | I-122 | Done (107 checks; findings I-186, I-187, I-188, I-189) | v0.10.348 |
 | [I-122i](#i-122i) | Tooling | Generated per-keyword matrix (L1-L4 from the I-121 spec): generator and harness, then the keywords no hand-written batch covers | I-122, I-121 | Done (1,328 checks on 61 keywords, 3,380 with `MATRIX_ALL`; findings I-190, I-191) | v0.10.350 |
-| [I-122j](#i-122j) | Tooling | Retire overlapping tests, each deletion backed by a stash-based mutation run (do last, serially) | I-122i | In progress (claimed) | — |
+| [I-122j](#i-122j) | Tooling | Retire overlapping tests, each deletion backed by a stash-based mutation run (do last, serially) | I-122i | Done (9 checks retired; the other overlap classes tested are not redundant) | — |
 | [I-123](#i-123) | Tooling | Move "Task I-nn" history out of source comments | I-121 | Not started | — |
 | [I-124](#i-124) | Tooling | Test-only exports that still carry a "kept for backward compatibility / API completeness" note (decision first) | I-118 | Done | v0.10.202 |
 | [I-125](#i-125) | Field | `COMP`/`RANGE`/`VALUES`/`CHECK(AB)` "not on a floating-point field" restriction is unenforced | I-72, I-96 | Done | v0.10.223 |
@@ -275,8 +275,8 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-122](#i-122) | In progress (batches 1-3, I-122d, I-122e, I-122f, I-122g, I-122h and I-122i done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
-| 4 | [I-122j](#i-122j) | In progress (claimed) | Retire overlapping tests, each deletion backed by a stash-based mutation run (do last, serially). Size (estimate): Large. |
+| 1 | [I-122](#i-122) | In progress (batches 1-3, I-122d, I-122e, I-122f, I-122g, I-122h, I-122i and I-122j done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
+| 4 | [I-122j](#i-122j) | Done | Retire overlapping tests, each deletion backed by a stash-based mutation run (do last, serially). Size (estimate): Large. |
 | 5 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
 | 6 | [I-183](#i-183) | In progress (claimed) | Choice keyword value rules (`CHCAVAIL` / `CHCUNAVAIL` / `CHCSLT` values, `CHCACCEL` / `CHCCTL` ranges and text). Size (estimate): Medium. |
 | 7 | [I-184](#i-184) | Not started | `SFLSNGCHC` / `SFLMLTCHC` subfile shape, record-level and number-selected field rules. Size (estimate): Medium. |
@@ -6797,7 +6797,7 @@ With this slice the I-121 umbrella is complete: every keyword in the lookup has 
 
 ### I-122 — Generated keyword x dimension test matrix; retire duplicate and stale tests
 
-> **Area:** Tooling · **Status:** In progress (batches 1-3, I-122d, I-122e, I-122f, I-122g, I-122h and I-122i done) · **Depends on:** I-120, I-121
+> **Area:** Tooling · **Status:** In progress (batches 1-3, I-122d, I-122e, I-122f, I-122g, I-122h, I-122i and I-122j done) · **Depends on:** I-120, I-121
 
 Generate tests from the I-121 spec: L1 pure rule checks, L2 parse/write round-trip of parameters and sub-parameters, L3 UI display and selection (one jsdom per record type iterating rows), L4 behaviour through each commit path (checkbox, raw keyword editor, Basic tab). Cover the keywords with no tests today (`RMVWDW`, `SFLCSRRRN`, `SFLDLT`, `USRRSTDSP`, ...). Migration rule: map each existing `check()` to a keyword x dimension cell; delete it only when a generated cell covers it **and** a stash-based mutation run shows the generated cell fails when the rule is broken; keep unique regressions. Report the before/after check count and suite time.
 
@@ -6809,7 +6809,7 @@ Generate tests from the I-121 spec: L1 pure rule checks, L2 parse/write round-tr
 
 **Batch 3 (v0.10.338) - the next-thinnest keywords.** The same inventory on the synced repo still put `HLPFULL`, `MNUBARSEP`, `DSPRL`, `ALWGPH`, `FRCDTA` and `LOCK` among the fewest (6-7 test files each, once the already-covered batch 1 and 2 keywords are set aside), so the batch the earlier claim named was kept. `src/test/i122Batch3ThinCoverageKeywords.test.js` (79 checks) covers: the spec facts against each keyword's DDS Reference section; flag round trips at file and record level (idempotence, neighbours and conditions kept); the `HLPFULL` rule (needs `HLPPNLGRP` at the file level or on a help specification, in both directions, an already-invalid file not re-reported); the record-type rules (`ALWGPH` refused on SFL, USRDFN and menu-bar records, `LOCK` refused on USRDFN and allowed on a menu bar, `FRCDTA` refused on a menu bar and once per record format, raw editor included); the `MNUBARSEP` groups (read, write in the reference's order, a group left unchecked not written, removal when none is enabled, one character only, conditions kept or cleared); and in jsdom the file panel (`HLPFULL`, `DSPRL`, `ALWGPH` rows, Conditioning only where option indicators are valid, `HLPFULL` refused without `HLPPNLGRP` with its message), the record rows with saved state and Conditioning, the menu-bar record offering `LOCK` but not `FRCDTA` / `ALWGPH`, and the separator group on a menu-bar field (saved state, Apply with all three groups, Apply with none). Test-source lesson: a `MNUBARSEP` line with all three groups is longer than the 36-column keyword area, and the parser then drops the tail silently (the first probe read the character as empty); the test keeps each source line inside column 80, and the page keeps its edits between steps, so each step is written against the state the earlier ones left. Mutation-checked: switching off the `HLPFULL` guard fails 3 checks, swapping the `MNUBARSEP` group order fails 2, turning off `FRCDTA`'s once-per-record fact fails 3, and mis-keying the `DSPRL` file row fails 3 (the last needs `npm run compile`). Tests only. Two gaps it found are logged and not asserted as correct: I-175 (the `MNUBARSEP` rules) and I-176 (while the test was in progress I-174 landed, and `optionIndicatorsAllowed` still answers false for `LOCK` and `FRCDTA` because their entries spell the fact `optionIndicatorsValid: true`; the test asserts the accessor answers for the other keywords). Check count +81. Full suite: 285 files, 16,711 checks, zero failures.
 
-Not yet done for I-122: the retirement of overlapping tests; the cells for the other keywords are covered unevenly by the existing hand-written files. **Batch 4 (v0.10.341) is [I-122d](#i-122d)** (the subfile-control family, 130 checks) and **batch 5 (v0.10.342) is [I-122e](#i-122e)** (the field format and edit family, 171 checks) and **batch 6 (v0.10.343) is [I-122f](#i-122f)** (the help and window family, 138 checks) and **batch 7 (v0.10.344) is [I-122g](#i-122g)** (the choice family, 147 checks). and **batch 8 (v0.10.348) is [I-122h](#i-122h)** (the command-key family, 107 checks). **The generated matrix (v0.10.350) is [I-122i](#i-122i)** (generator, harness and 1,328 checks on the 61 keywords no hand-written batch covers). What remains is [I-122j](#i-122j), the retirement of overlapping tests.
+The cells for the keywords outside the matrix's default set are covered unevenly by the existing hand-written files (by design: see I-122j). **Batch 4 (v0.10.341) is [I-122d](#i-122d)** (the subfile-control family, 130 checks) and **batch 5 (v0.10.342) is [I-122e](#i-122e)** (the field format and edit family, 171 checks) and **batch 6 (v0.10.343) is [I-122f](#i-122f)** (the help and window family, 138 checks) and **batch 7 (v0.10.344) is [I-122g](#i-122g)** (the choice family, 147 checks). and **batch 8 (v0.10.348) is [I-122h](#i-122h)** (the command-key family, 107 checks). **The generated matrix (v0.10.350) is [I-122i](#i-122i)** (generator, harness and 1,328 checks on the 61 keywords no hand-written batch covers). **The retirement of overlapping tests (v0.10.354) is [I-122j](#i-122j)**: 9 checks retired, and the overlap turned out to be much smaller than expected.
 
 ---
 
@@ -6931,9 +6931,28 @@ Disagreements are not asserted as correct: `KNOWN_GAPS` lists the one found (`HL
 
 ### I-122j — Retire overlapping tests, each deletion backed by a stash-based mutation run (do last, serially)
 
-> **Area:** Tooling · **Status:** In progress (claimed) · **Depends on:** I-122i · **Size (estimate):** Large
+> **Area:** Tooling · **Status:** Done (v0.10.354: 9 checks retired, each backed by a mutation run) · **Depends on:** I-122i · **Size (estimate):** Large
 
 Opened from I-122. Map each existing `check()` to a keyword x dimension cell; delete it only when a generated cell covers it and a stash-based mutation run shows the generated cell fails when the rule is broken. Report before/after check count and suite time. Needs I-122i first.
+
+**Mapping.** A script read the literal `check()` labels of every test file (about 11,400 of the ~19,000 checks; the rest use computed labels) and tagged each with the keywords it names and the matrix dimension its wording resembles (L2 round trip / neighbour / remove, L3 chip / no-indicators note, L4 raw add accepted). About 290 looked generic; reading them showed that nearly all are rule-specific (constraints, guards, pairings), or go through code the matrix does not call, so they are not redundant.
+
+**Mutation evidence, per class** (each run: break the rule in the source, run the generated cell and the hand-written check, restore):
+
+| Class | Mutation | Matrix | Hand-written | Result |
+|---|---|---|---|---|
+| `setFileFlagKeyword` "off removes only X" / "round trips as a bare flag" (`i122d`, `i122f`, `i122h`, ...) | `setFileFlagKeyword` ignores every "off" | 0 fail (`MATRIX_ALL=1`) | 2 + 3 + 6 fail | **Kept.** The matrix goes through `applyFileKeywordsUpdate` / `applyRecordUpdate` / `applyFieldUpdate` and never calls this function. |
+| raw-editor "a bare HELP is written" (`i162`) | none run (read instead) | n/a | n/a | **Kept.** The matrix adds `HELP('Text one')`, not a bare `HELP`, because HELP takes parameters. |
+| webview Apply round trip (`i41` HTML) and picker round trips | none run (read instead) | n/a | n/a | **Kept.** UI paths the matrix does not exercise. |
+| "X chip: no Conditioning toggle, note shown" (`i101*`) | remove the keyword from the spec's no-indicator table | 1-6 fail per keyword | 1-12 fail per keyword | **Retired** for the nine keywords below. |
+
+**Retired (9 checks):** `i101FileLevelNoOptionIndicators` (DSPSIZ, ERRSFL, MSGLOC(24) chips), `i101RecordLevelNoOptionIndicators` (SFLCTL, SFLSIZ(10), INZRCD-on-another-record chips), `i101MultiLevelNoOptionIndicators` (HLPTITLE file-level raw editor, field-level TEXT chip, SFLMSGKEY chip), plus the lookup lines only they used. The matrix's L3 cell asserts the same thing in the same raw keyword list (the "No option indicators" note in place of the Conditioning toggle, from `noOptionIndicatorsReason`). With all nine entries removed at once, the default matrix fails 3 checks each for DSPSIZ, ERRSFL, MSGLOC, INZRCD and HLPTITLE, 6 for TEXT and 1 each for SFLCTL, SFLSIZ and SFLMSGKEY. Five of the nine (DSPSIZ, SFLCTL, SFLSIZ, TEXT, SFLMSGKEY) were covered only under `MATRIX_ALL=1`, so `RETAINED` in `helpers/keywordMatrix.js` now keeps all nine in the default matrix even if another hand-written file later mentions them (default matrix: 1,328 -> 1,429 checks, about 38 s -> 47 s).
+
+**Not retired, on purpose:** everything else in the `i101*` files (the diff check, the warning text, "adding indicator 02 is refused with an alert", the toggle disappearing again) asserts behaviour the matrix does not, and the matrix does not cover constraint rules at all.
+
+**Before / after** (serial, chunked runs on the same machine, before the rebase onto v0.10.353): 298 files, 19,066 checks, zero failures, 1,207 s -> 298 files, 19,158 checks (-9 retired, +101 matrix), zero failures, 1,343 s. The time difference is machine load between the two runs (the matrix itself adds about 9 s), so this task did not shorten the suite; its value is that each retired assertion now has one owner. After the rebase onto v0.10.353 (which added I-182 and I-192 tests) the final run is 300 files, 19,283 checks, zero failures.
+
+**Conclusion.** The hand-written batches and the matrix are complementary, not duplicates: the matrix covers the generic per-keyword facts, the hand-written files cover rules, guards and UI paths. Further retirement needs new matrix cells first (a `setFileFlagKeyword` path cell, a webview Apply round trip cell), which is a new task rather than a deletion. Tests only; no product code changed.
 
 ---
 

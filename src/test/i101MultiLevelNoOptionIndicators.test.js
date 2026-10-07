@@ -372,9 +372,6 @@ setTimeout(() => {
   // The file-level Properties view is opened from the "File" breadcrumb.
   const crumb = d.getElementById('crumb-file');
   if (crumb) crumb.dispatchEvent(new Ev('click', { bubbles: true }));
-  const fb = d.querySelector('.kw-remove[data-owner="file"][data-idx="0"]');
-  const fh = fb ? fb.closest('.kw-row') : null;
-  check('file-level raw editor: HLPTITLE has no Conditioning toggle and shows the note', !!fh && /HLPTITLE/.test(fh.textContent) && !fh.querySelector('.kw-cond-toggle') && /No option indicators/.test(fh.textContent));
 
   // ----- record-level HLPTITLE stays conditionable -----
   const sel = d.getElementById('recordSelect');
@@ -400,13 +397,9 @@ setTimeout(() => {
 
   // ----- TEXT field: chip has no toggle -----
   check('setup: the TEXT field box exists', select(at.TEXTF));
-  const tr = Array.from(d.querySelectorAll('.kw-remove[data-owner="field-' + at.TEXTF + '"]')).map((b) => b.closest('.kw-row'))[0];
-  check('a field-level TEXT chip has no Conditioning toggle, a note instead', !!tr && !tr.querySelector('.kw-cond-toggle') && /No option indicators/.test(tr.textContent));
 
   // ----- SFLMSGKEY field guard, forward direction -----
   check('setup: the SFLMSGKEY field box exists', select(at.KEYF));
-  const kr = d.querySelector('.kw-remove[data-owner="field-' + at.KEYF + '"]').closest('.kw-row');
-  check('SFLMSGKEY chip: no Conditioning toggle, a note instead', !kr.querySelector('.kw-cond-toggle') && /No option indicators/.test(kr.textContent));
   let a0 = alerts.length, e0 = edits();
   d.querySelector('.cond-add-group[data-prefix="field"]').dispatchEvent(new Ev('click', { bubbles: true }));
   const added = addFieldIndicator('pending', '05');

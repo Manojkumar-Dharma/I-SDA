@@ -230,9 +230,6 @@ setTimeout(() => {
   check('setup: the file has 5 file-level keywords in source order', fk.length === 5 && fk.map((k) => k.name).join(',') === 'DSPSIZ,ERRSFL,MSGLOC,MSGLOC,CA03');
   const tog = (idx) => d.querySelector('.kw-cond-toggle[data-owner="file"][data-idx="' + idx + '"]');
   const rowText = (idx) => { const b = d.querySelector('.kw-remove[data-owner="file"][data-idx="' + idx + '"]'); return b ? b.closest('.kw-row').textContent : ''; };
-  check('DSPSIZ chip: no Conditioning toggle, note shown', /DSPSIZ/.test(rowText(0)) && !tog(0) && /No option indicators/.test(rowText(0)));
-  check('ERRSFL chip: no Conditioning toggle, note shown', /ERRSFL/.test(rowText(1)) && !tog(1) && /No option indicators/.test(rowText(1)));
-  check('MSGLOC(24) chip: no Conditioning toggle, note shown', /MSGLOC/.test(rowText(2)) && !tog(2) && /No option indicators/.test(rowText(2)));
   check('the parsed MSGLOC(27) carries a display-size condition, not an option indicator', !!fk[3] && fk[3].conditions.length === 1 && !!fk[3].conditions[0].displaySizeCondition && indicatorsOf(fk[3]) === 0);
   check('MSGLOC(27) under *DS4 KEEPS its Conditioning toggle', !!tog(3));
   check('CA03 chip (unlisted) keeps its Conditioning toggle', /CA03/.test(rowText(4)) && !!tog(4));

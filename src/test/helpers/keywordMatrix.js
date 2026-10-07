@@ -159,11 +159,17 @@ function handCoveredNames(selfFile) {
   return Object.keys(T).filter((n) => new RegExp('(?:^|[^A-Za-z0-9])' + n.replace(/[-]/g, '\\-') + '(?![A-Za-z0-9])').test(text));
 }
 
+// Keywords whose hand-written duplicate checks were retired in I-122j because the matrix covers the
+// same assertion (each retirement backed by a mutation run). They stay in the default matrix even
+// when another hand-written I-122 file mentions them, so the coverage cannot silently drop out.
+const RETAINED = ['DSPSIZ', 'ERRSFL', 'MSGLOC', 'SFLCTL', 'SFLSIZ', 'INZRCD', 'TEXT', 'SFLMSGKEY', 'HLPTITLE'];
+
 function matrixKeywords(opts) {
   const o = opts || {};
   const all = Object.keys(T);
   if (o.all) return all;
   const skip = new Set(handCoveredNames(o.selfFile).concat(CLAIMED_ELSEWHERE));
+  RETAINED.forEach((n) => skip.delete(n));
   return all.filter((n) => !skip.has(n));
 }
 
@@ -213,6 +219,6 @@ function placement(facts, level) {
 
 module.exports = {
   referenceSections, referenceFacts, referenceLevels, referenceOptionIndicators,
-  specFacts, resolve, matrixKeywords, handCoveredNames, CLAIMED_ELSEWHERE, CONSTRAINT_FACTS,
+  specFacts, resolve, matrixKeywords, handCoveredNames, CLAIMED_ELSEWHERE, RETAINED, CONSTRAINT_FACTS,
   dds, R, FLD, K, KI, IND, SAMPLE_PARAMETER, keywordText, placement,
 };

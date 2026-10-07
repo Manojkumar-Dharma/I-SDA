@@ -274,15 +274,10 @@ setTimeout(() => {
   const owner = 'record-CTLREC';
   const tog = (idx) => d.querySelector('.kw-cond-toggle[data-owner="' + owner + '"][data-idx="' + idx + '"]');
   const rowText = (idx) => { const b = d.querySelector('.kw-remove[data-owner="' + owner + '"][data-idx="' + idx + '"]'); return b ? b.closest('.kw-row').textContent : ''; };
-  check('SFLCTL chip: no Conditioning toggle, note shown', /SFLCTL/.test(rowText(0)) && !tog(0) && /No option indicators/.test(rowText(0)));
-  check('SFLSIZ(10) chip: no Conditioning toggle, note shown', /SFLSIZ/.test(rowText(1)) && !tog(1) && /No option indicators/.test(rowText(1)));
   check('SFLPAG(5) with indicator 20 (hand-written): toggle kept, warning names SFLPAG', /SFLPAG/.test(rowText(2)) && !!tog(2) && /SFLPAG/.test(d.querySelector('.kw-row .kw-cond-warning') ? d.querySelector('.kw-row .kw-cond-warning').textContent : ''));
   check('SFLPAG(8) under *DS4 keeps its toggle, no note', /SFLPAG/.test(rowText(3)) && !!tog(3) && !/No option indicators/.test(rowText(3)));
   check('CSRLOC chip (held back) keeps its Conditioning toggle', /CSRLOC/.test(rowText(4)) && !!tog(4));
   open('PLAINREC');
-  const t2 = d.querySelector('.kw-cond-toggle[data-owner="record-PLAINREC"][data-idx="0"]');
-  const r2 = d.querySelector('.kw-remove[data-owner="record-PLAINREC"][data-idx="0"]');
-  check('INZRCD chip on another record: no toggle, note shown', !!r2 && /INZRCD/.test(r2.closest('.kw-row').textContent) && !t2 && /No option indicators/.test(r2.closest('.kw-row').textContent));
   check('no uncaught errors', errors.length === 0);
   console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));
   process.exit(failureCount() === 0 ? 0 : 1);
