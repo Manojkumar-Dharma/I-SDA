@@ -191,7 +191,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-122g](#i-122g) | Tooling | Choice family tests: CHCSLT, CHCCTL, CHCUNAVAIL, CHCAVAIL, CHCACCEL, SFLCHCCTL, SFLSNGCHC, SFLMLTCHC | I-122 | Done (147 checks; findings I-183, I-184, I-185) | v0.10.344 |
 | [I-122h](#i-122h) | Tooling | Command-key family tests: CA01-CA24, CF01-CF24, ALTPAGEDWN, ALTPAGEUP, DLTCHK, DLTEDT, RETCMDKEY, MNUBARSW, MNUCNL, GETRETAIN | I-122 | Done (107 checks; findings I-186, I-187, I-188, I-189) | v0.10.348 |
 | [I-122i](#i-122i) | Tooling | Generated per-keyword matrix (L1-L4 from the I-121 spec): generator and harness, then the keywords no hand-written batch covers | I-122, I-121 | Done (1,328 checks on 61 keywords, 3,380 with `MATRIX_ALL`; findings I-190, I-191) | v0.10.350 |
-| [I-122j](#i-122j) | Tooling | Retire overlapping tests, each deletion backed by a stash-based mutation run (do last, serially) | I-122i | Not started | — |
+| [I-122j](#i-122j) | Tooling | Retire overlapping tests, each deletion backed by a stash-based mutation run (do last, serially) | I-122i | In progress (claimed) | — |
 | [I-123](#i-123) | Tooling | Move "Task I-nn" history out of source comments | I-121 | Not started | — |
 | [I-124](#i-124) | Tooling | Test-only exports that still carry a "kept for backward compatibility / API completeness" note (decision first) | I-118 | Done | v0.10.202 |
 | [I-125](#i-125) | Field | `COMP`/`RANGE`/`VALUES`/`CHECK(AB)` "not on a floating-point field" restriction is unenforced | I-72, I-96 | Done | v0.10.223 |
@@ -276,7 +276,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
 | 1 | [I-122](#i-122) | In progress (batches 1-3, I-122d, I-122e, I-122f, I-122g, I-122h and I-122i done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
-| 4 | [I-122j](#i-122j) | Not started | Retire overlapping tests, each deletion backed by a stash-based mutation run (do last, serially). Size (estimate): Large. |
+| 4 | [I-122j](#i-122j) | In progress (claimed) | Retire overlapping tests, each deletion backed by a stash-based mutation run (do last, serially). Size (estimate): Large. |
 | 5 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
 | 6 | [I-182](#i-182) | Not started | `WDWBORDER` / `WDWTITLE` requirement and parameter rules. Size (estimate): Medium. |
 | 7 | [I-183](#i-183) | Not started | Choice keyword value rules (`CHCAVAIL` / `CHCUNAVAIL` / `CHCSLT` values, `CHCACCEL` / `CHCCTL` ranges and text). Size (estimate): Medium. |
@@ -6933,7 +6933,7 @@ Disagreements are not asserted as correct: `KNOWN_GAPS` lists the one found (`HL
 
 ### I-122j — Retire overlapping tests, each deletion backed by a stash-based mutation run (do last, serially)
 
-> **Area:** Tooling · **Status:** Not started · **Depends on:** I-122i · **Size (estimate):** Large
+> **Area:** Tooling · **Status:** In progress (claimed) · **Depends on:** I-122i · **Size (estimate):** Large
 
 Opened from I-122. Map each existing `check()` to a keyword x dimension cell; delete it only when a generated cell covers it and a stash-based mutation run shows the generated cell fails when the rule is broken. Report before/after check count and suite time. Needs I-122i first.
 
