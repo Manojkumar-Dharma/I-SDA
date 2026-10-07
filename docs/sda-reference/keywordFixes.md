@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-212 of 220 tasks done; 8 open (see [Open work](#open-work)). Current version: **v0.10.358**.
+213 of 221 tasks done; 8 open (see [Open work](#open-work)). Current version: **v0.10.359**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -255,7 +255,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-183](#i-183) | Field | Choice keyword values nothing enforces: a bare or out-of-list `CHCAVAIL` / `CHCUNAVAIL` / `CHCSLT`, `CHCACCEL` / `CHCCTL` choice number outside 1-99, `CHCACCEL` with no text, the `CHCCTL` message fields' shapes | I-122g | Done (state values, numbers, text, control field, message fields) | v0.10.356 |
 | [I-184](#i-184) | Record | `SFLSNGCHC` / `SFLMLTCHC` rules nothing enforces: the subfile shape (one output field, no input-capable fields), control-record-only, and the `&number-selected` field shape | I-122g | Done (68 checks) | v0.10.357 |
 | [I-185](#i-185) | Tooling | Spec entries for `SFLCHCCTL`, `SFLSNGCHC` and `SFLMLTCHC` carry no level, parameter or option-indicator fact, and the `SFLCHCCTL` control-value table is not in the spec | I-122g | Done (5 checks added to `i122gChoiceFamilyKeywords`, 155 in all) | v0.10.358 |
-| [I-186](#i-186) | Field | Command-key numbers outside 01-24 accepted (`CA00`, `CA25`), and `MNUBARSW(CF05)` / `MNUBARSW(CA25)` pass the menu-bar key guard | I-122h | In progress | — |
+| [I-186](#i-186) | Field | Command-key numbers outside 01-24 accepted (`CA00`, `CA25`), and `MNUBARSW(CF05)` / `MNUBARSW(CA25)` pass the menu-bar key guard | I-122h | Done (range, key type, panel guard, raw editors) | v0.10.359 |
 | [I-187](#i-187) | Record | `MNUBARSW` / `MNUCNL` claim a CA key but the CA / CF number guard does not read them: their key can be reused as a CF key on another record | I-122h | Not started | — |
 | [I-188](#i-188) | Record | `RETKEY` / `RETCMDKEY` accepted on a subfile (`SFL`) or user-defined (`USRDFN`) record, though the spec records they are not valid there | I-122h | Not started | — |
 | [I-189](#i-189) | Tooling | `MNUBARSW`, `MNUCNL`, `ALTPAGEDWN`, `ALTPAGEUP`, `DLTCHK` and `DLTEDT` carry no level, parameter or option-indicator fact; `optionIndicatorsAllowed` answers false for `MNUBARSW` / `MNUCNL` (reference: valid) and for a concrete `CA05` | I-122h | Not started | — |
@@ -263,6 +263,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-191](#i-191) | Tooling | Twelve `RECORD_TYPES` entries state no level and their Reference section names none (`SFLMSG`, `IGCALTTYP`, `ERRMSGID`, `SFLMSGID`, `ERRMSG`, `SFLCSRRRN`, `COLOR`, `CHECK`, `ALTPAGEDWN`, `ALTPAGEUP`, `KEYBRD`, `FLTPCN`): the generated matrix cannot place them | I-122i | Not started | — |
 | [I-192](#i-192) | Field | `CNTFLD`'s layout rules: the column width must fit within the width of the display or window, and the field needs at least 2 spaces between it and other fields | I-180 | Done | v0.10.353 |
 | [I-193](#i-193) | Tooling | Matrix cells for the writer paths and UI paths it does not call (`setFileFlagKeyword`, webview Apply round trip), then retire the hand-written duplicates | I-122j | Not started | — |
+| [I-194](#i-194) | Field | Command-key values that no guard reads: `MOUBTN` / `PSHBTNCHC` / `IGCCNV` keys outside 01-24 or of the wrong type, and a key written in a shape that is not `CAnn` / `CFnn` (`MNUBARSW(CA5)`, `ALTHELP(XYZ)`) | I-186 | Not started | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -276,13 +277,13 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-186](#i-186) | In progress | Command-key numbers outside 01-24 (`CA00`, `CA25`, `CF25`) accepted; a diff-based guard reading the spec range. Size (estimate): Small. |
 | 2 | [I-187](#i-187) | Not started | `MNUBARSW` / `MNUCNL` keys (explicit or default) are not counted as CA uses by the CA / CF number guard. Size (estimate): Small. |
 | 3 | [I-188](#i-188) | Not started | `RETKEY` / `RETCMDKEY` accepted on `SFL` and `USRDFN` records; read the reference sentence first. Size (estimate): Small. |
 | 4 | [I-190](#i-190) | Not started | `HLPRCD` spec entry says file level only; the Reference says file or help-specification level. Size (estimate): Small. |
 | 5 | [I-189](#i-189) | Not started | Level, parameter and option-indicator facts missing from `MNUBARSW`, `MNUCNL`, `ALTPAGEDWN`, `ALTPAGEUP`, `DLTCHK`, `DLTEDT`. Size (estimate): Small. |
 | 6 | [I-191](#i-191) | Not started | Twelve spec entries state no level, so the generated matrix skips them; re-run the matrix skip list first, I-180 and I-189 shorten it. Size (estimate): Small. |
 | 7 | [I-193](#i-193) | Not started | Matrix cells for the writer paths and UI paths the generated matrix does not call (`setFileFlagKeyword`, webview Apply round trip), so more overlapping hand-written checks can be retired. Size (estimate): Medium. |
+| 9 | [I-194](#i-194) | Not started | Out-of-range / wrong-type command keys in `MOUBTN`, `PSHBTNCHC` and `IGCCNV`, and non-`CAnn` shapes in the other key-valued keywords. Size (estimate): Small. |
 | 8 | [I-123](#i-123) | Not started | Task-history comments out of source. I-121 has landed, so each citation can now live in the spec. Size (estimate): Medium (mechanical). |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The headline there counts the same tasks, so when a task lands or opens, update this table, the headline count and the version together.
@@ -6604,6 +6605,7 @@ Audit table (a new `*ConflictReason` function must be added here; `i121qConflict
 | `commandFunctionPairingNewConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
 | `commandFunctionParameterNewConflictReason` | spec-backed | Via `commandFunctionParameterViolations`. |
 | `commandKeyNumberNewConflictReason` | spec-backed | Via `commandKeyNumberViolations`. |
+| `commandKeyRangeNewConflictReason` | spec-backed | Via `commandKeyRangeViolations` and `commandKeyValueProblem` (I-186): the 01-24 range from `commandKeyNumberRange`, the value types from `commandKeyValueTypes`. |
 | `compFloatNewConflictReason` | spec-backed | Via `floatIncompatibleKeywordNewConflictReason`. |
 | `dateSeparatorConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
 | `dateTimeFormatBasicEditConflictReason` | spec-backed | Via `dateTimeFormatDataTypeReason` (I-179). |
@@ -8254,11 +8256,13 @@ Do: add the three facts to the three entries, share the control-value table betw
 
 ### I-186 — Command-key numbers outside 01-24 accepted
 
-> **Area:** Field · **Status:** In progress · **Depends on:** I-122h · **Size (estimate):** Small
+> **Area:** Field · **Status:** Done (v0.10.359) · **Depends on:** I-122h · **Size (estimate):** Small
 
 Opened from I-122h; probed on v0.10.347. `CAnn` / `CFnn` are "nn = 01-24" (spec `pattern.first` / `last`), but `KeywordSpec.parseCommandKey` and `isCommandKeyName` read the grammar only (`CA00` and `CA25` both parse; the I-121 test says the range "is a separate domain fact"), `parseCommandKeys` returns both, and no guard reads the range. `mnuBarKeyConflictReason('MNUBARSW', 'CF05', ...)` and `('MNUBARSW', 'CA25', ...)` return null: it checks the collision only, not that the parameter is a CA key in 01-24 (the panel may restrict the input; the raw editor was not probed). `ALTPAGEDWN(CF25)` was not probed.
 
 Do: a diff-based guard reading the spec range for `CAnn`, `CFnn`, `ALTPAGEDWN` / `ALTPAGEUP`, `MNUBARSW` and `MNUCNL` values, with tests in both directions.
+
+**Done (v0.10.359).** `KeywordSpec` gained `commandKeyNumberRange(type)` (read from the `CA01-CA24` / `CF01-CF24` pattern entries, "CA01 through CA24" in the CAnn section), `isCommandKeyOutOfRange(token)` and `commandKeyValueTypes(name)` (the alt keys' claimed type and the `COMMAND_KEY_PARAMETER_KEYWORDS` types); `parseCommandKey` / `isCommandKeyName` still read the grammar only. `DspfWriter.commandKeyValueProblem(keyword, token)` refuses a key outside 01-24 and a key of the wrong type for its keyword: `MNUBARSW` / `MNUCNL` / `ALTHELP` take a CA key, `ALTPAGEDWN` / `ALTPAGEUP` a CF key, `SFLDROP` / `SFLENTER` / `SFLFOLD` either. `mnuBarKeyConflictReason` calls it first (so `MNUBARSW(CF05)` and `MNUBARSW(CA25)` are refused), and the diff-based `commandKeyRangeNewConflictReason` runs the same check over a plain `CAnn` / `CFnn` keyword name and the first parameter token of those eight keywords, on the file, every record and every field; it is in the webview's guard chain, so every raw keyword editor and panel is covered. The violation key counts occurrences per owner and keyword, so an edit that adds one more is refused while an already-out-of-range hand-written file stays editable. A blank value (the default key) and a value that is not `CAnn` / `CFnn` shaped are not checked. `ALTPAGEDWN(CF25)` was probed: refused. Pinned by `i186CommandKeyRange.test.js` (facts against the Reference, accessors, value problem, model guard, panel guard, jsdom raw editors); six mutations (range check, type check, chain hook, panel call, spec range, occurrence counting) each fail the file. Findings opened as I-194.
 
 *Raised by I-122h. Size (estimate): Small.*
 
@@ -8355,3 +8359,17 @@ Opened from I-122j. The generated matrix goes through `applyFileKeywordsUpdate`,
 *Raised by I-122j. Size (estimate): Medium.*
 
 ---
+
+---
+
+<a id="i-194"></a>
+
+### I-194 — Command-key values that no guard reads
+
+> **Area:** Field · **Status:** Not started · **Depends on:** I-186 · **Size (estimate):** Small
+
+Opened from I-186; probed on v0.10.359 through every `*NewConflictReason` function. `MOUBTN(*ULP CA25)` and `MOUBTN(*ULP CF00)` return null (the spec entry holds `commandKeyRanges` for the Command key but no guard reads them), `IGCCNV(CF25 5)` was probed on a record only (it is file level) and `PSHBTNCHC`'s command key was not probed. A key that is not `CAnn` / `CFnn` shaped at all (`MNUBARSW(CA5)`, `ALTHELP(XYZ)`) is accepted by the I-186 guard on purpose (a shape error is the keyword's own parameter rule) and no other guard refuses it.
+
+Do: read `MOUBTN`'s `commandKeyRanges` and `PSHBTNCHC` / `IGCCNV`'s key from the spec and refuse keys outside their range, then decide (and record in the spec) whether a malformed key in `MNUBARSW` / `MNUCNL` / the alt keys / `SFLDROP` / `SFLENTER` / `SFLFOLD` is refused, with tests in both directions.
+
+*Raised by I-186. Size (estimate): Small.*

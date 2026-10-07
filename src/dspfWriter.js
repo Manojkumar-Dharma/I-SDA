@@ -4428,6 +4428,8 @@
       return p ? p.defaultCakey : '';
     }
     var thisCakey = normalizeCakey(keywordName, cakey);
+    var valueProblem = commandKeyValueProblem(keywordName, thisCakey);
+    if (valueProblem) return valueProblem;
     function otherCakeyIn(kwList) {
       var k = (kwList || []).find(function (x) { return x.name === otherName; });
       if (!k) return null;
@@ -7405,6 +7407,63 @@
     var after = commandKeyNumberViolations(newModel);
     if (!Object.keys(after).length) return null;
     return firstNewViolation(commandKeyNumberViolations(oldModel), after);
+  }
+
+  /** Task I-186 - the problem with the command key `token` used as the value of `keywordName`, or null. A key
+   *  is a CAnn / CFnn with nn in the type's stated range (KeywordSpec.commandKeyNumberRange, 01-24), and a
+   *  keyword that takes a command-key parameter takes only its stated type (KeywordSpec.commandKeyValueTypes:
+   *  MNUBARSW / MNUCNL / ALTHELP a CA key, ALTPAGEDWN / ALTPAGEUP a CF key). A blank value is not checked (it
+   *  means the keyword's default key), and a value that does not have the CAnn / CFnn shape at all is left to the
+   *  keyword's own parameter rules. `keywordName` may be a plain CAnn / CFnn name (then `token` is that name). */
+  function commandKeyValueProblem(keywordName, token) {
+    var t = String(token || '').trim().toUpperCase();
+    if (!t) return null;
+    var k = KeywordSpec.parseCommandKey(t);
+    if (!k) return null;
+    var name = String(keywordName || '').toUpperCase();
+    if (KeywordSpec.isCommandKeyOutOfRange(t)) {
+      var r = KeywordSpec.commandKeyNumberRange(k.type);
+      var lo = (r.first < 10 ? '0' : '') + r.first, hi = String(r.last);
+      return t + ' is not a valid command key: ' + k.type + 'nn takes nn = ' + lo + '-' + hi + ' (per the DDS Reference).';
+    }
+    var types = KeywordSpec.commandKeyValueTypes(name);
+    if (types && types.indexOf(k.type) === -1) {
+      return name + ' takes ' + (types.length === 1 ? 'a ' + types[0] + ' key' : types.join(' or ') + ' keys') + ', not ' + t +
+        (KeywordSpec.commandKeyParameterReference(name) ? '. ' + KeywordSpec.commandKeyParameterReference(name) : ' (per the DDS Reference).');
+    }
+    return null;
+  }
+  /** Task I-186 - every command-key value in the model that is out of range or the wrong type for its keyword:
+   *  a plain CAnn / CFnn keyword name (file level, a record, a field) and the first parameter token of the
+   *  alt keys and command-key parameter keywords. Keyed by owner, keyword and occurrence number so an edit that
+   *  adds one more is a new violation (firstNewViolation) while a hand-written file that already has one stays
+   *  editable. */
+  function commandKeyRangeViolations(model) {
+    var out = {};
+    function scan(kws, owner) {
+      var seen = {};
+      (kws || []).forEach(function (k) {
+        var name = String(k.name || '').toUpperCase();
+        var token = KeywordSpec.parseCommandKey(name) ? name : String(k.parameters || '').trim().split(/\s+/)[0];
+        if (!KeywordSpec.parseCommandKey(name) && !KeywordSpec.commandKeyValueTypes(name)) return;
+        var problem = commandKeyValueProblem(name, token);
+        if (!problem) return;
+        seen[name] = (seen[name] || 0) + 1;
+        out[owner + '|' + name + '|' + String(token).toUpperCase() + '|' + seen[name]] = problem;
+      });
+    }
+    if (!model) return out;
+    scan(model.fileKeywords, 'file');
+    (model.records || []).forEach(function (r) {
+      scan(r.keywords, 'record ' + r.name);
+      (r.fields || []).forEach(function (f) { scan(f.keywords, 'field ' + (f.name || '') + ' of ' + r.name); });
+    });
+    return out;
+  }
+  function commandKeyRangeNewConflictReason(oldModel, newModel) {
+    var after = commandKeyRangeViolations(newModel);
+    if (!Object.keys(after).length) return null;
+    return firstNewViolation(commandKeyRangeViolations(oldModel), after);
   }
 
   function subfileKeywordNewConflictReason(oldModel, newModel) {
@@ -12188,6 +12247,9 @@
     retKeyViolations: retKeyViolations,
     commandFunctionPairingNewConflictReason: commandFunctionPairingNewConflictReason,
     commandKeyNumberNewConflictReason: commandKeyNumberNewConflictReason,
+    commandKeyValueProblem: commandKeyValueProblem,
+    commandKeyRangeViolations: commandKeyRangeViolations,
+    commandKeyRangeNewConflictReason: commandKeyRangeNewConflictReason,
     commandFunctionPairingViolations: commandFunctionPairingViolations,
     fieldKindNewConflictReason: fieldKindNewConflictReason,
     fieldKindViolations: fieldKindViolations,

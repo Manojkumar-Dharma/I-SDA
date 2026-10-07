@@ -6636,6 +6636,31 @@
     var k = parseCommandKey(token);
     return { type: k.type, number: k.number, other: k.type === 'CA' ? 'CF' : 'CA', scope: e.sameKeyNumberScope || 'file' };
   }
+  /** Task I-186 - the stated key-number range of a command-key type ('CA' -> { first: 1, last: 24 }), read from
+   *  the type's pattern entry (CAnn / CFnn: "nn = 01-24"), or null for a type that has no entry. */
+  function commandKeyNumberRange(type) {
+    var e = (type === 'CA' || type === 'CF') ? RECORD_TYPES[type + '01-' + type + '24'] : null;
+    return e && e.pattern ? { first: e.pattern.first, last: e.pattern.last } : null;
+  }
+  /** Task I-186 - whether `token` has the CAnn / CFnn shape but a number outside the type's stated range
+   *  (CA00, CA25, CF99 -> true; CA05, CLEAR, CA3 -> false). parseCommandKey reads the grammar only, so the range
+   *  is this separate domain fact. */
+  function isCommandKeyOutOfRange(token) {
+    var k = parseCommandKey(token);
+    if (!k) return false;
+    var r = commandKeyNumberRange(k.type);
+    var n = Number(k.number);
+    return !!r && (n < r.first || n > r.last);
+  }
+  /** Task I-186 - the command-key types the parameter of `name` (any case) accepts: the alt keys' claimed type
+   *  (ALTHELP -> CA, ALTPAGEDWN / ALTPAGEUP -> CF) or the COMMAND_KEY_PARAMETER_KEYWORDS types (MNUCNL / MNUBARSW CA;
+   *  SFLDROP / SFLENTER / SFLFOLD CA or CF), as a fresh array; null for any other keyword. */
+  function commandKeyValueTypes(name) {
+    if (typeof name !== 'string') return null;
+    var up = name.toUpperCase();
+    if (isAltKeyName(up)) return [RECORD_TYPES[up].claimedKeyType];
+    return commandKeyParameterKeyTypes(up);
+  }
   /** The keywords PASSRCD's own section forbids on the named record format (a fresh array). */
   function passrcdOwnSectionRestricted() { return RECORD_TYPES.PASSRCD.ownSectionRestrictedKeywords.slice(); }
   /** USRDSPMGT's two forbidden-keyword lists: { own: [...8], considerations: [...12] } (fresh arrays). */
@@ -6901,6 +6926,9 @@
     fileHelpCommandKeywords: fileHelpCommandKeywords,
     commandKeyEntry: commandKeyEntry,
     commandKeyNumberClash: commandKeyNumberClash,
+    commandKeyNumberRange: commandKeyNumberRange,
+    isCommandKeyOutOfRange: isCommandKeyOutOfRange,
+    commandKeyValueTypes: commandKeyValueTypes,
     passrcdOwnSectionRestricted: passrcdOwnSectionRestricted,
     usrdspmgtForbiddenKeywords: usrdspmgtForbiddenKeywords
   };
