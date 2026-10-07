@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-215 of 221 tasks done; 6 open (see [Open work](#open-work)). Current version: **v0.10.361**.
+215 of 222 tasks done; 7 open (see [Open work](#open-work)). Current version: **v0.10.361**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -264,6 +264,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-192](#i-192) | Field | `CNTFLD`'s layout rules: the column width must fit within the width of the display or window, and the field needs at least 2 spaces between it and other fields | I-180 | Done | v0.10.353 |
 | [I-193](#i-193) | Tooling | Matrix cells for the writer paths and UI paths it does not call (`setFileFlagKeyword`, webview Apply round trip), then retire the hand-written duplicates | I-122j | Not started | — |
 | [I-194](#i-194) | Field | Command-key values that no guard reads: `MOUBTN` / `PSHBTNCHC` / `IGCCNV` keys outside 01-24 or of the wrong type, and a key written in a shape that is not `CAnn` / `CFnn` (`MNUBARSW(CA5)`, `ALTHELP(XYZ)`) | I-186 | In progress | — |
+| [I-195](#i-195) | Cross-level | Comment lines are captured and written only up to column 80: text past it is dropped from the panel, and editing the comment cuts the line to 80 columns. Read the source file's real record length and keep, show and store the whole line | — | In progress | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -277,12 +278,13 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 4 | [I-190](#i-190) | Not started | `HLPRCD` spec entry says file level only; the Reference says file or help-specification level. Size (estimate): Small. |
-| 5 | [I-189](#i-189) | Not started | Level, parameter and option-indicator facts missing from `MNUBARSW`, `MNUCNL`, `ALTPAGEDWN`, `ALTPAGEUP`, `DLTCHK`, `DLTEDT`. Size (estimate): Small. |
-| 6 | [I-191](#i-191) | Not started | Twelve spec entries state no level, so the generated matrix skips them; re-run the matrix skip list first, I-180 and I-189 shorten it. Size (estimate): Small. |
-| 7 | [I-193](#i-193) | Not started | Matrix cells for the writer paths and UI paths the generated matrix does not call (`setFileFlagKeyword`, webview Apply round trip), so more overlapping hand-written checks can be retired. Size (estimate): Medium. |
-| 9 | [I-194](#i-194) | In progress | Out-of-range / wrong-type command keys in `MOUBTN`, `PSHBTNCHC` and `IGCCNV`, and non-`CAnn` shapes in the other key-valued keywords. Size (estimate): Small. |
-| 8 | [I-123](#i-123) | Not started | Task-history comments out of source. I-121 has landed, so each citation can now live in the spec. Size (estimate): Medium (mechanical). |
+| 1 | [I-190](#i-190) | Not started | `HLPRCD` spec entry says file level only; the Reference says file or help-specification level. Size (estimate): Small. |
+| 2 | [I-189](#i-189) | Not started | Level, parameter and option-indicator facts missing from `MNUBARSW`, `MNUCNL`, `ALTPAGEDWN`, `ALTPAGEUP`, `DLTCHK`, `DLTEDT`. Size (estimate): Small. |
+| 3 | [I-191](#i-191) | Not started | Twelve spec entries state no level, so the generated matrix skips them; re-run the matrix skip list first, I-180 and I-189 shorten it. Size (estimate): Small. |
+| 4 | [I-193](#i-193) | Not started | Matrix cells for the writer paths and UI paths the generated matrix does not call (`setFileFlagKeyword`, webview Apply round trip), so more overlapping hand-written checks can be retired. Size (estimate): Medium. |
+| 5 | [I-194](#i-194) | In progress | Out-of-range / wrong-type command keys in `MOUBTN`, `PSHBTNCHC` and `IGCCNV`, and non-`CAnn` shapes in the other key-valued keywords. Size (estimate): Small. |
+| 6 | [I-195](#i-195) | In progress | Comment lines: keep, show and store text past column 80 (parser, writer, Comments panel), find the source file's record length (SRCDTA width on IBM i, longest line for local files), and warn past column 80 and stop past the record length. Size (estimate): Medium. |
+| 7 | [I-123](#i-123) | Not started | Task-history comments out of source. I-121 has landed, so each citation can now live in the spec. Size (estimate): Medium (mechanical). |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The headline there counts the same tasks, so when a task lands or opens, update this table, the headline count and the version together.
 
@@ -8371,3 +8373,17 @@ Opened from I-186; probed on v0.10.359 through every `*NewConflictReason` functi
 Do: read `MOUBTN`'s `commandKeyRanges` and `PSHBTNCHC` / `IGCCNV`'s key from the spec and refuse keys outside their range, then decide (and record in the spec) whether a malformed key in `MNUBARSW` / `MNUCNL` / the alt keys / `SFLDROP` / `SFLENTER` / `SFLFOLD` is refused, with tests in both directions.
 
 *Raised by I-186. Size (estimate): Small.*
+
+---
+
+<a id="i-195"></a>
+
+### I-195 — Comment lines past column 80 are cut, and an edit loses the tail
+
+> **Area:** Cross-level · **Status:** In progress · **Depends on:** — · **Size (estimate):** Medium
+
+Found by checking whether the Comments panel truncates at 80 columns. It does: `parseDspf` captures a comment's text as columns 8-80 only (`col(padded, 8, LINE_WIDTH)`), so on a 120-column comment line the panel shows 73 characters and 40 are not shown. Opening that comment and saving it with no change rewrites the line to 80 columns (`updateComment`), and `addComment` / `updateComment` cut new text to 73 characters with no warning (the comment input has no length limit or notice). A comment the user never edits is left alone, and the other column-sliced fields have fixed widths, so comments are the only free-text field affected.
+
+Do: (1) the parser keeps the whole comment text, from column 8 to the end of the line; (2) the writer caps `addComment` / `updateComment` at the source file's real maximum instead of a hard 73, so editing text past column 80 is stored and an unchanged save leaves the line as it was; (3) find that maximum once per document and cache it: for a `member:` URI the `SRCDTA` length of the source file (read through the Code for i connection's `runSQL`, `QSYS2.SYSCOLUMNS` matched on `SYSTEM_TABLE_NAME` / `SYSTEM_TABLE_SCHEMA`; to be confirmed on a real system, with 80 as the fallback if the query fails), for a local `file:` or `streamfile:` source the longest line in the file with a floor of 80; (4) the Comments panel shows a character count and warns past column 80, and refuses text past the maximum. Before wording the warning, check in the DDS Reference what the compiler does with text past column 80. Tests: the 80 / 81 / 100 / 120-column cases both ways, and an unchanged save keeps the tail.
+
+*Raised by the Comments panel truncation check. Size (estimate): Medium.*
