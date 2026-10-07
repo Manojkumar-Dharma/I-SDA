@@ -259,6 +259,7 @@ citations and tests live in the task's section of
 - **0.10.119** — L85: editing one file- or record-level keyword reordered other, untouched keyword lines; `keywordsExcept` now preserves document order.
 - **0.10.118** — I-39: eight keywords that were missing entirely (`BLKFOLD`, `CSRINPONLY`, `FLTFIXDEC`, `FLTPCN`, `MAPVAL`, `SFLCHCCTL`, `SFLCSRPRG`, `SFLRTNSEL`) added.
 - Docs (no version): `keywordFixes.md`'s open-work notes corrected after I-37; no code changed.
+- Docs (no version): `keywordFixes.md` Open work brought back in line with Status at a glance - it listed 2 of the 8 open tasks, now lists all eight (I-186 – I-191, I-193, I-123) in pickup order; headline count (212 of 220 done, 8 open) and version corrected; stale "I-121t stays last" and I-121 umbrella sentences removed.
 - **0.10.117** — I-38 follow-up: `HLPRCD` with `HLPDOC` is valid; fixed the `HLPPNLGRP`/`HLPRCD` exclusion, `HLPDOC`/`HLPPNLGRP` reverse direction and required-field validation.
 - **0.10.116** — I-38: file-level `HLPDOC` added (label, document, folder; Conditioning) with a two-way guard against `HLPPNLGRP`/`HLPRTN`.
 - **0.10.115** — I-35: usage `M`/`P` fields show only IBM's fixed keyword lists instead of failing open.

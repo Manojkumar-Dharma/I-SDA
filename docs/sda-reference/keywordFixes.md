@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-210 of 220 tasks done; 10 open (see [Open work](#open-work)). Current version: **v0.10.356**.
+212 of 220 tasks done; 8 open (see [Open work](#open-work)). Current version: **v0.10.358**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -272,18 +272,24 @@ keyword index under `docs/sda-reference/keyword-index/`.
 
 ## Open work
 
-Suggested pickup order - roughly smallest and safest first (a real bug with a proven fix shape ahead of cosmetic or decision-dependent work); **not binding** (any task can be picked independently, and the sizes are estimates, not measurements). **I-121t stays last, on purpose.**
+Suggested pickup order - roughly smallest and safest first (a real bug with a proven fix shape ahead of spec-fact and tooling work); **not binding** (any task can be picked independently, and the sizes are estimates, not measurements).
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 5 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
-| 8 | [I-193](#i-193) | Not started | Matrix cells for the writer paths and UI paths the generated matrix does not call (`setFileFlagKeyword`, webview Apply round trip), so more overlapping hand-written checks can be retired. Size (estimate): Medium. |
+| 1 | [I-186](#i-186) | Not started | Command-key numbers outside 01-24 (`CA00`, `CA25`, `CF25`) accepted; a diff-based guard reading the spec range. Size (estimate): Small. |
+| 2 | [I-187](#i-187) | Not started | `MNUBARSW` / `MNUCNL` keys (explicit or default) are not counted as CA uses by the CA / CF number guard. Size (estimate): Small. |
+| 3 | [I-188](#i-188) | Not started | `RETKEY` / `RETCMDKEY` accepted on `SFL` and `USRDFN` records; read the reference sentence first. Size (estimate): Small. |
+| 4 | [I-190](#i-190) | Not started | `HLPRCD` spec entry says file level only; the Reference says file or help-specification level. Size (estimate): Small. |
+| 5 | [I-189](#i-189) | Not started | Level, parameter and option-indicator facts missing from `MNUBARSW`, `MNUCNL`, `ALTPAGEDWN`, `ALTPAGEUP`, `DLTCHK`, `DLTEDT`. Size (estimate): Small. |
+| 6 | [I-191](#i-191) | Not started | Twelve spec entries state no level, so the generated matrix skips them; re-run the matrix skip list first, I-180 and I-189 shorten it. Size (estimate): Small. |
+| 7 | [I-193](#i-193) | Not started | Matrix cells for the writer paths and UI paths the generated matrix does not call (`setFileFlagKeyword`, webview Apply round trip), so more overlapping hand-written checks can be retired. Size (estimate): Medium. |
+| 8 | [I-123](#i-123) | Not started | Task-history comments out of source. I-121 has landed, so each citation can now live in the spec. Size (estimate): Medium (mechanical). |
 
-This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The I-121 umbrella row there stays open until its slices land, so it is counted in the headline but not listed here.
+This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The headline there counts the same tasks, so when a task lands or opens, update this table, the headline count and the version together.
 
 ## Deferred findings (not yet tasks)
 
-Every finding so far has been opened as a task (I-61 – I-176, see the tables above); the table below is empty. The four that were waiting here because the DDS Reference does not settle them were converted on request: I-153's open questions became [I-166](#i-166), I-154's became [I-167](#i-167), I-121g's became [I-168](#i-168) and I-160's became [I-169](#i-169) (done; the source turned out to state the whole-file scope). Each of those tasks starts with the decision or rule it is waiting on, so nothing in it is implemented on a guess. A new finding that cannot be implemented yet goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
+Every finding so far has been opened as a task (I-61 – I-193, see the tables above); the table below is empty. The four that were waiting here because the DDS Reference does not settle them were converted on request: I-153's open questions became [I-166](#i-166), I-154's became [I-167](#i-167), I-121g's became [I-168](#i-168) and I-160's became [I-169](#i-169) (done; the source turned out to state the whole-file scope). Each of those tasks starts with the decision or rule it is waiting on, so nothing in it is implemented on a guess. A new finding that cannot be implemented yet goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
 
 | Raised by | Finding |
 |-----------|---------|
@@ -6959,7 +6965,7 @@ Opened from I-122. Map each existing `check()` to a keyword x dimension cell; de
 
 > **Area:** Tooling · **Status:** Not started · **Depends on:** I-121
 
-35-48% of lines in the big source files are comments and about 1,100 lines cite a task ID. Keep comments that state a rule or a DDS Reference citation; move task narrative (what was wrong before, which session found it) to this file and the git log, leaving at most a one-line "see I-nn". Best done alongside I-121 so each rule's citation lives in the spec. Mechanical, no behaviour change: the test suite and the compiled output must be unchanged apart from comments.
+35-48% of lines in the big source files are comments and about 1,100 lines cite a task ID. Keep comments that state a rule or a DDS Reference citation; move task narrative (what was wrong before, which session found it) to this file and the git log, leaving at most a one-line "see I-nn". I-121 has landed, so each rule's citation already lives in the spec. Mechanical, no behaviour change: the test suite and the compiled output must be unchanged apart from comments.
 
 *Raised by the 2026-09-21 audit. Size (estimate): Medium.*
 
@@ -8318,7 +8324,7 @@ Opened from I-122i. The matrix's L1 level cell compares `levels` with the first 
 
 > **Area:** Tooling · **Status:** Not started · **Depends on:** I-122i · **Size (estimate):** Small
 
-Opened from I-122i. With neither a `levels` fact in the entry nor a level in the Reference section, the generated matrix cannot place the keyword, so L2-L4 skip it: `SFLMSG`, `IGCALTTYP`, `ERRMSGID`, `SFLMSGID`, `ERRMSG` on the default set, plus `SFLCSRRRN`, `COLOR`, `CHECK`, `ALTPAGEDWN`, `ALTPAGEUP`, `KEYBRD`, `FLTPCN` under `MATRIX_ALL`. Overlaps: `ALTPAGEDWN` / `ALTPAGEUP` are in I-189, `FLTPCN` in the claimed I-180, and `KEYBRD` is not a DDS keyword (the spec records it as position 35, see I-122 batch 2). Do: add `levels` (and parameter and option-indicator facts where the section states them) to the rest, so the matrix runs on them; the matrix prints its own skip list, which should end up empty apart from `KEYBRD`.
+Opened from I-122i. With neither a `levels` fact in the entry nor a level in the Reference section, the generated matrix cannot place the keyword, so L2-L4 skip it: `SFLMSG`, `IGCALTTYP`, `ERRMSGID`, `SFLMSGID`, `ERRMSG` on the default set, plus `SFLCSRRRN`, `COLOR`, `CHECK`, `ALTPAGEDWN`, `ALTPAGEUP`, `KEYBRD`, `FLTPCN` under `MATRIX_ALL`. Overlaps: `ALTPAGEDWN` / `ALTPAGEUP` are in I-189, `FLTPCN` in I-180 (done, v0.10.351; re-check the matrix skip list), and `KEYBRD` is not a DDS keyword (the spec records it as position 35, see I-122 batch 2). Do: add `levels` (and parameter and option-indicator facts where the section states them) to the rest, so the matrix runs on them; the matrix prints its own skip list, which should end up empty apart from `KEYBRD`.
 
 *Raised by I-122i. Size (estimate): Small.*
 
