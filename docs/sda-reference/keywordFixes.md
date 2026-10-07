@@ -263,7 +263,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-191](#i-191) | Tooling | Twelve `RECORD_TYPES` entries state no level and their Reference section names none (`SFLMSG`, `IGCALTTYP`, `ERRMSGID`, `SFLMSGID`, `ERRMSG`, `SFLCSRRRN`, `COLOR`, `CHECK`, `ALTPAGEDWN`, `ALTPAGEUP`, `KEYBRD`, `FLTPCN`): the generated matrix cannot place them | I-122i | Not started | — |
 | [I-192](#i-192) | Field | `CNTFLD`'s layout rules: the column width must fit within the width of the display or window, and the field needs at least 2 spaces between it and other fields | I-180 | Done | v0.10.353 |
 | [I-193](#i-193) | Tooling | Matrix cells for the writer paths and UI paths it does not call (`setFileFlagKeyword`, webview Apply round trip), then retire the hand-written duplicates | I-122j | Not started | — |
-| [I-194](#i-194) | Field | Command-key values that no guard reads: `MOUBTN` / `PSHBTNCHC` / `IGCCNV` keys outside 01-24 or of the wrong type, and a key written in a shape that is not `CAnn` / `CFnn` (`MNUBARSW(CA5)`, `ALTHELP(XYZ)`) | I-186 | Not started | — |
+| [I-194](#i-194) | Field | Command-key values that no guard reads: `MOUBTN` / `PSHBTNCHC` / `IGCCNV` keys outside 01-24 or of the wrong type, and a key written in a shape that is not `CAnn` / `CFnn` (`MNUBARSW(CA5)`, `ALTHELP(XYZ)`) | I-186 | In progress | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -281,7 +281,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | 5 | [I-189](#i-189) | Not started | Level, parameter and option-indicator facts missing from `MNUBARSW`, `MNUCNL`, `ALTPAGEDWN`, `ALTPAGEUP`, `DLTCHK`, `DLTEDT`. Size (estimate): Small. |
 | 6 | [I-191](#i-191) | Not started | Twelve spec entries state no level, so the generated matrix skips them; re-run the matrix skip list first, I-180 and I-189 shorten it. Size (estimate): Small. |
 | 7 | [I-193](#i-193) | Not started | Matrix cells for the writer paths and UI paths the generated matrix does not call (`setFileFlagKeyword`, webview Apply round trip), so more overlapping hand-written checks can be retired. Size (estimate): Medium. |
-| 9 | [I-194](#i-194) | Not started | Out-of-range / wrong-type command keys in `MOUBTN`, `PSHBTNCHC` and `IGCCNV`, and non-`CAnn` shapes in the other key-valued keywords. Size (estimate): Small. |
+| 9 | [I-194](#i-194) | In progress | Out-of-range / wrong-type command keys in `MOUBTN`, `PSHBTNCHC` and `IGCCNV`, and non-`CAnn` shapes in the other key-valued keywords. Size (estimate): Small. |
 | 8 | [I-123](#i-123) | Not started | Task-history comments out of source. I-121 has landed, so each citation can now live in the spec. Size (estimate): Medium (mechanical). |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The headline there counts the same tasks, so when a task lands or opens, update this table, the headline count and the version together.
@@ -8364,7 +8364,7 @@ Opened from I-122j. The generated matrix goes through `applyFileKeywordsUpdate`,
 
 ### I-194 — Command-key values that no guard reads
 
-> **Area:** Field · **Status:** Not started · **Depends on:** I-186 · **Size (estimate):** Small
+> **Area:** Field · **Status:** In progress · **Depends on:** I-186 · **Size (estimate):** Small
 
 Opened from I-186; probed on v0.10.359 through every `*NewConflictReason` function. `MOUBTN(*ULP CA25)` and `MOUBTN(*ULP CF00)` return null (the spec entry holds `commandKeyRanges` for the Command key but no guard reads them), `IGCCNV(CF25 5)` was probed on a record only (it is file level) and `PSHBTNCHC`'s command key was not probed. A key that is not `CAnn` / `CFnn` shaped at all (`MNUBARSW(CA5)`, `ALTHELP(XYZ)`) is accepted by the I-186 guard on purpose (a shape error is the keyword's own parameter rule) and no other guard refuses it.
 
