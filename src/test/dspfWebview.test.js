@@ -5267,9 +5267,11 @@ function runPulldownPickerScenario() {
     ].join('\n') + '\n';
   const html = webviewHtml('vscode-webview://fake', 'testnonce18', src, 'PULLDOWN.DSPF');
   const posted = [];
+  const pdAlerts = [];
   const dom = newWebviewDom(html, {
     beforeParse(window) {
       window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
+      window.alert = (t) => { pdAlerts.push(String(t)); };
     },
   });
 
@@ -5316,7 +5318,16 @@ function runPulldownPickerScenario() {
     check("PDN1's own PULLDOWN keyword is untouched by the border edit", reparsed.keywords.some((k) => k.name === 'PULLDOWN'));
     posted.length = 0;
 
-    console.log('  unchecking the Pull-down record checkbox removes PULLDOWN entirely');
+    console.log('  Task I-182: unchecking Pull-down while the record still has WDWBORDER is refused (WDWBORDER needs WINDOW or PULLDOWN)');
+    doc.getElementById(rpdPrefix + '-on').checked = false;
+    doc.getElementById(rpdPrefix + '-on').dispatchEvent(new Event('change', { bubbles: true }));
+    check('no edit is posted and the alert names WDWBORDER', !posted.some((m) => m.type === 'applyEdit') && pdAlerts.some((a) => /WDWBORDER/.test(a) && /WINDOW or PULLDOWN/.test(a)));
+    doc.getElementById(rpdPrefix + '-on').checked = true;
+    console.log('  removing the border first, then unchecking the Pull-down record checkbox removes PULLDOWN entirely');
+    doc.getElementById(rpdPrefix + '-wdw-color-on').checked = false;
+    doc.getElementById(rpdPrefix + '-wdw-color-on').dispatchEvent(new Event('change', { bubbles: true }));
+    doc.getElementById(rpdPrefix + '-wdw-apply').dispatchEvent(new Event('click', { bubbles: true }));
+    posted.length = 0;
     doc.getElementById(rpdPrefix + '-on').checked = false;
     doc.getElementById(rpdPrefix + '-on').dispatchEvent(new Event('change', { bubbles: true }));
     applyEdit = posted.find((m) => m.type === 'applyEdit');

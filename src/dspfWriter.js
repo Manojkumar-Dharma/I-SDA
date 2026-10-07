@@ -6059,6 +6059,136 @@
    *  Violations are keyed so firstNewViolation reports only what an edit adds,
    *  in either direction (adding the keyword, or removing what it needs), and
    *  an already-invalid hand-written file never blocks an unrelated edit. */
+  /** Task I-182 - splits a WDWBORDER / WDWTITLE parameter string into its top-level items:
+   *  { kind: 'group', tag: '*COLOR', values: [...] } for (*TAG value ...), { kind: 'text' } for a
+   *  quoted string or &field (bare or in parentheses, the forms the editor writes), and
+   *  { kind: 'bare', token } for anything else (*TOP, *CENTER, ...). Quotes (with '' escapes) and
+   *  nested parentheses are respected. */
+  function windowParameterItems(text) {
+    var s = String(text == null ? '' : text);
+    var items = [];
+    var i = 0;
+    function readQuoted(from) {
+      var j = from + 1;
+      while (j < s.length) {
+        if (s.charAt(j) === "'") { if (s.charAt(j + 1) === "'") { j += 2; continue; } break; }
+        j++;
+      }
+      return j;
+    }
+    function splitTop(str) {
+      var out = [];
+      var cur = '';
+      var k = 0;
+      while (k < str.length) {
+        var c = str.charAt(k);
+        if (c === "'") {
+          var e = k + 1;
+          while (e < str.length) { if (str.charAt(e) === "'") { if (str.charAt(e + 1) === "'") { e += 2; continue; } break; } e++; }
+          cur += str.slice(k, e + 1); k = e + 1; continue;
+        }
+        if (/\s/.test(c)) { if (cur) { out.push(cur); cur = ''; } k++; continue; }
+        cur += c; k++;
+      }
+      if (cur) out.push(cur);
+      return out;
+    }
+    function pushGroup(inner) {
+      var t = inner.trim();
+      if (!t) return;
+      if (t.charAt(0) === '(') { windowParameterItems(t).forEach(function (x) { items.push(x); }); return; }
+      if (t.charAt(0) === "'" || t.charAt(0) === '&') { items.push({ kind: 'text' }); return; }
+      var parts = splitTop(t);
+      if (parts[0].charAt(0) === '*') items.push({ kind: 'group', tag: parts[0].toUpperCase(), values: parts.slice(1) });
+      else items.push({ kind: 'bare', token: parts[0] });
+    }
+    while (i < s.length) {
+      var c = s.charAt(i);
+      if (/\s/.test(c)) { i++; continue; }
+      if (c === '(') {
+        var depth = 1;
+        var j = i + 1;
+        while (j < s.length && depth > 0) {
+          var d = s.charAt(j);
+          if (d === "'") { j = readQuoted(j) + 1; continue; }
+          if (d === '(') depth++;
+          else if (d === ')') depth--;
+          j++;
+        }
+        pushGroup(s.slice(i + 1, depth === 0 ? j - 1 : j));
+        i = j;
+        continue;
+      }
+      if (c === "'") { var q = readQuoted(i); items.push({ kind: 'text' }); i = q + 1; continue; }
+      var e2 = i;
+      while (e2 < s.length && !/[\s(]/.test(s.charAt(e2))) e2++;
+      var tok = s.slice(i, e2);
+      if (tok.charAt(0) === '&') items.push({ kind: 'text' });
+      else items.push({ kind: 'bare', token: tok });
+      i = e2;
+    }
+    return items;
+  }
+  /** Task I-182 - the WDWBORDER / WDWTITLE parameter rules, as violations keyed under `where` (a record
+   *  name, or 'file' at the file level): at least one parameter, colour and display-attribute values from
+   *  the keyword's own lists, only the parameter forms the format line shows, and one value per slot
+   *  (colour, text, character string, alignment, position) within a single keyword instance. Several
+   *  instances combine, so they are not compared. All lists are read from KeywordSpec. */
+  function windowParameterViolations(out, where, kws, name) {
+    var vocab = name === 'WDWTITLE' ? KeywordSpec.wdwtitleVocabulary() : KeywordSpec.wdwborderVocabulary();
+    var allowedGroups = name === 'WDWTITLE' ? ['*TEXT', '*COLOR', '*DSPATR'] : ['*COLOR', '*DSPATR', '*CHAR'];
+    var label = where === 'file' ? 'at the file level' : 'on record format ' + where;
+    instancesOf(kws, name).forEach(function (k, i) {
+      var items = windowParameterItems(k.parameters);
+      if (items.length < KeywordSpec.minParameters(name)) {
+        out[where + '|' + name + '|MIN|' + i] = name + ' ' + label + ' needs at least one parameter (per the DDS Reference).';
+        return;
+      }
+      var seen = {};
+      function slot(tag, shown) {
+        if (seen[tag]) {
+          out[where + '|' + name + '|DUP|' + i + '|' + tag] = name + ' ' + label + ' has more than one ' + shown + ' in one keyword; the format takes one (per the DDS Reference).';
+        }
+        seen[tag] = true;
+      }
+      items.forEach(function (it) {
+        if (it.kind === 'text') {
+          if (name === 'WDWTITLE') slot('TEXT', 'title text');
+          else out[where + '|' + name + '|FORM|text'] = name + ' ' + label + ' takes (*COLOR ...), (*DSPATR ...) and (*CHAR ...), not title text (per the DDS Reference).';
+          return;
+        }
+        if (it.kind === 'bare') {
+          var t = String(it.token).toUpperCase();
+          var inList = name === 'WDWTITLE' && (vocab.alignments.indexOf(t) >= 0 || vocab.positions.indexOf(t) >= 0);
+          if (!inList) {
+            out[where + '|' + name + '|FORM|' + t] = name + ' ' + label + ' has ' + it.token + ', which is not a valid parameter' +
+              (name === 'WDWTITLE' ? ' (use (*TEXT ...), (*COLOR ...), (*DSPATR ...), ' + vocab.alignments.join(' / ') + ' or ' + vocab.positions.join(' / ') + ')' : ' (use (*COLOR ...), (*DSPATR ...) or (*CHAR ...))') + ' (per the DDS Reference).';
+            return;
+          }
+          slot(vocab.alignments.indexOf(t) >= 0 ? 'ALIGN' : 'POS', vocab.alignments.indexOf(t) >= 0 ? 'alignment (' + vocab.alignments.join(' / ') + ')' : 'position (' + vocab.positions.join(' / ') + ')');
+          return;
+        }
+        if (allowedGroups.indexOf(it.tag) < 0) {
+          out[where + '|' + name + '|FORM|' + it.tag] = name + ' ' + label + ' has (' + it.tag + ' ...), which is not a parameter of this keyword; use ' + allowedGroups.join(', ') + ' (per the DDS Reference).';
+          return;
+        }
+        slot(it.tag.slice(1), it.tag + ' group');
+        if (it.tag === '*COLOR') {
+          var cv = it.values.length === 1 ? it.values[0].toUpperCase() : '';
+          if (vocab.colors.indexOf(cv) < 0) {
+            out[where + '|' + name + '|COLOR|' + it.values.join(' ').toUpperCase()] = name + ' ' + label + ': (*COLOR ' + it.values.join(' ') + ') is not valid; give one colour: ' +
+              vocab.colors.join(', ') + ' (per the DDS Reference).';
+          }
+        } else if (it.tag === '*DSPATR') {
+          it.values.forEach(function (v) {
+            if (vocab.displayAttributes.indexOf(String(v).toUpperCase()) < 0) {
+              out[where + '|' + name + '|DSPATR|' + String(v).toUpperCase()] = name + ' ' + label + ': display attribute ' + v + ' is not valid; use ' + vocab.displayAttributes.join(', ') + ' (per the DDS Reference).';
+            }
+          });
+        }
+      });
+    });
+  }
   var RECORD_TYPE_LABELS = { SFL: 'subfile (SFL)', SFLCTL: 'subfile-control (SFLCTL)', USRDFN: 'user-defined (USRDFN)', MNUBAR: 'menu-bar (MNUBAR)' };
   function windowHelpMenuViolations(model) {
     var out = {};
@@ -6076,6 +6206,8 @@
       if (String(field.dataType || '').toUpperCase() !== shape.keyboardShift) bits.push('data type ' + shape.keyboardShift);
       return bits.length ? 'must be ' + bits.join(', ') : null;
     }
+    // Task I-182: WDWBORDER at the file level (its record-level use is checked per record below).
+    windowParameterViolations(out, 'file', fileKws, 'WDWBORDER');
     records.forEach(function (r) {
       var kws = r.keywords || [];
       // (1) record types a keyword is refused on, and keywords the file excludes.
@@ -6102,6 +6234,17 @@
           }
         });
       }
+      // (2b) Task I-182: WDWBORDER at the record level needs WINDOW or PULLDOWN on the record; the
+      // WDWBORDER / WDWTITLE parameter rules (at least one parameter, values from their own lists).
+      if (hasKeywordNamed(kws, 'WDWBORDER')) {
+        var needOne = KeywordSpec.wdwborderVocabulary().requiresOneOfOnRecord;
+        if (!needOne.some(function (n) { return hasKeywordNamed(kws, n); })) {
+          out[r.name + '|WDWBORDER|REQ'] = 'WDWBORDER cannot be specified on record format ' + r.name + ' without a ' + needOne.join(' or ') +
+            ' keyword on the same record format (per the DDS Reference).';
+        }
+        windowParameterViolations(out, r.name, kws, 'WDWBORDER');
+      }
+      windowParameterViolations(out, r.name, kws, 'WDWTITLE');
       // (3) HLPSEQ group name and sequence number.
       instancesOf(kws, 'HLPSEQ').forEach(function (k, i) {
         var tokens = String(k.parameters == null ? '' : k.parameters).trim().split(/\s+/).filter(Boolean);

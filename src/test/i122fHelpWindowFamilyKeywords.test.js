@@ -290,8 +290,12 @@ console.log('\n=== L1/L2 WDWBORDER: colour, display attributes and characters ==
   check('parses at the file level and at the record level', kwOf(m.fileKeywords, 'WDWBORDER').parameters === '(*COLOR RED) (*DSPATR HI)' && !!kwOf(parse(src(R('R1', 'WINDOW(5 5 10 40)'), K('WDWBORDER((*COLOR BLU))'), F('F1', 'B'))).records[0].keywords, 'WDWBORDER'));
 }
 
-// Not asserted (logged as I-182): record-level WDWBORDER with no WINDOW / PULLDOWN, a bare WDWBORDER / WDWTITLE, and
-// colour / display-attribute values outside the reference lists are all accepted by the raw keyword editor.
+// Task I-182: record-level WDWBORDER with no WINDOW / PULLDOWN, a bare WDWBORDER / WDWTITLE, and colour /
+// display-attribute values outside the reference lists are refused by the model-diff guard (pinned in full in
+// i182WindowBorderTitleRules.test.js); one spot check here.
+check('the window guard now refuses a record-level WDWBORDER with no WINDOW / PULLDOWN and a bad border colour',
+  !!DspfWriter.windowHelpMenuNewConflictReason(parse(src(R('R1'))), parse(src(R('R1', 'WDWBORDER((*COLOR BLU))')))) &&
+  !!DspfWriter.windowHelpMenuNewConflictReason(parse(src(R('W1', 'WINDOW(5 5 10 40)'))), parse(src(R('W1', 'WINDOW(5 5 10 40)'), K('WDWBORDER((*COLOR XYZ))')))));
 console.log('\n=== L1/L2 NOCCSID: a field keyword with no parameters ===');
 {
   const nc = (fn) => src(R('R1'), F('F1', 'B', fn), C('T', ''));

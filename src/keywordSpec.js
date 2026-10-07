@@ -2234,6 +2234,14 @@
         '(default BLU); the display-attribute values are BL, CS, HI, ND, RI, UL.',
       displayAttributeValues: ['BL', 'CS', 'HI', 'ND', 'RI', 'UL'],
       colorValuesFrom: 'COLOR',
+      // Task I-182: the rules the same section states and nothing enforced (line ~13293): "At least one
+      // parameter must be specified.", the color parameter's own value list (BLU, GRN, WHT, RED, TRQ,
+      // YLW, PNK; WDWBORDER takes the seven colours, not the whole COLOR keyword list) and "If the
+      // WDWBORDER keyword is specified at the record level, the WINDOW or PULLDOWN keyword must also be
+      // specified on the same record." (one of the two, hence `requiresOneOfOnRecord`).
+      minParameters: 1,
+      colorValues: ['BLU', 'GRN', 'WHT', 'RED', 'TRQ', 'YLW', 'PNK'],
+      requiresOneOfOnRecord: ['WINDOW', 'PULLDOWN'],
       // Task I-181: WDWBORDER's section (line ~13293): "You use this file-level or record-level
       // keyword", the format line WDWBORDER([color] [display-attribute] [characters]) and "Option
       // indicators are valid for this keyword." ("At least one parameter must be specified" is an
@@ -6264,6 +6272,15 @@
     var p = RECORD_TYPES.WDWTITLE.parameters;
     return { colors: p.colors.slice(), displayAttributes: p.displayAttributes.slice(), alignments: p.alignments.slice(), positions: p.positions.slice(), alignmentDefault: p.alignmentDefault };
   }
+  /** Task I-182 - WDWBORDER's documented parameter vocabulary: { colors, displayAttributes,
+   *  requiresOneOfOnRecord } (copies). */
+  function wdwborderVocabulary() {
+    var e = RECORD_TYPES.WDWBORDER;
+    return { colors: e.colorValues.slice(), displayAttributes: e.displayAttributeValues.slice(), requiresOneOfOnRecord: e.requiresOneOfOnRecord.slice() };
+  }
+  /** Task I-182 - the minimum number of parameters `name`'s entry states ("at least one parameter must be
+   *  specified"), or 0 when it states none. */
+  function minParameters(name) { var e = recordTypeEntry(name); return e && typeof e.minParameters === 'number' ? e.minParameters : 0; }
   /** HLPSEQ's limits: { groupNameMaxLength, sequenceMin, sequenceMax }. */
   function hlpseqLimits() {
     var p = RECORD_TYPES.HLPSEQ.parameters;
@@ -6747,6 +6764,8 @@
     windowHelpLogKeywords: windowHelpLogKeywords,
     requiresWindowOnRecord: requiresWindowOnRecord,
     wdwtitleVocabulary: wdwtitleVocabulary,
+    wdwborderVocabulary: wdwborderVocabulary,
+    minParameters: minParameters,
     hlpseqLimits: hlpseqLimits,
     setofTextMaxLength: setofTextMaxLength,
     mnubardspFieldShapes: mnubardspFieldShapes,

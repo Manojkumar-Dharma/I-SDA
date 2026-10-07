@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-203 of 216 tasks done; 13 open (see [Open work](#open-work)). Current version: **v0.10.349**.
+206 of 219 tasks done; 13 open (see [Open work](#open-work)). Current version: **v0.10.352**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -251,7 +251,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-179](#i-179) | Field | Date/time format keywords: `DATFMT` / `DATSEP` accepted off data type L and `TIMFMT` / `TIMSEP` off T, values outside IBM's lists, the fixed-separator rule only in the panel Apply, and a Basic-tab type change that strands them | I-122e | Done (eligibility, values, pairing, Basic tab) | v0.10.347 |
 | [I-180](#i-180) | Field | `FLTPCN` (type F, `*SINGLE` / `*DOUBLE`, length caps, option indicators not valid) and `CNTFLD` (numeric width, its exclusion list) rules nothing enforces | I-122e | Done | v0.10.351 |
 | [I-181](#i-181) | Tooling | Spec entries for `HLPDOC`, `HLPID`, `WDWBORDER` and `NOCCSID` state no level, parameter or option-indicator fact, so `optionIndicatorsAllowed` answers "no" for `HLPDOC` and `WDWBORDER` although their sections say option indicators are valid | I-122f | Done (levels, parameter forms, option indicators) | v0.10.349 |
-| [I-182](#i-182) | Record | `WDWBORDER` and `WDWTITLE` rules nothing enforces: record-level `WDWBORDER` needs `WINDOW` or `PULLDOWN` on the record, at least one parameter, colour and display-attribute values, `*TOP` / `*BOTTOM` and the three alignments each at most once | I-122f | In progress (claimed) | — |
+| [I-182](#i-182) | Record | `WDWBORDER` and `WDWTITLE` rules nothing enforces: record-level `WDWBORDER` needs `WINDOW` or `PULLDOWN` on the record, at least one parameter, colour and display-attribute values, `*TOP` / `*BOTTOM` and the three alignments each at most once | I-122f | Done (requirement, parameters, values, forms) | v0.10.352 |
 | [I-183](#i-183) | Field | Choice keyword values nothing enforces: a bare or out-of-list `CHCAVAIL` / `CHCUNAVAIL` / `CHCSLT`, `CHCACCEL` / `CHCCTL` choice number outside 1-99, `CHCACCEL` with no text, the `CHCCTL` message fields' shapes | I-122g | Not started | — |
 | [I-184](#i-184) | Record | `SFLSNGCHC` / `SFLMLTCHC` rules nothing enforces: the subfile shape (one output field, no input-capable fields), control-record-only, and the `&number-selected` field shape | I-122g | Not started | — |
 | [I-185](#i-185) | Tooling | Spec entries for `SFLCHCCTL`, `SFLSNGCHC` and `SFLMLTCHC` carry no level, parameter or option-indicator fact, and the `SFLCHCCTL` control-value table is not in the spec | I-122g | Not started | — |
@@ -278,11 +278,10 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | 1 | [I-122](#i-122) | In progress (batches 1-3, I-122d, I-122e, I-122f, I-122g, I-122h and I-122i done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
 | 4 | [I-122j](#i-122j) | In progress (claimed) | Retire overlapping tests, each deletion backed by a stash-based mutation run (do last, serially). Size (estimate): Large. |
 | 5 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
-| 6 | [I-182](#i-182) | In progress (claimed) | `WDWBORDER` / `WDWTITLE` requirement and parameter rules. Size (estimate): Medium. |
-| 7 | [I-183](#i-183) | Not started | Choice keyword value rules (`CHCAVAIL` / `CHCUNAVAIL` / `CHCSLT` values, `CHCACCEL` / `CHCCTL` ranges and text). Size (estimate): Medium. |
-| 8 | [I-184](#i-184) | Not started | `SFLSNGCHC` / `SFLMLTCHC` subfile shape, record-level and number-selected field rules. Size (estimate): Medium. |
-| 9 | [I-185](#i-185) | Not started | Level, parameter and option-indicator facts missing from three subfile choice keyword entries. Size (estimate): Small. |
-| 10 | [I-192](#i-192) | In progress (claimed) | `CNTFLD` width fits the display or window; 2 spaces from other fields. Size (estimate): Medium. |
+| 6 | [I-183](#i-183) | Not started | Choice keyword value rules (`CHCAVAIL` / `CHCUNAVAIL` / `CHCSLT` values, `CHCACCEL` / `CHCCTL` ranges and text). Size (estimate): Medium. |
+| 7 | [I-184](#i-184) | Not started | `SFLSNGCHC` / `SFLMLTCHC` subfile shape, record-level and number-selected field rules. Size (estimate): Medium. |
+| 8 | [I-185](#i-185) | Not started | Level, parameter and option-indicator facts missing from three subfile choice keyword entries. Size (estimate): Small. |
+| 9 | [I-192](#i-192) | In progress (claimed) | `CNTFLD` width fits the display or window; 2 spaces from other fields. Size (estimate): Medium. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The I-121 umbrella row there stays open until its slices land, so it is counted in the headline but not listed here.
 
@@ -8159,7 +8158,7 @@ Do: add `levels`, parameter and option-indicator facts to the four entries from 
 
 ### I-182 — WDWBORDER and WDWTITLE rules nothing enforces
 
-> **Area:** Record · **Status:** In progress (claimed) · **Depends on:** I-122f · **Size (estimate):** Medium
+> **Area:** Record · **Status:** Done (v0.10.352) · **Depends on:** I-122f · **Size (estimate):** Medium
 
 Opened from I-122f; probed through the record raw keyword editor in a fresh webview, every case below was accepted and written:
 
@@ -8169,6 +8168,8 @@ Opened from I-122f; probed through the record raw keyword editor in a fresh webv
 - `WDWTITLE(*TOP *BOTTOM)`: one position and one alignment per keyword; whether the repeated-parameter sentence makes that valid is for the task to decide.
 
 Do: one model-diff guard in the `windowHelpMenuNewConflictReason` chain reading the spec's value lists, with tests in both directions.
+
+**Done (v0.10.352).** One model-diff guard inside `windowHelpMenuViolations` (so inside `windowHelpMenuNewConflictReason`, which every source change passes through), reading `KeywordSpec.wdwtitleVocabulary()`, new `wdwborderVocabulary()` and `minParameters()`. New `WDWBORDER` spec facts from its own section: `minParameters: 1`, `colorValues` (BLU GRN WHT RED TRQ YLW PNK) and `requiresOneOfOnRecord: ['WINDOW', 'PULLDOWN']`. Enforced for `WDWBORDER` (file and record level) and `WDWTITLE`: record-level `WDWBORDER` needs `WINDOW` or `PULLDOWN`; a bare keyword is refused; `(*COLOR x)` takes one of the seven colours and every `(*DSPATR ...)` value one of BL CS HI ND RI UL; only the parameter forms the format line shows are accepted (`WDWBORDER`: `*COLOR`, `*DSPATR`, `*CHAR`; `WDWTITLE`: `*TEXT`, `*COLOR`, `*DSPATR`, one alignment, one position, plus the bare quoted title and `&field` the title box writes). **Decision:** the format line has one slot per parameter, so `WDWTITLE(*TOP *BOTTOM)`, two alignments, two colour groups, two `*TEXT` or two `*CHAR` inside ONE keyword instance are refused; the repeated-keyword sentence is about several instances, which still combine (the first value wins) and are not compared. The requirement runs in both directions, like `WDWTITLE` and `WINDOW` (I-152): unchecking Pull-down, or removing `WINDOW`, on a record that still has `WDWBORDER` is refused with the guard's message until the border is removed (the `dspfWebview.test.js` Pull-down scenario now pins that, then removes the border before unchecking). The `*CHAR` string itself (8 border characters) is not validated and `WDWBORDER`'s option-indicator facts are untouched. Diff-based: a hand-written file already breaking a rule stays editable. New `i182WindowBorderTitleRules.test.js` (spec, requirement, minimum, values, forms, the one-slot decision, file level, diff-based, raw editor in jsdom; four mutations each fail it), a spot check in the I-122f test and the updated Pull-down scenario in `dspfWebview.test.js`. Full suite: 299 files, 18,779 checks; the one failing file (`dspfWebview.test.js`, from the both-directions refusal above) was updated and rerun green.
 
 *Raised by I-122f. Size (estimate): Medium.*
 
