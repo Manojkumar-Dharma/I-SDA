@@ -213,8 +213,8 @@ console.log('\n=== L1/L2 RETCMDKEY ===');
   check('removing INDARA while RETCMDKEY stays is refused (the other direction)', say(/INDARA/, rk(src(IN, R('R1', 'RETCMDKEY')), src(R('R1', 'RETCMDKEY')))));
   check('RETCMDKEY beside RETKEY is not a clash in the reference (no rule)', rk(src(IN, R('R1')), src(IN, R('R1', 'RETCMDKEY'), K('RETKEY'))) === null);
   check('removing the clashing keyword is never blocked, and an existing clash is not re-reported', rk(src(IN, R('R1', 'RETCMDKEY'), K('CA05')), src(IN, R('R1', 'RETCMDKEY'))) === null && rk(src(IN, R('R1', 'RETCMDKEY'), K('CA05')), src(IN, R('R1', 'RETCMDKEY'), K('CA05'), K('TEXT'))) === null);
-  // Not asserted (logged as I-188): RETCMDKEY (and RETKEY) on a subfile record (SFL) or a user-defined record (USRDFN)
-  // is accepted - the spec's notOnRecordTypes: ['SFL', 'USRDFN'] is read by no guard.
+  // RETCMDKEY (and RETKEY) on a subfile record (SFL) or a user-defined record (USRDFN) is refused since I-188
+  // (retKeyViolations reads the spec's notOnRecordTypes): pinned by i188RetkeyRecordTypes.test.js.
 }
 
 console.log('\n=== L1/L2 MNUBARSW / MNUCNL ===');

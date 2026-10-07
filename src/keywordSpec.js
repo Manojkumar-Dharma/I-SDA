@@ -596,7 +596,8 @@
     //                            refused on
     //   requiresInFile         - file-level keywords the file must carry
     // Enforcement lives with the existing guards (the SFL / USRDFN
-    // whitelists already refuse RETKEY / RETCMDKEY); relations with no
+    // whitelists refuse adding RETKEY / RETCMDKEY, and retKeyViolations reads
+    // notOnRecordTypes for the other direction, I-188); relations with no
     // guard yet are recorded here and logged as findings in keywordFixes.md.
     INZRCD: {
       levels: ['record'],

@@ -6832,6 +6832,14 @@
       var kws = r.keywords || [];
       ['RETKEY', 'RETCMDKEY'].forEach(function (n) {
         if (!hasKeywordNamed(kws, n)) return;
+        // Task I-188: "Neither keyword is allowed on a subfile format (SFL keyword) or on a user-defined record
+        // (USRDFN keyword)" - the spec's notOnRecordTypes, read here like HLPCMDKEY / HLPSEQ's.
+        KeywordSpec.notOnRecordTypes(n).forEach(function (type) {
+          if (hasKeywordNamed(kws, type)) {
+            out[r.name + '|' + n + '|TYPE|' + type] = n + ' cannot be specified on a ' + (RECORD_TYPE_LABELS[type] || type) +
+              ' record format (' + r.name + ') (per the DDS Reference).';
+          }
+        });
         KeywordSpec.fileAndRecordExcludes(n).forEach(function (x) {
           if (matches(fileKws, x).length) {
             out[r.name + '|' + n + '|FILE|' + x] = n + ' cannot be specified on record format ' + r.name + ' in a file that has ' + label(x) + ' at the file level (per the DDS Reference).';
