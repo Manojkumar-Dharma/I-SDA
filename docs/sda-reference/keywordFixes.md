@@ -255,7 +255,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-183](#i-183) | Field | Choice keyword values nothing enforces: a bare or out-of-list `CHCAVAIL` / `CHCUNAVAIL` / `CHCSLT`, `CHCACCEL` / `CHCCTL` choice number outside 1-99, `CHCACCEL` with no text, the `CHCCTL` message fields' shapes | I-122g | Done (state values, numbers, text, control field, message fields) | v0.10.356 |
 | [I-184](#i-184) | Record | `SFLSNGCHC` / `SFLMLTCHC` rules nothing enforces: the subfile shape (one output field, no input-capable fields), control-record-only, and the `&number-selected` field shape | I-122g | Done (68 checks) | v0.10.357 |
 | [I-185](#i-185) | Tooling | Spec entries for `SFLCHCCTL`, `SFLSNGCHC` and `SFLMLTCHC` carry no level, parameter or option-indicator fact, and the `SFLCHCCTL` control-value table is not in the spec | I-122g | Done (5 checks added to `i122gChoiceFamilyKeywords`, 155 in all) | v0.10.358 |
-| [I-186](#i-186) | Field | Command-key numbers outside 01-24 accepted (`CA00`, `CA25`), and `MNUBARSW(CF05)` / `MNUBARSW(CA25)` pass the menu-bar key guard | I-122h | Not started | — |
+| [I-186](#i-186) | Field | Command-key numbers outside 01-24 accepted (`CA00`, `CA25`), and `MNUBARSW(CF05)` / `MNUBARSW(CA25)` pass the menu-bar key guard | I-122h | In progress | — |
 | [I-187](#i-187) | Record | `MNUBARSW` / `MNUCNL` claim a CA key but the CA / CF number guard does not read them: their key can be reused as a CF key on another record | I-122h | Not started | — |
 | [I-188](#i-188) | Record | `RETKEY` / `RETCMDKEY` accepted on a subfile (`SFL`) or user-defined (`USRDFN`) record, though the spec records they are not valid there | I-122h | Not started | — |
 | [I-189](#i-189) | Tooling | `MNUBARSW`, `MNUCNL`, `ALTPAGEDWN`, `ALTPAGEUP`, `DLTCHK` and `DLTEDT` carry no level, parameter or option-indicator fact; `optionIndicatorsAllowed` answers false for `MNUBARSW` / `MNUCNL` (reference: valid) and for a concrete `CA05` | I-122h | Not started | — |
@@ -276,7 +276,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-186](#i-186) | Not started | Command-key numbers outside 01-24 (`CA00`, `CA25`, `CF25`) accepted; a diff-based guard reading the spec range. Size (estimate): Small. |
+| 1 | [I-186](#i-186) | In progress | Command-key numbers outside 01-24 (`CA00`, `CA25`, `CF25`) accepted; a diff-based guard reading the spec range. Size (estimate): Small. |
 | 2 | [I-187](#i-187) | Not started | `MNUBARSW` / `MNUCNL` keys (explicit or default) are not counted as CA uses by the CA / CF number guard. Size (estimate): Small. |
 | 3 | [I-188](#i-188) | Not started | `RETKEY` / `RETCMDKEY` accepted on `SFL` and `USRDFN` records; read the reference sentence first. Size (estimate): Small. |
 | 4 | [I-190](#i-190) | Not started | `HLPRCD` spec entry says file level only; the Reference says file or help-specification level. Size (estimate): Small. |
@@ -8254,7 +8254,7 @@ Do: add the three facts to the three entries, share the control-value table betw
 
 ### I-186 — Command-key numbers outside 01-24 accepted
 
-> **Area:** Field · **Status:** Not started · **Depends on:** I-122h · **Size (estimate):** Small
+> **Area:** Field · **Status:** In progress · **Depends on:** I-122h · **Size (estimate):** Small
 
 Opened from I-122h; probed on v0.10.347. `CAnn` / `CFnn` are "nn = 01-24" (spec `pattern.first` / `last`), but `KeywordSpec.parseCommandKey` and `isCommandKeyName` read the grammar only (`CA00` and `CA25` both parse; the I-121 test says the range "is a separate domain fact"), `parseCommandKeys` returns both, and no guard reads the range. `mnuBarKeyConflictReason('MNUBARSW', 'CF05', ...)` and `('MNUBARSW', 'CA25', ...)` return null: it checks the collision only, not that the parameter is a CA key in 01-24 (the panel may restrict the input; the raw editor was not probed). `ALTPAGEDWN(CF25)` was not probed.
 
