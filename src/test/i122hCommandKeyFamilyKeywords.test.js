@@ -161,9 +161,8 @@ console.log('\n=== L1/L2 CAnn / CFnn: the same number as CA and CF ===');
   check('removing one side is never blocked', cn(src(K('CA03'), R('R1', 'CF03')), src(R('R1', 'CF03'))) === null);
   check('an already-invalid pair is not re-reported by an unrelated edit', cn(src(K('CA03'), R('R1', 'CF03')), src(K('CA03'), R('R1', 'CF03'), K('TEXT'))) === null);
   check('the grammar facts back it up: CA03 pairs with CF, CF24 with CA, CA00 / CA25 / CA3 give null', KeywordSpec.commandKeyNumberClash('CA03').other === 'CF' && KeywordSpec.commandKeyNumberClash('CF24').other === 'CA' && ['CA00', 'CA25', 'CA3', 'CLEAR', ''].every((t) => KeywordSpec.commandKeyNumberClash(t) === null));
-  // Not asserted (logged as I-187): MNUBARSW / MNUCNL claim a CA key (their sections: "can be used only as a CA key
-  // on other records, not as a CF key") but commandKeyClaimsInModel does not read them as CA claims, so
-  // MNUBARSW(CA10) with CF10 on another record, and a default MNUCNL (CA12) with a file-level CF12, are accepted.
+  // MNUBARSW / MNUCNL claim a CA key (their sections: "can be used only as a CA key on other records, not as a
+  // CF key"): enforced since I-187, pinned by i187MnuKeyNumberClaims.test.js.
 }
 
 console.log('\n=== L1/L2 ALTPAGEDWN / ALTPAGEUP: the key number they claim ===');
@@ -231,8 +230,8 @@ console.log('\n=== L1/L2 MNUBARSW / MNUCNL ===');
   const alt = (a, b) => DspfWriter.altKeyFileExclusionNewConflictReason(parse(a), parse(b));
   check('adding MNUCNL(CA08) to a file with ALTPAGEDWN is refused (the other order)', say(/cannot be specified in a file with MNUCNL\(CA08\)/, alt(src(K('ALTPAGEDWN'), R('R1')), src(K('ALTPAGEDWN'), R('R1', 'MNUCNL(CA08)')))));
   check('MNUBARSW(CF08) is not a CA claim for ALTPAGEDWN (caOnly: only a CA key counts)', alt(src(K('ALTPAGEDWN'), R('R1')), src(K('ALTPAGEDWN'), R('R1', 'MNUBARSW(CF08)'))) === null);
-  // MNUBARSW(CF05) and MNUBARSW(CA25) are refused since I-186 (i186CommandKeyRange.test.js). Not asserted (logged as I-187):
-  // the CA-key-not-as-CF rule is not enforced; "allowed only in a file containing a menu-bar
+  // MNUBARSW(CF05) and MNUBARSW(CA25) are refused since I-186 (i186CommandKeyRange.test.js). The CA-key-not-as-CF rule is
+  // enforced since I-187 (i187MnuKeyNumberClaims.test.js); "allowed only in a file containing a menu-bar
   // record" was not probed.
 }
 

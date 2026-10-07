@@ -7378,15 +7378,16 @@
    *  "CA02 and CF02 are not valid in the same display file" and that file-level keys extend to
    *  the record level (CA02 at file level makes CF02 on a record an error), so the scope is
    *  the whole file: file level, any record, same record or not. Facts through
-   *  KeywordSpec.commandKeyNumberClash; the plain CAnn / CFnn keywords only (SFLDROP(CAnn),
-   *  MOUBTN and the ALT keys are other keywords with their own rules). One violation per key
+   *  KeywordSpec.commandKeyNumberClaim: the plain CAnn / CFnn keywords and (I-187) MNUBARSW / MNUCNL, whose
+   *  CAnn key (explicit or default CA10 / CA12) counts as a CA use (SFLDROP(CAnn), MOUBTN and the ALT keys
+   *  are other keywords with their own rules). One violation per key
    *  number, keyed by it, so firstNewViolation reports only a clash an edit adds (in either
    *  direction) and a hand-written file that is already clashing stays editable. */
   function commandKeyNumberViolations(model) {
     var seen = {};
     function note(kws, where) {
       (kws || []).forEach(function (k) {
-        var c = KeywordSpec.commandKeyNumberClash(String(k.name || '').toUpperCase());
+        var c = KeywordSpec.commandKeyNumberClaim(k.name, k.parameters);
         if (!c || c.scope !== 'file') return;
         var slot = seen[c.number] || (seen[c.number] = {});
         if (!slot[c.type]) slot[c.type] = where;

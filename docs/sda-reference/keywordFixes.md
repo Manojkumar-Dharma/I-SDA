@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-213 of 221 tasks done; 8 open (see [Open work](#open-work)). Current version: **v0.10.359**.
+214 of 221 tasks done; 7 open (see [Open work](#open-work)). Current version: **v0.10.360**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -256,7 +256,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-184](#i-184) | Record | `SFLSNGCHC` / `SFLMLTCHC` rules nothing enforces: the subfile shape (one output field, no input-capable fields), control-record-only, and the `&number-selected` field shape | I-122g | Done (68 checks) | v0.10.357 |
 | [I-185](#i-185) | Tooling | Spec entries for `SFLCHCCTL`, `SFLSNGCHC` and `SFLMLTCHC` carry no level, parameter or option-indicator fact, and the `SFLCHCCTL` control-value table is not in the spec | I-122g | Done (5 checks added to `i122gChoiceFamilyKeywords`, 155 in all) | v0.10.358 |
 | [I-186](#i-186) | Field | Command-key numbers outside 01-24 accepted (`CA00`, `CA25`), and `MNUBARSW(CF05)` / `MNUBARSW(CA25)` pass the menu-bar key guard | I-122h | Done (range, key type, panel guard, raw editors) | v0.10.359 |
-| [I-187](#i-187) | Record | `MNUBARSW` / `MNUCNL` claim a CA key but the CA / CF number guard does not read them: their key can be reused as a CF key on another record | I-122h | In progress | — |
+| [I-187](#i-187) | Record | `MNUBARSW` / `MNUCNL` claim a CA key but the CA / CF number guard does not read them: their key can be reused as a CF key on another record | I-122h | Done (explicit and default key, file level, both directions) | v0.10.360 |
 | [I-188](#i-188) | Record | `RETKEY` / `RETCMDKEY` accepted on a subfile (`SFL`) or user-defined (`USRDFN`) record, though the spec records they are not valid there | I-122h | Not started | — |
 | [I-189](#i-189) | Tooling | `MNUBARSW`, `MNUCNL`, `ALTPAGEDWN`, `ALTPAGEUP`, `DLTCHK` and `DLTEDT` carry no level, parameter or option-indicator fact; `optionIndicatorsAllowed` answers false for `MNUBARSW` / `MNUCNL` (reference: valid) and for a concrete `CA05` | I-122h | Not started | — |
 | [I-190](#i-190) | Tooling | `HLPRCD`'s spec entry says `levels: ['file']`; the Reference says file level or help-specification level | I-122i | Not started | — |
@@ -277,7 +277,6 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 2 | [I-187](#i-187) | In progress | `MNUBARSW` / `MNUCNL` keys (explicit or default) are not counted as CA uses by the CA / CF number guard. Size (estimate): Small. |
 | 3 | [I-188](#i-188) | Not started | `RETKEY` / `RETCMDKEY` accepted on `SFL` and `USRDFN` records; read the reference sentence first. Size (estimate): Small. |
 | 4 | [I-190](#i-190) | Not started | `HLPRCD` spec entry says file level only; the Reference says file or help-specification level. Size (estimate): Small. |
 | 5 | [I-189](#i-189) | Not started | Level, parameter and option-indicator facts missing from `MNUBARSW`, `MNUCNL`, `ALTPAGEDWN`, `ALTPAGEUP`, `DLTCHK`, `DLTEDT`. Size (estimate): Small. |
@@ -6604,7 +6603,7 @@ Audit table (a new `*ConflictReason` function must be added here; `i121qConflict
 | `chridNewConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
 | `commandFunctionPairingNewConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
 | `commandFunctionParameterNewConflictReason` | spec-backed | Via `commandFunctionParameterViolations`. |
-| `commandKeyNumberNewConflictReason` | spec-backed | Via `commandKeyNumberViolations`. |
+| `commandKeyNumberNewConflictReason` | spec-backed | Via `commandKeyNumberViolations` and `KeywordSpec.commandKeyNumberClaim` (I-187 adds the `MNUBARSW` / `MNUCNL` CA claims). |
 | `commandKeyRangeNewConflictReason` | spec-backed | Via `commandKeyRangeViolations` and `commandKeyValueProblem` (I-186): the 01-24 range from `commandKeyNumberRange`, the value types from `commandKeyValueTypes`. |
 | `compFloatNewConflictReason` | spec-backed | Via `floatIncompatibleKeywordNewConflictReason`. |
 | `dateSeparatorConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
@@ -8272,11 +8271,11 @@ Do: a diff-based guard reading the spec range for `CAnn`, `CFnn`, `ALTPAGEDWN` /
 
 ### I-187 — MNUBARSW / MNUCNL keys are not CA claims for the CA / CF number guard
 
-> **Area:** Record · **Status:** In progress · **Depends on:** I-122h · **Size (estimate):** Small
+> **Area:** Record · **Status:** Done (v0.10.360) · **Depends on:** I-122h · **Size (estimate):** Small
 
 Opened from I-122h. Both sections say that with the keyword on a record "the CAnn key or default CA10 / CA12 key can be used only as a CA key on other records, not as a CF key". `commandKeyNumberNewConflictReason` accepts `MNUBARSW(CA10)` on one record with `CF10` on another, `MNUBARSW` (default CA10) with `CF10` on the same record, and a default `MNUCNL` (CA12) with a file-level `CF12`; `commandKeyClaimsInModel` already reads the alt keys and `MNUBARSW` / `MNUCNL` for the alt-key guard, but `commandKeyNumberClash` sees only plain `CAnn` / `CFnn` names.
 
-Do: make the number guard count a `MNUBARSW` / `MNUCNL` key (explicit or default) as a CA use, file-wide, with tests in both directions and for the file-level extension.
+**Done (v0.10.360).** `MNUBARSW` and `MNUCNL` gained `sameKeyNumberAsOtherType: 'notAllowed'` and `sameKeyNumberScope: 'file'` (the same facts as the `CA01-CA24` / `CF01-CF24` entries; their sections say the key "can be used only as a CA key on other records, not as a CF key", and a file-level keyword extends to every record). New accessor `KeywordSpec.commandKeyNumberClaim(name, parameters)`: the plain `CAnn` / `CFnn` names answer as `commandKeyNumberClash` does; `MNUBARSW` / `MNUCNL` claim their first parameter token (MNUCNL's response indicator is ignored) or, when blank, their default (`CA10` / `CA12`) as a CA key. A CF-typed or out-of-range parameter claims nothing (I-186 reports it). `commandKeyNumberViolations` now reads that accessor instead of `commandKeyNumberClash`, so `commandKeyNumberNewConflictReason` (already in the webview's guard chain, so every raw keyword editor and panel is covered) refuses `MNUBARSW(CA10)` with `CF10` on another record, a default `MNUBARSW` with `CF10` on the same record, and a default `MNUCNL` with a file-level `CF12`, in both directions (adding the CF key, adding the menu keyword); diff semantics unchanged, so an already-clashing hand-written file stays editable. No new `*ConflictReason` function. Pinned by `i187MnuKeyNumberClaims.test.js` (facts against the Reference, accessor, guard, jsdom raw editors); three mutations (writer reads the old lookup, MNUCNL spec flag, default key ignored) each fail the file. The two "Not asserted (logged as I-187)" notes in `i122hCommandKeyFamilyKeywords.test.js` now point at it.
 
 *Raised by I-122h. Size (estimate): Small.*
 

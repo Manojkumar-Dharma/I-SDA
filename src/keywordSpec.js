@@ -2983,6 +2983,11 @@
     MNUBARSW: {
       caKeyPartner: 'MNUCNL',
       caKeyDefault: 'CA10',
+      // Task I-187: "If the MNUBARSW keyword is specified on the record, the CAnn key or default CA10 key can be
+      // used only as a CA key on other records, not as a CF key" - and a file-level MNUBARSW extends to every
+      // record, so the scope is the whole file (same reading as I-169's CAnn / CFnn entries).
+      sameKeyNumberAsOtherType: 'notAllowed',
+      sameKeyNumberScope: 'file',
       ddsReference:
         'Within a record, the CAnn key specified by the MNUBARSW keyword ' +
         'cannot be specified again using another keyword (such as MNUCNL).'
@@ -2990,6 +2995,11 @@
     MNUCNL: {
       caKeyPartner: 'MNUBARSW',
       caKeyDefault: 'CA12',
+      // Task I-187: "If the MNUCNL keyword is specified on the record, the CAnn key or default CA12 key can be
+      // used only as a CA key on other records, not as a CF key" - and a file-level MNUCNL extends to every
+      // record, so the scope is the whole file (same reading as I-169's CAnn / CFnn entries).
+      sameKeyNumberAsOtherType: 'notAllowed',
+      sameKeyNumberScope: 'file',
       ddsReference:
         'Within a record, the CAnn key specified by the MNUCNL keyword ' +
         'cannot be specified again using another keyword (such as MNUBARSW).'
@@ -6636,6 +6646,20 @@
     var k = parseCommandKey(token);
     return { type: k.type, number: k.number, other: k.type === 'CA' ? 'CF' : 'CA', scope: e.sameKeyNumberScope || 'file' };
   }
+  /** Task I-187 - the CA claim `name` makes on a key number for the CA / CF number guard, or null. The plain
+   *  CAnn / CFnn keywords answer as commandKeyNumberClash does; MNUBARSW / MNUCNL claim their CAnn parameter (the
+   *  first token of `parameters`) or, when it is blank, their own default (CA10 / CA12), as a CA key that may not
+   *  also be a CF key. A key outside CA01-CA24 or of the CF type claims nothing here (I-186 reports it). */
+  function commandKeyNumberClaim(name, parameters) {
+    var up = String(name || '').toUpperCase();
+    var plain = commandKeyNumberClash(up);
+    if (plain) return plain;
+    var e = Object.prototype.hasOwnProperty.call(RECORD_TYPES, up) ? RECORD_TYPES[up] : null;
+    if (!e || e.sameKeyNumberAsOtherType !== 'notAllowed' || !e.caKeyDefault) return null;
+    var first = String(parameters || '').trim().split(/\s+/)[0].toUpperCase();
+    var c = commandKeyNumberClash(first || e.caKeyDefault);
+    return (c && c.type === 'CA') ? c : null;
+  }
   /** Task I-186 - the stated key-number range of a command-key type ('CA' -> { first: 1, last: 24 }), read from
    *  the type's pattern entry (CAnn / CFnn: "nn = 01-24"), or null for a type that has no entry. */
   function commandKeyNumberRange(type) {
@@ -6926,6 +6950,7 @@
     fileHelpCommandKeywords: fileHelpCommandKeywords,
     commandKeyEntry: commandKeyEntry,
     commandKeyNumberClash: commandKeyNumberClash,
+    commandKeyNumberClaim: commandKeyNumberClaim,
     commandKeyNumberRange: commandKeyNumberRange,
     isCommandKeyOutOfRange: isCommandKeyOutOfRange,
     commandKeyValueTypes: commandKeyValueTypes,
