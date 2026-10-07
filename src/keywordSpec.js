@@ -53,6 +53,16 @@
   // list, so the two can no longer drift. Declared order is the order
   // sflChoiceListNewConflictReason reports in.
   var SFL_CHOICE_KEYWORDS_LIST = ['SFLSNGCHC', 'SFLMLTCHC'];
+  // Task I-185 - the choice control-field value table, one object shared by CHCCTL and SFLCHCCTL
+  // (each section prints the same table: 0 available / unselected, 1 selected, 2-4 unavailable, the
+  // cursor restrictions only on an enhanced-interface controller).
+  var CHOICE_CONTROL_VALUES = {
+    0: { onOutput: 'available', onInput: 'unselected' },
+    1: { onOutput: 'selected', onInput: 'selected' },
+    2: { onOutput: 'unavailable (cannot place cursor on choice unless help for choice is available)' },
+    3: { onOutput: 'unavailable (placing cursor on choice is allowed)' },
+    4: { onOutput: 'unavailable (cannot place cursor on choice even if help for choice is available)' }
+  };
 
   // (2) ALWROL_CLRL_SLNO_KEYWORDS - the three keywords whose DDS Reference
   // sections each state "cannot be specified with ... ALWROL, CLRL, SLNO"
@@ -2376,6 +2386,14 @@
     // as an ordinary mutex entry, read from both directions in
     // dspfWriter.js exactly as DSPMOD/SFL already is.
     SFLCHCCTL: {
+      // Task I-185 - field level, format SFLCHCCTL (no parameters), option indicators not valid, and the
+      // control-value table the section prints (shared with CHCCTL).
+      levels: ['field'],
+      parameters: 'none',
+      parameterGrammar: 'SFLCHCCTL',
+      optionIndicators: 'notValid',
+      controlValues: CHOICE_CONTROL_VALUES,
+      cursorRestrictionsNeedEnhancedInterfaceController: true,
       ddsReference:
         'When the SFLCHCCTL keyword is specified on a field, that field ' +
         'will be considered the control field for that record. That ' +
@@ -2550,6 +2568,13 @@
     // each keyword gets its own entry (as with every other one-directional
     // mutex entry); order matches the order the guard reports in.
     SFLSNGCHC: {
+      // Task I-185 - record level, optional parameters in any order, option indicators not valid
+      // ("Option indicators are not valid for this keyword." - SFLSNGCHC section, after the CHCAVAIL / CHCSLT /
+      // CHCUNAVAIL paragraph).
+      levels: ['record'],
+      parameters: 'optional',
+      parameterGrammar: 'SFLSNGCHC[([*NORSTCSR | *RSTCSR] [*NOSLTIND | *SLTIND] [*NOAUTOSLT | *AUTOSLT | *AUTOSLTENH])]',
+      optionIndicators: 'notValid',
       ddsReference:
         'The following subfile control record keywords cannot be specified ' +
         'on a record with the SFLSNGCHC keyword: SFLDROP, SFLFOLD, SFLMLTCHC.',
@@ -2566,6 +2591,11 @@
       }
     },
     SFLMLTCHC: {
+      // Task I-185 - record level, optional parameters in any order, option indicators not valid.
+      levels: ['record'],
+      parameters: 'optional',
+      parameterGrammar: 'SFLMLTCHC[(&number-selected] [*NORSTCSR | *RSTCSR] [*NOSLTIND | *SLTIND])]',
+      optionIndicators: 'notValid',
       ddsReference:
         'The following subfile control record keywords cannot be specified ' +
         'on a record with the SFLMLTCHC keyword: SFLDROP, SFLFOLD, SFLSNGCHC.',
@@ -3975,13 +4005,7 @@
       choiceNumber: { min: 1, max: 99 },
       // The 1-byte numeric hidden field holding the control value.
       controlField: { required: true, mustBeInSameRecord: true, dataType: 'Y', length: 1, decimalPositions: 0, usage: 'H' },
-      controlValues: {
-        0: { onOutput: 'available', onInput: 'unselected' },
-        1: { onOutput: 'selected', onInput: 'selected' },
-        2: { onOutput: 'unavailable (cannot place cursor on choice unless help for choice is available)' },
-        3: { onOutput: 'unavailable (placing cursor on choice is allowed)' },
-        4: { onOutput: 'unavailable (cannot place cursor on choice even if help for choice is available)' }
-      },
+      controlValues: CHOICE_CONTROL_VALUES,
       // The cursor restrictions apply only to displays attached to a controller with the enhanced interface.
       cursorRestrictionsNeedEnhancedInterfaceController: true,
       message: {

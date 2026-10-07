@@ -126,9 +126,28 @@ console.log('=== spec: what the DDS Reference says about each keyword ===');
   check('the reference says option indicators are not valid for SFLCHCCTL and SFLMLTCHC, and the accessor agrees for all of CHCCTL / CHCACCEL / SFLCHCCTL / SFLSNGCHC / SFLMLTCHC',
     has('Option indicators are not valid for this keyword.') && ['CHCCTL', 'CHCACCEL', 'SFLCHCCTL', 'SFLSNGCHC', 'SFLMLTCHC'].every((n) => !DspfWriter.optionIndicatorsAllowed(n)) &&
     ['CHCAVAIL', 'CHCUNAVAIL', 'CHCSLT'].every((n) => DspfWriter.optionIndicatorsAllowed(n)));
-  check('none of the eight takes no-parameters', ['CHCSLT', 'CHCCTL', 'CHCUNAVAIL', 'CHCAVAIL', 'CHCACCEL', 'SFLCHCCTL', 'SFLSNGCHC', 'SFLMLTCHC'].every((n) => !DspfWriter.takesNoParameters(n)));
-  // Not asserted (logged as I-185): SFLCHCCTL / SFLSNGCHC / SFLMLTCHC carry no `levels`, `parameters` or
-  // `optionIndicators` fact in their spec entries, so the accessor answers "not valid" by default, not by a recorded fact.
+  check('seven of the eight take parameters; SFLCHCCTL (format "SFLCHCCTL") is the one documented as taking none (I-185 recorded it)',
+    ['CHCSLT', 'CHCCTL', 'CHCUNAVAIL', 'CHCAVAIL', 'CHCACCEL', 'SFLSNGCHC', 'SFLMLTCHC'].every((n) => !DspfWriter.takesNoParameters(n)) && DspfWriter.takesNoParameters('SFLCHCCTL'));
+  // Task I-185 - the level, parameter and option-indicator facts are recorded on the three entries, so the
+  // accessor answers "not valid" from a stated fact rather than by default.
+  const sngSection = REF.slice(REF.lastIndexOf('SFLSNGCHC (Subfile Single Choice Selection List) keyword for display files'), REF.lastIndexOf('SLNO (Starting Line Number) keyword for display files'));
+  check('SFLSNGCHC: the section ends its prose with the indicator sentence, after the CHCAVAIL / CHCSLT / CHCUNAVAIL paragraph',
+    sngSection.length > 500 && sngSection.indexOf('SFLSNGCHC or SFLMLTCHC keywords are also used. Option indicators are not valid for this keyword.') !== -1);
+  check('I-185 levels: SFLCHCCTL field; SFLSNGCHC / SFLMLTCHC record',
+    T.SFLCHCCTL.levels.join() === 'field' && T.SFLSNGCHC.levels.join() === 'record' && T.SFLMLTCHC.levels.join() === 'record');
+  check('I-185 parameters: SFLCHCCTL none; SFLSNGCHC / SFLMLTCHC optional; grammar strings as in the reference',
+    T.SFLCHCCTL.parameters === 'none' && T.SFLSNGCHC.parameters === 'optional' && T.SFLMLTCHC.parameters === 'optional' &&
+    T.SFLCHCCTL.parameterGrammar === 'SFLCHCCTL' &&
+    T.SFLSNGCHC.parameterGrammar === 'SFLSNGCHC[([*NORSTCSR | *RSTCSR] [*NOSLTIND | *SLTIND] [*NOAUTOSLT | *AUTOSLT | *AUTOSLTENH])]' &&
+    T.SFLMLTCHC.parameterGrammar === 'SFLMLTCHC[(&number-selected] [*NORSTCSR | *RSTCSR] [*NOSLTIND | *SLTIND])]');
+  check('I-185 option indicators: all three entries state notValid, and the accessors agree (SFLCHCCTL no-parameter answer is still the entry\'s own)',
+    ['SFLCHCCTL', 'SFLSNGCHC', 'SFLMLTCHC'].every((n) => T[n].optionIndicators === 'notValid' && !DspfWriter.optionIndicatorsAllowed(n)) &&
+    DspfWriter.takesNoParameters('SFLCHCCTL') && !DspfWriter.takesNoParameters('SFLSNGCHC') && !DspfWriter.takesNoParameters('SFLMLTCHC'));
+  check('I-185 control-value table: one object shared by CHCCTL and SFLCHCCTL, values 0-4, enhanced-interface note on both',
+    T.SFLCHCCTL.controlValues === T.CHCCTL.controlValues && Object.keys(T.SFLCHCCTL.controlValues).join() === '0,1,2,3,4' &&
+    T.SFLCHCCTL.controlValues[0].onOutput === 'available' && T.SFLCHCCTL.controlValues[0].onInput === 'unselected' && T.SFLCHCCTL.controlValues[1].onOutput === 'selected' &&
+    T.SFLCHCCTL.cursorRestrictionsNeedEnhancedInterfaceController === true && T.CHCCTL.cursorRestrictionsNeedEnhancedInterfaceController === true &&
+    has('Meaning on output') && has('Unavailable. Placing cursor on') && has('Applies only to displays attached to a controller that supports an enhanced interface'));
 }
 
 console.log('\n=== L1/L2 CHCAVAIL / CHCUNAVAIL / CHCSLT: parse and round trip ===');

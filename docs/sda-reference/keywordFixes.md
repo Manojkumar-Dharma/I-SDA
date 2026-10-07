@@ -254,7 +254,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-182](#i-182) | Record | `WDWBORDER` and `WDWTITLE` rules nothing enforces: record-level `WDWBORDER` needs `WINDOW` or `PULLDOWN` on the record, at least one parameter, colour and display-attribute values, `*TOP` / `*BOTTOM` and the three alignments each at most once | I-122f | Done (requirement, parameters, values, forms) | v0.10.352 |
 | [I-183](#i-183) | Field | Choice keyword values nothing enforces: a bare or out-of-list `CHCAVAIL` / `CHCUNAVAIL` / `CHCSLT`, `CHCACCEL` / `CHCCTL` choice number outside 1-99, `CHCACCEL` with no text, the `CHCCTL` message fields' shapes | I-122g | Done (state values, numbers, text, control field, message fields) | v0.10.356 |
 | [I-184](#i-184) | Record | `SFLSNGCHC` / `SFLMLTCHC` rules nothing enforces: the subfile shape (one output field, no input-capable fields), control-record-only, and the `&number-selected` field shape | I-122g | Done (68 checks) | v0.10.357 |
-| [I-185](#i-185) | Tooling | Spec entries for `SFLCHCCTL`, `SFLSNGCHC` and `SFLMLTCHC` carry no level, parameter or option-indicator fact, and the `SFLCHCCTL` control-value table is not in the spec | I-122g | In progress | — |
+| [I-185](#i-185) | Tooling | Spec entries for `SFLCHCCTL`, `SFLSNGCHC` and `SFLMLTCHC` carry no level, parameter or option-indicator fact, and the `SFLCHCCTL` control-value table is not in the spec | I-122g | Done (5 checks added to `i122gChoiceFamilyKeywords`, 155 in all) | v0.10.358 |
 | [I-186](#i-186) | Field | Command-key numbers outside 01-24 accepted (`CA00`, `CA25`), and `MNUBARSW(CF05)` / `MNUBARSW(CA25)` pass the menu-bar key guard | I-122h | Not started | — |
 | [I-187](#i-187) | Record | `MNUBARSW` / `MNUCNL` claim a CA key but the CA / CF number guard does not read them: their key can be reused as a CF key on another record | I-122h | Not started | — |
 | [I-188](#i-188) | Record | `RETKEY` / `RETCMDKEY` accepted on a subfile (`SFL`) or user-defined (`USRDFN`) record, though the spec records they are not valid there | I-122h | Not started | — |
@@ -277,7 +277,6 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
 | 5 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
-| 7 | [I-185](#i-185) | In progress | Level, parameter and option-indicator facts missing from three subfile choice keyword entries. Size (estimate): Small. |
 | 8 | [I-193](#i-193) | Not started | Matrix cells for the writer paths and UI paths the generated matrix does not call (`setFileFlagKeyword`, webview Apply round trip), so more overlapping hand-written checks can be retired. Size (estimate): Medium. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The I-121 umbrella row there stays open until its slices land, so it is counted in the headline but not listed here.
@@ -8233,11 +8232,13 @@ Do: a diff-based guard for the subfile shape (counting output and input-capable 
 
 ### I-185 — Spec entries for SFLCHCCTL, SFLSNGCHC and SFLMLTCHC carry no level, parameter or option-indicator fact
 
-> **Area:** Tooling · **Status:** In progress · **Depends on:** I-122g · **Size (estimate):** Small
+> **Area:** Tooling · **Status:** Done (v0.10.358) · **Depends on:** I-122g · **Size (estimate):** Small
 
 Opened from I-122g. `RECORD_TYPES.SFLCHCCTL` holds `definitionRequirements`, `mustBeFirstField`, `onePerRecord` and `mutex`; `SFLSNGCHC` and `SFLMLTCHC` hold only `mutex`. None states `levels`, parameter grammar or `optionIndicators`, although their sections say: `SFLCHCCTL` field level, format `SFLCHCCTL`, "Option indicators are not valid"; `SFLMLTCHC` record level, `SFLMLTCHC[(&number-selected] [*NORSTCSR | *RSTCSR] [*NOSLTIND | *SLTIND])]`, not valid; `SFLSNGCHC` record level, `SFLSNGCHC[([*NORSTCSR | *RSTCSR] [*NOSLTIND | *SLTIND] [*NOAUTOSLT | *AUTOSLT | *AUTOSLTENH])]` (its section's indicator sentence was not located in the converted text and must be read first). `optionIndicatorsAllowed` answers false for all three today by default, not by a recorded fact. The `SFLCHCCTL` control-value table (0 available / unselected, 1 selected, 2-4 unavailable, with the enhanced-interface cursor note) is in the `CHCCTL` entry only.
 
 Do: add the three facts to the three entries, share the control-value table between `CHCCTL` and `SFLCHCCTL`, then pin the accessor answers in `i122gChoiceFamilyKeywords.test.js`.
+
+**Done (v0.10.358).** The three entries in `KeywordSpec.RECORD_TYPES` now state what their sections say: `SFLCHCCTL` is field level, `parameters: 'none'`, grammar `SFLCHCCTL`; `SFLSNGCHC` and `SFLMLTCHC` are record level with `parameters: 'optional'` and the format strings from their sections; all three carry `optionIndicators: 'notValid'` (the `SFLSNGCHC` sentence was located: it closes the section's prose, after the CHCAVAIL / CHCSLT / CHCUNAVAIL paragraph). The control-value table is one shared `CHOICE_CONTROL_VALUES` object read by `CHCCTL` and `SFLCHCCTL`, with the enhanced-interface cursor flag on both. `optionIndicatorsAllowed` therefore answers from a recorded fact, and `takesNoParameters('SFLCHCCTL')` is now true (nothing in the panel reads it for that keyword); the I-122g check that asserted none of the eight takes no-parameters was corrected. Five checks pin the facts in `i122gChoiceFamilyKeywords.test.js`; removing the shared table from `SFLCHCCTL` fails the file.
 
 *Raised by I-122g. Size (estimate): Small.*
 
