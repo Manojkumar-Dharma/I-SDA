@@ -133,16 +133,15 @@ console.log('\n=== spec: what the DDS Reference says about each keyword ===');
     KeywordSpec.allowedUsage('FLDCSRPRG').join() === 'I,B' && KeywordSpec.notInSubfile('FLDCSRPRG') === true && KeywordSpec.notWithKeywords('FLDCSRPRG').join() === 'SNGCHCFLD,MLTCHCFLD' && T.FLDCSRPRG.parameterNamesInputCapableFieldInSameRecord === true);
   check('VALNUM: usage I or B, data type Y; valid at file, record and field level',
     KeywordSpec.allowedUsage('VALNUM').join() === 'I,B' && KeywordSpec.requiredDataTypes('VALNUM').join() === 'Y' && KeywordSpec.noOptionIndicatorsFact('VALNUM').levels.join() === 'file,record,field');
-  check('the I-150 guard covers BLANKS, CNTFLD, FLDCSRPRG and FLTFIXDEC (not FLTPCN, not VALNUM)', KeywordSpec.fieldKindGuardedKeywords().join() === 'BLANKS,CNTFLD,FLDCSRPRG,FLTFIXDEC');
+  check('the I-150 guard covers BLANKS, CNTFLD, FLDCSRPRG, FLTFIXDEC and (since I-180) FLTPCN, not VALNUM', KeywordSpec.fieldKindGuardedKeywords().join() === 'BLANKS,CNTFLD,FLDCSRPRG,FLTFIXDEC,FLTPCN');
   check('blank data type counts as character only for CNTFLD', KeywordSpec.blankDataTypeIsCharacter('CNTFLD') === true && !KeywordSpec.blankDataTypeIsCharacter('FLTFIXDEC') && !KeywordSpec.blankDataTypeIsCharacter('VALNUM'));
   // Option indicators: "not valid" for nine of the ten; the four date/time keywords add that the
   // indicators can still condition the field itself.
   ['DATFMT', 'DATSEP', 'TIMFMT', 'TIMSEP'].forEach((n) => check(n + ': option indicators not valid, but they may condition the field',
     KeywordSpec.noOptionIndicatorsFact(n).kind === 'notValidFieldConditionable' && KeywordSpec.noOptionIndicatorsFact(n).levels.join() === 'field'));
-  ['BLANKS', 'CNTFLD', 'FLDCSRPRG', 'FLTFIXDEC', 'VALNUM'].forEach((n) => check(n + ': option indicators not valid',
+  ['BLANKS', 'CNTFLD', 'FLDCSRPRG', 'FLTFIXDEC', 'FLTPCN', 'VALNUM'].forEach((n) => check(n + ': option indicators not valid',
     KeywordSpec.noOptionIndicatorsFact(n).kind === 'notValid'));
-  // Not asserted (logged): FLTPCN's own section also says "Option indicators are not valid for this
-  // keyword", but noOptionIndicatorsFact('FLTPCN') is null and the writer does not refuse it.
+  // FLTPCN's row was added by I-180 (see i180FltpcnCntfldRules.test.js).
 }
 
 console.log('\n=== L1/L2 DATFMT / DATSEP / TIMFMT / TIMSEP: get, set, round trip ===');
@@ -243,8 +242,8 @@ console.log('\n=== L1 FLTPCN / FLTFIXDEC / BLANKS / CNTFLD / FLDCSRPRG: eligibil
   check('FLDCSRPRG naming a missing field, or an output field, is refused', /must name an input-capable field/.test(G(two(undefined), two('FLDCSRPRG(NOPE)')) || '') && /must name an input-capable field/.test(G(two(undefined, 'O'), two('FLDCSRPRG(F2)', 'O')) || ''));
   check('FLDCSRPRG together with SNGCHCFLD is refused, naming both', /FLDCSRPRG cannot be specified with SNGCHCFLD/.test(G(two(undefined), two('FLDCSRPRG(F2) SNGCHCFLD')) || ''));
   check('FLDCSRPRG in a subfile record is refused', /subfile/.test(G(doc([]), DspfParser.parseDspf(build([dds({ rec: 1, name: 'S1', fn: 'SFL' }), field('F1', 10, 'A', undefined, 3, 'FLDCSRPRG(F2)'), field('F2', 10, 'A', undefined, 5)]))) || ''));
-  // FLTPCN has no guard in this family: only the panel row is gated by the data type (see the panel section).
-  check('FLTPCN is outside the I-150 guard: an edit that adds it is not reported by fieldKindNewConflictReason', G(one(9, 'F', 'B', undefined, 2), one(9, 'F', 'B', 'FLTPCN(*DOUBLE)', 2)) === null);
+  // FLTPCN joined the I-150 guard in I-180 (parameter, length caps; see i180FltpcnCntfldRules.test.js).
+  check('FLTPCN(*DOUBLE) on an F9 float is accepted by fieldKindNewConflictReason', G(one(9, 'F', 'B', undefined, 2), one(9, 'F', 'B', 'FLTPCN(*DOUBLE)', 2)) === null);
 }
 
 console.log('\n=== L1 VALNUM: field eligibility (usage I or B, data type Y) ===');

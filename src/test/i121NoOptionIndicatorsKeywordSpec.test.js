@@ -39,8 +39,9 @@ console.log('\nspec facts');
   const fileOnly = KeywordSpec.noOptionIndicatorsNames(true);
   // Task I-135 added SETOFF (documented as equivalent to SETOF) to the original 95.
   // Task I-121b added RETKEY and RETCMDKEY (their section ends "Option indicators are not valid for these keywords").
+  // Task I-180 added FLTPCN ("Option indicators are not valid for this keyword").
   // Task I-121f added IGCCNV ("Option indicators are not allowed with this keyword").
-  check('99 every-level keywords (the original 95 + SETOFF from I-135 + RETKEY/RETCMDKEY from I-121b + IGCCNV from I-121f)', names.length === 99 && names.indexOf('SETOFF') >= 0 && names.indexOf('RETKEY') >= 0 && names.indexOf('RETCMDKEY') >= 0 && names.indexOf('IGCCNV') >= 0);
+  check('100 every-level keywords (the original 95 + SETOFF from I-135 + RETKEY/RETCMDKEY from I-121b + IGCCNV from I-121f + FLTPCN from I-180)', names.length === 100 && names.indexOf('FLTPCN') >= 0 && names.indexOf('SETOFF') >= 0 && names.indexOf('RETKEY') >= 0 && names.indexOf('RETCMDKEY') >= 0 && names.indexOf('IGCCNV') >= 0);
   check('HLPTITLE is the only file-level-only entry', fileOnly.join() === 'HLPTITLE');
   check('no name in both lists', names.indexOf('HLPTITLE') < 0);
   check('every fact has a known kind, levels and a citation', names.concat(fileOnly).every((n) => {
@@ -48,7 +49,7 @@ console.log('\nspec facts');
     return KINDS.indexOf(f.kind) >= 0 && Array.isArray(f.levels) && f.levels.length > 0 && /Option indicators/.test(f.ddsReference);
   }));
   const kindCount = (k) => names.filter((n) => KeywordSpec.noOptionIndicatorsFact(n).kind === k).length;
-  check('78 plain (75 + SETOFF + RETKEY + RETCMDKEY)', kindCount('notValid') === 78);
+  check('79 plain (75 + SETOFF + RETKEY + RETCMDKEY + FLTPCN)', kindCount('notValid') === 79);
   check('5 display-size-valid', kindCount('notValidDisplaySizeValid') === 5);
   check('12 field-conditionable', kindCount('notValidFieldConditionable') === 12);
   check('2 not-allowed (IGCALTTYP, and IGCCNV from I-121f)', kindCount('notAllowed') === 2 && KeywordSpec.noOptionIndicatorsFact('IGCALTTYP').kind === 'notAllowed' && KeywordSpec.noOptionIndicatorsFact('IGCCNV').kind === 'notAllowed');
@@ -71,7 +72,7 @@ console.log('\nequivalence with the pre-refactor baseline');
   const names = DspfWriter.noOptionIndicatorKeywordNames();
   // The baseline is the pre-refactor table; I-135 later added SETOFF, so the
   // comparison is against the current names without it, and SETOFF is checked apart.
-  check('same names in the same order (SETOFF from I-135, RETKEY/RETCMDKEY from I-121b and IGCCNV from I-121f aside)', JSON.stringify(names.filter((n) => n !== 'SETOFF' && n !== 'RETKEY' && n !== 'RETCMDKEY' && n !== 'IGCCNV')) === JSON.stringify(Object.keys(baseline.all)) && names.indexOf('SETOFF') === names.indexOf('SETOF') + 1);
+  check('same names in the same order (SETOFF from I-135, RETKEY/RETCMDKEY from I-121b, IGCCNV from I-121f and FLTPCN from I-180 aside)', JSON.stringify(names.filter((n) => n !== 'FLTPCN' && n !== 'SETOFF' && n !== 'RETKEY' && n !== 'RETCMDKEY' && n !== 'IGCCNV')) === JSON.stringify(Object.keys(baseline.all)) && names.indexOf('SETOFF') === names.indexOf('SETOF') + 1);
   check('SETOFF (I-135) says what SETOF says', DspfWriter.noOptionIndicatorsReason('SETOFF') === baseline.all.SETOF.replace(/SETOF/g, 'SETOFF'));
   let bad = [];
   Object.keys(baseline.all).forEach((n) => { if (DspfWriter.noOptionIndicatorsReason(n) !== baseline.all[n]) bad.push(n); });

@@ -30,7 +30,7 @@ const one = (len, dt, usage, func, dec) => rec('R1').concat([fld('F1', len, dt, 
 const none = (len, dt, usage, dec) => one(len, dt, usage, undefined, dec);
 
 // ---- facts ----
-check('the guarded keywords are the four, in order', KeywordSpec.fieldKindGuardedKeywords().join() === 'BLANKS,CNTFLD,FLDCSRPRG,FLTFIXDEC');
+check('the guarded keywords are the five (FLTPCN added by I-180), in order', KeywordSpec.fieldKindGuardedKeywords().join() === 'BLANKS,CNTFLD,FLDCSRPRG,FLTFIXDEC,FLTPCN');
 check('usage / type facts the guard reads', KeywordSpec.allowedUsage('BLANKS').join() === 'I,B' && KeywordSpec.allowedUsage('CNTFLD').join() === 'I,B' && KeywordSpec.allowedUsage('FLDCSRPRG').join() === 'I,B' && KeywordSpec.allowedUsage('FLTFIXDEC').join() === 'B,O' && KeywordSpec.requiredDataTypes('CNTFLD').join() === 'A' && KeywordSpec.requiredDataTypes('FLTFIXDEC').join() === 'F' && KeywordSpec.requiredDataTypes('BLANKS') === null);
 check('subfile / mutex facts', KeywordSpec.notInSubfile('CNTFLD') && KeywordSpec.notInSubfile('FLDCSRPRG') && !KeywordSpec.notInSubfile('BLANKS') && !KeywordSpec.notInSubfile('FLTFIXDEC') && KeywordSpec.notWithKeywords('FLDCSRPRG').join() === 'SNGCHCFLD,MLTCHCFLD');
 

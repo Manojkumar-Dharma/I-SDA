@@ -64,7 +64,7 @@ console.log('\nPart 1a. the table and the new helpers');
   check('every batch keyword is listed (15 = 12 multi/single-level + HLPARA + SFLMSGKEY + SFLPGMQ)', BATCH.length === 15 && BATCH.every((n) => names.indexOf(n) >= 0));
   check('batches 1-3 are still listed (80)', EARLIER.length === 80 && EARLIER.every((n) => names.indexOf(n) >= 0));
   // Task I-135 later added SETOFF (documented as equivalent to SETOF) - the one entry beyond the original 95.
-  check('nothing else is (99 = 15 + 80 + SETOFF from I-135 + RETKEY/RETCMDKEY from I-121b + IGCCNV from I-121f)', names.length === BATCH.length + EARLIER.length + 4 && names.indexOf('SETOFF') >= 0 && names.indexOf('RETKEY') >= 0 && names.indexOf('RETCMDKEY') >= 0 && names.indexOf('IGCCNV') >= 0);
+  check('nothing else is (100 = 15 + 80 + SETOFF from I-135 + RETKEY/RETCMDKEY from I-121b + IGCCNV from I-121f + FLTPCN from I-180)', names.length === BATCH.length + EARLIER.length + 5 && names.indexOf('FLTPCN') >= 0 && names.indexOf('SETOFF') >= 0 && names.indexOf('RETKEY') >= 0 && names.indexOf('RETCMDKEY') >= 0 && names.indexOf('IGCCNV') >= 0);
   check('each reason names its keyword and says "not valid"', BATCH.every((n) => {
     const r = DspfWriter.noOptionIndicatorsReason(n);
     return !!r && r.indexOf(n) >= 0 && /not valid/.test(r);

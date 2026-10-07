@@ -6926,6 +6926,28 @@
           if (kw === 'CNTFLD' && /^\d+$/.test(param) && Number(f.length) > 0 && Number(param) >= Number(f.length)) {
             add(kw, 'WIDTH', 'CNTFLD(' + param + ') on field ' + fname + ': the column width must be less than the field length (' + f.length + ') (per the DDS Reference).');
           }
+          // Task I-180 - CNTFLD's one parameter is a whole number; FLTPCN's is *SINGLE or *DOUBLE and caps the length.
+          if (KeywordSpec.widthParameterIsNumber(kw) && !/^\d+$/.test(param)) {
+            add(kw, 'PARAM', kw + (param ? '(' + param + ')' : '') + ' on field ' + fname + ': the one parameter must be the column width, a whole number (per the DDS Reference).');
+          }
+          var allowedValues = KeywordSpec.parameterValues(kw);
+          if (allowedValues) {
+            var pv = param.toUpperCase();
+            if (allowedValues.indexOf(pv) < 0) {
+              add(kw, 'PARAM', kw + (param ? '(' + param + ')' : '') + ' on field ' + fname + ': the parameter must be ' + allowedValues.join(' or ') + ' (per the DDS Reference).');
+            } else {
+              var caps = KeywordSpec.maxLengthByParameter(kw);
+              var cap = caps && caps[pv];
+              var flen = Number(f.length);
+              if (cap && flen > cap) {
+                add(kw, 'LEN', kw + '(' + pv + ') on field ' + fname + ': the length ' + f.length + ' is more than ' + cap + ' digits, so the file would not be created (per the DDS Reference).');
+              }
+            }
+          }
+          (f.keywords || []).forEach(function (other) {
+            var hit = KeywordSpec.conditionalMutexHit(kw, other);
+            if (hit) add(kw, 'WITH|' + hit, kw + ' cannot be specified with ' + hit + ' on field ' + fname + ' (per the DDS Reference).');
+          });
           if (kw === 'FLDCSRPRG' && param) {
             var target = (r.fields || []).find(function (g) { return String(g.name || '').toUpperCase() === param.toUpperCase(); });
             var tu = target ? (String(target.usage == null ? '' : target.usage).trim().toUpperCase() || 'O') : '';

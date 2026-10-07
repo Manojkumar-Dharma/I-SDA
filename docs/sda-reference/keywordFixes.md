@@ -249,7 +249,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-177](#i-177) | Field | `SFLRCDNBR` rules nothing enforces: not on the same field as `SFLROLVAL`, parameters only `CURSOR` / `*TOP`, field shape (zoned, 0 decimals, signed, up to 4 digits, usage O, B or H) | I-122d | Done | v0.10.346 |
 | [I-178](#i-178) | Tooling | Spec entries for `SFLCSRPRG`, `SFLRCDNBR`, `SFLROLVAL`, `SFLRTNSEL`, `SFLNXTCHG` state no level, parameter or option-indicator fact, so `takesNoParameters` / `optionIndicatorsAllowed` answer wrongly | I-122d | Done | v0.10.345 |
 | [I-179](#i-179) | Field | Date/time format keywords: `DATFMT` / `DATSEP` accepted off data type L and `TIMFMT` / `TIMSEP` off T, values outside IBM's lists, the fixed-separator rule only in the panel Apply, and a Basic-tab type change that strands them | I-122e | Done (eligibility, values, pairing, Basic tab) | v0.10.347 |
-| [I-180](#i-180) | Field | `FLTPCN` (type F, `*SINGLE` / `*DOUBLE`, length caps, option indicators not valid) and `CNTFLD` (numeric width, its exclusion list) rules nothing enforces | I-122e | In progress (claimed) | — |
+| [I-180](#i-180) | Field | `FLTPCN` (type F, `*SINGLE` / `*DOUBLE`, length caps, option indicators not valid) and `CNTFLD` (numeric width, its exclusion list) rules nothing enforces | I-122e | Done | v0.10.351 |
 | [I-181](#i-181) | Tooling | Spec entries for `HLPDOC`, `HLPID`, `WDWBORDER` and `NOCCSID` state no level, parameter or option-indicator fact, so `optionIndicatorsAllowed` answers "no" for `HLPDOC` and `WDWBORDER` although their sections say option indicators are valid | I-122f | Done (levels, parameter forms, option indicators) | v0.10.349 |
 | [I-182](#i-182) | Record | `WDWBORDER` and `WDWTITLE` rules nothing enforces: record-level `WDWBORDER` needs `WINDOW` or `PULLDOWN` on the record, at least one parameter, colour and display-attribute values, `*TOP` / `*BOTTOM` and the three alignments each at most once | I-122f | Not started | — |
 | [I-183](#i-183) | Field | Choice keyword values nothing enforces: a bare or out-of-list `CHCAVAIL` / `CHCUNAVAIL` / `CHCSLT`, `CHCACCEL` / `CHCCTL` choice number outside 1-99, `CHCACCEL` with no text, the `CHCCTL` message fields' shapes | I-122g | Not started | — |
@@ -277,11 +277,10 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | 1 | [I-122](#i-122) | In progress (batches 1-3, I-122d, I-122e, I-122f, I-122g, I-122h and I-122i done) | Generated test matrix and migration of overlapping tests. Size (estimate): Large. |
 | 4 | [I-122j](#i-122j) | Not started | Retire overlapping tests, each deletion backed by a stash-based mutation run (do last, serially). Size (estimate): Large. |
 | 5 | [I-123](#i-123) | Not started | Task-history comments out of source. Size (estimate): Medium (mechanical). Best after I-121 so each citation lives in the spec. |
-| 6 | [I-180](#i-180) | In progress (claimed) | `FLTPCN` and `CNTFLD` parameter, type and exclusion rules. Size (estimate): Small. |
-| 7 | [I-182](#i-182) | Not started | `WDWBORDER` / `WDWTITLE` requirement and parameter rules. Size (estimate): Medium. |
-| 8 | [I-183](#i-183) | Not started | Choice keyword value rules (`CHCAVAIL` / `CHCUNAVAIL` / `CHCSLT` values, `CHCACCEL` / `CHCCTL` ranges and text). Size (estimate): Medium. |
-| 9 | [I-184](#i-184) | Not started | `SFLSNGCHC` / `SFLMLTCHC` subfile shape, record-level and number-selected field rules. Size (estimate): Medium. |
-| 10 | [I-185](#i-185) | Not started | Level, parameter and option-indicator facts missing from three subfile choice keyword entries. Size (estimate): Small. |
+| 6 | [I-182](#i-182) | Not started | `WDWBORDER` / `WDWTITLE` requirement and parameter rules. Size (estimate): Medium. |
+| 7 | [I-183](#i-183) | Not started | Choice keyword value rules (`CHCAVAIL` / `CHCUNAVAIL` / `CHCSLT` values, `CHCACCEL` / `CHCCTL` ranges and text). Size (estimate): Medium. |
+| 8 | [I-184](#i-184) | Not started | `SFLSNGCHC` / `SFLMLTCHC` subfile shape, record-level and number-selected field rules. Size (estimate): Medium. |
+| 9 | [I-185](#i-185) | Not started | Level, parameter and option-indicator facts missing from three subfile choice keyword entries. Size (estimate): Small. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The I-121 umbrella row there stays open until its slices land, so it is counted in the headline but not listed here.
 
@@ -8122,11 +8121,17 @@ Do: a diff-based guard through `commitEdit` (the I-131 / I-150 shape) reading th
 
 ### I-180 — `FLTPCN` and `CNTFLD` rules nothing enforces
 
-> **Area:** Field · **Status:** In progress (claimed) · **Depends on:** I-122e · **Size (estimate):** Small
+> **Area:** Field · **Status:** Done (v0.10.351) · **Depends on:** I-122e · **Size (estimate):** Small
 
 Opened from I-122e. `FLTPCN`'s section: valid for data type F only, parameter `*SINGLE` or `*DOUBLE`, single precision up to 9 digits and double up to 17 (otherwise "the file is not created"), "Option indicators are not valid for this keyword". Probed on v0.10.341: the raw editor accepts `FLTPCN` on a character field and `FLTPCN(*FOO)` on a float field; the length caps are not checked; `noOptionIndicatorsFact('FLTPCN')` is null and `noOptionIndicatorsNewConflictReason('FLTPCN', ...)` accepts an indicator condition. `CNTFLD`'s section: one numeric width parameter, and `AUTO(RAB, RAZ)`, `CHECK(AB, MF, RB, RZ, RLTB)`, `CHOICE`, `DSPATR(OID SP)` and `EDTMSK` cannot be on the same field. Probed: `CNTFLD(abc)` is accepted, and raw-adding `CNTFLD(20)` to a field with `CHECK(AB)`, `DSPATR(SP)` or `AUTO(RAB)` is accepted; only the `EDTMSK` side is refused (I-130). The "fits the display or window width" and "two spaces from other fields" rules were not probed.
 
 Do: add `FLTPCN` to the no-option-indicator table, a parameter and length check, and the `CNTFLD` numeric-parameter check and its side of the exclusion list (reusing I-130's `conditionalMutex` shape), diff-based through `commitEdit`.
+
+**Fix.** Facts on `RECORD_TYPES.FLTPCN` (`parameterValues` `*SINGLE` / `*DOUBLE`, `maxLengthByParameter` 9 and 17 with the section's sentence cited as `maxLengthReference`) and on `RECORD_TYPES.CNTFLD` (`widthParameterIsNumber`, and a `conditionalMutex` of `AUTO(RAB RAZ)`, `CHECK(AB MF RB RZ RLTB)`, `CHOICE`, `DSPATR(OID SP)` and `EDTMSK`, the token-qualified shape I-130 introduced for `EDTMSK`'s side). `FLTPCN` is now the fifth I-150 guarded keyword and has its row in the no-option-indicator table (field level, not valid). New `KeywordSpec` accessors: `parameterValues`, `maxLengthByParameter`, `maxLengthReference`, `widthParameterIsNumber`. The checks live in the existing I-150 model-diff guard (`fieldKindViolations` in `dspfWriter.js`), so the raw keyword editor, every panel and the Basic tab's data type or length change are all covered, and only a violation an edit adds is reported: `FLTPCN` parameter not `*SINGLE` or `*DOUBLE` (a bare `FLTPCN` is refused too, the format having no brackets), length over the cap for the chosen precision (the section says the file would not be created), `CNTFLD` parameter not a whole number, and `CNTFLD` beside anything on its list, in either direction.
+
+**Tests.** `src/test/i180FltpcnCntfldRules.test.js` (60 checks): the spec facts and their citations verbatim, the guard's accepted and refused cases (lower case, boundaries 9 / 10 and 17 / 18, a length change on an existing field, an already-wrong field not re-reported, removal never blocked), and the raw editor in jsdom. Mutation-checked: 8 mutations (exclusion loop off, numeric check off, `FLTPCN` value check off, length cap off, `FLTPCN` unguarded, table row dropped, cap 18, `DSPATR(SP)` dropped) each fail the file. The I-122e and I-150 tests were updated where they pinned `FLTPCN` as outside the guard, and the two tests that pin the option-indicator table's size (I-101 multi-level and I-121) went from 99 to 100 entries.
+
+Not done: `CNTFLD`'s column width must also fit within the width of the display or window, and the keyword must be separated from other fields by at least 2 spaces; neither is checked, as both need the screen layout rather than the field alone.
 
 *Raised by I-122e. Size (estimate): Small.*
 

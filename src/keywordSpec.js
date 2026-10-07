@@ -2979,7 +2979,22 @@
       widthMustBeLessThanFieldLength: true,
       // A blank data type with no decimal positions IS character (A), so a
       // field still being drafted is not refused for it.
-      blankDataTypeIsCharacterWithoutDecimals: true
+      blankDataTypeIsCharacterWithoutDecimals: true,
+      // Task I-180: "CNTFLD(width of column)  One parameter must be
+      // specified." - the width is a whole number - and "The following
+      // keywords cannot be specified on a field with the CNTFLD keyword:
+      // AUTO (RAB, RAZ), CHECK(AB, MF, RB, RZ, RLTB), CHOICE,
+      // DSPATR(OID SP), EDTMSK". The same token-qualified conditionalMutex
+      // shape EDTMSK's own list uses (I-130), read from CNTFLD's side;
+      // EDTMSK's side stays on EDTMSK's entry.
+      widthParameterIsNumber: true,
+      conditionalMutex: {
+        AUTO: ['RAB', 'RAZ'],
+        CHECK: ['AB', 'MF', 'RB', 'RZ', 'RLTB'],
+        CHOICE: null,
+        DSPATR: ['OID', 'SP'],
+        EDTMSK: null
+      }
     },
     // "FLTFIXDEC (Floating-Point to Fixed Decimal) keyword": "to display a
     // number in an output-capable (usage B or O) floating-point field". No
@@ -2995,10 +3010,26 @@
     // "FLTPCN (Floating-Point Precision) keyword": "This keyword is valid
     // for floating-point fields only (data type F)." Parameter *SINGLE or
     // *DOUBLE.
+    //
+    // Task I-180 - the rest of FLTPCN's own section, previously unenforced:
+    // "FLTPCN(*SINGLE | *DOUBLE)" (one of the two values - no brackets in
+    // the format), "A single precision field can be up to 9 digits; a
+    // double precision field can be up to 17 digits. If you specify a field
+    // length greater than 9 (single precision) or 17 (double precision), an
+    // error message appears and the file is not created." and "Option
+    // indicators are not valid for this keyword." (the last one is the
+    // NO_OPTION_INDICATOR_KEYWORDS row further down).
     FLTPCN: {
       ddsReference:
         'This keyword is valid for floating-point fields only (data type F).',
-      requiredDataTypes: ['F']
+      requiredDataTypes: ['F'],
+      parameterValues: ['*SINGLE', '*DOUBLE'],
+      maxLengthByParameter: { '*SINGLE': 9, '*DOUBLE': 17 },
+      maxLengthReference:
+        'A single precision field can be up to 9 digits; a double precision ' +
+        'field can be up to 17 digits. If you specify a field length greater ' +
+        'than 9 (single precision) or 17 (double precision), an error message ' +
+        'appears and the file is not created.'
     },
     // "MAPVAL (Map Values) keyword": "This keyword is only valid with the
     // date (L), time (T), or timestamp (Z) data types."
@@ -5690,6 +5721,8 @@
       ddsReference: 'Option indicators are not valid for this keyword.' },
     FLTFIXDEC: { kind: 'notValid', levels: ['field'],
       ddsReference: 'Option indicators are not valid for this keyword.' },
+    FLTPCN: { kind: 'notValid', levels: ['field'],
+      ddsReference: 'Option indicators are not valid for this keyword.' },
     HLPID: { kind: 'notValid', levels: ['field'],
       ddsReference: 'Option indicators are not valid for this keyword.' },
     MLTCHCFLD: { kind: 'notValid', levels: ['field'],
@@ -6086,12 +6119,13 @@
   }
   // ---- end I-121d ----
   // ---- I-150: accessors ----
-  var I150_KEYWORDS = ['BLANKS', 'CNTFLD', 'FLDCSRPRG', 'FLTFIXDEC'];
+  // Task I-180 added FLTPCN (its data type F and its precision rules).
+  var I150_KEYWORDS = ['BLANKS', 'CNTFLD', 'FLDCSRPRG', 'FLTFIXDEC', 'FLTPCN'];
   function i150Entry(name) {
     var n = String(name == null ? '' : name).trim().toUpperCase();
     return I150_KEYWORDS.indexOf(n) !== -1 ? RECORD_TYPES[n] : null;
   }
-  /** The four field keywords whose usage / data type / subfile rules the I-150 guard enforces. */
+  /** The five field keywords whose usage / data type / subfile / parameter rules the I-150 guard enforces. */
   function fieldKindGuardedKeywords() { return I150_KEYWORDS.slice(); }
   /** Whether the keyword cannot be on a field of a subfile record. */
   function notInSubfile(name) { var e = i150Entry(name); return !!(e && e.notInSubfile); }
@@ -6099,6 +6133,15 @@
   function notWithKeywords(name) { var e = i150Entry(name); return (e && e.notWithKeywords) ? e.notWithKeywords.slice() : []; }
   /** Whether a blank data type counts as character (A) for the keyword when no decimal positions are given. */
   function blankDataTypeIsCharacter(name) { var e = i150Entry(name); return !!(e && e.blankDataTypeIsCharacterWithoutDecimals); }
+  // ---- I-180: accessors ----
+  /** The values the keyword's parameter must be one of (FLTPCN: *SINGLE, *DOUBLE), a copy, or null. */
+  function parameterValues(name) { var e = i150Entry(name); return (e && e.parameterValues) ? e.parameterValues.slice() : null; }
+  /** The longest field length each of the keyword's parameter values allows (FLTPCN), a copy, or null. */
+  function maxLengthByParameter(name) { var e = i150Entry(name); return (e && e.maxLengthByParameter) ? Object.assign({}, e.maxLengthByParameter) : null; }
+  /** The DDS Reference sentence stating those length caps, or ''. */
+  function maxLengthReference(name) { var e = i150Entry(name); return (e && e.maxLengthReference) || ''; }
+  /** Whether the keyword's one parameter must be a whole number (CNTFLD's column width). */
+  function widthParameterIsNumber(name) { var e = i150Entry(name); return !!(e && e.widthParameterIsNumber); }
   // ---- end I-150 ----
   // ---- I-121c: accessors ----
   var I121C_KEYWORDS = ['SFLPAG', 'SFLCLR', 'SFLDSP', 'SFLDSPCTL', 'SFLEND', 'SFLINZ', 'SFLDLT'];
@@ -6657,6 +6700,10 @@
     alwrolClrlSlnoKeywords: alwrolClrlSlnoKeywords,
     // ---- I-150 ----
     fieldKindGuardedKeywords: fieldKindGuardedKeywords,
+    parameterValues: parameterValues,
+    maxLengthByParameter: maxLengthByParameter,
+    maxLengthReference: maxLengthReference,
+    widthParameterIsNumber: widthParameterIsNumber,
     notInSubfile: notInSubfile,
     notWithKeywords: notWithKeywords,
     blankDataTypeIsCharacter: blankDataTypeIsCharacter,
