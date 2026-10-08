@@ -270,7 +270,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-198](#i-198) | Tooling | `check_spec_coverage.py` prints "mark the slice Done" for slices the ledger already marks Done | I-121 | Open | — |
 | [I-199](#i-199) | Field | Help-specification panel has no `HLPRCD` row | I-190 | Open | — |
 | [I-200](#i-200) | Subfile | Two `SFLPAG` / `SFLSIZ` rules left unchecked by I-146 | I-146 | Open | — |
-| [I-201](#i-201) | Field | `MNUBARCHC` 12-line count never probed with a literal split over continuation lines | I-173 | Open | — |
+| [I-201](#i-201) | Field | `MNUBARCHC` 12-line count never probed with a literal split over continuation lines | I-173 | In progress | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -284,7 +284,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-201](#i-201) | Open | Small: probe then fix if needed. |
+| 1 | [I-201](#i-201) | In progress | Small: probe then fix if needed. |
 | 2 | [I-198](#i-198) | Open | Small, tooling only. |
 | 3 | [I-197](#i-197) | Open | Small, decision first. |
 | 4 | [I-199](#i-199) | Open | Small, one panel row. |
@@ -8502,7 +8502,7 @@ Do: read both sections again, add the note and the check as spec facts read by o
 
 ### I-201 — `MNUBARCHC` 12-line count never probed with a literal split over continuation lines
 
-> **Area:** Field · **Status:** Open · **Depends on:** I-173 · **Size (estimate):** Small
+> **Area:** Field · **Status:** In progress · **Depends on:** I-173 · **Size (estimate):** Small
 
 Opened from I-173. The count is taken from the parser's joined text, and a wrapped literal (`+` continuation) was never run through it, so the line total there is unproven.
 
