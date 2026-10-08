@@ -40,9 +40,7 @@ const facts = names.map((n) => M.resolve(n));
 
 // Disagreements found while generating the matrix, each logged as a task in keywordFixes.md.
 // key: '<KEYWORD>:<cell>' -> the task. A listed gap is reported, not asserted; an unlisted one fails.
-const KNOWN_GAPS = {
-  'HLPRCD:levels': 'I-190',
-};
+const KNOWN_GAPS = {};
 const gapReported = [];
 function gap(keyword, cell, ok, label) {
   const id = keyword + ':' + cell;

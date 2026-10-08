@@ -17,7 +17,7 @@
       "Task I-40: full regeneration pass, run after I-41/I-42/I-57/I-67/I-76 all landed. Applied 6 of the 7 level-label corrections the task's own original audit found: HLPPNLGRP/HLPDOC moved out of a mislabeled 'record' slot into a new dedicated 'help-specification' level (HLPPNLGRP and HLPDOC each keep a SEPARATE file-level entry too - both keywords are genuinely valid at both levels, not one or the other); SFLMSGKEY/SFLPGMQ/SFLRCDNBR/SFLROLVAL/SFLSCROLL moved from 'record' to 'field' (confirmed via subfileFieldKeywordsHtml and the SFLMSG message-record panel, both field-scoped). Did NOT apply the audit's 7th claimed correction (CHECK, 'field-only'): a fresh trace against the current codebase found genuine hand-wired file-level (fk-check-ab/rltb/rl) and record-level (recordCheckGuard-guarded rows in the Input panel) CHECK(AB)/CHECK(RL)/CHECK(RLTB) wiring, predating this task's original claim, and IBM's own DDS Reference text confirms CHECK(AB) is explicitly valid 'at the file level, record level, or field level' - the index's existing file/record/field labeling for CHECK was already correct, so it's unchanged. Also folded in 8 keywords (BLKFOLD, CSRINPONLY [file+record], FLTFIXDEC, FLTPCN, MAPVAL, SFLCHCCTL, SFLCSRPRG, SFLRTNSEL) that Task I-39 had hand-edited directly into KEYWORD-INDEX.json/.md without updating this generator script - preserved at I-39's own category placement per this task's own note, rather than being silently dropped by the regeneration. Added the 9 keywords the audit found missing: DATE/TIME/USER/SYSNAME/MSGCON (field-level constant value sources, Task I-33), SFL/USRDFN (record-type marker keywords, previously only mentioned in 'sharedWith' notes, never as their own entries), WDWTITLE (record-level window title, Task I-12 area), HLPDOC (file + help-specification level, Tasks I-38/I-67)."
     ],
     "totalCategories": 49,
-    "totalKeywordEntries": 226
+    "totalKeywordEntries": 227
   },
   "levels": [
     {
@@ -414,6 +414,12 @@
               "keyword": "HLPDOC",
               "description": "Help document - online help information text label, document name, folder name; cannot be specified with HLPBDY (same H spec), or with HLPPNLGRP (anywhere in the file) (Task I-67; help-specification-level form; also valid file-wide - see file-level Help)",
               "parameters": "online-help-information-text-label-name document-name folder-name",
+              "repeatable": false
+            },
+            {
+              "keyword": "HLPRCD",
+              "description": "Help record - names the record format containing the help text; cannot be specified with HLPPNLGRP anywhere in the file (Task I-190; help-specification-level form, entered in the help entry's raw keyword editor - the panel has no row for it; also valid file-wide - see file-level Help)",
+              "parameters": "record-format-name [[library-name/]file-name]",
               "repeatable": false
             }
           ]

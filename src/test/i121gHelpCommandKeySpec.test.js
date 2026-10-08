@@ -95,7 +95,7 @@ console.log('\nPart 1. the entries against the DDS Reference');
 
   const hr = section('HLPRCD (Help Record) keyword for display files', /record-format-name \[\[library-name\/\]file-name\]/);
   const hre = KeywordSpec.RECORD_TYPES.HLPRCD;
-  check('HLPRCD: file or help-specification level; format; record format required', /file-level or help-specification-level keyword/.test(hr) && /HLPRCD\(record-format-name \[\[library-name\/\]file-name\]\)/.test(hr) && hre.alsoValidAtHelpSpecification === true && hre.levels.join() === 'file' && hre.parameters.recordFormatName.required);
+  check('HLPRCD: file or help-specification level; format; record format required', /file-level or help-specification-level keyword/.test(hr) && /HLPRCD\(record-format-name \[\[library-name\/\]file-name\]\)/.test(hr) && hre.levels.join() === 'file,help' && hre.parameters.recordFormatName.required);
   check('HLPRCD: file defaults to the file being defined; library defaults to *LIBL', /If you do not specify the file name, the record format must exist in the file being defined/.test(hr) && /The current library list \(\*LIBL\) at program run time is used if you do not specify the library name/.test(hr) && !hre.parameters.fileName.required && !hre.parameters.libraryName.required && hre.parameters.libraryName.default === '*LIBL');
   check('HLPRCD: the file-level record shows when no help area holds the cursor; option indicators ARE valid', /file-level HLPRCD keyword is displayed when no help area for the active records contains the current cursor location/.test(hr) && hre.fileLevelShownWhenNoHelpAreaHoldsCursor === true && /Option indicators are valid for this keyword/.test(hr) && hre.optionIndicators === 'valid');
 

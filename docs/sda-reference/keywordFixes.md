@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-218 of 223 tasks done; 5 open (see [Open work](#open-work)). Current version: **v0.10.364**.
+219 of 223 tasks done; 4 open (see [Open work](#open-work)). Current version: **v0.10.365**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -259,7 +259,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-187](#i-187) | Record | `MNUBARSW` / `MNUCNL` claim a CA key but the CA / CF number guard does not read them: their key can be reused as a CF key on another record | I-122h | Done (explicit and default key, file level, both directions) | v0.10.360 |
 | [I-188](#i-188) | Record | `RETKEY` / `RETCMDKEY` accepted on a subfile (`SFL`) or user-defined (`USRDFN`) record, though the spec records they are not valid there | I-122h | Done (both keywords, both record types, both directions) | v0.10.361 |
 | [I-189](#i-189) | Tooling | `MNUBARSW`, `MNUCNL`, `ALTPAGEDWN`, `ALTPAGEUP`, `DLTCHK` and `DLTEDT` carry no level, parameter or option-indicator fact; `optionIndicatorsAllowed` answers false for `MNUBARSW` / `MNUCNL` (reference: valid) and for a concrete `CA05` | I-122h | Done (six entries, accessor resolves concrete command keys; 7 checks in `i122hCommandKeyFamilyKeywords`) | v0.10.363 |
-| [I-190](#i-190) | Tooling | `HLPRCD`'s spec entry says `levels: ['file']`; the Reference says file level or help-specification level | I-122i | Not started | — |
+| [I-190](#i-190) | Tooling | `HLPRCD`'s spec entry says `levels: ['file']`; the Reference says file level or help-specification level | I-122i | Done | v0.10.365 |
 | [I-191](#i-191) | Tooling | Twelve `RECORD_TYPES` entries state no level and their Reference section names none (`SFLMSG`, `IGCALTTYP`, `ERRMSGID`, `SFLMSGID`, `ERRMSG`, `SFLCSRRRN`, `COLOR`, `CHECK`, `ALTPAGEDWN`, `ALTPAGEUP`, `KEYBRD`, `FLTPCN`): the generated matrix cannot place them | I-122i | Not started | — |
 | [I-192](#i-192) | Field | `CNTFLD`'s layout rules: the column width must fit within the width of the display or window, and the field needs at least 2 spaces between it and other fields | I-180 | Done | v0.10.353 |
 | [I-193](#i-193) | Tooling | Matrix cells for the writer paths and UI paths it does not call (`setFileFlagKeyword`, webview Apply round trip), then retire the hand-written duplicates | I-122j | Not started | — |
@@ -279,11 +279,10 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-190](#i-190) | Not started | `HLPRCD` spec entry says file level only; the Reference says file or help-specification level. Size (estimate): Small. |
-| 2 | [I-196](#i-196) | Not started | `MNUBARSW` / `MNUCNL` allowed only in a file containing a menu-bar record; the spec fact exists, no guard reads it. Size (estimate): Small. |
-| 3 | [I-191](#i-191) | Not started | Twelve spec entries state no level, so the generated matrix skips them; re-run the matrix skip list first, I-180 and I-189 shorten it. Size (estimate): Small. |
-| 4 | [I-193](#i-193) | Not started | Matrix cells for the writer paths and UI paths the generated matrix does not call (`setFileFlagKeyword`, webview Apply round trip), so more overlapping hand-written checks can be retired. Size (estimate): Medium. |
-| 5 | [I-123](#i-123) | Not started | Task-history comments out of source. I-121 has landed, so each citation can now live in the spec. Size (estimate): Medium (mechanical). |
+| 1 | [I-196](#i-196) | Not started | `MNUBARSW` / `MNUCNL` allowed only in a file containing a menu-bar record; the spec fact exists, no guard reads it. Size (estimate): Small. |
+| 2 | [I-191](#i-191) | Not started | Twelve spec entries state no level, so the generated matrix skips them; re-run the matrix skip list first, I-180 and I-189 shorten it. Size (estimate): Small. |
+| 3 | [I-193](#i-193) | Not started | Matrix cells for the writer paths and UI paths the generated matrix does not call (`setFileFlagKeyword`, webview Apply round trip), so more overlapping hand-written checks can be retired. Size (estimate): Medium. |
+| 4 | [I-123](#i-123) | Not started | Task-history comments out of source. I-121 has landed, so each citation can now live in the spec. Size (estimate): Medium (mechanical). |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The headline there counts the same tasks, so when a task lands or opens, update this table, the headline count and the version together.
 
@@ -8315,9 +8314,15 @@ Do: add the facts to the six entries, resolve concrete command-key names in the 
 
 ### I-190 — `HLPRCD`'s spec entry says file level only; the Reference says file level or help-specification level
 
-> **Area:** Tooling · **Status:** Not started · **Depends on:** I-122i · **Size (estimate):** Small
+> **Area:** Tooling · **Status:** Done (v0.10.365) · **Depends on:** I-122i · **Size (estimate):** Small
 
 Opened from I-122i. The matrix's L1 level cell compares `levels` with the first "...level..." sentence of the keyword's Reference section. `HLPRCD` states `levels: ['file']`; the section opens "You use this file-level or help-specification-level keyword". Every other mismatch the matrix checked was extraction noise or none. Do: add the help-specification level to the entry (the `levels` vocabulary already holds `'help'`, used by `HLPARA` / `HLPBDY` / `HLPEXCLD`), check the writer's and panel's HLPRCD paths against it, then remove `HLPRCD:levels` from `KNOWN_GAPS`.
+
+**Done (v0.10.365).** The entry's `levels` now reads `['file', 'help']` (the same names `HLPDOC` uses); the file-level-only `alsoValidAtHelpSpecification` flag it carried is gone, because the `levels` fact says it. Checking the writer and panel paths showed the H-specification form already worked in the parser and in the I-161 H-specification guard (`exactlyOneOf` counts `HLPRCD`), and the Reference's own example (file-level `HLPRCD` plus `A 99 HLPRCD(ERRHELP)` on an H specification) is accepted. What was missing was the file-wide exclusion: HLPPNLGRP's section says "a display file cannot contain both HLPPNLGRP and HLPRCD keywords, nor HLPPNLGRP and HLPDOC keywords", but `hlprcdConflictReason` only looked inside one keyword array and `hlpdocHspecConflictReason` is a panel-only check, so a file-level `HLPPNLGRP` beside an H-specification `HLPRCD` or `HLPDOC` (or the reverse, or on two different records) was accepted by the raw editor and the source guard. `helpSpecViolations` now collects the help keywords of the file level and of every H specification and refuses each pair from the spec's own mutex lists (`mutexKeywords('HLPPNLGRP')` plus `HLPDOC` through `isMutex('HLPDOC', 'HLPPNLGRP')`); it runs in the model-diff chain, so only a violation an edit adds is reported. `HLPRCD` beside `HLPDOC` is deliberately not refused (neither section excludes that pair). `HLPRCD:levels` is removed from the generated matrix's `KNOWN_GAPS`.
+
+**Not done:** the help-specification panel has no `HLPRCD` row (only `HLPPNLGRP`, `HLPEXCLD`, `HLPBDY`, `HLPARA`, `HLPDOC`); an H-specification `HLPRCD` is entered in the help entry's raw keyword editor, as before.
+
+**Tests.** New `i190HlprcdHelpSpecLevel.test.js`; `i121gHelpCommandKeySpec.test.js` and `i122iGeneratedKeywordMatrix.test.js` updated. Mutation-checked: disabling the new pair check fails 8 checks.
 
 *Raised by I-122i. Size (estimate): Small.*
 

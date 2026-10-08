@@ -2,7 +2,7 @@
 
 Full inventory of DDS keywords iSDA's visual designer exposes, organized by level and UI category, for comparison against IBM i SDA's own screens and to power quick keyword search/navigation.
 
-Generated 2026-10-05 · 226 keyword entries across 49 categories · 186 unique keyword names.
+Generated 2026-10-05 · 227 keyword entries across 49 categories · 186 unique keyword names.
 
 For notes on scope/methodology, see the JSON files' own `meta` block: `KEYWORD-INDEX.json` (structured by level/category, matches iSDA's own UI tabs) and `KEYWORD-LOOKUP.json` (flat keyword -> location map, for quick search).
 
@@ -93,7 +93,7 @@ For notes on scope/methodology, see the JSON files' own `meta` block: `KEYWORD-I
 | `HLPFULL` | file → Help |
 | `HLPID` | field → General; field → Constant field additions |
 | `HLPPNLGRP` | file → Help; help-specification → Application Help |
-| `HLPRCD` | file → Help |
+| `HLPRCD` | file → Help; help-specification → Application Help |
 | `HLPRTN` ⚠️ | file → Indicator; record → Indicator |
 | `HLPSCHIDX` | file → Help |
 | `HLPSEQ` | record → Help |
@@ -379,6 +379,7 @@ Per-H-specification help content/exclusion-area keywords, wired via applicationH
 | `HLPBDY` | Help boundary area |  |  |  |
 | `HLPARA` | Help specification area |  |  |  |
 | `HLPDOC` | Help document - online help information text label, document name, folder name; cannot be specified with HLPBDY (same H spec), or with HLPPNLGRP (anywhere in the file) (Task I-67; help-specification-level form; also valid file-wide - see file-level Help) | online-help-information-text-label-name document-name folder-name |  |  |
+| `HLPRCD` | Help record - names the record format containing the help text; cannot be specified with HLPPNLGRP anywhere in the file (Task I-190; help-specification-level form, entered in the help entry's raw keyword editor - the panel has no row for it; also valid file-wide - see file-level Help) | record-format-name [[library-name/]file-name] |  |  |
 
 ## Record-level
 

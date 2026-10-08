@@ -6726,6 +6726,21 @@
         }
       });
     });
+    // I-190: HLPPNLGRP's file-wide exclusions ("a display file cannot contain both HLPPNLGRP and
+    // HLPRCD keywords, nor HLPPNLGRP and HLPDOC keywords") hold across the file level and every
+    // H specification, so HLPRCD / HLPDOC on an H specification beside HLPPNLGRP anywhere else is
+    // refused too. The pairs come from the spec's own mutex lists.
+    var anywhere = {};
+    function note(list) { (list || []).forEach(function (k) { if (k && k.name) anywhere[k.name] = true; }); }
+    note(model && model.fileKeywords);
+    records.forEach(function (r) { (r.helpEntries || []).forEach(function (h) { note(h.keywords); }); });
+    var partners = KeywordSpec.mutexKeywords('HLPPNLGRP').slice();
+    if (KeywordSpec.isMutex('HLPDOC', 'HLPPNLGRP')) partners.push('HLPDOC');
+    partners.forEach(function (partner) {
+      if (anywhere.HLPPNLGRP && anywhere[partner]) {
+        out['HSPEC|FILEMUTEX|HLPPNLGRP|' + partner] = 'A display file cannot contain both HLPPNLGRP and ' + partner + ' keywords, at the file level or on any H specification (per the DDS Reference).';
+      }
+    });
     return out;
   }
   function helpSpecNewConflictReason(oldModel, newModel) {

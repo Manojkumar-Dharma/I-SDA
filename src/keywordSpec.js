@@ -1190,9 +1190,9 @@
         'help specification level. Option indicators are not valid for this keyword.'
     },
     HLPRCD: {
-      levels: ['file'],
-      // "You use this file-level or help-specification-level keyword".
-      alsoValidAtHelpSpecification: true,
+      // "You use this file-level or help-specification-level keyword" (I-190: the entry
+      // said file only; 'help' is the same level name HLPDOC, HLPARA and HLPBDY use).
+      levels: ['file', 'help'],
       optionIndicators: 'valid',
       parameters: {
         format: 'HLPRCD(record-format-name [[library-name/]file-name])',

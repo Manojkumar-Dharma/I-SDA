@@ -175,7 +175,8 @@ const LEVELS = [
           { keyword: "HLPEXCLD", description: "Exclude area from help text", parameters: "", repeatable: false },
           { keyword: "HLPBDY", description: "Help boundary area", parameters: "", repeatable: false },
           { keyword: "HLPARA", description: "Help specification area", parameters: "", repeatable: false },
-          { keyword: "HLPDOC", description: "Help document - online help information text label, document name, folder name; cannot be specified with HLPBDY (same H spec), or with HLPPNLGRP (anywhere in the file) (Task I-67; help-specification-level form; also valid file-wide - see file-level Help)", parameters: "online-help-information-text-label-name document-name folder-name", repeatable: false }
+          { keyword: "HLPDOC", description: "Help document - online help information text label, document name, folder name; cannot be specified with HLPBDY (same H spec), or with HLPPNLGRP (anywhere in the file) (Task I-67; help-specification-level form; also valid file-wide - see file-level Help)", parameters: "online-help-information-text-label-name document-name folder-name", repeatable: false },
+          { keyword: "HLPRCD", description: "Help record - names the record format containing the help text; cannot be specified with HLPPNLGRP anywhere in the file (Task I-190; help-specification-level form, entered in the help entry's raw keyword editor - the panel has no row for it; also valid file-wide - see file-level Help)", parameters: "record-format-name [[library-name/]file-name]", repeatable: false }
         ]
       }
     ]
