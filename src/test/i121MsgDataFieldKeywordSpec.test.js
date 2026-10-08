@@ -53,9 +53,11 @@ console.log('\nkeywordSpec.js msgDataField facts');
   check('CHKMSGID keeps its pre-existing facts (qualifying keywords, usage) alongside the new one',
     KeywordSpec.RECORD_TYPES.CHKMSGID.qualifyingNames.length === 4 &&
     KeywordSpec.definitionRequirements('CHKMSGID').usage.join() === 'I,B');
-  check('ERRMSGID/SFLMSGID carry no other spec facts (their other rules are out of scope)',
-    Object.keys(KeywordSpec.RECORD_TYPES.ERRMSGID).join() === 'msgDataField' &&
-    Object.keys(KeywordSpec.RECORD_TYPES.SFLMSGID).join() === 'msgDataField');
+  // Task I-191 added the level (and ERRMSGID's option-indicator mode) their Reference section states; the
+  // message-data-field rule stays the only rule they carry.
+  check('ERRMSGID/SFLMSGID carry no other rule than the message-data-field one (plus the I-191 level / option-indicator facts)',
+    Object.keys(KeywordSpec.RECORD_TYPES.ERRMSGID).filter((k) => ['levels', 'optionIndicators'].indexOf(k) === -1).join() === 'msgDataField' &&
+    Object.keys(KeywordSpec.RECORD_TYPES.SFLMSGID).filter((k) => ['levels', 'optionIndicators'].indexOf(k) === -1).join() === 'msgDataField');
 }
 
 // ===========================================================================

@@ -274,6 +274,8 @@
     // (S in position 35) field of length 5, with 0 decimal positions and
     // usage H (hidden).\" The name always carries the leading `&`.
     SFLCSRRRN: {
+      // Task I-191 - "You use this record-level keyword on the subfile-control record format".
+      levels: ['record'],
       relativeRecordField: {
         parameterRequired: true,
         ampersandRequired: true,
@@ -1600,6 +1602,9 @@
     // to make that two-keyword identification explicit rather than
     // implicit in calling code.
     SFLMSG: {
+      // Task I-191 - "SFLMSG ... and SFLMSGID ... keywords for display files": "You use these record-level keywords on the
+      // subfile-control record format".
+      levels: ['record'],
       markerKeywords: ['SFL', 'SFLMSGRCD'],
 
       // DDS_Keyword_V7r6.txt, same SFL section as above, "For message
@@ -1930,6 +1935,10 @@
       blockedDataTypes: ['S', 'Y', 'D', 'M', 'F', 'J', 'O', 'E', 'G']
     },
     IGCALTTYP: {
+      // Task I-191 - "You specify this field-level keyword"; "This keyword has no parameters."; "Option indicators are not allowed with IGCALTTYP."
+      levels: ['field'],
+      noParameters: true,
+      optionIndicators: 'notValid',
       // DDS_Keyword_V7r6.txt, "IGCALTTYP (Alternative Data Type) keyword"
       // section (line ~14968): "The following keywords are not allowed
       // with the IGCALTTYP keyword: AUTO(RAZ), BLKFOLD, CHECK(M10 M11
@@ -2245,6 +2254,9 @@
       inputCapableOnlyValues: ['MDT', 'OID', 'PR', 'SP']
     },
     COLOR: {
+      // Task I-191 - "This field-level keyword specifies the color of a field"; "Option indicators are valid for this keyword."
+      levels: ['field'],
+      optionIndicators: 'valid',
       ddsReference: 'COLOR(GRN | WHT | RED | TRQ | YLW | PNK | BLU): the valid parameter values are GRN, WHT, RED, TRQ, YLW, PNK and BLU.',
       validValues: ['GRN', 'WHT', 'RED', 'TRQ', 'YLW', 'PNK', 'BLU']
     },
@@ -2502,6 +2514,10 @@
     // flag every CHECK). See floatIncompatibleCheckCodes / dspfWriter.js's
     // checkAbFloatIncompatibleNewConflictReason.
     CHECK: {
+      // Task I-191 - CHECK's own section: "Use CHECK at the field level to specify that the IBM i operating system or the
+      // device is to check the validity of the data" (validity checking and the other codes), and for the AB code "Use this
+      // code at the file level, record level, or field level". The levels are the union; the per-code level is the AB row's.
+      levels: ['file', 'record', 'field'],
       floatDdsReference: 'You cannot specify the CHECK(AB) keyword on a floating-point field (F in position 35). ' +
         'You cannot specify the CHECK(M10), CHECK(M10F), CHECK(M11), and CHECK(M11F) keywords on a floating-point field (F in position 35).',
       notAllowedOnFloatingPointCodes: ['AB', 'M10', 'M10F', 'M11', 'M11F'],
@@ -2636,9 +2652,14 @@
     // are separate, already-migrated or out-of-scope facts and are not
     // part of these entries.
     ERRMSGID: {
+      // Task I-191 - same section as ERRMSG: "You can use one of these field-level keywords"; "Option indicators are valid for these keywords."
+      levels: ['field'],
+      optionIndicators: 'valid',
       msgDataField: MSG_DATA_FIELD_RULE
     },
     SFLMSGID: {
+      // Task I-191 - same section as SFLMSG: "You use these record-level keywords on the subfile-control record format".
+      levels: ['record'],
       msgDataField: MSG_DATA_FIELD_RULE
     },
 
@@ -3133,6 +3154,9 @@
     // indicators are not valid for this keyword." (the last one is the
     // NO_OPTION_INDICATOR_KEYWORDS row further down).
     FLTPCN: {
+      // Task I-191 - "You use this field-level keyword to specify the precision of a floating-point field"; "Option indicators are not valid for this keyword."
+      levels: ['field'],
+      optionIndicators: 'notValid',
       ddsReference:
         'This keyword is valid for floating-point fields only (data type F).',
       requiredDataTypes: ['F'],
@@ -3173,6 +3197,9 @@
     // ERRMSG is already in REPEATABLE_INSTANCE_GROUPS; the shared-indicator
     // rules stay with the response-indicator checks.
     ERRMSG: {
+      // Task I-191 - "You can use one of these field-level keywords" (ERRMSG / ERRMSGID); "Option indicators are valid for these keywords."
+      levels: ['field'],
+      optionIndicators: 'valid',
       ddsReference:
         'You can use one of these field-level keywords to identify a ' +
         'message that is displayed on the message line and that is ' +

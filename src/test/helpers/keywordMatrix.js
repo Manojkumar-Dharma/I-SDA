@@ -33,11 +33,15 @@ let sectionCache = null;
 function referenceSections() {
   if (sectionCache) return sectionCache;
   const lines = fs.readFileSync(REF_PATH, 'utf8').replace(/\f/g, ' ').split('\n');
-  const heads = [];
+  const all = [];
   lines.forEach((l, i) => {
     const m = /^([A-Z][A-Z0-9]*) \(([^)]+)\) keyword for (display files|menu)\s*$/.exec(l.trim());
-    if (m) heads.push({ name: m[1], i: i });
+    if (m) all.push({ name: m[1], i: i, flush: /^\S/.test(l) });
   });
+  // The page running header repeats a section's heading, indented, in the middle of the section; where a
+  // name also has an unindented heading, only the unindented ones start and end a section (I-191).
+  const flushNames = new Set(all.filter((h) => h.flush).map((h) => h.name));
+  const heads = all.filter((h) => h.flush || !flushNames.has(h.name));
   const out = {};
   heads.forEach((h, j) => {
     const end = j + 1 < heads.length ? heads[j + 1].i : lines.length;
