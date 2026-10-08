@@ -76,4 +76,5 @@ python3 docs/sda-reference/keyword-index/check_spec_coverage.py   # run from the
 
 Lists which keywords in `KEYWORD-LOOKUP.json` still lack a `RECORD_TYPES` entry in
 `src/keywordSpec.js`, and fails if any of them is owned by no I-121 slice (or by two) in the ledger
-in [`keywordFixes.md`](../keywordFixes.md#i-121-slices). Needs Python 3 and Node.
+in [`keywordFixes.md`](../keywordFixes.md#i-121-slices). Each slice is shown as Done or not from the
+status table there; a slice marked Done that is not fully specified also fails. Needs Python 3 and Node.

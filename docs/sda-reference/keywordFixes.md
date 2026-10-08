@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-224 of 228 tasks done; 4 open (see [Open work](#open-work)). Current version: **v0.10.370**.
+225 of 228 tasks done; 3 open (see [Open work](#open-work)). Current version: **v0.10.371**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -267,7 +267,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-195](#i-195) | Cross-level | Comment lines are captured and written only up to column 80: text past it is dropped from the panel, and editing the comment cuts the line to 80 columns. Read the source file's real record length and keep, show and store the whole line | — | Done (52 checks in `i195CommentLineWidth`) | v0.10.364 |
 | [I-196](#i-196) | File | `MNUBARSW` / `MNUCNL` are allowed only in a file containing a menu-bar record (their own sections); no guard reads the spec's `requiresMenuBarRecordInFile` fact | I-189 | Done v0.10.366 | v0.10.366 |
 | [I-197](#i-197) | Tooling | `KEYBRD` still listed as a DDS keyword in the generated keyword index although its spec entry says it is not one (decision first) | I-121t | In progress | — |
-| [I-198](#i-198) | Tooling | `check_spec_coverage.py` prints "mark the slice Done" for slices the ledger already marks Done | I-121 | In progress | — |
+| [I-198](#i-198) | Tooling | `check_spec_coverage.py` prints "mark the slice Done" for slices the ledger already marks Done | I-121 | Done | v0.10.371 |
 | [I-199](#i-199) | Field | Help-specification panel has no `HLPRCD` row | I-190 | Open | — |
 | [I-200](#i-200) | Subfile | Two `SFLPAG` / `SFLSIZ` rules left unchecked by I-146 | I-146 | Open | — |
 | [I-201](#i-201) | Field | `MNUBARCHC` 12-line count never probed with a literal split over continuation lines | I-173 | Done (v0.10.370) | — |
@@ -284,10 +284,9 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-198](#i-198) | In progress | Small, tooling only. |
-| 2 | [I-197](#i-197) | In progress | Small, decision first. |
-| 3 | [I-199](#i-199) | Open | Small, one panel row. |
-| 4 | [I-200](#i-200) | Open | Medium, two spec facts. |
+| 1 | [I-197](#i-197) | In progress | Small, decision first. |
+| 2 | [I-199](#i-199) | Open | Small, one panel row. |
+| 3 | [I-200](#i-200) | Open | Medium, two spec facts. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The headline there counts the same tasks, so when a task lands or opens, update this table, the headline count and the version together.
 
@@ -5645,7 +5644,7 @@ Rules for one keyword currently live in `*ConflictReason` functions (67), rule t
 
 **Out of scope for a slice.** A rule the DDS Reference states but the code does not enforce is a *finding*, not part of a pure refactor: log it in [Deferred findings](#deferred-findings-not-yet-tasks) and open it as its own task, as the earlier slices did (I-125 – I-140 came from this).
 
-**Check nothing was missed.** `python3 docs/sda-reference/keyword-index/check_spec_coverage.py` reads the ledger above and `KeywordSpec.RECORD_TYPES` and reports keywords owned by no slice, owned by two, or owned but already specified. It exits non-zero on the first two. When it reports no unowned keyword and every slice a - o is done, the keyword coverage of I-121 is complete.
+**Check nothing was missed.** `python3 docs/sda-reference/keyword-index/check_spec_coverage.py` reads the ledger above and `KeywordSpec.RECORD_TYPES` and reports keywords owned by no slice, owned by two, or owned but already specified, and marks each slice Done or not from the status table. It exits non-zero on the first two and on a slice marked Done that is not fully specified. When it reports no unowned keyword and every slice a - o is done, the keyword coverage of I-121 is complete.
 
 #### Completed slices (history)
 
@@ -8459,11 +8458,13 @@ Do: apply the decision, regenerate with `generate_keyword_index.js`, confirm `--
 
 ### I-198 — `check_spec_coverage.py` prints "mark the slice Done" for slices the ledger already marks Done
 
-> **Area:** Tooling · **Status:** In progress · **Depends on:** I-121 · **Size (estimate):** Small
+> **Area:** Tooling · **Status:** Done · **Depends on:** I-121 · **Size (estimate):** Small
 
 Opened from the documentation audit of 2026-10-08. The script reads coverage from `KeywordSpec.RECORD_TYPES` and never the ledger's status column, so with 173 of 173 keywords specified it tells the reader to mark all fifteen keyword slices Done although they are.
 
 Do: skip slices whose ledger status is already Done, or retire the script's ledger check now that I-121 is complete; keep the "keywords owned by no slice / by two slices" check only if it is still wanted. No app change.
+
+**Result (v0.10.371).** Kept the check and fixed the hint. The slice ledger has no status column, so the script now reads each slice's status from the "Status at a glance" table (six cells, the fifth is the status). A slice already Done prints `(Done)`; the "mark the slice Done" hint appears only for a slice that is fully specified but not yet Done; a slice marked Done that still has a keyword without a `RECORD_TYPES` entry is reported and exits 1. The unowned / owned-twice / unknown-keyword checks are unchanged. On the current tree all fifteen slices show `(Done)` and the script exits 0; the hint and the exit-1 path were also exercised by editing a status cell. No app change.
 
 *Raised by I-121. Size (estimate): Small.*
 
