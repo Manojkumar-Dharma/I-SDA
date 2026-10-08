@@ -260,7 +260,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-188](#i-188) | Record | `RETKEY` / `RETCMDKEY` accepted on a subfile (`SFL`) or user-defined (`USRDFN`) record, though the spec records they are not valid there | I-122h | Done (both keywords, both record types, both directions) | v0.10.361 |
 | [I-189](#i-189) | Tooling | `MNUBARSW`, `MNUCNL`, `ALTPAGEDWN`, `ALTPAGEUP`, `DLTCHK` and `DLTEDT` carry no level, parameter or option-indicator fact; `optionIndicatorsAllowed` answers false for `MNUBARSW` / `MNUCNL` (reference: valid) and for a concrete `CA05` | I-122h | Done (six entries, accessor resolves concrete command keys; 7 checks in `i122hCommandKeyFamilyKeywords`) | v0.10.363 |
 | [I-190](#i-190) | Tooling | `HLPRCD`'s spec entry says `levels: ['file']`; the Reference says file level or help-specification level | I-122i | Done | v0.10.365 |
-| [I-191](#i-191) | Tooling | Twelve `RECORD_TYPES` entries state no level and their Reference section names none (`SFLMSG`, `IGCALTTYP`, `ERRMSGID`, `SFLMSGID`, `ERRMSG`, `SFLCSRRRN`, `COLOR`, `CHECK`, `ALTPAGEDWN`, `ALTPAGEUP`, `KEYBRD`, `FLTPCN`): the generated matrix cannot place them | I-122i | Not started | — |
+| [I-191](#i-191) | Tooling | Twelve `RECORD_TYPES` entries state no level and their Reference section names none (`SFLMSG`, `IGCALTTYP`, `ERRMSGID`, `SFLMSGID`, `ERRMSG`, `SFLCSRRRN`, `COLOR`, `CHECK`, `ALTPAGEDWN`, `ALTPAGEUP`, `KEYBRD`, `FLTPCN`): the generated matrix cannot place them | I-122i | In progress | — |
 | [I-192](#i-192) | Field | `CNTFLD`'s layout rules: the column width must fit within the width of the display or window, and the field needs at least 2 spaces between it and other fields | I-180 | Done | v0.10.353 |
 | [I-193](#i-193) | Tooling | Matrix cells for the writer paths and UI paths it does not call (`setFileFlagKeyword`, webview Apply round trip), then retire the hand-written duplicates | I-122j | Not started | — |
 | [I-194](#i-194) | Field | Command-key values that no guard reads: `MOUBTN` / `PSHBTNCHC` / `IGCCNV` keys outside 01-24 or of the wrong type, and a key written in a shape that is not `CAnn` / `CFnn` (`MNUBARSW(CA5)`, `ALTHELP(XYZ)`) | I-186 | Done (MOUBTN, PSHBTNCHC, malformed key shapes) | v0.10.362 |
@@ -279,7 +279,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-191](#i-191) | Not started | Twelve spec entries state no level, so the generated matrix skips them; re-run the matrix skip list first, I-180 and I-189 shorten it. Size (estimate): Small. |
+| 1 | [I-191](#i-191) | In progress | Twelve spec entries state no level, so the generated matrix skips them; re-run the matrix skip list first, I-180 and I-189 shorten it. Size (estimate): Small. |
 | 2 | [I-193](#i-193) | Not started | Matrix cells for the writer paths and UI paths the generated matrix does not call (`setFileFlagKeyword`, webview Apply round trip), so more overlapping hand-written checks can be retired. Size (estimate): Medium. |
 | 3 | [I-123](#i-123) | Not started | Task-history comments out of source. I-121 has landed, so each citation can now live in the spec. Size (estimate): Medium (mechanical). |
 
@@ -8332,7 +8332,7 @@ Opened from I-122i. The matrix's L1 level cell compares `levels` with the first 
 
 ### I-191 — Twelve spec entries state no level and their Reference section names none
 
-> **Area:** Tooling · **Status:** Not started · **Depends on:** I-122i · **Size (estimate):** Small
+> **Area:** Tooling · **Status:** In progress · **Depends on:** I-122i · **Size (estimate):** Small
 
 Opened from I-122i. With neither a `levels` fact in the entry nor a level in the Reference section, the generated matrix cannot place the keyword, so L2-L4 skip it: `SFLMSG`, `IGCALTTYP`, `ERRMSGID`, `SFLMSGID`, `ERRMSG` on the default set, plus `SFLCSRRRN`, `COLOR`, `CHECK`, `ALTPAGEDWN`, `ALTPAGEUP`, `KEYBRD`, `FLTPCN` under `MATRIX_ALL`. Overlaps: `ALTPAGEDWN` / `ALTPAGEUP` are in I-189, `FLTPCN` in I-180 (done, v0.10.351; re-check the matrix skip list), and `KEYBRD` is not a DDS keyword (the spec records it as position 35, see I-122 batch 2). Do: add `levels` (and parameter and option-indicator facts where the section states them) to the rest, so the matrix runs on them; the matrix prints its own skip list, which should end up empty apart from `KEYBRD`.
 
