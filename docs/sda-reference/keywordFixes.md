@@ -262,7 +262,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-190](#i-190) | Tooling | `HLPRCD`'s spec entry says `levels: ['file']`; the Reference says file level or help-specification level | I-122i | Done | v0.10.365 |
 | [I-191](#i-191) | Tooling | Twelve `RECORD_TYPES` entries state no level and their Reference section names none (`SFLMSG`, `IGCALTTYP`, `ERRMSGID`, `SFLMSGID`, `ERRMSG`, `SFLCSRRRN`, `COLOR`, `CHECK`, `ALTPAGEDWN`, `ALTPAGEUP`, `KEYBRD`, `FLTPCN`): the generated matrix cannot place them | I-122i | Done (levels and option-indicator facts for nine entries; matrix section headings) | v0.10.367 |
 | [I-192](#i-192) | Field | `CNTFLD`'s layout rules: the column width must fit within the width of the display or window, and the field needs at least 2 spaces between it and other fields | I-180 | Done | v0.10.353 |
-| [I-193](#i-193) | Tooling | Matrix cells for the writer paths and UI paths it does not call (`setFileFlagKeyword`, webview Apply round trip), then retire the hand-written duplicates | I-122j | Not started | — |
+| [I-193](#i-193) | Tooling | Matrix cells for the writer paths and UI paths it does not call (`setFileFlagKeyword`, webview Apply round trip), then retire the hand-written duplicates | I-122j | In progress | — |
 | [I-194](#i-194) | Field | Command-key values that no guard reads: `MOUBTN` / `PSHBTNCHC` / `IGCCNV` keys outside 01-24 or of the wrong type, and a key written in a shape that is not `CAnn` / `CFnn` (`MNUBARSW(CA5)`, `ALTHELP(XYZ)`) | I-186 | Done (MOUBTN, PSHBTNCHC, malformed key shapes) | v0.10.362 |
 | [I-195](#i-195) | Cross-level | Comment lines are captured and written only up to column 80: text past it is dropped from the panel, and editing the comment cuts the line to 80 columns. Read the source file's real record length and keep, show and store the whole line | — | Done (52 checks in `i195CommentLineWidth`) | v0.10.364 |
 | [I-196](#i-196) | File | `MNUBARSW` / `MNUCNL` are allowed only in a file containing a menu-bar record (their own sections); no guard reads the spec's `requiresMenuBarRecordInFile` fact | I-189 | Done v0.10.366 | v0.10.366 |
@@ -279,7 +279,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-193](#i-193) | Not started | Matrix cells for the writer paths and UI paths the generated matrix does not call (`setFileFlagKeyword`, webview Apply round trip), so more overlapping hand-written checks can be retired. Size (estimate): Medium. |
+| 1 | [I-193](#i-193) | In progress | Matrix cells for the writer paths and UI paths the generated matrix does not call (`setFileFlagKeyword`, webview Apply round trip), so more overlapping hand-written checks can be retired. Size (estimate): Medium. |
 | 2 | [I-123](#i-123) | Not started | Task-history comments out of source. I-121 has landed, so each citation can now live in the spec. Size (estimate): Medium (mechanical). |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The headline there counts the same tasks, so when a task lands or opens, update this table, the headline count and the version together.
@@ -8359,7 +8359,7 @@ Opened from I-180. `CNTFLD`'s section states two layout rules that need the scre
 
 ### I-193 — Matrix cells for the paths it does not call, then retire the hand-written duplicates
 
-> **Area:** Tooling · **Status:** Not started · **Depends on:** I-122j · **Size (estimate):** Medium
+> **Area:** Tooling · **Status:** In progress · **Depends on:** I-122j · **Size (estimate):** Medium
 
 Opened from I-122j. The generated matrix goes through `applyFileKeywordsUpdate`, `applyRecordUpdate`, `applyFieldUpdate`, the parser and the raw keyword editor. It never calls `setFileFlagKeyword` / `getFileFlagKeyword` (the checkbox and flag path) or the webview Apply round trip, so the hand-written "off removes only X", "round trips as a bare flag" and Apply-round-trip checks are not redundant: with `setFileFlagKeyword` made to ignore every "off", the matrix failed 0 checks and `i122d`, `i122f` and `i122h` failed 2, 3 and 6. Do: add a flag-path cell (on, off, on again, neighbours and conditions kept, one entry) and an Apply-unchanged cell (no edit corrupts the line) to the matrix; mutation-check each against the hand-written checks it would replace; then retire only the checks the new cells provably cover, as I-122j did, and keep keywords in the default matrix through `RETAINED`. Report before/after check count and suite time. Not worth doing if the new cells cost more suite time than the retired checks save.
 
