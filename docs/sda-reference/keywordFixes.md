@@ -207,7 +207,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-135](#i-135) | Record | `SETOFF` (documented as equivalent to `SETOF`, "SETOF is preferred"): not read by the Define Indicator Keywords panel or the SFL/SFLMSG/PDNSFLCTL indicator-text rows, and no "option indicators not valid" guard, unlike `SETOF` | I-121, I-101 | Done | v0.10.260 |
 | [I-136](#i-136) | File / Record | `MOUBTN` command key vs `ALTHELP` / `ALTPAGEDWN` / `ALTPAGEUP` / `CAnn` / `CFnn`: the DDS Reference's MOUBTN exclusion table (opposite key type, same number, including the alt keys' default keys) is not enforced anywhere | I-121 | Done | v0.10.267 |
 | [I-137](#i-137) | Field | `DFT` / `DFTVAL` / `EDTCDE` / `EDTWRD`: the DDS Reference bars all four on a floating-point field, but the check runs only when the keyword row is switched on - a raw-editor add to an F field, or a field carrying one changed to data type F on the Basic tab, is unblocked | I-121, I-125 | Done | v0.10.264 |
-| [I-138](#i-138) | Field | `EDTCDE` ("valid only for fields with Y or blank in position 35") / `EDTWRD` ("numeric only fields (Y specified in position 35)"): any other explicit data type is accepted on add and on a Basic-tab data type change | I-121, I-137 | Done | v0.10.267 |
+| [I-138](#i-138) | Field | `EDTCDE` ("valid only for fields with Y or blank in position 35") / `EDTWRD` ("numeric only fields (Y specified in position 35)"): any other explicit data type is accepted on add and on a Basic-tab data type change | I-121, I-137 | Done | v0.10.265 |
 | [I-139](#i-139) | File / Record / Field | `ALTHELP` / `ALTPAGEDWN` / `ALTPAGEUP` file-wide command-key exclusions: the three alt-key sections each list the keywords that cannot be specified in a file with them (`CAnn` / `CFnn`, `MNUCNL`, `MNUBARSW`, `MOUBTN`, `PSHBTNCHC`, `SFLDROP`, `SFLENTER`, `SFLFOLD`, and each other, by key number and defaults) - only the MOUBTN rows are enforced (I-136) | I-136 | Done | v0.10.268 |
 | [I-140](#i-140) | Record | `RMVWDW` / `USRRSTDSP` are accepted by the raw keyword editor on a record that has no `WINDOW` keyword, and stay after `WINDOW` is removed; IBM requires `WINDOW` on the same record | I-122 | Done | v0.10.276 |
 | [I-141](#i-141) | Record | `SFLDLT` is written with no option indicator (IBM: option indicators are required, display size condition names not valid); `SFLDLT` / `SFLINZ` / `SFLCSRRRN` are accepted by the raw editor on records that are not a subfile-control record | I-122 | Done | v0.10.281 |
@@ -285,10 +285,15 @@ This table lists open tasks only: a task that lands is removed from it, and its 
 
 ## Deferred findings (not yet tasks)
 
-Every finding so far has been opened as a task (I-61 – I-193, see the tables above); the table below is empty. The four that were waiting here because the DDS Reference does not settle them were converted on request: I-153's open questions became [I-166](#i-166), I-154's became [I-167](#i-167), I-121g's became [I-168](#i-168) and I-160's became [I-169](#i-169) (done; the source turned out to state the whole-file scope). Each of those tasks starts with the decision or rule it is waiting on, so nothing in it is implemented on a guess. A new finding that cannot be implemented yet goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
+Findings up to I-196 were each opened as a task (see the tables above); the table below holds the ones raised since, by a documentation audit of this file, the README and the changelog. Each needs a decision or an owner before it becomes a task with its own `Claim I-N` commit. The four that were waiting here because the DDS Reference does not settle them were converted on request: I-153's open questions became [I-166](#i-166), I-154's became [I-167](#i-167), I-121g's became [I-168](#i-168) and I-160's became [I-169](#i-169) (done; the source turned out to state the whole-file scope). Each of those tasks starts with the decision or rule it is waiting on, so nothing in it is implemented on a guess. A new finding that cannot be implemented yet goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
 
 | Raised by | Finding |
 |-----------|---------|
+| I-121n / I-121t | `KEYBRD` is still listed as a field-level DDS keyword (Keying Options) in `src/keywordIndexData.js` and so in the generated `KEYWORD-INDEX.json` / `.md` and `KEYWORD-LOOKUP.json`, and counts as one of the 173 lookup keywords, although its spec entry says `notADdsKeyword: true` (the Reference has no such section; it is position 35) and I-121n said the index "can drop it (I-121t)". I-121t did not. Decision first: drop it from the index (and from `check_spec_coverage.py`'s count and the I-121t test's keyword list), or keep it as an iSDA-only entry with a note. |
+| I-146 | Two rules its section leaves unchecked: no warning that an *ignored* `SFLDROP` / `SFLROLVAL` has no effect at a display size where `SFLSIZ` equals `SFLPAG`, and `SFLPAG` must be at least the number of display lines a field-selection record occupies. |
+| I-173 | The `MNUBARCHC` 12-line count for a literal split over continuation lines is taken from the parser's joined text and was never probed with a real continuation; a probe with a wrapped literal is needed before the count is trusted there. |
+| I-190 | The help-specification panel has no `HLPRCD` row (only `HLPPNLGRP`, `HLPEXCLD`, `HLPBDY`, `HLPARA`, `HLPDOC`); an H-specification `HLPRCD` can be entered only in the raw keyword editor, although the spec now says it is valid there. |
+| I-121 | `keyword-index/check_spec_coverage.py` prints "all specified: mark the slice Done" for every slice, including ones the ledger already marks Done, because it reads coverage and never status; with 173 of 173 keywords specified the message is now noise. It should skip Done slices or the ledger check should be retired. |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
@@ -5593,7 +5598,7 @@ Rules for one keyword currently live in `*ConflictReason` functions (67), rule t
 
 #### Remaining work - split into slices
 
-`src/keywordSpec.js` exists and about forty-three slices are done (see *Completed slices* below). At v0.10.278, 111 of the 173 keywords in `KEYWORD-LOOKUP.json` (the `*` parameters excluded) still have no `RECORD_TYPES` entry. Slices **a - o** assign every one of them to exactly one slice, grouped by level and by the rules they share; slices **p - t** cover the work that is not keyword-shaped. Every slice is independent unless its row says otherwise - pick any, claim it with its own commit, and work it in parallel.
+`src/keywordSpec.js` exists and every slice below is done (last: I-121t, v0.10.335): all 173 keywords in `KEYWORD-LOOKUP.json` (the `*` parameters excluded) have a `RECORD_TYPES` entry. Slices **a - o** assigned each keyword to exactly one slice, grouped by level and by the rules they share; slices **p - t** covered the work that is not keyword-shaped. The method below is kept as the record of how a slice was worked.
 
 <!-- slice-ledger:start -->
 | Slice | Level | Scope | Keywords | Size |
@@ -7231,7 +7236,7 @@ The Deferred findings table keeps one finding: EDTCDE/EDTWRD's wider data-type e
 
 ### I-138 — `EDTCDE` / `EDTWRD`: barred on every data type but Y (or blank), enforced nowhere except F
 
-> **Area:** Field · **Status:** Done (v0.10.267) · **Depends on:** I-121, I-137
+> **Area:** Field · **Status:** Done (v0.10.265) · **Depends on:** I-121, I-137
 
 Opened from the deferred finding logged by the I-121 DFT/DFTVAL floating-point slice. `DDS_Keyword_V7r6.txt` states EDTCDE's eligibility at line ~5600 (\"valid only for fields with Y or blank in position 35\") and EDTWRD's at line ~5933 (\"valid for numeric only fields (Y specified in position 35)\"). Since I-137 F is blocked, but an explicit A, X, N, S, I, D, M, L, T or Z is accepted by the raw editor, the Input keywords panel and a Basic-tab data type change.
 
@@ -8392,6 +8397,21 @@ Do: read `MOUBTN`'s `commandKeyRanges` and `PSHBTNCHC` / `IGCCNV`'s key from the
 
 ---
 
+<a id="i-195"></a>
+
+### I-195 — Comment lines past column 80 are cut, and an edit loses the tail
+
+> **Area:** Cross-level · **Status:** Done (v0.10.364) · **Depends on:** — · **Size (estimate):** Medium
+
+Found by checking whether the Comments panel truncates at 80 columns. It does: `parseDspf` captures a comment's text as columns 8-80 only (`col(padded, 8, LINE_WIDTH)`), so on a 120-column comment line the panel shows 73 characters and 40 are not shown. Opening that comment and saving it with no change rewrites the line to 80 columns (`updateComment`), and `addComment` / `updateComment` cut new text to 73 characters with no warning (the comment input has no length limit or notice). A comment the user never edits is left alone, and the other column-sliced fields have fixed widths, so comments are the only free-text field affected.
+
+Do: (1) the parser keeps the whole comment text, from column 8 to the end of the line; (2) the writer caps `addComment` / `updateComment` at the source file's real maximum instead of a hard 73, so editing text past column 80 is stored and an unchanged save leaves the line as it was; (3) find that maximum once per document and cache it: for a `member:` URI the `SRCDTA` length of the source file (read through the Code for i connection's `runSQL`, `QSYS2.SYSCOLUMNS` matched on `SYSTEM_TABLE_NAME` / `SYSTEM_TABLE_SCHEMA`; to be confirmed on a real system, with 80 as the fallback if the query fails), for a local `file:` or `streamfile:` source the longest line in the file with a floor of 80; (4) the Comments panel shows a character count and warns past column 80, and refuses text past the maximum. Before wording the warning, check in the DDS Reference what the compiler does with text past column 80. Tests: the 80 / 81 / 100 / 120-column cases both ways, and an unchanged save keeps the tail.
+
+**Done (v0.10.364).** `parseDspf` keeps a comment's whole text (column 8 to the end of the line). `addComment` / `updateComment` take an optional maximum line length: absent or invalid it is the 80-column width as before, `Infinity` is no limit, and an existing comment longer than the limit is never cut shorter than it is, so an unchanged save leaves the line byte for byte as it was. `sourceLineWidth.js` reads the `SRCDTA` length of the member's source file through `runSQL` (`QSYS2.SYSCOLUMNS`, matched on `SYSTEM_TABLE_SCHEMA` / `SYSTEM_TABLE_NAME`; falls back to 80 and says so; **not yet run against a real system**), and the host pushes it to the webview as `sourceLineWidth` (a local or stream file sends no limit, not "the longest line" as first planned: that would have blocked growing a comment past the file's current longest line). The Comments panel shows a note beside each comment input (amber past column 80, red past the file limit), sets `maxlength` only when a member limit is known, and the add row does the same. The DDS keyword reference says nothing about text past column 80 on a comment line (its "position 80" hits are about screen positions), so the warning states the line width and does not claim what the compiler does. 52 checks in `i195CommentLineWidth.test.js`; putting the old 80-column cut back in the parser fails 9 of them.
+*Raised by the Comments panel truncation check. Size (estimate): Medium.*
+
+---
+
 <a id="i-196"></a>
 
 ### I-196 — `MNUBARSW` / `MNUCNL` accepted in a file with no menu-bar record
@@ -8409,18 +8429,3 @@ Do: add a model-diff guard in the same chain as the other file-level relation gu
 **Tests.** `src/test/i196MenuBarRecordRequired.test.js` (32 checks): the two Reference sentences and the spec accessor, both keywords at file and record level, with a parameter, in both directions (adding the keyword; removing or retyping the last `MNUBAR` record), one of two menu-bar records removed, both added in one edit, diff semantics, fail-safe on empty models, and the raw keyword editor in jsdom. Four mutations checked (guard disabled, file level not judged, record level not judged, hook removed from the chain), each failing the test.
 
 *Raised by I-189. Size (estimate): Small.*
-
----
-
-<a id="i-195"></a>
-
-### I-195 — Comment lines past column 80 are cut, and an edit loses the tail
-
-> **Area:** Cross-level · **Status:** Done (v0.10.364) · **Depends on:** — · **Size (estimate):** Medium
-
-Found by checking whether the Comments panel truncates at 80 columns. It does: `parseDspf` captures a comment's text as columns 8-80 only (`col(padded, 8, LINE_WIDTH)`), so on a 120-column comment line the panel shows 73 characters and 40 are not shown. Opening that comment and saving it with no change rewrites the line to 80 columns (`updateComment`), and `addComment` / `updateComment` cut new text to 73 characters with no warning (the comment input has no length limit or notice). A comment the user never edits is left alone, and the other column-sliced fields have fixed widths, so comments are the only free-text field affected.
-
-Do: (1) the parser keeps the whole comment text, from column 8 to the end of the line; (2) the writer caps `addComment` / `updateComment` at the source file's real maximum instead of a hard 73, so editing text past column 80 is stored and an unchanged save leaves the line as it was; (3) find that maximum once per document and cache it: for a `member:` URI the `SRCDTA` length of the source file (read through the Code for i connection's `runSQL`, `QSYS2.SYSCOLUMNS` matched on `SYSTEM_TABLE_NAME` / `SYSTEM_TABLE_SCHEMA`; to be confirmed on a real system, with 80 as the fallback if the query fails), for a local `file:` or `streamfile:` source the longest line in the file with a floor of 80; (4) the Comments panel shows a character count and warns past column 80, and refuses text past the maximum. Before wording the warning, check in the DDS Reference what the compiler does with text past column 80. Tests: the 80 / 81 / 100 / 120-column cases both ways, and an unchanged save keeps the tail.
-
-**Done (v0.10.364).** `parseDspf` keeps a comment's whole text (column 8 to the end of the line). `addComment` / `updateComment` take an optional maximum line length: absent or invalid it is the 80-column width as before, `Infinity` is no limit, and an existing comment longer than the limit is never cut shorter than it is, so an unchanged save leaves the line byte for byte as it was. `sourceLineWidth.js` reads the `SRCDTA` length of the member's source file through `runSQL` (`QSYS2.SYSCOLUMNS`, matched on `SYSTEM_TABLE_SCHEMA` / `SYSTEM_TABLE_NAME`; falls back to 80 and says so; **not yet run against a real system**), and the host pushes it to the webview as `sourceLineWidth` (a local or stream file sends no limit, not "the longest line" as first planned: that would have blocked growing a comment past the file's current longest line). The Comments panel shows a note beside each comment input (amber past column 80, red past the file limit), sets `maxlength` only when a member limit is known, and the add row does the same. The DDS keyword reference says nothing about text past column 80 on a comment line (its "position 80" hits are about screen positions), so the warning states the line width and does not claim what the compiler does. 52 checks in `i195CommentLineWidth.test.js`; putting the old 80-column cut back in the parser fails 9 of them.
-*Raised by the Comments panel truncation check. Size (estimate): Medium.*

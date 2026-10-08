@@ -102,7 +102,7 @@ updates the message file (`ADDMSGD` per option, `CHGMSGD` if it exists — see
 | Parser | `src/dspfParser.ts`, `src/dspfModel.ts` | Fixed-column DDS → structured model. |
 | Engine | `src/dspfEngine.js` | Model + active indicators → resolved layout → HTML grid. |
 | Writer | `src/dspfWriter.js` | Edits → regenerated source lines, spliced into the original text. Holds the DDS conflict rules. |
-| Keyword spec | `src/keywordSpec.js` | Declarative per-keyword rules, each cited to the DDS Reference. The single source of truth the engine, writer and webview are being moved onto. |
+| Keyword spec | `src/keywordSpec.js` | Declarative per-keyword rules, each cited to the DDS Reference. Every keyword has an entry; the engine, writer and webview read their rules from it, and the generated keyword index is checked against it. |
 | Webview client | `src/webviewClientHelpers.js` | Property-panel builders and event wiring. |
 | Webview templates | `src/buildWebviewTemplate.js`, `src/buildMenuWebviewTemplate.js` | Bake the code above into one self-contained HTML string per designer (outputs `src/webviewTemplate.ts` / `src/menuWebviewTemplate.ts` are generated). |
 | Menu engine | `src/mnuCmdEngine.js` | Parses and writes MNUCMD. |
@@ -141,6 +141,7 @@ Work is tracked in `docs/sda-reference/`, and every task is small enough to clai
 | [`keywordFixes.md`](docs/sda-reference/keywordFixes.md) | The keyword-compliance audit (`I-` tasks): status table, open work, one section per task. **Start at its Open work table.** |
 | [`LIMITATIONS-PLAN.md`](docs/sda-reference/LIMITATIONS-PLAN.md) | Accepted constraints and every `L`/`M`/`P`/`S36-` task. |
 | [`PICKER-SCREENS-PLAN.md`](docs/sda-reference/PICKER-SCREENS-PLAN.md) | Build history of the SDA-style pickers. |
+| [`MAINTAINABILITY-AUDIT.md`](docs/sda-reference/MAINTAINABILITY-AUDIT.md) | Code and test-structure audit behind tasks I-118 – I-123. |
 | [`docs/sda-reference/README.md`](docs/sda-reference/README.md) | Real SDA screenshots, IBM's DDS Reference text, and the keyword index. |
 
 The standing rule: **IBM's DDS Reference is ground truth.** Verify a rule against
@@ -149,10 +150,10 @@ reference is ambiguous, log an open question instead of guessing. A task is done
 fail against the old code, the full suite passes, and `keywordFixes.md` and `CHANGELOG.md` are
 updated.
 
-The largest open item, **I-121** (one declarative rule spec per keyword), is split into slices
-`I-121a` – `I-121t` that can be worked in parallel. Run
-`python3 docs/sda-reference/keyword-index/check_spec_coverage.py` to confirm every keyword still
-without a spec entry belongs to exactly one slice.
+The keyword audit is nearly closed: **I-121** (one declarative rule spec per keyword) and **I-122** (generated
+keyword test matrix) are done, and `keywordFixes.md` lists what remains. Findings that need a decision
+sit in its *Deferred findings* table until someone opens them as tasks. Regenerate the keyword index with
+`node docs/sda-reference/keyword-index/generate_keyword_index.js` (add `--check` to verify it is current).
 
 **Status:** early but functional. The parser, resolver and editor are verified against IBM's
 published DDS examples and round-trip tested (edit → regenerate → re-parse → confirm nothing else
