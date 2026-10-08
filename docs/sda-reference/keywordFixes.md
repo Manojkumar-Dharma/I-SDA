@@ -266,7 +266,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-194](#i-194) | Field | Command-key values that no guard reads: `MOUBTN` / `PSHBTNCHC` / `IGCCNV` keys outside 01-24 or of the wrong type, and a key written in a shape that is not `CAnn` / `CFnn` (`MNUBARSW(CA5)`, `ALTHELP(XYZ)`) | I-186 | Done (MOUBTN, PSHBTNCHC, malformed key shapes) | v0.10.362 |
 | [I-195](#i-195) | Cross-level | Comment lines are captured and written only up to column 80: text past it is dropped from the panel, and editing the comment cuts the line to 80 columns. Read the source file's real record length and keep, show and store the whole line | — | Done (52 checks in `i195CommentLineWidth`) | v0.10.364 |
 | [I-196](#i-196) | File | `MNUBARSW` / `MNUCNL` are allowed only in a file containing a menu-bar record (their own sections); no guard reads the spec's `requiresMenuBarRecordInFile` fact | I-189 | Done v0.10.366 | v0.10.366 |
-| [I-197](#i-197) | Tooling | `KEYBRD` still listed as a DDS keyword in the generated keyword index although its spec entry says it is not one (decision first) | I-121t | Open | — |
+| [I-197](#i-197) | Tooling | `KEYBRD` still listed as a DDS keyword in the generated keyword index although its spec entry says it is not one (decision first) | I-121t | In progress | — |
 | [I-198](#i-198) | Tooling | `check_spec_coverage.py` prints "mark the slice Done" for slices the ledger already marks Done | I-121 | Open | — |
 | [I-199](#i-199) | Field | Help-specification panel has no `HLPRCD` row | I-190 | Open | — |
 | [I-200](#i-200) | Subfile | Two `SFLPAG` / `SFLSIZ` rules left unchecked by I-146 | I-146 | Open | — |
@@ -285,7 +285,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
 | 1 | [I-198](#i-198) | Open | Small, tooling only. |
-| 2 | [I-197](#i-197) | Open | Small, decision first. |
+| 2 | [I-197](#i-197) | In progress | Small, decision first. |
 | 3 | [I-199](#i-199) | Open | Small, one panel row. |
 | 4 | [I-200](#i-200) | Open | Medium, two spec facts. |
 
@@ -8443,7 +8443,7 @@ Do: add a model-diff guard in the same chain as the other file-level relation gu
 
 ### I-197 — `KEYBRD` still listed as a DDS keyword in the generated keyword index although its spec entry says it is not one (decision first)
 
-> **Area:** Tooling · **Status:** Open · **Depends on:** I-121t · **Size (estimate):** Small
+> **Area:** Tooling · **Status:** In progress · **Depends on:** I-121t · **Size (estimate):** Small
 
 Opened from the documentation audit of 2026-10-08. `src/keywordIndexData.js` lists `KEYBRD` under field-level Keying Options, so `KEYWORD-INDEX.json` / `.md` and `KEYWORD-LOOKUP.json` carry it and `check_spec_coverage.py` counts it among the 173 keywords. Its `RECORD_TYPES` entry says `notADdsKeyword: true` (the DDS Reference has no `KEYBRD` section; the keyboard shift is position 35), and I-121n wrote that the index "can drop it (I-121t)"; I-121t did not.
 
