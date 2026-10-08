@@ -572,6 +572,11 @@ const htmlTemplate = `<!DOCTYPE html>
   /* Task L13 - comment text input reuses .rename-input's own look (flex:1,
      same dark input styling) inside a .field-order-row so a comment row
      lines up visually with the Structure tab's other rows above it. */
+  /* Task I-195 - the width note beside a comment input: empty within 80 columns, amber past column 80,
+     red past the source file's own limit. */
+  .comment-width-note { flex: none; font-size: 10px; min-width: 0; white-space: nowrap; }
+  .comment-width-warn { color: #e0a93a; }
+  .comment-width-error { color: #e06c6c; }
   .comment-text-input, .comment-add-text-input { flex: 1; min-width: 0; background: #0d1310; color: var(--ink); border: 1px solid var(--panel-border); padding: 4px 6px; font-family: var(--mono); font-size: 12px; }
   .section-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-dim); margin: 16px 0 8px; }
   .compare-toggle { display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer; margin-top: 4px; color: var(--ink-dim); }
@@ -1236,6 +1241,12 @@ const htmlTemplate = `<!DOCTYPE html>
   // a later 'modTrackingConfig' push (e.g. a live settings.json edit) no
   // longer overwrites their in-session choice.
   let modTrackingSessionTouched = false;
+  // Task I-195 - the longest line the source can hold, pushed by the extension host ('sourceLineWidth'):
+  // a number for an IBM i source member (its SRCDTA width, 80 if that could not be read), Infinity for a
+  // local file (no limit), undefined until the host has answered (the writer then keeps the 80-column
+  // default). Comment text is capped to it in the writer and the Comments panel.
+  let sourceLineMax;
+  function commentHardMax() { return typeof sourceLineMax === 'number' && isFinite(sourceLineMax) ? sourceLineMax : null; }
   let selectedSizeIndex = 0; // which DSPSIZ-declared size is being viewed/edited (0 = first/default)
   let lastScreen = null; // most recently resolved screen ({lines, columns, ...}) - kept around so the props
                           // panel's "Center on screen" action knows the current record's width without
@@ -4381,8 +4392,8 @@ const htmlTemplate = `<!DOCTYPE html>
       'filecomments',
       () => DspfWriter.getFileComments(model),
       0,
-      (comments, fallbackAfterLine, desiredLine, text) => commitSourceChange((lines) => DspfWriter.addComment(lines, comments, fallbackAfterLine, text, desiredLine)),
-      (line, text) => commitSourceChange((lines) => DspfWriter.updateComment(lines, line, text)),
+      (comments, fallbackAfterLine, desiredLine, text) => commitSourceChange((lines) => DspfWriter.addComment(lines, comments, fallbackAfterLine, text, desiredLine, sourceLineMax)),
+      (line, text) => commitSourceChange((lines) => DspfWriter.updateComment(lines, line, text, sourceLineMax)),
       (line) => commitSourceChange((lines) => DspfWriter.deleteComment(lines, line))
     );
   }
@@ -5092,6 +5103,28 @@ const htmlTemplate = `<!DOCTYPE html>
    * which is what was actually asked for over the alternative of just
    * shrinking the same layout further.
    */
+  // Task I-195 - the maxlength attribute for a comment input: the source file's line length minus the seven
+  // prefix columns, or none for a local file. An existing comment that is already longer than that keeps
+  // its own length as the limit, so opening it never makes the input refuse what the file already holds.
+  function commentMaxLengthAttr(existingText) {
+    const hard = commentHardMax();
+    if (hard === null) return '';
+    const limit = Math.max(hard - 7, existingText ? existingText.length : 0);
+    return ' maxlength="' + limit + '"';
+  }
+  // The small width note beside a comment input (empty while the line is within 80 columns).
+  function commentWidthNoteHtml(attr, text) {
+    const info = WebviewClientHelpers.commentWidthInfo(text, commentHardMax());
+    return '<span class="comment-width-note comment-width-' + info.level + '" ' + attr + ' title="' + DspfEngine.escapeHtml(info.message) + '">' + DspfEngine.escapeHtml(info.short) + '</span>';
+  }
+  function updateCommentWidthNote(noteEl, text) {
+    if (!noteEl) return;
+    const info = WebviewClientHelpers.commentWidthInfo(text, commentHardMax());
+    noteEl.className = 'comment-width-note comment-width-' + info.level;
+    noteEl.textContent = info.short;
+    noteEl.title = info.message;
+  }
+
   function commentsListHtml(comments, idPrefix, allowCustomLine) {
     let html = '<div class="section-label">Comments</div>';
     if (comments.length === 0) {
@@ -5100,7 +5133,8 @@ const htmlTemplate = `<!DOCTYPE html>
       comments.slice().sort((a, b) => a.line - b.line).forEach((c) => {
         html += '<div class="field-order-row" data-source-line="' + c.line + '">' +
           '<span class="comment-line-badge" title="Source line ' + c.line + '">L' + c.line + '</span>' +
-          '<input type="text" class="comment-text-input" data-source-line="' + c.line + '" value="' + DspfEngine.escapeHtml(c.text) + '" placeholder="(blank comment line)" />' +
+          '<input type="text" class="comment-text-input" data-source-line="' + c.line + '" value="' + DspfEngine.escapeHtml(c.text) + '" placeholder="(blank comment line)"' + commentMaxLengthAttr(c.text) + ' />' +
+          commentWidthNoteHtml('data-note-line="' + c.line + '"', c.text) +
           '<button class="comment-delete-btn" data-source-line="' + c.line + '" title="Delete this comment line">&times;</button>' +
           '</div>';
       });
@@ -5109,7 +5143,8 @@ const htmlTemplate = `<!DOCTYPE html>
     if (allowCustomLine) {
       html += '<input type="number" id="' + idPrefix + '-add-comment-line" class="comment-add-line-input" min="1" placeholder="Line #" title="Line number the new comment should land at - leave blank to add after the last comment" />';
     }
-    html += '<input type="text" id="' + idPrefix + '-add-comment-text" class="comment-add-text-input" placeholder="Comment text (optional)" title="Text for the new comment line - leave blank to add an empty one" />' +
+    html += '<input type="text" id="' + idPrefix + '-add-comment-text" class="comment-add-text-input" placeholder="Comment text (optional)"' + commentMaxLengthAttr('') + ' title="Text for the new comment line - leave blank to add an empty one" />' +
+      commentWidthNoteHtml('id="' + idPrefix + '-add-comment-note"', '') +
       '<button id="' + idPrefix + '-add-comment" title="Add this comment">+</button>' +
       '</div>';
     return html;
@@ -5126,6 +5161,9 @@ const htmlTemplate = `<!DOCTYPE html>
    */
   function wireCommentsSection(idPrefix, getComments, fallbackAfterLine, commitInsert, commitUpdate, commitDeleteLine) {
     propsBody.querySelectorAll('.comment-text-input[data-source-line]').forEach((el) => {
+      el.addEventListener('input', () => {
+        updateCommentWidthNote(propsBody.querySelector('.comment-width-note[data-note-line="' + el.getAttribute('data-source-line') + '"]'), el.value);
+      });
       el.addEventListener('change', () => {
         const line = parseInt(el.getAttribute('data-source-line'), 10);
         commitUpdate(line, el.value);
@@ -5137,6 +5175,10 @@ const htmlTemplate = `<!DOCTYPE html>
         commitDeleteLine(line);
       });
     });
+    const addTextInput = document.getElementById(idPrefix + '-add-comment-text');
+    if (addTextInput) {
+      addTextInput.addEventListener('input', () => updateCommentWidthNote(document.getElementById(idPrefix + '-add-comment-note'), addTextInput.value));
+    }
     const addBtn = document.getElementById(idPrefix + '-add-comment');
     if (addBtn) {
       addBtn.addEventListener('click', () => {
@@ -6179,8 +6221,8 @@ const htmlTemplate = `<!DOCTYPE html>
         return freshRec ? DspfWriter.getRecordComments(model, freshRec) : [];
       },
       DspfWriter.getRecordLineRange(rec)[1],
-      (comments, fallbackAfterLine, desiredLine, text) => commitSourceChange((lines) => DspfWriter.addComment(lines, comments, fallbackAfterLine, text, desiredLine)),
-      (line, text) => commitSourceChange((lines) => DspfWriter.updateComment(lines, line, text)),
+      (comments, fallbackAfterLine, desiredLine, text) => commitSourceChange((lines) => DspfWriter.addComment(lines, comments, fallbackAfterLine, text, desiredLine, sourceLineMax)),
+      (line, text) => commitSourceChange((lines) => DspfWriter.updateComment(lines, line, text, sourceLineMax)),
       (line) => commitSourceChange((lines) => DspfWriter.deleteComment(lines, line))
     );
 
@@ -7479,6 +7521,10 @@ const htmlTemplate = `<!DOCTYPE html>
       // Only the engine's DATE preview and width follow it; an unusable value
       // clears it back to the design-time assumption (MDY, slash).
       DspfEngine.setJobDateFormat(msg.ok === false ? null : { dateFormat: msg.dateFormat, dateSeparator: msg.dateSeparator });
+      render();
+    } else if (msg.type === 'sourceLineWidth') {
+      // Task I-195 - see sourceLineMax. A missing / non-positive maxLength means "no limit".
+      sourceLineMax = typeof msg.maxLength === 'number' && msg.maxLength > 0 ? Math.floor(msg.maxLength) : Infinity;
       render();
     } else if (msg.type === 'modTrackingConfig') {
       // Task L38 - only ever the STARTING values (see this message's own

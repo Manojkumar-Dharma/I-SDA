@@ -10022,9 +10022,20 @@
    *  line in this codebase uses - see insertField's own doc comment),
    *  '*' in column 7, then `text` (truncated to fit columns 8-80, newlines
    *  stripped since a comment can't itself span multiple physical lines). */
-  function buildCommentLine(text) {
-    var t = (text || '').replace(/[\r\n]/g, '').slice(0, LINE_WIDTH - 7);
+  function buildCommentLine(text, maxLineLength) {
+    var t = (text || '').replace(/[\r\n]/g, '').slice(0, commentTextLimit(maxLineLength));
     return ('     A*' + t).replace(/\s+$/, '');
+  }
+
+  /** Task I-195 - how many characters of comment text fit on a line whose longest allowed length is
+   *  `maxLineLength` (text starts in column 8, so the limit is maxLineLength - 7). An absent, invalid or
+   *  too-small value falls back to the 80-column DDS width (73 characters), the behaviour before I-195;
+   *  Infinity means "no limit" (a local file has no record length to respect). */
+  function commentTextLimit(maxLineLength) {
+    if (maxLineLength === Infinity) return Infinity;
+    var n = Math.floor(Number(maxLineLength));
+    if (!isFinite(n) || n < 8) return LINE_WIDTH - 7;
+    return n - 7;
   }
 
   /**
@@ -10052,7 +10063,7 @@
    * one comment). The new comment ends up right before that whole
    * multi-line entry instead - never inside it.
    */
-  function addComment(sourceLines, existingComments, fallbackAfterLine, text, desiredLine) {
+  function addComment(sourceLines, existingComments, fallbackAfterLine, text, desiredLine, maxLineLength) {
     var insertAfterLine;
     if (desiredLine != null && !isNaN(desiredLine)) {
       var clamped = Math.max(1, Math.min(sourceLines.length + 1, Math.floor(desiredLine)));
@@ -10069,7 +10080,7 @@
         ? Math.max.apply(null, existingComments.map(function (c) { return c.line; }))
         : fallbackAfterLine;
     }
-    var newLine = buildCommentLine(text);
+    var newLine = buildCommentLine(text, maxLineLength);
     return sourceLines.slice(0, insertAfterLine).concat([newLine], sourceLines.slice(insertAfterLine));
   }
 
@@ -10080,13 +10091,17 @@
    * asked to change" stance every other targeted-line edit in this file
    * takes.
    */
-  function updateComment(sourceLines, line, newText) {
+  function updateComment(sourceLines, line, newText, maxLineLength) {
     var idx = line - 1;
     if (idx < 0 || idx >= sourceLines.length) return sourceLines;
     var existing = sourceLines[idx];
     var padded = existing.length < LINE_WIDTH ? existing.padEnd(LINE_WIDTH, ' ') : existing;
     var prefix = padded.slice(0, 7);
-    var t = (newText || '').replace(/[\r\n]/g, '').slice(0, LINE_WIDTH - 7);
+    // Task I-195: the cap is the source file's own line length, and a comment that is already longer than
+    // that cap (a line read from a longer record) is never cut shorter than it already is - an edit may
+    // not lose text just because the stated maximum is smaller than what the file holds.
+    var limit = Math.max(commentTextLimit(maxLineLength), existing.length > 7 ? existing.length - 7 : 0);
+    var t = (newText || '').replace(/[\r\n]/g, '').slice(0, limit);
     var next = sourceLines.slice();
     next[idx] = (prefix + t).replace(/\s+$/, '');
     return next;

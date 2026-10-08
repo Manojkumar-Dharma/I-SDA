@@ -55,6 +55,13 @@ const QdbrtvfdParser: {
 const JobDateFormat: {
   fetchJobDateFormat(connection: any, hooks?: { ensureLibrary?: (connection: any) => Promise<string | null> }): Promise<{ ok: boolean; error?: string; dateFormat?: string; dateSeparator?: string; timeSeparator?: string | null }>;
 } = require('./jobDateFormat.js');
+// Task I-195: the longest line the source member can hold (the SRCDTA width of its source file), so the
+// Comments panel keeps, shows and stores text past column 80 and warns before a line would no longer fit.
+// Plain dependency-free JS with its own fake-connection tests; see its file header.
+const SourceLineWidth: {
+  DEFAULT_WIDTH: number;
+  fetchSourceLineMax(connection: any, member: { library: string; file: string }): Promise<{ maxLength: number; source: 'member' | 'default' }>;
+} = require('./sourceLineWidth.js');
 // Same reasoning as MnuCmdEngine/DspfEngine above: plain dependency-free JS
 // shared verbatim with the webview. buildTypedRecordPlan is the "+ Add
 // record" wizard's own record-type decision table (what keywords/companion
@@ -1641,9 +1648,39 @@ class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
         jobDateSent = false;
       }
     };
+    // Task I-195: tells the webview how long a line the source can hold. An IBM i member answers with its
+    // source file's SRCDTA width (80 if that cannot be read - and it is asked again on the next connection
+    // poll while only the default is known); a local or stream file has no limit, sent as null.
+    let sourceLineWidthSent = false;
+    let lastSourceLineWidth: number | null | undefined;
+    // Posts only when the answer differs from the last one: the webview re-renders on every message, and
+    // this runs on the 10-second connection poll.
+    const postSourceLineWidth = (maxLength: number | null, source: string) => {
+      if (lastSourceLineWidth === maxLength) return;
+      lastSourceLineWidth = maxLength;
+      webviewPanel.webview.postMessage({ type: 'sourceLineWidth', maxLength, source });
+    };
+    const sendSourceLineWidth = async () => {
+      if (sourceLineWidthSent) return;
+      const member = parseMemberUri(document.uri);
+      if (!member) {
+        sourceLineWidthSent = true;
+        postSourceLineWidth(null, 'local');
+        return;
+      }
+      const connection = await getConnectedCodeForIBMi();
+      if (!connection) {
+        postSourceLineWidth(SourceLineWidth.DEFAULT_WIDTH, 'default');
+        return;
+      }
+      const result = await SourceLineWidth.fetchSourceLineMax(connection, member);
+      sourceLineWidthSent = result.source === 'member';
+      postSourceLineWidth(result.maxLength, result.source);
+    };
     const sendCodeForIStatus = async () => {
       const status = await getCodeForIStatus();
       webviewPanel.webview.postMessage({ type: 'codeForIStatus', installed: status.installed, connected: status.connected });
+      void sendSourceLineWidth();
       if (status.connected) void sendJobDateFormat();
       else { jobDateSent = false; jobDateAttempts = 0; }
     };
@@ -1696,6 +1733,9 @@ class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
       } else if (msg.type === 'setUiTheme') {
         await this.context.globalState.update(UI_THEME_KEY, msg.value);
       } else if (msg.type === 'ready') {
+        // A (re)loaded webview starts with no line width, so the next answer is always posted (Task I-195).
+        lastSourceLineWidth = undefined;
+        sourceLineWidthSent = false;
         await sendCodeForIStatus();
         sendModTrackingConfig();
       }

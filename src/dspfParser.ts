@@ -283,7 +283,10 @@ function buildLogicalEntries(lines: string[]): {
     }
 
     if (commentFlag === '*') {
-      comments.push({ line: sourceLine, text: col(padded, 8, LINE_WIDTH).trimEnd() });
+      // Task I-195: the whole comment, column 8 to the end of the line - not just columns 8-80. A source
+      // line can be longer than 80 (a longer source-file record length, or a local file), and the Comments
+      // panel has to show it as it is so an edit does not cut the tail off.
+      comments.push({ line: sourceLine, text: padded.substring(7).trimEnd() });
       continue;
     }
     if (restBlank) {

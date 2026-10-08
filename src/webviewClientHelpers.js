@@ -8929,6 +8929,30 @@
     return '<div data-kw="' + escapeHtml(codes.join(' ')) + '">' + innerHtml + '</div>';
   }
 
+  /**
+   * Task I-195 - how wide a comment line is, and whether that is a problem. A comment line is the seven
+   * prefix columns (sequence area, form type, the '*') plus the text, so its width is 7 + text length.
+   * `hardMax` is the source file's own maximum line length (the SRCDTA width of an IBM i source member),
+   * or null when there is none (a local file). Past column 80 is only a warning, since DDS lines are 80
+   * columns wide and the reference does not say what happens to more; past `hardMax` is an error, since
+   * the member physically cannot hold it. `short` is the label shown beside the input, `message` its
+   * tooltip; both are empty when the line is within 80 columns.
+   */
+  function commentWidthInfo(text, hardMax) {
+    var width = 7 + String(text == null ? '' : text).length;
+    var hard = typeof hardMax === 'number' && isFinite(hardMax) && hardMax > 0 ? Math.floor(hardMax) : null;
+    if (hard !== null && width > hard) {
+      return { width: width, level: 'error', short: width + ' > ' + hard,
+        message: 'Over the source file limit: this line would be ' + width + ' columns and the file holds ' + hard + '.' };
+    }
+    if (width > 80) {
+      return { width: width, level: 'warn', short: 'col ' + width,
+        message: 'Past column 80: this line is ' + width + ' columns, and DDS lines are 80 columns wide.' +
+          (hard !== null ? ' The source file allows ' + hard + '.' : '') };
+    }
+    return { width: width, level: 'ok', short: '', message: '' };
+  }
+
   return {
     rebuildRecordSelect: rebuildRecordSelect,
     recordTypeDependentInfo: recordTypeDependentInfo,
@@ -9044,6 +9068,7 @@
     wireIndicatorTextRows: wireIndicatorTextRows,
     repeatableConditionedInstancesHtml: repeatableConditionedInstancesHtml,
     wireRepeatableConditionedInstances: wireRepeatableConditionedInstances,
+    commentWidthInfo: commentWidthInfo,
     escapeHtml: escapeHtml,
     showConfirmDialog: showConfirmDialog,
   };
