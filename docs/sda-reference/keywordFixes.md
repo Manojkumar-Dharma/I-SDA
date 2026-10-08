@@ -192,7 +192,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-122h](#i-122h) | Tooling | Command-key family tests: CA01-CA24, CF01-CF24, ALTPAGEDWN, ALTPAGEUP, DLTCHK, DLTEDT, RETCMDKEY, MNUBARSW, MNUCNL, GETRETAIN | I-122 | Done (107 checks; findings I-186, I-187, I-188, I-189) | v0.10.348 |
 | [I-122i](#i-122i) | Tooling | Generated per-keyword matrix (L1-L4 from the I-121 spec): generator and harness, then the keywords no hand-written batch covers | I-122, I-121 | Done (1,328 checks on 61 keywords, 3,380 with `MATRIX_ALL`; findings I-190, I-191) | v0.10.350 |
 | [I-122j](#i-122j) | Tooling | Retire overlapping tests, each deletion backed by a stash-based mutation run (do last, serially) | I-122i | Done (9 checks retired; the other overlap classes tested are not redundant) | — |
-| [I-123](#i-123) | Tooling | Move "Task I-nn" history out of source comments | I-121 | Not started | — |
+| [I-123](#i-123) | Tooling | Move "Task I-nn" history out of source comments | I-121 | In progress | — |
 | [I-124](#i-124) | Tooling | Test-only exports that still carry a "kept for backward compatibility / API completeness" note (decision first) | I-118 | Done | v0.10.202 |
 | [I-125](#i-125) | Field | `COMP`/`RANGE`/`VALUES`/`CHECK(AB)` "not on a floating-point field" restriction is unenforced | I-72, I-96 | Done | v0.10.223 |
 | [I-126](#i-126) | Field | `SFLSCROLL`: field-shape requirement (signed numeric, 0 decimals, length 5, hidden) is unenforced | I-121 | Done | v0.10.232 |
@@ -279,7 +279,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-123](#i-123) | Not started | Task-history comments out of source. I-121 has landed, so each citation can now live in the spec. Size (estimate): Medium (mechanical). |
+| 1 | [I-123](#i-123) | In progress | Task-history comments out of source. I-121 has landed, so each citation can now live in the spec. Size (estimate): Medium (mechanical). |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The headline there counts the same tasks, so when a task lands or opens, update this table, the headline count and the version together.
 
@@ -6961,7 +6961,7 @@ Opened from I-122. Map each existing `check()` to a keyword x dimension cell; de
 
 ### I-123 — Move "Task I-nn" history out of source comments
 
-> **Area:** Tooling · **Status:** Not started · **Depends on:** I-121
+> **Area:** Tooling · **Status:** In progress · **Depends on:** I-121
 
 35-48% of lines in the big source files are comments and about 1,100 lines cite a task ID. Keep comments that state a rule or a DDS Reference citation; move task narrative (what was wrong before, which session found it) to this file and the git log, leaving at most a one-line "see I-nn". I-121 has landed, so each rule's citation already lives in the spec. Mechanical, no behaviour change: the test suite and the compiled output must be unchanged apart from comments.
 
