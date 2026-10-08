@@ -267,7 +267,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-195](#i-195) | Cross-level | Comment lines are captured and written only up to column 80: text past it is dropped from the panel, and editing the comment cuts the line to 80 columns. Read the source file's real record length and keep, show and store the whole line | — | Done (52 checks in `i195CommentLineWidth`) | v0.10.364 |
 | [I-196](#i-196) | File | `MNUBARSW` / `MNUCNL` are allowed only in a file containing a menu-bar record (their own sections); no guard reads the spec's `requiresMenuBarRecordInFile` fact | I-189 | Done v0.10.366 | v0.10.366 |
 | [I-197](#i-197) | Tooling | `KEYBRD` still listed as a DDS keyword in the generated keyword index although its spec entry says it is not one (decision first) | I-121t | In progress | — |
-| [I-198](#i-198) | Tooling | `check_spec_coverage.py` prints "mark the slice Done" for slices the ledger already marks Done | I-121 | Open | — |
+| [I-198](#i-198) | Tooling | `check_spec_coverage.py` prints "mark the slice Done" for slices the ledger already marks Done | I-121 | In progress | — |
 | [I-199](#i-199) | Field | Help-specification panel has no `HLPRCD` row | I-190 | Open | — |
 | [I-200](#i-200) | Subfile | Two `SFLPAG` / `SFLSIZ` rules left unchecked by I-146 | I-146 | Open | — |
 | [I-201](#i-201) | Field | `MNUBARCHC` 12-line count never probed with a literal split over continuation lines | I-173 | Done (v0.10.370) | — |
@@ -284,7 +284,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-198](#i-198) | Open | Small, tooling only. |
+| 1 | [I-198](#i-198) | In progress | Small, tooling only. |
 | 2 | [I-197](#i-197) | In progress | Small, decision first. |
 | 3 | [I-199](#i-199) | Open | Small, one panel row. |
 | 4 | [I-200](#i-200) | Open | Medium, two spec facts. |
@@ -8459,7 +8459,7 @@ Do: apply the decision, regenerate with `generate_keyword_index.js`, confirm `--
 
 ### I-198 — `check_spec_coverage.py` prints "mark the slice Done" for slices the ledger already marks Done
 
-> **Area:** Tooling · **Status:** Open · **Depends on:** I-121 · **Size (estimate):** Small
+> **Area:** Tooling · **Status:** In progress · **Depends on:** I-121 · **Size (estimate):** Small
 
 Opened from the documentation audit of 2026-10-08. The script reads coverage from `KeywordSpec.RECORD_TYPES` and never the ledger's status column, so with 173 of 173 keywords specified it tells the reader to mark all fifteen keyword slices Done although they are.
 
