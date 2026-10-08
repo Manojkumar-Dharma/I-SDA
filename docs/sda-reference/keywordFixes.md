@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-223 of 228 tasks done; 5 open (see [Open work](#open-work)). Current version: **v0.10.369**.
+224 of 228 tasks done; 4 open (see [Open work](#open-work)). Current version: **v0.10.370**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -270,7 +270,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-198](#i-198) | Tooling | `check_spec_coverage.py` prints "mark the slice Done" for slices the ledger already marks Done | I-121 | Open | — |
 | [I-199](#i-199) | Field | Help-specification panel has no `HLPRCD` row | I-190 | Open | — |
 | [I-200](#i-200) | Subfile | Two `SFLPAG` / `SFLSIZ` rules left unchecked by I-146 | I-146 | Open | — |
-| [I-201](#i-201) | Field | `MNUBARCHC` 12-line count never probed with a literal split over continuation lines | I-173 | In progress | — |
+| [I-201](#i-201) | Field | `MNUBARCHC` 12-line count never probed with a literal split over continuation lines | I-173 | Done (v0.10.370) | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -284,11 +284,10 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-201](#i-201) | In progress | Small: probe then fix if needed. |
-| 2 | [I-198](#i-198) | Open | Small, tooling only. |
-| 3 | [I-197](#i-197) | Open | Small, decision first. |
-| 4 | [I-199](#i-199) | Open | Small, one panel row. |
-| 5 | [I-200](#i-200) | Open | Medium, two spec facts. |
+| 1 | [I-198](#i-198) | Open | Small, tooling only. |
+| 2 | [I-197](#i-197) | Open | Small, decision first. |
+| 3 | [I-199](#i-199) | Open | Small, one panel row. |
+| 4 | [I-200](#i-200) | Open | Medium, two spec facts. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The headline there counts the same tasks, so when a task lands or opens, update this table, the headline count and the version together.
 
@@ -8502,10 +8501,16 @@ Do: read both sections again, add the note and the check as spec facts read by o
 
 ### I-201 — `MNUBARCHC` 12-line count never probed with a literal split over continuation lines
 
-> **Area:** Field · **Status:** In progress · **Depends on:** I-173 · **Size (estimate):** Small
+> **Area:** Field · **Status:** Done (v0.10.370) · **Depends on:** I-173 · **Size (estimate):** Small
 
 Opened from I-173. The count is taken from the parser's joined text, and a wrapped literal (`+` continuation) was never run through it, so the line total there is unproven.
 
 Do: probe the guard with a real continued literal on a menu-bar field, in the writer and in the raw editor; fix the count if the joined text differs from what the compiler sees, and pin the result in a test.
+
+**Done (v0.10.370).** The probe found a real mismatch, in the parser rather than the counter. IBM's DDS rules for keywords say a minus (`-`) continues at position 45 of the next line (its leading blanks are part of the value), a plus (`+`) continues with the first nonblank character of the next line, and blanks before either sign stay in the value. `dspfParser.ts` handled `-` that way but put one extra blank after `+` and kept the next line's leading blanks, so a literal split with `+` read longer than the compiler sees it (`'ABC+` / `   DEF'` came out as `ABC    DEF`, four blanks, instead of `ABCDEF`). The `MNUBARCHC` counter then overstated the lines: it refused an edit that fits (a menu-bar field with 11 choices of 36 characters, each split `+` over two lines, could not take a 12th although 6 lines fit) and, because every edit rewrites the field from the joined text, a hand-written `+`-split literal was also silently lengthened the next time its field was saved. The parser now joins `+` as IBM describes (nothing added, the next line's leading blanks dropped); `-` and the writer's own `-` wrapping are unchanged.
+
+Decision to know about: the earlier `+` behaviour ("insert one blank") was inferred as the mirror image of the `-` fix and was never confirmed on a real `+` sample; the `-` behaviour is confirmed by a real STRSDA example and is unchanged. A hand-written source that wrote `+` directly against a token and relied on the parser adding a blank (`A+` / `B` read as `A B`) now reads as `AB`, which is what the compiler does.
+
+New `src/test/i201MenuBarContinuedLiteral.test.js` (18 checks): the join rules for both signs (blanks before the sign, leading blanks after, between parameters, three-line mix), the counter on continued literals against the same choices written as 36-position `&field` text, the boundary at 22 / 23 choices and 11 to 12 in the model guard, and the raw keyword editor in jsdom. Two mutations (a blank added after `+` again; `+` keeping the next line's leading blanks) fail 14 and 11 of its checks. `continuationJoiner.test.js` had pinned the old `+` reading; its `+` check now states IBM's rule (four checks). The full suite passes (310 files, 21,016 checks).
 
 *Raised by I-173. Size (estimate): Small.*

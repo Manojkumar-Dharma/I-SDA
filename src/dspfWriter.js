@@ -300,9 +300,9 @@
 
   /** Wraps function-area text into 80-col lines with +/- continuation, cols 1-44 blank (except 'A' in col 6). */
   /** Wraps function-area text into 80-col lines with '-' line-continuation (no
-   *  blank inserted at the split point - see dspfParser.ts's pendingJoiner doc
-   *  comment for the real DDS convention this matches: '-' = direct
-   *  concatenation, '+' = insert one blank). This function's own wrapping is
+   *  blank inserted at the split point - see dspfParser.ts's pendingPlus comment
+   *  for the DDS rule this matches: '-' continues at position 45 of the next
+   *  line with its leading blanks kept). This function's own wrapping is
    *  purely mechanical - splitting one already-complete string, which already
    *  contains any semantically-real spaces as literal characters in `text` -
    *  so it must never ADD a character at the split point; '-' is the

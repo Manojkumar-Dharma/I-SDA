@@ -248,7 +248,11 @@ function buildLogicalEntries(lines: string[]): {
 
   let current: LogicalEntry | null = null;
   let pendingContinuation = false; // true if previous function-area chunk ended in +/-
-  let pendingJoiner: '' | ' ' = ''; // ' ' for '+' (insert one blank), '' for '-' (no blank - direct concatenation)
+  // How the next line is joined on. IBM's DDS rules for keywords: '-' continues at position 45 of the
+  // next line, so its leading blanks are part of the value; '+' continues with the first nonblank
+  // character of the next line, so they are dropped. Blanks before the sign are always kept, and
+  // neither sign adds a blank of its own (inside a literal that would lengthen the literal).
+  let pendingPlus = false; // true when the previous chunk ended in '+', false for '-'
 
   for (let idx = 0; idx < lines.length; idx++) {
     const rawLine = lines[idx];
@@ -265,11 +269,11 @@ function buildLogicalEntries(lines: string[]): {
         const chunk = col(padded, FUNCTION_AREA_START, LINE_WIDTH);
         const endsWithContinuation = chunk.length > 0 && (chunk.trimEnd().endsWith('+') || chunk.trimEnd().endsWith('-'));
         const trimmedChunk = chunk.replace(/[+-]\s*$/, '');
-        current.functionText += pendingJoiner + trimmedChunk;
+        current.functionText += pendingPlus ? trimmedChunk.replace(/^\s+/, '') : trimmedChunk;
         current.functionSourceLines.push(sourceLine);
 
         if (endsWithContinuation) {
-          pendingJoiner = chunk.trimEnd().endsWith('+') ? ' ' : '';
+          pendingPlus = chunk.trimEnd().endsWith('+');
           continue; // still pending
         } else {
           pendingContinuation = false;
@@ -314,7 +318,7 @@ function buildLogicalEntries(lines: string[]): {
 
     if (endsWithContinuation) {
       pendingContinuation = true;
-      pendingJoiner = funcChunk.trimEnd().endsWith('+') ? ' ' : '';
+      pendingPlus = funcChunk.trimEnd().endsWith('+');
     }
   }
 

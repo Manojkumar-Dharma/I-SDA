@@ -8,10 +8,13 @@
  * inserting an extra space at the split point, corrupting the constant's
  * displayed text (e.g. "press Enter." rendering as "pres s Enter.").
  *
- * Root cause: dspfParser.ts's pendingJoiner had the '+'/'-' convention
- * backwards - real DDS uses '-' for "continue with NO blank" (direct
- * concatenation - what you want for a mid-word split) and '+' for
- * "continue WITH one blank inserted". The code had this exactly swapped.
+ * Root cause: dspfParser.ts had the '+'/'-' convention backwards for '-':
+ * real DDS uses '-' for "continue at position 45 of the next line, leading
+ * blanks kept" (direct concatenation - what you want for a mid-word split).
+ * (The parser also used to insert one blank after '+'; IBM's DDS keyword
+ * rules say '+' continues with the first nonblank character of the next line
+ * and adds nothing, so '+' now drops the next line's leading blanks - see
+ * i201MenuBarContinuedLiteral.test.js.)
  * Confirmed against a real STRSDA-generated DDS example (screenshot):
  *   A                    5  2'Type new/changed information, pres-
  *   A                       s Enter.'
@@ -56,17 +59,21 @@ console.log("Reading real STRSDA-generated DDS: '-' continuation means NO blank 
   check('COLOR(BLU) on the following line is unaffected', field.keywords.some((k) => k.name === 'COLOR' && k.parameters.trim() === 'BLU'));
 }
 
-console.log("\nReading '+' continuation: DOES insert one blank at the split point");
+console.log("\nReading '+' continuation: no blank is inserted, the next line's leading blanks are dropped (IBM DDS keyword rules)");
 {
-  const src =
-    [
-      buildLine({ seq: '00010', nameType: 'R', name: 'DSPREC' }),
-      buildLine({ seq: '00020', line: '3', col: '2', func: "'Hello+" }),
-      buildLine({ seq: '00030', func: "World'" }),
-    ].join('\n') + '\n';
-  const model = DspfParser.parseDspf(src);
-  const field = model.records[0].fields[0];
-  check("'+' inserts a blank: \"Hello\" + \"World\" -> \"Hello World\"", field.constantValue === 'Hello World');
+  const read = (a, b) => {
+    const src =
+      [
+        buildLine({ seq: '00010', nameType: 'R', name: 'DSPREC' }),
+        buildLine({ seq: '00020', line: '3', col: '2', func: a }),
+        buildLine({ seq: '00030', func: b }),
+      ].join('\n') + '\n';
+    return DspfParser.parseDspf(src).records[0].fields[0].constantValue;
+  };
+  check("'+' adds no blank: \"Hello\" + \"World\" -> \"HelloWorld\"", read("'Hello+", "World'") === 'HelloWorld');
+  check("a blank written before the '+' is kept: \"Hello \" + \"World\" -> \"Hello World\"", read("'Hello +", "World'") === 'Hello World');
+  check("leading blanks on the next line are dropped after '+'", read("'Hello+", "   World'") === 'HelloWorld');
+  check("leading blanks on the next line are kept after '-'", read("'Hello-", "   World'") === 'Hello   World');
 }
 
 console.log('\nWriting a long keyword: wraps with the SAME direct-concatenation semantics (no phantom blank injected into the middle of the text)');
