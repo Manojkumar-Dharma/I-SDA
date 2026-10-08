@@ -268,7 +268,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-196](#i-196) | File | `MNUBARSW` / `MNUCNL` are allowed only in a file containing a menu-bar record (their own sections); no guard reads the spec's `requiresMenuBarRecordInFile` fact | I-189 | Done v0.10.366 | v0.10.366 |
 | [I-197](#i-197) | Tooling | `KEYBRD` still listed as a DDS keyword in the generated keyword index although its spec entry says it is not one (decision first) | I-121t | Done v0.10.372 | v0.10.372 |
 | [I-198](#i-198) | Tooling | `check_spec_coverage.py` prints "mark the slice Done" for slices the ledger already marks Done | I-121 | Done | v0.10.371 |
-| [I-199](#i-199) | Field | Help-specification panel has no `HLPRCD` row | I-190 | Open | — |
+| [I-199](#i-199) | Field | Help-specification panel has no `HLPRCD` row | I-190 | In progress | — |
 | [I-200](#i-200) | Subfile | Two `SFLPAG` / `SFLSIZ` rules left unchecked by I-146 | I-146 | Open | — |
 | [I-201](#i-201) | Field | `MNUBARCHC` 12-line count never probed with a literal split over continuation lines | I-173 | Done (v0.10.370) | — |
 
@@ -284,7 +284,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-199](#i-199) | Open | Small, one panel row. |
+| 1 | [I-199](#i-199) | In progress | Small, one panel row. |
 | 2 | [I-200](#i-200) | Open | Medium, two spec facts. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The headline there counts the same tasks, so when a task lands or opens, update this table, the headline count and the version together.
@@ -8477,7 +8477,7 @@ Do: skip slices whose ledger status is already Done, or retire the script's ledg
 
 ### I-199 — Help-specification panel has no `HLPRCD` row
 
-> **Area:** Field · **Status:** Open · **Depends on:** I-190 · **Size (estimate):** Small
+> **Area:** Field · **Status:** In progress · **Depends on:** I-190 · **Size (estimate):** Small
 
 Opened from I-190. The panel offers `HLPPNLGRP`, `HLPEXCLD`, `HLPBDY`, `HLPARA` and `HLPDOC`; an H-specification `HLPRCD` can only be typed into the raw keyword editor, although the spec now says `HLPRCD` is valid at help-specification level and the I-190 guard judges it there.
 
