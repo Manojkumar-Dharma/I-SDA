@@ -166,7 +166,10 @@ function handCoveredNames(selfFile) {
 // Keywords whose hand-written duplicate checks were retired in I-122j because the matrix covers the
 // same assertion (each retirement backed by a mutation run). They stay in the default matrix even
 // when another hand-written I-122 file mentions them, so the coverage cannot silently drop out.
-const RETAINED = ['DSPSIZ', 'ERRSFL', 'MSGLOC', 'SFLCTL', 'SFLSIZ', 'INZRCD', 'TEXT', 'SFLMSGKEY', 'HLPTITLE'];
+const RETAINED = ['DSPSIZ', 'ERRSFL', 'MSGLOC', 'SFLCTL', 'SFLSIZ', 'INZRCD', 'TEXT', 'SFLMSGKEY', 'HLPTITLE',
+  // I-193: their hand-written "off removes only X" / "round trips as a bare flag" checks were retired
+  // because the matrix's flag-path cells (L5) now run the same assertion on them.
+  'SFLRNA', 'SFLRCDNBR', 'HLPSCHIDX', 'HLPBDY', 'IGCCNV', 'DLTCHK', 'SFLCHCCTL'];
 
 function matrixKeywords(opts) {
   const o = opts || {};

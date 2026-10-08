@@ -183,6 +183,128 @@ facts.forEach((f) => {
 });
 console.log('  L2 cells generated:', l2Cells);
 
+// ---------------------------------------------------------------------------------------------
+// L5 / L6 (I-193): the paths L2-L4 never call. L2 goes through applyFileKeywordsUpdate /
+// applyRecordUpdate / applyFieldUpdate, L4 through the raw keyword editor; the checkbox-and-flag
+// path (getFileFlagKeyword / setFileFlagKeyword, and the flag row that drives them) was only
+// covered by hand-written checks.
+// ---------------------------------------------------------------------------------------------
+const writeLevel = (level, m, ls, kws) => {
+  const r0 = m.records[0];
+  if (level === 'file') return DspfWriter.applyFileKeywordsUpdate(m, ls, kws);
+  if (level === 'record') return DspfWriter.applyRecordUpdate(r0, ls, { keywords: kws });
+  return DspfWriter.applyFieldUpdate(r0.fields[0], ls, { keywords: kws });
+};
+const listAt = (m, level) => (level === 'file' ? m.fileKeywords : level === 'record' ? m.records[0].keywords : m.records[0].fields[0].keywords);
+const shapeOf = (kws) => JSON.stringify(kws.map((k) => [k.name, k.parameters, k.conditions.map((c) => c.indicators.map((i) => (i.not ? 'N' : '') + i.number))]));
+// the writer may move the first unconditioned keyword onto the R / field line, so a written list is compared as a set
+const setShape = (kws) => JSON.stringify(JSON.parse(shapeOf(kws)).map((x) => JSON.stringify(x)).sort());
+const clone = (x) => JSON.parse(JSON.stringify(x));
+// A keyword list with one neighbour (conditioned, first) and this keyword last, conditioned on N10.
+function flagFixture(f, level) {
+  const { source } = M.placement(f, level);
+  const m = parse(source);
+  const mine = kwOf(listAt(m, level), f.name);
+  const neighbour = { name: 'ZPROBE', parameters: '', conditions: clone(mine[1].conditions), raw: '', sourceLines: [] };
+  const own = { name: f.name, parameters: mine[1].parameters, conditions: clone(mine[1].conditions), raw: '', sourceLines: [] };
+  return { source, m, base: [neighbour, own], neighbour, own };
+}
+
+console.log('\n=== L5 flag path: getFileFlagKeyword / setFileFlagKeyword ===');
+let l5Cells = 0;
+facts.forEach((f) => {
+  f.placeable.forEach((level) => {
+    const n = f.name;
+    const tag = n + ' @' + level + ' flag path';
+    const fx = flagFixture(f, level);
+    const wantParams = f.bare ? '' : M.SAMPLE_PARAMETER;
+    const get = DspfWriter.getFileFlagKeyword, set = DspfWriter.setFileFlagKeyword;
+    const neighbourShape = (kws) => shapeOf(kws.filter((k) => k.name === 'ZPROBE'));
+    const ownCount = (kws) => kws.filter((k) => k.name === n).length;
+    l5Cells++;
+
+    const g = get(fx.base, n);
+    check(tag + ': get reads it present with its parameters and its one condition',
+      g.present && g.parameters === wantParams && g.conditions.length === 1 && !get(fx.base.slice(0, 1), n).present);
+
+    const off = set(fx.base, n, false, '');
+    check(tag + ': off removes only this keyword; the neighbour and its condition are untouched',
+      ownCount(off) === 0 && off.length === 1 && neighbourShape(off) === neighbourShape(fx.base));
+
+    const on = set(off, n, true, wantParams);
+    check(tag + ': on again writes exactly one entry, unconditioned, with the parameters given, neighbour kept',
+      ownCount(on) === 1 && on.length === 2 && on[1].parameters === wantParams && on[1].conditions.length === 0 && neighbourShape(on) === neighbourShape(fx.base));
+
+    const keep = set(fx.base, n, true, wantParams);
+    check(tag + ': on over a conditioned entry with conditions omitted keeps its conditions, one entry',
+      ownCount(keep) === 1 && shapeOf(keep) === shapeOf(fx.base));
+
+    const cond44 = clone(fx.own.conditions);
+    cond44[0].indicators[0].number = '44'; cond44[0].indicators[0].not = false;
+    const cleared = set(fx.base, n, true, wantParams, undefined, []);
+    const changed = set(fx.base, n, true, wantParams, undefined, cond44);
+    check(tag + ': explicit conditions replace the old ones ([] clears), still one entry',
+      ownCount(cleared) === 1 && cleared.find((k) => k.name === n).conditions.length === 0 &&
+      ownCount(changed) === 1 && changed.find((k) => k.name === n).conditions[0].indicators[0].number === '44');
+
+    check(tag + ': on twice is still one entry (idempotent)', ownCount(set(on, n, true, wantParams)) === 1 && shapeOf(set(on, n, true, wantParams)) === shapeOf(on));
+
+    // through the level's writer and back: the checkbox result is a real, re-parseable source
+    const written = parse(writeLevel(level, fx.m, fx.source.split('\n'), on).join('\n') + '\n');
+    const back = listAt(written, level);
+    check(tag + ': the on-again list written and re-parsed is the same list (name, parameters, conditions)',
+      setShape(back) === setShape(on) && written.records.length === 1 && written.records[0].fields.length === 1);
+    const writtenOff = parse(writeLevel(level, fx.m, fx.source.split('\n'), off).join('\n') + '\n');
+    check(tag + ': the off list written and re-parsed has no trace of it, and the neighbour survives',
+      ownCount(listAt(writtenOff, level)) === 0 && neighbourShape(listAt(writtenOff, level)) === neighbourShape(fx.base));
+  });
+});
+console.log('  L5 cells generated:', l5Cells);
+
+console.log('\n=== L6 Apply unchanged: the generic flag row (checkbox, parameter box, Conditioning) ===');
+{
+  const { JSDOM } = require('jsdom');
+  const flagDom = new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>');
+  const saved = { document: global.document, Node: global.Node, Event: global.Event, window: global.window };
+  global.document = flagDom.window.document; global.Node = flagDom.window.Node;
+  global.Event = flagDom.window.Event; global.window = flagDom.window;
+  const H = require('../webviewClientHelpers.js');
+  const root = flagDom.window.document.getElementById('root');
+  let l6Cells = 0;
+  facts.forEach((f) => {
+    f.placeable.forEach((level) => {
+      const n = f.name;
+      const tag = n + ' @' + level + ' flag row';
+      const fx = flagFixture(f, level);
+      const reason = DspfWriter.noOptionIndicatorsReason(n, levelArg(level));
+      const cur = DspfWriter.getFileFlagKeyword(fx.base, n);
+      const out = [];
+      let current = fx.base;
+      const id = 'fx' + (++l6Cells);
+      root.innerHTML = H.flagRowHtml(id, n, cur.present, cur.parameters, f.bare ? undefined : 'parameters', reason ? undefined : cur.conditions, new Set());
+      H.wireFlagRow(id, () => current, (kws) => { out.push(kws); }, (kws, present, params, conds) =>
+        DspfWriter.setFileFlagKeyword(kws, n, present, params, undefined, conds), reason ? undefined : cur.conditions, new Set(), () => {});
+      const box = flagDom.window.document.getElementById(id + '-on');
+      const fire = (el) => el.dispatchEvent(new flagDom.window.Event('change', { bubbles: true }));
+      check(tag + ': the row shows the keyword ticked' + (f.bare ? '' : ', with its parameter text in the box'),
+        !!box && box.checked === true && (f.bare || flagDom.window.document.getElementById(id + '-params').value === wantParamsOf(f)));
+      fire(box);
+      check(tag + ': Apply with nothing changed posts one list identical to the current one (no edit corrupts the line)',
+        out.length === 1 && shapeOf(out[0]) === shapeOf(fx.base));
+      if (out.length === 1) {
+        const w = parse(writeLevel(level, fx.m, fx.source.split('\n'), out[0]).join('\n') + '\n');
+        check(tag + ': ...and that list written and re-parsed is unchanged', setShape(listAt(w, level)) === setShape(fx.base));
+      }
+      box.checked = false; fire(box);
+      check(tag + ': unticking posts a list without it and with the neighbour untouched',
+        out.length === 2 && out[1].length === 1 && out[1][0].name === 'ZPROBE' && shapeOf(out[1]) === shapeOf(fx.base.slice(0, 1)));
+    });
+  });
+  function wantParamsOf(ff) { return ff.bare ? '' : M.SAMPLE_PARAMETER; }
+  console.log('  L6 cells generated:', l6Cells);
+  Object.keys(saved).forEach((k) => { if (saved[k] === undefined) delete global[k]; else global[k] = saved[k]; });
+}
+
 
 // ---------------------------------------------------------------------------------------------
 // L3 / L4: one composite source holds every keyword at every level it is valid at, so a single

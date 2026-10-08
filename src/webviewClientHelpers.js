@@ -8972,6 +8972,8 @@
     wireConditionsEditor: wireConditionsEditor,
     keywordEditorHtml: keywordEditorHtml,
     wireKeywordEditor: wireKeywordEditor,
+    flagRowHtml: flagRowHtml,
+    wireFlagRow: wireFlagRow,
     commandKeysSectionHtml: commandKeysSectionHtml,
     wireCommandKeysSection: wireCommandKeysSection,
     functionKeyLegendHtml: functionKeyLegendHtml,

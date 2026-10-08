@@ -144,7 +144,7 @@ console.log('\n=== L1/L2 HLPSCHIDX: file-level requirements, parse, round trip =
   check('setFileFlagKeyword writes HLPSCHIDX(LIB/IDX) beside a neighbour and reads it back',
     names(set).join() === 'DSPSIZ,HLPSCHIDX' && DspfWriter.getFileFlagKeyword(set, 'HLPSCHIDX').present && DspfWriter.getFileFlagKeyword(set, 'HLPSCHIDX').parameters === 'LIB/IDX');
   check('the library is optional: a bare search-index name round-trips', DspfWriter.getFileFlagKeyword(DspfWriter.setFileFlagKeyword([], 'HLPSCHIDX', true, 'IDX'), 'HLPSCHIDX').parameters === 'IDX');
-  check('off removes only HLPSCHIDX', names(DspfWriter.setFileFlagKeyword(set, 'HLPSCHIDX', false, '')).join() === 'DSPSIZ');
+  // I-193: retired "off removes only HLPSCHIDX" - the generated matrix (L5, RETAINED) runs the same flag-path assertion on this keyword.
 }
 
 console.log('\n=== L1/L2 HLPBDY: one per H specification, not with HLPEXCLD or HLPDOC ===');
@@ -168,7 +168,7 @@ console.log('\n=== L1/L2 HLPBDY: one per H specification, not with HLPEXCLD or H
   const cond = DspfWriter.setFileFlagKeyword(set, 'HLPBDY', true, '', undefined, IND('12'));
   check('option indicators are valid for HLPBDY: the indicator is written and kept on a repeat', JSON.stringify(kwOf(cond, 'HLPBDY').conditions) === JSON.stringify(IND('12')) &&
     JSON.stringify(kwOf(DspfWriter.setFileFlagKeyword(cond, 'HLPBDY', true, ''), 'HLPBDY').conditions) === JSON.stringify(IND('12')));
-  check('off removes only HLPBDY', names(DspfWriter.setFileFlagKeyword(cond, 'HLPBDY', false, '')).join() === 'HLPRCD');
+  // I-193: retired "off removes only HLPBDY" - the generated matrix (L5, RETAINED) runs the same flag-path assertion on this keyword.
 }
 
 console.log('\n=== L1/L2 HLPDOC: not with HLPPNLGRP / HLPRTN (file level, both directions) ===');
@@ -236,7 +236,7 @@ console.log('\n=== L1/L2 IGCCNV: CFnn and line number, a free key, a 24 x 80 fil
   check('an already-invalid IGCCNV(CF99 24) is not re-reported by an unchanged edit', DspfWriter.fileLevelDisplayNewConflictReason(bad, bad) === null);
   const set = DspfWriter.setFileFlagKeyword([KW('DSPSIZ', '24 80 *DS3')], 'IGCCNV', true, 'CF05 24');
   check('setFileFlagKeyword writes IGCCNV(CF05 24) and reads both parameters back', names(set).join() === 'DSPSIZ,IGCCNV' && DspfWriter.getFileFlagKeyword(set, 'IGCCNV').parameters === 'CF05 24');
-  check('off removes only IGCCNV', names(DspfWriter.setFileFlagKeyword(set, 'IGCCNV', false, '')).join() === 'DSPSIZ');
+  // I-193: retired "off removes only IGCCNV" - the generated matrix (L5, RETAINED) runs the same flag-path assertion on this keyword.
   check('IGCCNV is not repeatable: the second copy is written in place, not appended', DspfWriter.setFileFlagKeyword(set, 'IGCCNV', true, 'CF06 3').filter((k) => k.name === 'IGCCNV').length === 1);
   check('IGCCNV is on the list of keywords that take no option indicators', DspfWriter.optionIndicatorsAllowed('IGCCNV') === false);
 }

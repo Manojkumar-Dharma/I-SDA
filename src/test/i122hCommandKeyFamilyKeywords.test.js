@@ -224,7 +224,7 @@ console.log('\n=== L1/L2 DLTCHK / DLTEDT ===');
   });
   check('both on one field with R is accepted, and a second field without R is the one refused', rf(src(R('R1'), FLD('F1', 'R'), K('DLTCHK'), K('DLTEDT')), src(R('R1'), FLD('F1', 'R'), K('DLTCHK'), K('DLTEDT'))) === null && say(/field F2/, rf(src(R('R1'), FLD('F1', 'R'), K('DLTCHK'), FLD('F2', '')), src(R('R1'), FLD('F1', 'R'), K('DLTCHK'), FLD('F2', ''), K('DLTEDT')))));
   const f = DspfWriter.setFileFlagKeyword([kw('DUP')], 'DLTCHK', true);
-  check('DLTCHK round trips as a bare flag and keeps its neighbours', DspfWriter.getFileFlagKeyword(f, 'DLTCHK').present && f.map((k) => k.name).join() === 'DUP,DLTCHK' && !DspfWriter.getFileFlagKeyword(DspfWriter.setFileFlagKeyword(f, 'DLTCHK', false), 'DLTCHK').present);
+  // I-193: retired "DLTCHK round trips as a bare flag and keeps its neighbours" - the generated matrix (L5, RETAINED) runs the same flag-path assertion on this keyword.
 }
 
 console.log('\n=== L1/L2 RETCMDKEY ===');

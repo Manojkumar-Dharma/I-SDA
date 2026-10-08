@@ -293,7 +293,7 @@ console.log('\n=== L1/L2 SFLCHCCTL: parse, definition rewrite, guards ===');
   check('a Basic-tab edit that keeps the shape is accepted', basic([kw('SFLCHCCTL')], ok, { length: 1, usage: 'H' }) === null);
   check('a field without SFLCHCCTL is never held to the shape', basic([], ok, { length: 2 }) === null);
   const setFlag = DspfWriter.setFileFlagKeyword([kw('DUP')], 'SFLCHCCTL', true);
-  check('SFLCHCCTL round trips as a bare flag and keeps its neighbours', names(setFlag).join() === 'DUP,SFLCHCCTL' && DspfWriter.getFileFlagKeyword(setFlag, 'SFLCHCCTL').present && !DspfWriter.getFileFlagKeyword(DspfWriter.setFileFlagKeyword(setFlag, 'SFLCHCCTL', false), 'SFLCHCCTL').present);
+  // I-193: retired "SFLCHCCTL round trips as a bare flag and keeps its neighbours" - the generated matrix (L5, RETAINED) runs the same flag-path assertion on this keyword.
   // Not asserted (logged as I-185): the spec entry has no level / parameter / option-indicator fact; the control-value
   // table (0 to 4, enhanced-interface cursor restrictions) is a reference table the spec does not record at all.
 }

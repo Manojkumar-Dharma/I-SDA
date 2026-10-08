@@ -145,7 +145,7 @@ console.log('\n=== L1/L2 writer: parse, flag and parameter round trips ===');
   check('getFileFlagKeyword reads SFLRCDNBR\'s parameter text', g(fld('CTL1', 'RCD').keywords, 'SFLRCDNBR').parameters === 'CURSOR *TOP');
 
   const rnaOff = DspfWriter.setFileFlagKeyword(rec('CTL1').keywords, 'SFLRNA', false, '', undefined, undefined);
-  check('SFLRNA off removes only SFLRNA', names(rnaOff).join() === 'SFLCTL,SFLPAG,SFLSIZ,SFLDSP,SFLDSPCTL,SFLINZ,SFLCLR,SFLMODE');
+  // I-193: retired "SFLRNA off removes only SFLRNA" - the generated matrix (L5, RETAINED) runs the same flag-path assertion on this keyword.
   const rnaOn = DspfWriter.setFileFlagKeyword(rnaOff, 'SFLRNA', true, '', undefined, undefined);
   check('SFLRNA on again is bare and unconditioned', kwOf(rnaOn, 'SFLRNA').parameters.trim() === '' && kwOf(rnaOn, 'SFLRNA').conditions.length === 0);
   const clrKept = DspfWriter.setFileFlagKeyword(rec('CTL1').keywords, 'SFLCLR', true, '', undefined, undefined);
@@ -158,7 +158,7 @@ console.log('\n=== L1/L2 writer: parse, flag and parameter round trips ===');
   check('SFLRCDNBR written with CURSOR only', rcd.length === 1 && rcd[0].parameters === 'CURSOR');
   const rcdTop = DspfWriter.setFileFlagKeyword([K('SFLROLVAL')], 'SFLRCDNBR', true, '*TOP');
   check('SFLRCDNBR(*TOP) added beside an existing field keyword keeps it', names(rcdTop).join() === 'SFLROLVAL,SFLRCDNBR' && kwOf(rcdTop, 'SFLRCDNBR').parameters === '*TOP');
-  check('SFLRCDNBR off removes it', DspfWriter.setFileFlagKeyword([K('SFLRCDNBR', 'CURSOR')], 'SFLRCDNBR', false).length === 0);
+  // I-193: retired "SFLRCDNBR off removes it" - the generated matrix (L5, RETAINED) runs the same flag-path assertion on this keyword.
   const rolOn = DspfWriter.setFileFlagKeyword([], 'SFLROLVAL', true);
   check('SFLROLVAL on is a bare keyword', rolOn.length === 1 && rolOn[0].parameters.trim() === '');
   const csrOn = DspfWriter.setFileFlagKeyword([K('SFLROLVAL')], 'SFLCSRPRG', true);
