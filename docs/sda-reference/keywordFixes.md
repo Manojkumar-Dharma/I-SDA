@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-225 of 228 tasks done; 3 open (see [Open work](#open-work)). Current version: **v0.10.371**.
+226 of 228 tasks done; 2 open (see [Open work](#open-work)). Current version: **v0.10.372**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -266,7 +266,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-194](#i-194) | Field | Command-key values that no guard reads: `MOUBTN` / `PSHBTNCHC` / `IGCCNV` keys outside 01-24 or of the wrong type, and a key written in a shape that is not `CAnn` / `CFnn` (`MNUBARSW(CA5)`, `ALTHELP(XYZ)`) | I-186 | Done (MOUBTN, PSHBTNCHC, malformed key shapes) | v0.10.362 |
 | [I-195](#i-195) | Cross-level | Comment lines are captured and written only up to column 80: text past it is dropped from the panel, and editing the comment cuts the line to 80 columns. Read the source file's real record length and keep, show and store the whole line | — | Done (52 checks in `i195CommentLineWidth`) | v0.10.364 |
 | [I-196](#i-196) | File | `MNUBARSW` / `MNUCNL` are allowed only in a file containing a menu-bar record (their own sections); no guard reads the spec's `requiresMenuBarRecordInFile` fact | I-189 | Done v0.10.366 | v0.10.366 |
-| [I-197](#i-197) | Tooling | `KEYBRD` still listed as a DDS keyword in the generated keyword index although its spec entry says it is not one (decision first) | I-121t | In progress | — |
+| [I-197](#i-197) | Tooling | `KEYBRD` still listed as a DDS keyword in the generated keyword index although its spec entry says it is not one (decision first) | I-121t | Done v0.10.372 | v0.10.372 |
 | [I-198](#i-198) | Tooling | `check_spec_coverage.py` prints "mark the slice Done" for slices the ledger already marks Done | I-121 | Done | v0.10.371 |
 | [I-199](#i-199) | Field | Help-specification panel has no `HLPRCD` row | I-190 | Open | — |
 | [I-200](#i-200) | Subfile | Two `SFLPAG` / `SFLSIZ` rules left unchecked by I-146 | I-146 | Open | — |
@@ -284,9 +284,8 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-197](#i-197) | In progress | Small, decision first. |
-| 2 | [I-199](#i-199) | Open | Small, one panel row. |
-| 3 | [I-200](#i-200) | Open | Medium, two spec facts. |
+| 1 | [I-199](#i-199) | Open | Small, one panel row. |
+| 2 | [I-200](#i-200) | Open | Medium, two spec facts. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The headline there counts the same tasks, so when a task lands or opens, update this table, the headline count and the version together.
 
@@ -5604,7 +5603,7 @@ Rules for one keyword currently live in `*ConflictReason` functions (67), rule t
 
 #### Remaining work - split into slices
 
-`src/keywordSpec.js` exists and every slice below is done (last: I-121t, v0.10.335): all 173 keywords in `KEYWORD-LOOKUP.json` (the `*` parameters excluded) have a `RECORD_TYPES` entry. Slices **a - o** assigned each keyword to exactly one slice, grouped by level and by the rules they share; slices **p - t** covered the work that is not keyword-shaped. The method below is kept as the record of how a slice was worked.
+`src/keywordSpec.js` exists and every slice below is done (last: I-121t, v0.10.335): all 172 keywords in `KEYWORD-LOOKUP.json` (the `*` parameters excluded; 173 until I-197 dropped `KEYBRD`, which is not a DDS keyword) have a `RECORD_TYPES` entry. Slices **a - o** assigned each keyword to exactly one slice, grouped by level and by the rules they share; slices **p - t** covered the work that is not keyword-shaped. The method below is kept as the record of how a slice was worked.
 
 <!-- slice-ledger:start -->
 | Slice | Level | Scope | Keywords | Size |
@@ -8442,13 +8441,17 @@ Do: add a model-diff guard in the same chain as the other file-level relation gu
 
 ### I-197 — `KEYBRD` still listed as a DDS keyword in the generated keyword index although its spec entry says it is not one (decision first)
 
-> **Area:** Tooling · **Status:** In progress · **Depends on:** I-121t · **Size (estimate):** Small
+> **Area:** Tooling · **Status:** Done (v0.10.372) · **Depends on:** I-121t · **Size (estimate):** Small
 
 Opened from the documentation audit of 2026-10-08. `src/keywordIndexData.js` lists `KEYBRD` under field-level Keying Options, so `KEYWORD-INDEX.json` / `.md` and `KEYWORD-LOOKUP.json` carry it and `check_spec_coverage.py` counts it among the 173 keywords. Its `RECORD_TYPES` entry says `notADdsKeyword: true` (the DDS Reference has no `KEYBRD` section; the keyboard shift is position 35), and I-121n wrote that the index "can drop it (I-121t)"; I-121t did not.
 
 **Decision first:** drop `KEYBRD` from the index (then adjust the keyword count in `check_spec_coverage.py` and the keyword lists in `i121tKeywordIndexGeneration.test.js`, and regenerate), or keep it as an iSDA-only entry with a visible note. Recommended default: drop it, since the index is described as the DDS keyword index.
 
 Do: apply the decision, regenerate with `generate_keyword_index.js`, confirm `--check` passes and the full suite stays at zero failures.
+
+**Done (v0.10.372).** Decision taken: the recommended default, **drop it**. The index is described as the DDS keyword index, the DDS Reference has no `KEYBRD` section, and the Keying Options panel does not need an index entry to keep working (its keyboard-shift choice is the field's position-35 column, untouched). `KEYBRD` is removed from `src/keywordIndexData.js`, the category description now says the keyboard shift is the data-type column and not a keyword, a meta note records why, and the three index files are regenerated (`--check` passes; 226 keyword entries, 185 unique names, down from 227 / 186, and the lookup has 172 keywords). `check_spec_coverage.py` now treats a spec entry marked `notADdsKeyword` as expected when a ledger row still names it (it reported `KEYBRD` as a typo and exited 1), and says so; its "mark the slice Done" message was I-198's (v0.10.371, merged first; the two changes sit side by side in the script). The spec comment now says the index does not list it.
+
+**Tests.** New section 5 in `src/test/i121tKeywordIndexGeneration.test.js` (6 checks): `KEYBRD` is the one `notADdsKeyword` entry and the Reference has no section for it; no such name is in the table, the index (JSON and Markdown) or the lookup; every lookup keyword has a spec entry that is a DDS keyword; Keying Options still lists `CHECK` with the new description; the meta note exists. Mutation checked: putting `KEYBRD` back in the table and regenerating fails three of them.
 
 *Raised by I-121t. Size (estimate): Small.*
 

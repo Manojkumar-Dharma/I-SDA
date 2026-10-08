@@ -23,6 +23,7 @@ const { check, failureCount } = require('./helpers/harness');
 const DIR = path.join(__dirname, '../../docs/sda-reference/keyword-index');
 const read = (f) => fs.readFileSync(path.join(DIR, f), 'utf8');
 const R = KeywordSpec.RECORD_TYPES;
+const RAWREF = fs.readFileSync(path.join(__dirname, '../../docs/sda-reference/source/DDS_Keyword_V7r6.txt'), 'utf8');
 
 console.log('=== 1. the committed files are what the generator writes ===');
 const out = GEN.generate();
@@ -115,6 +116,18 @@ const repDiff = flagged.filter((n) => rep(n) !== R[n].repeatable);
 check('the spec\'s own repeatable flag agrees with the table except MSGLOC', repDiff.join() === 'MSGLOC');
 check('...MSGLOC\'s flag in the spec means "once per display size" (display-size condition names), not a repeated keyword, so the table says no', R.MSGLOC.displaySizeNames === 'valid' && rep('MSGLOC') === false);
 check('ERASE and WDWTITLE are repeatable in the table (Task I-121t: the reference says each can be specified more than once)', rep('ERASE') && rep('WDWTITLE') && R.ERASE.repeatable === true && R.WDWTITLE.repeatable === true);
+
+console.log('\n=== 5. names that are not DDS keywords stay out of the index (Task I-197) ===');
+const notDds = Object.keys(R).filter((n) => R[n] && R[n].notADdsKeyword);
+check('KEYBRD is the one spec entry that says it is not a DDS keyword', notDds.join() === 'KEYBRD');
+check('...the DDS Reference has no KEYBRD section', RAWREF.indexOf('KEYBRD') < 0);
+check('no name the spec marks notADdsKeyword is in the table, the index or the lookup', notDds.every((n) => !byName[n] && !lookup.keywords[n] && read('KEYWORD-INDEX.json').indexOf('"keyword": "' + n + '"') < 0 && read('KEYWORD-INDEX.md').indexOf('`' + n + '`') < 0));
+check('every keyword of the lookup (the * parameter values aside) has a spec entry that is a DDS keyword', Object.keys(lookup.keywords).filter((n) => n.charAt(0) !== '*').every((n) => R[n] && !R[n].notADdsKeyword));
+check('the Keying Options panel is still indexed (CHECK stays), and its description does not call the keyboard shift a keyword', (() => {
+  const c = DATA.LEVELS.find((l) => l.level === 'field').categories.find((x) => x.category === 'Keying Options');
+  return !!c && c.keywords.map((k) => k.keyword).join() === 'CHECK' && /position 35/.test(c.description) && /not a keyword/.test(c.description);
+})());
+check('the meta notes say why KEYBRD is gone', DATA.META_NOTES.some((x) => /Task I-197: KEYBRD is no longer listed/.test(x)));
 
 console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : 'FAIL - ' + failureCount() + ' check(s) failed'));
 process.exit(failureCount() === 0 ? 0 : 1);

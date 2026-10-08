@@ -1,8 +1,8 @@
 {
   "meta": {
     "purpose": "Flat keyword -> location map for quick-find/navigation. Look up a keyword name (e.g. 'COLOR') to see every level/category it appears under in iSDA's UI.",
-    "uniqueKeywords": 186,
-    "generated": "2026-10-05"
+    "uniqueKeywords": 185,
+    "generated": "2026-10-08"
   },
   "keywords": {
     "*AUTOENT": [
@@ -1433,17 +1433,6 @@
           "MNUBAR",
           "USRDFN (4-of-8 subset)"
         ]
-      }
-    ],
-    "KEYBRD": [
-      {
-        "level": "field",
-        "category": "Keying Options",
-        "description": "Keyboard shift attribute - value list depends on the field's data type (Task L59: character gets N/A/X/W/I/D/M/J/O/E/G, numeric gets S/N/Y/I/D)",
-        "parameters": "one letter, type-dependent",
-        "repeatable": false,
-        "screenshotDir": "screens/field-level/character/keying-options",
-        "sharedWith": []
       }
     ],
     "LOCK": [

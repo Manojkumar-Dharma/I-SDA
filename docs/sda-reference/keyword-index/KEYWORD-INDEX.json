@@ -2,7 +2,7 @@
   "meta": {
     "title": "iSDA Keyword Index",
     "purpose": "Full inventory of DDS keywords iSDA's visual designer exposes, organized by level and UI category, for comparison against IBM i SDA's own screens and to power quick keyword search/navigation.",
-    "generated": "2026-10-05",
+    "generated": "2026-10-08",
     "source_repo": "github.com/Manojkumar-Dharma/I-SDA",
     "notes": [
       "Extracted directly from src/webviewClientHelpers.js and src/dspfWriter.js (ground truth), cross-checked against docs/sda-reference/screens/* (real SDA reference screenshots) during the A1/A2 audit.",
@@ -14,10 +14,11 @@
       "Task I-16: full regeneration pass against the codebase as it stood after I-7 through I-29 (docs/sda-reference/keywordFixes.md). Notable corrections vs. the previous snapshot: removed the stale standalone 'PRTFILE' keyword at both file- and record-level (I-2 - it was never real DDS syntax, only ever PRINT's own parameter); added file-level HLPRCD/MOUBTN/VALNUM/WRDWRAP (I-5); marked record-level MNUBARDSP (I-17) and record-level HLPTITLE (I-27) as repeatable, independently-conditioned instance lists; removed KEEP from the SFL/SFLCTL subfile panels' own keyword lists now that it's a hint pointing at the sole surviving live copy on the base Record Keywords General tab, not a second live control (I-25); added SFLSNGCHC/SFLMLTCHC (SFLCTL General) and SFLSCROLL (subfile field keywords) (I-26); removed the separate 'Menu-Bar record - Menu-Bar Display Keywords' category and MNUBARDSP's duplicate row on the MNUBAR record's own General tab - confirmed a documentation artifact, not a second live UI surface (I-14, closed here). This does not re-litigate conditioning eligibility, mutual-exclusion guards, or advisory notes from I-3/I-7 through I-24/I-28 - those don't change what's listed here, only how each listed keyword behaves; conditioning/conflict details live in keywordFixes.md, not in this structural index.",
       "Follow-up check (same session as I-16): file-level CLEAR/HOME/PAGEDOWN/PAGEUP/HELP/HLPRTN/VLDCMDKEY corrected to show their optional ['text'] sub-parameter (Task I-4, v0.10.87) - this index had never been updated for that fix either.",
       "Task I-30 (character fields, the first field-level task): corrected three field-level 'General' category entries against the actual code rather than an old snapshot - DSPATR's value list had two values (UH/RE) that don't exist anywhere in IBM's own DDS Reference (should be PR/OID, matching the code's own DSPATR_ATTRS constant exactly); CNTFLD's parameter was described as a field name but is actually a numeric column-width; DFTVAL was marked repeatable=True but the code deliberately implements it as a single conditionable occurrence, not a repeatable list. Also added TEXT (missing from this index entirely) and HLPID (missing from the Character category specifically - it already existed under 'Constant field additions'). As with I-16, this index still doesn't track conditioning eligibility (a 'valid/not valid for this keyword' fact per keyword) - I-30's own extensive conditioning-toggle fixes across Colors & Attributes/Keying Options/Validity Check/Input Keywords/General Keywords/Database Reference live in keywordFixes.md and the code itself, not here.",
-      "Task I-40: full regeneration pass, run after I-41/I-42/I-57/I-67/I-76 all landed. Applied 6 of the 7 level-label corrections the task's own original audit found: HLPPNLGRP/HLPDOC moved out of a mislabeled 'record' slot into a new dedicated 'help-specification' level (HLPPNLGRP and HLPDOC each keep a SEPARATE file-level entry too - both keywords are genuinely valid at both levels, not one or the other); SFLMSGKEY/SFLPGMQ/SFLRCDNBR/SFLROLVAL/SFLSCROLL moved from 'record' to 'field' (confirmed via subfileFieldKeywordsHtml and the SFLMSG message-record panel, both field-scoped). Did NOT apply the audit's 7th claimed correction (CHECK, 'field-only'): a fresh trace against the current codebase found genuine hand-wired file-level (fk-check-ab/rltb/rl) and record-level (recordCheckGuard-guarded rows in the Input panel) CHECK(AB)/CHECK(RL)/CHECK(RLTB) wiring, predating this task's original claim, and IBM's own DDS Reference text confirms CHECK(AB) is explicitly valid 'at the file level, record level, or field level' - the index's existing file/record/field labeling for CHECK was already correct, so it's unchanged. Also folded in 8 keywords (BLKFOLD, CSRINPONLY [file+record], FLTFIXDEC, FLTPCN, MAPVAL, SFLCHCCTL, SFLCSRPRG, SFLRTNSEL) that Task I-39 had hand-edited directly into KEYWORD-INDEX.json/.md without updating this generator script - preserved at I-39's own category placement per this task's own note, rather than being silently dropped by the regeneration. Added the 9 keywords the audit found missing: DATE/TIME/USER/SYSNAME/MSGCON (field-level constant value sources, Task I-33), SFL/USRDFN (record-type marker keywords, previously only mentioned in 'sharedWith' notes, never as their own entries), WDWTITLE (record-level window title, Task I-12 area), HLPDOC (file + help-specification level, Tasks I-38/I-67)."
+      "Task I-40: full regeneration pass, run after I-41/I-42/I-57/I-67/I-76 all landed. Applied 6 of the 7 level-label corrections the task's own original audit found: HLPPNLGRP/HLPDOC moved out of a mislabeled 'record' slot into a new dedicated 'help-specification' level (HLPPNLGRP and HLPDOC each keep a SEPARATE file-level entry too - both keywords are genuinely valid at both levels, not one or the other); SFLMSGKEY/SFLPGMQ/SFLRCDNBR/SFLROLVAL/SFLSCROLL moved from 'record' to 'field' (confirmed via subfileFieldKeywordsHtml and the SFLMSG message-record panel, both field-scoped). Did NOT apply the audit's 7th claimed correction (CHECK, 'field-only'): a fresh trace against the current codebase found genuine hand-wired file-level (fk-check-ab/rltb/rl) and record-level (recordCheckGuard-guarded rows in the Input panel) CHECK(AB)/CHECK(RL)/CHECK(RLTB) wiring, predating this task's original claim, and IBM's own DDS Reference text confirms CHECK(AB) is explicitly valid 'at the file level, record level, or field level' - the index's existing file/record/field labeling for CHECK was already correct, so it's unchanged. Also folded in 8 keywords (BLKFOLD, CSRINPONLY [file+record], FLTFIXDEC, FLTPCN, MAPVAL, SFLCHCCTL, SFLCSRPRG, SFLRTNSEL) that Task I-39 had hand-edited directly into KEYWORD-INDEX.json/.md without updating this generator script - preserved at I-39's own category placement per this task's own note, rather than being silently dropped by the regeneration. Added the 9 keywords the audit found missing: DATE/TIME/USER/SYSNAME/MSGCON (field-level constant value sources, Task I-33), SFL/USRDFN (record-type marker keywords, previously only mentioned in 'sharedWith' notes, never as their own entries), WDWTITLE (record-level window title, Task I-12 area), HLPDOC (file + help-specification level, Tasks I-38/I-67).",
+      "Task I-197: KEYBRD is no longer listed. Its RECORD_TYPES entry says notADdsKeyword (the DDS Reference has no KEYBRD section; the keyboard shift is the field's position-35 data type and keyboard shift column), so the keyword index no longer carries it and the keyword count is 172. The Keying Options panel itself is unchanged."
     ],
     "totalCategories": 49,
-    "totalKeywordEntries": 227
+    "totalKeywordEntries": 226
   },
   "levels": [
     {
@@ -1257,7 +1258,7 @@
         },
         {
           "category": "Keying Options",
-          "description": "CHECK-family keying restrictions plus the type-gated KEYBRD keyboard-shift attribute.",
+          "description": "CHECK-family keying restrictions. The panel's keyboard-shift choice is the field's own data-type column (position 35), not a keyword.",
           "sharedWith": [],
           "screenshotDir": "screens/field-level/character/keying-options",
           "keywords": [
@@ -1266,12 +1267,6 @@
               "description": "Mandatory entry (ME) / auto record advance (ER) / mandatory fill (MF) / field exit required (FE) / right-adjust blank fill (RB) / right-adjust zero fill (RZ) / move cursor right-to-left (RL) / lowercase allowed (LC)",
               "parameters": "ME | ER | MF | FE | RB | RZ | RL | LC",
               "repeatable": true
-            },
-            {
-              "keyword": "KEYBRD",
-              "description": "Keyboard shift attribute - value list depends on the field's data type (Task L59: character gets N/A/X/W/I/D/M/J/O/E/G, numeric gets S/N/Y/I/D)",
-              "parameters": "one letter, type-dependent",
-              "repeatable": false
             }
           ]
         },

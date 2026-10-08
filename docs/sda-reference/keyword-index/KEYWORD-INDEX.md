@@ -2,7 +2,7 @@
 
 Full inventory of DDS keywords iSDA's visual designer exposes, organized by level and UI category, for comparison against IBM i SDA's own screens and to power quick keyword search/navigation.
 
-Generated 2026-10-05 · 227 keyword entries across 49 categories · 186 unique keyword names.
+Generated 2026-10-08 · 226 keyword entries across 49 categories · 185 unique keyword names.
 
 For notes on scope/methodology, see the JSON files' own `meta` block: `KEYWORD-INDEX.json` (structured by level/category, matches iSDA's own UI tabs) and `KEYWORD-LOOKUP.json` (flat keyword -> location map, for quick search).
 
@@ -107,7 +107,6 @@ For notes on scope/methodology, see the JSON files' own `meta` block: `KEYWORD-I
 | `INZINP` | record → Overlay |
 | `INZRCD` | record → General |
 | `KEEP` | record → General |
-| `KEYBRD` | field → Keying Options |
 | `LOCK` | record → Output |
 | `LOGINP` | record → Input; record → Subfile - General (SFL) |
 | `LOGOUT` | record → Output; record → Subfile - General (SFL) |
@@ -700,14 +699,13 @@ DSPATR keyword, up to 7 conditioned instances (shared with COLOR - one combined 
 
 ### Keying Options
 
-CHECK-family keying restrictions plus the type-gated KEYBRD keyboard-shift attribute.
+CHECK-family keying restrictions. The panel's keyboard-shift choice is the field's own data-type column (position 35), not a keyword.
 
 *Reference screenshots:* `docs/sda-reference/screens/field-level/character/keying-options/`
 
 | Keyword | Description | Parameters | Repeatable | S36E |
 |---|---|---|---|---|
 | `CHECK` | Mandatory entry (ME) / auto record advance (ER) / mandatory fill (MF) / field exit required (FE) / right-adjust blank fill (RB) / right-adjust zero fill (RZ) / move cursor right-to-left (RL) / lowercase allowed (LC) | ME \| ER \| MF \| FE \| RB \| RZ \| RL \| LC | yes |  |
-| `KEYBRD` | Keyboard shift attribute - value list depends on the field's data type (Task L59: character gets N/A/X/W/I/D/M/J/O/E/G, numeric gets S/N/Y/I/D) | one letter, type-dependent |  |  |
 
 ### Validity Check
 

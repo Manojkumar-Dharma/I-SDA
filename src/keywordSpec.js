@@ -3025,7 +3025,7 @@
     // iSDA's own name for the field's position-35 "Data type and keyboard
     // shift" column (keywordFixes.md L79), whose valid entries live in
     // KEYBOARD_SHIFT_ENTRIES. The entry records that, so the keyword index
-    // can drop it rather than anyone inventing a rule for it.
+    // does not list it (I-197) and nobody invents a rule for it.
     KEYBRD: {
       notADdsKeyword: true,
       ddsReference:

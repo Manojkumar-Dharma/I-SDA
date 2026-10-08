@@ -5,7 +5,8 @@ I-121 slice in the ledger in docs/sda-reference/keywordFixes.md (between the sli
 Run from the repo root:  python3 docs/sda-reference/keyword-index/check_spec_coverage.py
 Exit status 1 if a keyword is owned by no slice or by more than one; keywords that are owned
 but already have an entry are listed as information (that slice is done or partly done).
-`*` parameters (for example *AUTOENT) are not keywords and are ignored.
+`*` parameters (for example *AUTOENT) are not keywords and are ignored, and neither are spec entries marked
+notADdsKeyword (KEYBRD): the index does not list them, and a ledger row that names one is not an error.
 
 Each slice's status is read from the "Status at a glance" table in the same file (the ledger has
 no status column). The "mark the slice Done" hint is printed only for a slice that is fully
@@ -22,6 +23,13 @@ keywords = {k for k in json.load(open(LOOKUP, encoding='utf-8', errors='replace'
             if not k.startswith('*')}
 specified = set(subprocess.check_output(
     ['node', '-e', "console.log(Object.keys(require('./src/keywordSpec.js').RECORD_TYPES).join(' '))"]
+).decode().split())
+
+# Spec entries that say the name is not a DDS keyword (KEYBRD): the keyword index does not list them (I-197),
+# so a ledger row that still names one is expected, not a typo.
+not_dds = set(subprocess.check_output(
+    ['node', '-e', "const R=require('./src/keywordSpec.js').RECORD_TYPES;"
+     "console.log(Object.keys(R).filter(k=>R[k]&&R[k].notADdsKeyword).join(' '))"]
 ).decode().split())
 
 text = open(FIXES, encoding='utf-8').read()
@@ -46,7 +54,8 @@ for row in text.splitlines():
 needed = keywords - specified
 unowned = sorted(needed - set(owners))
 multiple = sorted(k for k, v in owners.items() if len(v) > 1)
-unknown = sorted(set(owners) - keywords)
+unknown = sorted(set(owners) - keywords - not_dds)
+not_listed = sorted(set(owners) & not_dds)
 done = sorted(k for k in owners if k in specified)
 
 slices = defaultdict(list)
@@ -79,6 +88,8 @@ if unknown:
     print('in the ledger but not in KEYWORD-LOOKUP.json (typo?): %s' % ' '.join(unknown))
 if done_but_open:
     print('MARKED DONE IN THE STATUS TABLE BUT NOT FULLY SPECIFIED: ' + ' '.join(done_but_open))
+if not_listed:
+    print('in the ledger, but not DDS keywords and so not in the index (their spec entry says notADdsKeyword): %s' % ' '.join(not_listed))
 if done:
     print('already have a spec entry (slice done or partly done): %s' % ' '.join(done))
 sys.exit(1 if (unowned or multiple or unknown or done_but_open) else 0)
