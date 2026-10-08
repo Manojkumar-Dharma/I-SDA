@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-222 of 223 tasks done; 1 open (see [Open work](#open-work)). Current version: **v0.10.368**.
+222 of 228 tasks done; 6 open (see [Open work](#open-work)). Current version: **v0.10.368**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -266,6 +266,11 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-194](#i-194) | Field | Command-key values that no guard reads: `MOUBTN` / `PSHBTNCHC` / `IGCCNV` keys outside 01-24 or of the wrong type, and a key written in a shape that is not `CAnn` / `CFnn` (`MNUBARSW(CA5)`, `ALTHELP(XYZ)`) | I-186 | Done (MOUBTN, PSHBTNCHC, malformed key shapes) | v0.10.362 |
 | [I-195](#i-195) | Cross-level | Comment lines are captured and written only up to column 80: text past it is dropped from the panel, and editing the comment cuts the line to 80 columns. Read the source file's real record length and keep, show and store the whole line | — | Done (52 checks in `i195CommentLineWidth`) | v0.10.364 |
 | [I-196](#i-196) | File | `MNUBARSW` / `MNUCNL` are allowed only in a file containing a menu-bar record (their own sections); no guard reads the spec's `requiresMenuBarRecordInFile` fact | I-189 | Done v0.10.366 | v0.10.366 |
+| [I-197](#i-197) | Tooling | `KEYBRD` still listed as a DDS keyword in the generated keyword index although its spec entry says it is not one (decision first) | I-121t | Open | — |
+| [I-198](#i-198) | Tooling | `check_spec_coverage.py` prints "mark the slice Done" for slices the ledger already marks Done | I-121 | Open | — |
+| [I-199](#i-199) | Field | Help-specification panel has no `HLPRCD` row | I-190 | Open | — |
+| [I-200](#i-200) | Subfile | Two `SFLPAG` / `SFLSIZ` rules left unchecked by I-146 | I-146 | Open | — |
+| [I-201](#i-201) | Field | `MNUBARCHC` 12-line count never probed with a literal split over continuation lines | I-173 | Open | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -280,20 +285,20 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
 | 1 | [I-123](#i-123) | In progress | Task-history comments out of source. I-121 has landed, so each citation can now live in the spec. Size (estimate): Medium (mechanical). |
+| 2 | [I-201](#i-201) | Open | Small: probe then fix if needed. |
+| 3 | [I-198](#i-198) | Open | Small, tooling only. |
+| 4 | [I-197](#i-197) | Open | Small, decision first. |
+| 5 | [I-199](#i-199) | Open | Small, one panel row. |
+| 6 | [I-200](#i-200) | Open | Medium, two spec facts. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The headline there counts the same tasks, so when a task lands or opens, update this table, the headline count and the version together.
 
 ## Deferred findings (not yet tasks)
 
-Findings up to I-196 were each opened as a task (see the tables above); the table below holds the ones raised since, by a documentation audit of this file, the README and the changelog. Each needs a decision or an owner before it becomes a task with its own `Claim I-N` commit. The four that were waiting here because the DDS Reference does not settle them were converted on request: I-153's open questions became [I-166](#i-166), I-154's became [I-167](#i-167), I-121g's became [I-168](#i-168) and I-160's became [I-169](#i-169) (done; the source turned out to state the whole-file scope). Each of those tasks starts with the decision or rule it is waiting on, so nothing in it is implemented on a guess. A new finding that cannot be implemented yet goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
+Every finding so far has been opened as a task (I-61 – I-201, see the tables above); the table below is empty. A new finding that cannot be implemented yet goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID). The four that were waiting here because the DDS Reference does not settle them were converted on request: I-153's open questions became [I-166](#i-166), I-154's became [I-167](#i-167), I-121g's became [I-168](#i-168) and I-160's became [I-169](#i-169) (done; the source turned out to state the whole-file scope). Each of those tasks starts with the decision or rule it is waiting on, so nothing in it is implemented on a guess. A new finding that cannot be implemented yet goes in this table until someone opens it as a task (own `Claim I-N` commit, own ID).
 
 | Raised by | Finding |
 |-----------|---------|
-| I-121n / I-121t | `KEYBRD` is still listed as a field-level DDS keyword (Keying Options) in `src/keywordIndexData.js` and so in the generated `KEYWORD-INDEX.json` / `.md` and `KEYWORD-LOOKUP.json`, and counts as one of the 173 lookup keywords, although its spec entry says `notADdsKeyword: true` (the Reference has no such section; it is position 35) and I-121n said the index "can drop it (I-121t)". I-121t did not. Decision first: drop it from the index (and from `check_spec_coverage.py`'s count and the I-121t test's keyword list), or keep it as an iSDA-only entry with a note. |
-| I-146 | Two rules its section leaves unchecked: no warning that an *ignored* `SFLDROP` / `SFLROLVAL` has no effect at a display size where `SFLSIZ` equals `SFLPAG`, and `SFLPAG` must be at least the number of display lines a field-selection record occupies. |
-| I-173 | The `MNUBARCHC` 12-line count for a literal split over continuation lines is taken from the parser's joined text and was never probed with a real continuation; a probe with a wrapped literal is needed before the count is trusted there. |
-| I-190 | The help-specification panel has no `HLPRCD` row (only `HLPPNLGRP`, `HLPEXCLD`, `HLPBDY`, `HLPARA`, `HLPDOC`); an H-specification `HLPRCD` can be entered only in the raw keyword editor, although the spec now says it is valid there. |
-| I-121 | `keyword-index/check_spec_coverage.py` prints "all specified: mark the slice Done" for every slice, including ones the ledger already marks Done, because it reads coverage and never status; with 173 of 173 keywords specified the message is now noise. It should skip Done slices or the ledger check should be retired. |
 
 *Method note:* `flagRowHtml`'s conditioning-eligibility mechanism (I-3) proved reusable for
 the field-level tasks (I-30 onward built on it directly) — worth reusing in any future series.
@@ -8429,3 +8434,75 @@ Do: add a model-diff guard in the same chain as the other file-level relation gu
 **Tests.** `src/test/i196MenuBarRecordRequired.test.js` (32 checks): the two Reference sentences and the spec accessor, both keywords at file and record level, with a parameter, in both directions (adding the keyword; removing or retyping the last `MNUBAR` record), one of two menu-bar records removed, both added in one edit, diff semantics, fail-safe on empty models, and the raw keyword editor in jsdom. Four mutations checked (guard disabled, file level not judged, record level not judged, hook removed from the chain), each failing the test.
 
 *Raised by I-189. Size (estimate): Small.*
+
+---
+
+<a id="i-197"></a>
+
+### I-197 — `KEYBRD` still listed as a DDS keyword in the generated keyword index although its spec entry says it is not one (decision first)
+
+> **Area:** Tooling · **Status:** Open · **Depends on:** I-121t · **Size (estimate):** Small
+
+Opened from the documentation audit of 2026-10-08. `src/keywordIndexData.js` lists `KEYBRD` under field-level Keying Options, so `KEYWORD-INDEX.json` / `.md` and `KEYWORD-LOOKUP.json` carry it and `check_spec_coverage.py` counts it among the 173 keywords. Its `RECORD_TYPES` entry says `notADdsKeyword: true` (the DDS Reference has no `KEYBRD` section; the keyboard shift is position 35), and I-121n wrote that the index "can drop it (I-121t)"; I-121t did not.
+
+**Decision first:** drop `KEYBRD` from the index (then adjust the keyword count in `check_spec_coverage.py` and the keyword lists in `i121tKeywordIndexGeneration.test.js`, and regenerate), or keep it as an iSDA-only entry with a visible note. Recommended default: drop it, since the index is described as the DDS keyword index.
+
+Do: apply the decision, regenerate with `generate_keyword_index.js`, confirm `--check` passes and the full suite stays at zero failures.
+
+*Raised by I-121t. Size (estimate): Small.*
+
+---
+
+<a id="i-198"></a>
+
+### I-198 — `check_spec_coverage.py` prints "mark the slice Done" for slices the ledger already marks Done
+
+> **Area:** Tooling · **Status:** Open · **Depends on:** I-121 · **Size (estimate):** Small
+
+Opened from the documentation audit of 2026-10-08. The script reads coverage from `KeywordSpec.RECORD_TYPES` and never the ledger's status column, so with 173 of 173 keywords specified it tells the reader to mark all fifteen keyword slices Done although they are.
+
+Do: skip slices whose ledger status is already Done, or retire the script's ledger check now that I-121 is complete; keep the "keywords owned by no slice / by two slices" check only if it is still wanted. No app change.
+
+*Raised by I-121. Size (estimate): Small.*
+
+---
+
+<a id="i-199"></a>
+
+### I-199 — Help-specification panel has no `HLPRCD` row
+
+> **Area:** Field · **Status:** Open · **Depends on:** I-190 · **Size (estimate):** Small
+
+Opened from I-190. The panel offers `HLPPNLGRP`, `HLPEXCLD`, `HLPBDY`, `HLPARA` and `HLPDOC`; an H-specification `HLPRCD` can only be typed into the raw keyword editor, although the spec now says `HLPRCD` is valid at help-specification level and the I-190 guard judges it there.
+
+Do: add the row (record-format-name parameter) to the help-specification panel, enforcing the same guard reasons as the raw editor, with panel tests in both directions. Check the Reference's wording for the parameter before choosing the input shape.
+
+*Raised by I-190. Size (estimate): Small.*
+
+---
+
+<a id="i-200"></a>
+
+### I-200 — Two `SFLPAG` / `SFLSIZ` rules left unchecked by I-146
+
+> **Area:** Subfile · **Status:** Open · **Depends on:** I-146 · **Size (estimate):** Medium
+
+Opened from I-146. (1) No warning that an *ignored* `SFLDROP` / `SFLROLVAL` has no effect at a display size where `SFLSIZ` equals `SFLPAG` (the preview and the audit do not say so; the Reference says "ignored", not an error, so this is a note, not a refusal). (2) `SFLPAG`'s section requires it to be at least the number of display lines a field-selection record occupies; nothing checks it.
+
+Do: read both sections again, add the note and the check as spec facts read by one guard or panel note, and test both directions; keep multi-size files legitimate (equal on one size only).
+
+*Raised by I-146. Size (estimate): Medium.*
+
+---
+
+<a id="i-201"></a>
+
+### I-201 — `MNUBARCHC` 12-line count never probed with a literal split over continuation lines
+
+> **Area:** Field · **Status:** Open · **Depends on:** I-173 · **Size (estimate):** Small
+
+Opened from I-173. The count is taken from the parser's joined text, and a wrapped literal (`+` continuation) was never run through it, so the line total there is unproven.
+
+Do: probe the guard with a real continued literal on a menu-bar field, in the writer and in the raw editor; fix the count if the joined text differs from what the compiler sees, and pin the result in a test.
+
+*Raised by I-173. Size (estimate): Small.*
