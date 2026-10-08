@@ -15,11 +15,10 @@
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
-    // Task I-121 (edit/validity keyword groups slice): the REF edit/validity
-    // keyword families now come from keywordSpec.js (a dependency-free module
-    // of its own), required in Node and read from the global in the browser -
-    // so keywordSpec.js's <script> must load BEFORE this file's in both
-    // webview builders.
+    // The REF edit/validity keyword families now come from keywordSpec.js (a
+    // dependency-free module of its own), required in Node and read from the
+    // global in the browser - so keywordSpec.js's <script> must load BEFORE
+    // this file's in both webview builders.
     module.exports = factory(require('./keywordSpec.js'));
   } else {
     root.DspfEngine = factory(root.KeywordSpec);
@@ -30,10 +29,10 @@
   var DEFAULT_LINES = 24;
   var DEFAULT_COLUMNS = 80;
 
-  // Task I-121s - COLOR_HEX is PRESENTATION (the CSS colour each DDS COLOR
-  // value is drawn in), not a DDS rule: the value NAMES are keywordSpec.js's
-  // COLOR entry (validValues('COLOR')); i121sConstantTablesSpec.test.js pins
-  // the two key sets equal, so a value added to one cannot be missing here.
+  // COLOR_HEX is PRESENTATION (the CSS colour each DDS COLOR value is drawn
+  // in), not a DDS rule: the value NAMES are keywordSpec.js's COLOR entry
+  // (validValues('COLOR')); i121sConstantTablesSpec.test.js pins the two key
+  // sets equal, so a value added to one cannot be missing here.
   var COLOR_HEX = {
     BLU: '#4a9eff',
     RED: '#ff5c5c',
@@ -92,22 +91,23 @@
   // means a fixed 24x80 and *DS4 always means a fixed 27x132 - those two
   // sizes are the only ones the bare-name form can ever mean.
 
-  /** Walks the raw DSPSIZ parameter text and pulls out every declared size,
-   *  in declaration order - either an explicit "lines cols [*qualifier]"
-   *  triple, or (DDS's other valid DSPSIZ form) a bare *DS3/*DS4 condition
-   *  name with no lines/cols given, whose size is then the fixed one that
-   *  name always implies.
-   *  Task I-119: this is now the single canonical implementation -
-   *  dspfWriter.js's own parseDisplaySizeTriples (previously a hand-synced
-   *  duplicate; see learnings.md) delegates here via the bare `DspfEngine`
-   *  free variable that file's own UMD wrapper now injects (require() in
-   *  Node, the real webview's own script-load-order global in the
-   *  browser - dspfEngine.js's <script> tag is emitted before
-   *  dspfWriter.js's in both buildWebviewTemplate.js and
-   *  buildMenuWebviewTemplate.js, so the global is already set by the
-   *  time dspfWriter.js runs there). `paramText` is tolerated null/blank
-   *  (dspfWriter.js's own copy already was; this one previously assumed
-   *  a string) so both callers can pass it straight through unchanged. */
+  /**
+   * Walks the raw DSPSIZ parameter text and pulls out every declared size,
+   * in declaration order - either an explicit "lines cols [*qualifier]"
+   * triple, or (DDS's other valid DSPSIZ form) a bare *DS3/*DS4 condition
+   * name with no lines/cols given, whose size is then the fixed one that
+   * name always implies. this is now the single canonical implementation -
+   * dspfWriter.js's own parseDisplaySizeTriples (previously a hand-synced
+   * duplicate; see learnings.md) delegates here via the bare `DspfEngine`
+   * free variable that file's own UMD wrapper now injects (require() in
+   * Node, the real webview's own script-load-order global in the browser -
+   * dspfEngine.js's <script> tag is emitted before dspfWriter.js's in both
+   * buildWebviewTemplate.js and buildMenuWebviewTemplate.js, so the global
+   * is already set by the time dspfWriter.js runs there). `paramText` is
+   * tolerated null/blank (dspfWriter.js's own copy already was; this one
+   * previously assumed a string) so both callers can pass it straight
+   * through unchanged.
+   */
   function parseScreenSizes(paramText) {
     var tokens = (paramText || '').trim().split(/\s+/).filter(Boolean);
     var sizes = [];
@@ -210,10 +210,10 @@
   // Field -> display text / placeholder
   // ---------------------------------------------------------------------
 
-  // Task I-121s - NUMERIC_TYPES picks the 9-vs-X placeholder glyph the
-  // preview draws in an input box. Presentation, not a keyword rule (the
-  // keyboard-shift numeric list is keywordSpec.js's isNumericShiftDataType,
-  // a different question), so it stays with the renderer.
+  // NUMERIC_TYPES picks the 9-vs-X placeholder glyph the preview draws in
+  // an input box. Presentation, not a keyword rule (the keyboard-shift
+  // numeric list is keywordSpec.js's isNumericShiftDataType, a different
+  // question), so it stays with the renderer.
   var NUMERIC_TYPES = { S: true, Y: true, N: true, D: true, F: true };
 
   function placeholderChar(field) {
@@ -230,28 +230,28 @@
   // screen positions even though the format it resolves to at runtime
   // (*MDY/*DMY/*YMD = 8 chars, *JUL = 6) displays fewer. No DATFMT keyword
   // at all defaults to *ISO (10) - same as explicitly writing DATFMT(*ISO).
-  // Task I-121 (display-width slice): the table itself now lives on
-  // keywordSpec.js's DATFMT entry (`displayLengths`), read through
-  // KeywordSpec.datfmtDisplayLength / datfmtDefaultDisplayLength below.
+  // The table itself now lives on keywordSpec.js's DATFMT entry
+  // (`displayLengths`), read through KeywordSpec.datfmtDisplayLength /
+  // datfmtDefaultDisplayLength below.
 
-  // I-32 - DATFMT is documented as a field-level-only keyword: its own DDS
+  // DATFMT is documented as a field-level-only keyword: its own DDS
   // Reference section states "You use this field-level keyword..." and it
   // never appears in any file-level or record-level keyword list anywhere
   // in DDS_Keyword_V7r6.txt (confirmed against the canonical
   // KEYWORD-INDEX.json too - it lists DATFMT nowhere at either level).
   // Fixed: the record-level/file-level DATFMT fallback this function used
   // to check was dead code checking for something DDS has no mechanism to
-  // produce - removed, same "confirmed unreachable, removed" treatment
-  // I-31's own Finding 3 gave isNumericField's B/P arms. (REF/REFFLD DOES
-  // let a field's DATFMT/DATSEP/TIMFMT/TIMSEP - along with TEXT/ALIAS/
+  // produce - removed, same "confirmed unreachable, removed" treatment the
+  // Finding 3 gave isNumericField's B/P arms. (REF/REFFLD DOES let a
+  // field's DATFMT/DATSEP/TIMFMT/TIMSEP - along with TEXT/ALIAS/
   // CCSID/FLTPCN/editing keywords - come from a referenced DATABASE field,
   // per "Reference for display files (position 29)"'s own keyword list -
   // but that's the field's OWN keywords ending up on it via resolution,
   // not a distinct record/file-level DATFMT lookup path. iSDA's own
   // REF-resolution flow, extension.ts's handleResolveReferencedField, only
   // pulls length/dataType/decimalPositions today, not any of these - out
-  // of I-32's own field-level-UI scope, logged in keywordFixes.md instead
-  // of fixed here.)
+  // of the field-level-UI scope, logged in keywordFixes.md instead of
+  // fixed here.)
   function dateFieldLength(field) {
     var fieldKw = (field.keywords || []).find(function (k) { return k.name === 'DATFMT'; });
     if (fieldKw) return datfmtLength(fieldKw.parameters);
@@ -306,11 +306,11 @@
     var code = m ? m[1].toUpperCase() : '';
     var second = m && m[2] ? m[2] : '';
     var floatingCurrency = second !== '' && second !== '*';
-    // Task I-154: IBM's EDTCDE table (notes 2 and 3) gives the exact slash
-    // pattern for W and Y by digit count - only the separator CHARACTER is a
-    // run-time job attribute (DATSEP), not how many there are - so the width
-    // is known. A digit count IBM gives no pattern for (or a field with
-    // decimals, which is not a date) keeps its coded length.
+    // IBM's EDTCDE table (notes 2 and 3) gives the exact slash pattern for W
+    // and Y by digit count - only the separator CHARACTER is a run-time job
+    // attribute (DATSEP), not how many there are - so the width is known. A
+    // digit count IBM gives no pattern for (or a field with decimals, which
+    // is not a date) keeps its coded length.
     if (KeywordSpec.isRuntimeSeparatorEditCode(code)) {
       var patterned = dec === 0 ? KeywordSpec.dateEditCodeWidth(code, len) : null;
       return patterned != null ? patterned : len;
@@ -352,14 +352,14 @@
     return s.length;
   }
 
-  // Task I-144 - a system-value constant (DATE / TIME / USER / SYSNAME) has no
-  // LENGTH column, so it used to fall through to 0 and be drawn one column
-  // wide. Its real width is the keyword section's own fact
+  // A system-value constant (DATE / TIME / USER / SYSNAME) has no LENGTH
+  // column, so it used to fall through to 0 and be drawn one column wide. Its
+  // real width is the keyword section's own fact
   // (KeywordSpec.systemValueConstantWidth); this only gathers the field's
-  // EDTWRD / EDTCDE / DATE parameter text for it. null = not one of them.
-  // Task I-156: the connected IBM i job's DATFMT / DATSEP (QUSRJOBI JOBI0400,
-  // see src/jobDateFormat.js), or null - then DATE previews with the
-  // design-time assumption (MDY, "/"). Set by the host through the webview
+  // EDTWRD / EDTCDE / DATE parameter text for it. null = not one of them. the
+  // connected IBM i job's DATFMT / DATSEP (QUSRJOBI JOBI0400, see
+  // src/jobDateFormat.js), or null - then DATE previews with the design-time
+  // assumption (MDY, "/"). Set by the host through the webview
   // ('jobDateFormat' message); a bad value is dropped to null.
   var jobDateFormat = null;
   function setJobDateFormat(info) { jobDateFormat = KeywordSpec.normalizeJobDate(info); return jobDateFormat; }
@@ -390,10 +390,10 @@
     var info = systemValueConstantInfo(field);
     if (!info) return null;
     var width = KeywordSpec.systemValueConstantWidth(info.name, info.opts);
-    // Task I-154: a DATE / TIME is a numeric field of its digit count with 0
-    // decimals; an edit code other than Y / W (which the spec sizes from
-    // IBM's patterns) is sized by the same numeric edit-code rules as any
-    // other numeric field. Not when an edit word sizes it (above) or for a
+    // A DATE / TIME is a numeric field of its digit count with 0 decimals;
+    // an edit code other than Y / W (which the spec sizes from IBM's
+    // patterns) is sized by the same numeric edit-code rules as any other
+    // numeric field. Not when an edit word sizes it (above) or for a
     // user-defined code 5-9, whose editing is not known here.
     var digits = KeywordSpec.systemValueDigits(info.name, info.opts.dateParameters, info.opts.jobDate);
     var code = String(info.opts.editCode || '').toUpperCase();
@@ -431,19 +431,19 @@
       var text = field.constantValue;
       if (text == null) {
         var kwNames = field.keywords.map(function (k) { return k.name; });
-        // Task I-121 (system-value constant keywords slice): which keywords
-        // supply a system value, and their precedence, are KeywordSpec's own
-        // fact; this only maps each to its design-time placeholder text.
+        // Which keywords supply a system value, and their precedence, are
+        // KeywordSpec's own fact; this only maps each to its design-time
+        // placeholder text.
         var sysKw = KeywordSpec.systemValueConstantKeywords().filter(function (n) { return kwNames.indexOf(n) !== -1; })[0];
         if (sysKw === 'DATE' || sysKw === 'TIME') {
-          // Task I-154: IBM's own formats at the real width (see
+          // IBM's own formats at the real width (see
           // KeywordSpec.systemValuePreviewText), not a browser-locale string.
           text = KeywordSpec.systemValuePreviewText(sysKw, (systemValueConstantInfo(field) || {}).opts, new Date());
         } else if (sysKw) text = '*' + sysKw; // USER -> *USER, SYSNAME -> *SYSNAME
         else {
-          // I-33 - MSGCON constants have no literal text either (their
-          // display value comes from a message description at run time,
-          // same "system-supplied, not stored here" shape as DATE/TIME/
+          // MSGCON constants have no literal text either (their display
+          // value comes from a message description at run time, same
+          // "system-supplied, not stored here" shape as DATE/TIME/
           // USER/SYSNAME above) - preview the message ID itself, in
           // brackets, as the design-time placeholder. field.keywords is
           // used directly (not kwNames) since the message ID lives in
@@ -453,19 +453,19 @@
             var msgConTokens = (msgConKw.parameters || '').trim().split(/\s+/).filter(Boolean);
             text = msgConTokens.length >= 2 ? '[' + msgConTokens[1] + ']' : '[MSG]';
           } else {
-            // Task I-41 - an HTML constant likewise has no literal text of
-            // its own; its own DDS Reference text says row/column have no
-            // meaning for it (only tag ORDER matters) and it's only
-            // processed by a 5250 Workstation Gateway device, so nothing
-            // is actually rendered on a real 5250 screen either - the
-            // design-time placeholder just previews the tag text itself.
-            // Inlines the same quoted-literal-unwrap regex
-            // DspfWriter.unquoteDdsLiteral uses (not shared via require() -
-            // this file is deliberately decoupled from dspfWriter.js, same
-            // reason parseScreenSizes/parseDisplaySizeTriples are kept
-            // manually in sync rather than shared). Falls back to '[HTML]'
-            // for the &program-to-system-field reference form, which this
-            // regex doesn't match.
+            // An HTML constant likewise has no literal text of its own; its
+            // own DDS Reference text says row/column have no meaning for it
+            // (only tag ORDER matters) and it's only processed by a 5250
+            // Workstation Gateway device, so nothing is actually rendered
+            // on a real 5250 screen either - the design-time placeholder
+            // just previews the tag text itself. Inlines the same
+            // quoted-literal-unwrap regex DspfWriter.unquoteDdsLiteral uses
+            // (not shared via require() - this file is deliberately
+            // decoupled from dspfWriter.js, same reason
+            // parseScreenSizes/parseDisplaySizeTriples are kept manually in
+            // sync rather than shared). Falls back to '[HTML]' for the
+            // &program-to-system-field reference form, which this regex
+            // doesn't match.
             var htmlKw = field.keywords.find(function (k) { return k.name === 'HTML'; });
             if (htmlKw) {
               var htmlMatch = /^'((?:[^']|'')*)'/.exec((htmlKw.parameters || '').trim());
@@ -592,12 +592,14 @@
     return { id: parameters.trim(), text: parameters.trim() };
   }
 
-  /** Task I-57 - PSHBTNCHC(choice-number choice-text [command-key] [*SPACEB]).
-   *  The previous parser here assumed "just the button text, with no
-   *  leading choice-id - unlike CHOICE", which is wrong per IBM's own
-   *  format (choice-number is REQUIRED, e.g. PSHBTNCHC(1 '>Help' HELP)) and
-   *  made every button render as its own raw parameter string ("1 '>Help'
-   *  HELP"). `text` is the unquoted literal or the raw &field token. */
+  /**
+   * PSHBTNCHC(choice-number choice-text [command-key] [*SPACEB]). The
+   * previous parser here assumed "just the button text, with no leading
+   * choice-id - unlike CHOICE", which is wrong per IBM's own format
+   * (choice-number is REQUIRED, e.g. PSHBTNCHC(1 '>Help' HELP)) and made
+   * every button render as its own raw parameter string ("1 '>Help' HELP").
+   * `text` is the unquoted literal or the raw &field token.
+   */
   function parsePshbtnchc(parameters) {
     var rest = (parameters || '').trim();
     var out = { id: '', text: '', commandKey: '', spaceBefore: false };
@@ -696,9 +698,9 @@
       return { type: kind, choices: choices };
     }
     if (names.indexOf('PSHBTNFLD') !== -1) {
-      // Task I-57 - only PSHBTNCHC instances whose own option indicators
-      // are currently satisfied are shown ("When a PSHBTNCHC keyword is
-      // off, the list of choices is compressed"), sorted by choice number.
+      // Only PSHBTNCHC instances whose own option indicators are currently
+      // satisfied are shown ("When a PSHBTNCHC keyword is off, the list of
+      // choices is compressed"), sorted by choice number.
       var btnChoices = field.keywords
         .filter(function (k) { return k.name === 'PSHBTNCHC' && conditionsSatisfied(k.conditions, activeIndicators, activeSizeName); })
         .map(function (k) {
@@ -720,7 +722,7 @@
     return null;
   }
 
-  // Task I-119: canonical isPulldownRecord (was also copied into
+  // Canonical isPulldownRecord (was also copied into
   // webviewClientHelpers.js with a defensive `record.keywords || []` that
   // this copy lacked - harmless here since the engine always receives a
   // freshly-parsed record, but adopted anyway so the one shared
@@ -1027,8 +1029,8 @@
     var previousColumnEnd = 1;
 
     record.fields.forEach(function (rawField) {
-      // Task I-74: a reference field's real length/type/decimals (and the
-      // keywords it inherits) come from the resolved database field, held in
+      // A reference field's real length/type/decimals (and the keywords it
+      // inherits) come from the resolved database field, held in
       // dspfFile.resolvedReferences - never from anything written into the source.
       var field = effectiveReferenceField(rawField, dspfFile, record);
       if (!conditionsSatisfied(field.conditions, activeIndicators, activeSizeName)) return;
@@ -1097,9 +1099,9 @@
           });
         }
       } else if (widget && widget.type === 'pshbtn') {
-        // Task I-57 - the preview occupies the whole grid the buttons lay
-        // out on, not the field's own 2-column DDS length: cols * cellWidth
-        // plus the gutter between columns, rows tall.
+        // The preview occupies the whole grid the buttons lay out on, not
+        // the field's own 2-column DDS length: cols * cellWidth plus the
+        // gutter between columns, rows tall.
         renderLength = Math.max(1, widget.layout.cols * widget.layout.cellWidth + (widget.layout.cols - 1) * widget.layout.gutter);
         renderHeight = widget.layout.rows;
       } else if (widget && widget.type === 'button') {
@@ -1745,8 +1747,8 @@
   }
 
   // ---------------------------------------------------------------------
-  // Task I-74 - what a reference field ("R" in position 29) inherits from the
-  // referenced database field, and how a "+n"/"-n" length is applied to it.
+  // What a reference field ("R" in position 29) inherits from the referenced
+  // database field, and how a "+n"/"-n" length is applied to it.
   //
   // Per the DDS Reference (Reference for display files, position 29), a
   // referenced field supplies its length, data type and decimal positions plus
@@ -2209,8 +2211,8 @@
   // DEFINED), switching to a solid/active style only when it actually is.
   // ---------------------------------------------------------------------
 
-  // Task I-121 (command-key grammar slice): the CAnn / CFnn name shape is
-  // KeywordSpec's own fact (KeywordSpec.parseCommandKey), shared with the writer.
+  // The CAnn / CFnn name shape is KeywordSpec's own fact
+  // (KeywordSpec.parseCommandKey), shared with the writer.
 
   /**
    * @param {object} dspfFile parsed model
@@ -2269,16 +2271,16 @@
   // renderScreenHtml: ScreenModel -> HTML string (positioned via CSS grid)
   // ---------------------------------------------------------------------
 
-  // Task I-119: canonical escapeHtml (the audit's "two versions that
-  // escape different character sets" - this one used to omit the `'`
-  // -> &#39; case and null/undefined-safety that webviewClientHelpers.js's
-  // copy had). This is the one behaviour picked on purpose: escape the
-  // full &/</>/"/' set (defense-in-depth for any future single-quoted
-  // attribute) AND treat null/undefined as '' (several callers pass field
-  // names/params that can genuinely be null, and printing the literal
-  // text "null"/"undefined" into the UI would be its own bug).
-  // webviewClientHelpers.js's own escapeHtml now delegates here instead
-  // of keeping a second copy - see that file's own comment.
+  // Canonical escapeHtml (the audit's "two versions that escape different
+  // character sets" - this one used to omit the `'` -> &#39; case and
+  // null/undefined-safety that webviewClientHelpers.js's copy had). This
+  // is the one behaviour picked on purpose: escape the full &/</>/"/' set
+  // (defense-in-depth for any future single-quoted attribute) AND treat
+  // null/undefined as '' (several callers pass field names/params that can
+  // genuinely be null, and printing the literal text "null"/"undefined"
+  // into the UI would be its own bug). webviewClientHelpers.js's own
+  // escapeHtml now delegates here instead of keeping a second copy - see
+  // that file's own comment.
   function escapeHtml(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
@@ -2291,11 +2293,11 @@
       return '<button type="button" class="dspf-widget-button" tabindex="-1">' + escapeHtml(w.label) + '</button>';
     }
     if (w.type === 'pshbtn') {
-      // Task I-57 - a CSS grid sized in `ch` units so each button lines up
-      // with the character grid the rest of the screen is drawn on. A
-      // column-major layout (*NUMROW) needs explicit row/column placement;
-      // row-major (default/*NUMCOL) can just flow. A null slot is a
-      // *SPACEB blank spot.
+      // A CSS grid sized in `ch` units so each button lines up with the
+      // character grid the rest of the screen is drawn on. A column-major
+      // layout (*NUMROW) needs explicit row/column placement; row-major
+      // (default/*NUMCOL) can just flow. A null slot is a *SPACEB blank
+      // spot.
       var L = w.layout;
       var cells = L.slots.map(function (c, i) {
         var pos = L.byColumn
@@ -2395,8 +2397,8 @@
     // record's fields, the window's own background instead of the screen frame's.
     if (f.stackLayer != null) colorStyle += 'z-index:' + f.stackLayer + ';';
     if (f.inWindow) colorStyle += '--dspf-cell-bg:#0a0f0c;';
-    // Task I-121s - USAGE_LABEL and the data-type words below are hover-title
-    // wording for the preview (presentation), so they stay with the renderer.
+    // USAGE_LABEL and the data-type words below are hover-title wording for
+    // the preview (presentation), so they stay with the renderer.
     var USAGE_LABEL = { I: 'Input (I)', O: 'Output (O)', B: 'Both (B)', H: 'Hidden (H)', M: 'Message (M)', P: 'Program-to-system (P)' };
     var usageStr = f.usage ? ' · ' + (USAGE_LABEL[f.usage.toUpperCase()] || f.usage) : '';
     var dtypeStr = f.nameType === 'FIELD'

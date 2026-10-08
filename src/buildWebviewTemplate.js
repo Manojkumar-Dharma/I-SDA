@@ -2,9 +2,9 @@ const fs = require('fs');
 const path = require('path');
 
 const engineJs = fs.readFileSync(path.join(__dirname, 'dspfEngine.js'), 'utf8');
-// Task I-121: KeywordSpec must load before dspfWriter.js, same "engine
-// before writer" ordering DspfEngine already needs (dspfWriter.js's own
-// UMD factory now takes both as globals in the browser).
+// KeywordSpec must load before dspfWriter.js, same "engine before
+// writer" ordering DspfEngine already needs (dspfWriter.js's own UMD
+// factory now takes both as globals in the browser).
 const keywordSpecJs = fs.readFileSync(path.join(__dirname, 'keywordSpec.js'), 'utf8');
 const writerJs = fs.readFileSync(path.join(__dirname, 'dspfWriter.js'), 'utf8');
 const clientHelpersJs = fs.readFileSync(path.join(__dirname, 'webviewClientHelpers.js'), 'utf8');
@@ -331,8 +331,10 @@ const htmlTemplate = `<!DOCTYPE html>
     border: 1px solid #3a5a45; border-radius: 3px; font-family: var(--mono);
     font-size: 12px; cursor: grab; padding: 2px 8px;
   }
-  /* Task I-57 - PSHBTNFLD with PSHBTNCHC choices: a grid of buttons whose
-   * column widths/gutter are set inline (in ch units) by widgetInnerHtml. */
+  /*
+   * PSHBTNFLD with PSHBTNCHC choices: a grid of buttons whose column
+   * widths/gutter are set inline (in ch units) by widgetInnerHtml.
+   */
   .dspf-field.dspf-widget-pshbtn { background: transparent; z-index: 1; }
   .dspf-pshbtn-grid { display: grid; height: 100%; align-items: stretch; }
   .dspf-pshbtn {
@@ -572,8 +574,10 @@ const htmlTemplate = `<!DOCTYPE html>
   /* Task L13 - comment text input reuses .rename-input's own look (flex:1,
      same dark input styling) inside a .field-order-row so a comment row
      lines up visually with the Structure tab's other rows above it. */
-  /* Task I-195 - the width note beside a comment input: empty within 80 columns, amber past column 80,
-     red past the source file's own limit. */
+  /*
+   * The width note beside a comment input: empty within 80 columns, amber past column 80, red past
+   * the source file's own limit.
+   */
   .comment-width-note { flex: none; font-size: 10px; min-width: 0; white-space: nowrap; }
   .comment-width-warn { color: #e0a93a; }
   .comment-width-error { color: #e06c6c; }
@@ -1183,9 +1187,9 @@ const htmlTemplate = `<!DOCTYPE html>
 
   let sourceText = ${INITIAL_SOURCE_JSON_TOKEN};
   let model = DspfParser.parseDspf(sourceText);
-  // Task I-74: resolved definitions of referenced database fields (Resolve
-  // Referenced Field), keyed by DspfEngine.referenceKey(). Held here in memory
-  // only - never written into the DDS source - and re-attached to the model in
+  // Resolved definitions of referenced database fields (Resolve Referenced
+  // Field), keyed by DspfEngine.referenceKey(). Held here in memory only -
+  // never written into the DDS source - and re-attached to the model in
   // render() (the model is re-parsed on every edit).
   let resolvedReferences = {};
   let selectedKey = null;
@@ -1241,10 +1245,10 @@ const htmlTemplate = `<!DOCTYPE html>
   // a later 'modTrackingConfig' push (e.g. a live settings.json edit) no
   // longer overwrites their in-session choice.
   let modTrackingSessionTouched = false;
-  // Task I-195 - the longest line the source can hold, pushed by the extension host ('sourceLineWidth'):
-  // a number for an IBM i source member (its SRCDTA width, 80 if that could not be read), Infinity for a
-  // local file (no limit), undefined until the host has answered (the writer then keeps the 80-column
-  // default). Comment text is capped to it in the writer and the Comments panel.
+  // The longest line the source can hold, pushed by the extension host ('sourceLineWidth'): a
+  // number for an IBM i source member (its SRCDTA width, 80 if that could not be read), Infinity
+  // for a local file (no limit), undefined until the host has answered (the writer then keeps the
+  // 80-column default). Comment text is capped to it in the writer and the Comments panel.
   let sourceLineMax;
   function commentHardMax() { return typeof sourceLineMax === 'number' && isFinite(sourceLineMax) ? sourceLineMax : null; }
   let selectedSizeIndex = 0; // which DSPSIZ-declared size is being viewed/edited (0 = first/default)
@@ -1956,13 +1960,13 @@ const htmlTemplate = `<!DOCTYPE html>
     if (!name) { newRecordError.textContent = 'Enter a name for the new record format.'; return; }
     if (!WebviewClientHelpers.isValidDdsName(name)) { newRecordError.textContent = 'Not a valid DDS name (1-10 chars, starts with a letter or $#@).'; return; }
     if (model.records.some((r) => r.name === name)) { newRecordError.textContent = 'A record format named "' + name + '" already exists in this file.'; return; }
-    // Task I-24 - WINDOW cannot be specified for the record named by
-    // file-level PASSRCD (per the DDS Reference). WINDOW is only ever
-    // written by this wizard (or the floating toolbox's auto-named WDWn
-    // tool, which can't collide with a hand-typed PASSRCD value in
-    // practice) - never toggled onto an existing record after the fact -
-    // so this creation-time check is the one reachable place a
-    // user-chosen WINDOW record name can collide with PASSRCD.
+    // WINDOW cannot be specified for the record named by file-level
+    // PASSRCD (per the DDS Reference). WINDOW is only ever written by
+    // this wizard (or the floating toolbox's auto-named WDWn tool, which
+    // can't collide with a hand-typed PASSRCD value in practice) - never
+    // toggled onto an existing record after the fact - so this
+    // creation-time check is the one reachable place a user-chosen
+    // WINDOW record name can collide with PASSRCD.
     if (type === 'WINDOW') {
       const passrcdVal = DspfWriter.getFileFlagKeyword(model.fileKeywords, 'PASSRCD').parameters;
       const passrcdConflict = DspfWriter.passrcdWindowConflictReason(passrcdVal, name);
@@ -4444,21 +4448,21 @@ const htmlTemplate = `<!DOCTYPE html>
     // unlike the other four it takes three parameters rather than none.
     const SYSTEM_VALUE_KEYWORD_NAMES = DspfWriter.systemValueConstantKeywords(); // Task I-121: KeywordSpec's own fact
     const isSystemValueConstant = isConstant && field.keywords.some((k) => SYSTEM_VALUE_KEYWORD_NAMES.indexOf(k.name) !== -1);
-    // I-33 - MSGCON(length message-ID [library-name/]message-file-name) is
-    // the sixth documented way to supply a constant's value: its text
-    // comes from a message description rather than a literal or a system
-    // value. Mutually exclusive with DATE/DFT/EDTCDE/EDTWRD/TIME per its
-    // own keyword text, so - like isSystemValueConstant above - this is
-    // its own dedicated, non-destructive UI rather than falling through to
-    // the plain-literal-text Text input.
+    // MSGCON(length message-ID [library-name/]message-file-name) is the
+    // sixth documented way to supply a constant's value: its text comes
+    // from a message description rather than a literal or a system value.
+    // Mutually exclusive with DATE/DFT/EDTCDE/EDTWRD/TIME per its own
+    // keyword text, so - like isSystemValueConstant above - this is its
+    // own dedicated, non-destructive UI rather than falling through to the
+    // plain-literal-text Text input.
     const isMsgConConstant = isConstant && field.keywords.some((k) => k.name === 'MSGCON');
-    // Task I-41 - HTML is a SEVENTH way to supply a constant's value,
-    // structurally identical to MSGCON above (a keyword-driven,
-    // non-literal value) even though IBM's own "Constant fields" rules
-    // list (~line 671) only documents six - HTML was evidently added to
-    // the DDS language after that enumeration was written. Same
-    // non-destructive dedicated-UI treatment as isSystemValueConstant/
-    // isMsgConConstant above, reusing DspfWriter.getFileQuotedText/
+    // HTML is a SEVENTH way to supply a constant's value, structurally
+    // identical to MSGCON above (a keyword-driven, non-literal value)
+    // even though IBM's own "Constant fields" rules list (~line 671)
+    // only documents six - HTML was evidently added to the DDS language
+    // after that enumeration was written. Same non-destructive
+    // dedicated-UI treatment as isSystemValueConstant/ isMsgConConstant
+    // above, reusing DspfWriter.getFileQuotedText/
     // setFileQuotedText/quoteDdsLiteral directly (HTML's own grammar -
     // HTML('value') - is a single quoted-literal parameter, the exact
     // shape those helpers already handle for HLPTITLE/TEXT/etc.) rather
@@ -4496,16 +4500,16 @@ const htmlTemplate = `<!DOCTYPE html>
       const parsed = DspfWriter.parseMsgConParams(msgConKw ? msgConKw.parameters : '');
       basicHtml += '<div class="field-row"><label>Length</label><input type="number" id="p-const-msgcon-length" min="' + DspfWriter.msgconLengthRange().min + '" max="' + DspfWriter.msgconLengthRange().max + '" value="' + DspfEngine.escapeHtml(parsed.length) + '" /></div>';
       basicHtml += '<div class="field-row"><label>Message ID</label><input type="text" id="p-const-msgcon-msgid" value="' + DspfEngine.escapeHtml(parsed.msgId) + '" placeholder="MSG0001" /></div>';
-      // Task I-166: advisory only - a message ID that is not the usual seven characters is not refused.
+      // Advisory only - a message ID that is not the usual seven characters is not refused.
       const msgConIdNote = DspfWriter.msgconMessageIdAdvisory(parsed.msgId);
       if (msgConIdNote) basicHtml += '<div class="hint-small warn" id="p-const-msgcon-msgid-note">' + DspfEngine.escapeHtml(msgConIdNote) + '</div>';
       basicHtml += '<div class="two-col"><div class="field-row"><label>Message file</label><input type="text" id="p-const-msgcon-msgfile" value="' + DspfEngine.escapeHtml(parsed.msgFile) + '" /></div>';
       basicHtml += '<div class="field-row"><label>Library</label><input type="text" id="p-const-msgcon-library" value="' + DspfEngine.escapeHtml(parsed.library) + '" placeholder="*LIBL" /></div></div>';
       basicHtml += '<div class="hint-small">This field\u2019s text is pulled from a message description at run time, not typed in here - the design preview shows the message ID as a placeholder.</div>';
     } else if (isHtmlConstant) {
-      // Task I-41 - an HTML constant's "value" is the literal HTML tag
-      // text passed to the keyword itself (HTML('<TITLE>')), not
-      // constantValue - same non-literal-text posture as MSGCON above.
+      // An HTML constant's "value" is the literal HTML tag text passed
+      // to the keyword itself (HTML('<TITLE>')), not constantValue -
+      // same non-literal-text posture as MSGCON above.
       // getFileQuotedText/quoteDdsLiteral already unquote/quote this
       // exactly the way HLPTITLE's own free-text field does.
       const htmlText = DspfWriter.getFileQuotedText(field.keywords, 'HTML');
@@ -4529,9 +4533,9 @@ const htmlTemplate = `<!DOCTYPE html>
       basicHtml += '<button id="p-fill" class="secondary" style="width:100%;margin-bottom:12px;">Fill</button>';
     } else {
       basicHtml += '<div class="field-row"><label>Name</label><input type="text" id="p-name" value="' + (field.name || '') + '" /></div>';
-      // Task I-74: a reference field's length may be blank (use the referenced
-      // field's), absolute, or +n/-n (increase/decrease it) - so it is a text box
-      // there; a number box everywhere else.
+      // A reference field's length may be blank (use the referenced field's),
+      // absolute, or +n/-n (increase/decrease it) - so it is a text box there; a
+      // number box everywhere else.
       if (field.isReference) {
         basicHtml += '<div class="two-col"><div class="field-row"><label>Length</label><input type="text" id="p-length" placeholder="blank, n, +n or -n" title="Blank uses the length of the referenced field; +n / -n increases / decreases it." value="' + (field.lengthAdjust != null ? (field.lengthAdjust < 0 ? '-' : '+') + Math.abs(field.lengthAdjust) : (field.length != null ? field.length : '')) + '" /></div>';
       } else {
@@ -4573,9 +4577,9 @@ const htmlTemplate = `<!DOCTYPE html>
       // you type R and press Enter - see extension.ts's
       // handleResolveReferencedField for the Code for i round-trip itself.
       attrsHtml += '<button id="p-resolve-ref" class="secondary" style="width:100%;margin-bottom:12px;">Resolve Referenced Field (Code for i)</button>';
-      // Task I-74: the referenced field's other keywords (TEXT, ALIAS, CCSID,
-      // editing, date/time formats) are listed read-only - inherited, not copied
-      // into the source, so a +n/-n length keeps working.
+      // The referenced field's other keywords (TEXT, ALIAS, CCSID, editing,
+      // date/time formats) are listed read-only - inherited, not copied into the
+      // source, so a +n/-n length keeps working.
       const refDefinition = DspfEngine.lookupResolvedReference(model, found.record, field);
       attrsHtml += accordionHtml('field-' + field.sourceLine + '::reference-inherited', 'Inherited from referenced field', WebviewClientHelpers.referenceInheritedHtml({
         field: field,
@@ -4586,8 +4590,8 @@ const htmlTemplate = `<!DOCTYPE html>
     }
     if (!isConstant) {
       attrsHtml += WebviewClientHelpers.validityAndEditHtml(field.keywords, 'field-' + field.sourceLine, { includeValidity: catVis.validityAndErrorMessage, includeEditKeyword: catVis.editingKeywords }, expandedKeywordConditioning, accordionOpenState);
-      // I-32 - DATFMT/DATSEP (data type L) and TIMFMT/TIMSEP (data type
-      // T) are gated purely by dataType, not by any
+      // DATFMT/DATSEP (data type L) and TIMFMT/TIMSEP (data type T) are
+      // gated purely by dataType, not by any
       // fieldKeywordCategoryVisibility() category - see
       // WebviewClientHelpers.dateTimeFormatHtml's own doc comment. Only
       // ever renders something for L or T; '' for every other data type
@@ -4610,10 +4614,10 @@ const htmlTemplate = `<!DOCTYPE html>
     if (!isConstant && catVis.inputKeywords) {
       attrsHtml += accordionHtml('field-' + field.sourceLine + '::input-keywords', 'Input keywords', WebviewClientHelpers.inputKeywordsHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning, field.dataType), false);
     }
-    // Task I-42 - ENTFLDATR is documented \"field-level, record-level, or
-    // file-level\" (record and file were already offered); this is the
-    // field-level form, reusing the same entFldAtrHtml/wireEntFldAtrEditor
-    // pair. IBM: \"The field containing the ENTFLDATR keyword must be an
+    // ENTFLDATR is documented \"field-level, record-level, or file-level\"
+    // (record and file were already offered); this is the field-level
+    // form, reusing the same entFldAtrHtml/wireEntFldAtrEditor pair. IBM:
+    // \"The field containing the ENTFLDATR keyword must be an
     // input-capable field\" - so it's gated the same way as the other
     // input-only categories (catVis.inputKeywords: usage I/B, blank usage
     // fails open) and never offered on constants. When defined at both
@@ -4630,10 +4634,10 @@ const htmlTemplate = `<!DOCTYPE html>
       dbRefBody += WebviewClientHelpers.databaseReferenceHtml(field, 'field-' + field.sourceLine, expandedKeywordConditioning);
       attrsHtml += accordionHtml('field-' + field.sourceLine + '::database-reference', 'Database reference', dbRefBody, false);
     }
-    // Task I-92: MSGID cannot be specified in a subfile (SFL) record format
-    // (DDS Reference), so the Message ID panel is not offered for a field of
-    // an SFL record - unless the field already carries MSGID (hand-edited),
-    // in which case it is shown with a note so it can be removed.
+    // MSGID cannot be specified in a subfile (SFL) record format (DDS
+    // Reference), so the Message ID panel is not offered for a field of an
+    // SFL record - unless the field already carries MSGID (hand-edited), in
+    // which case it is shown with a note so it can be removed.
     const msgidSflReason = DspfWriter.msgidSflRecordReason(found.record.keywords);
     const msgidOfferable = !msgidSflReason || DspfWriter.getMessageIdInstances(field.keywords).length > 0;
     if (!isConstant && catVis.messageId && msgidOfferable) {
@@ -4678,17 +4682,17 @@ const htmlTemplate = `<!DOCTYPE html>
       attrsHtml += accordionHtml('field-' + field.sourceLine + '::menubar-separator', 'Menu-bar separator (MNUBARSEP)', WebviewClientHelpers.menuBarSeparatorHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning), false);
     }
     if (!isConstant) {
-      // Task I-57 - push-button field (PSHBTNFLD + PSHBTNCHC). Always
-      // offered for a named field (same opt-in entry-point reasoning as
-      // Choice selection type just below); the choices editor only
-      // appears once the field IS a PSHBTNFLD (pshbtnfldPanelHtml decides).
+      // Push-button field (PSHBTNFLD + PSHBTNCHC). Always offered for a
+      // named field (same opt-in entry-point reasoning as Choice selection
+      // type just below); the choices editor only appears once the field IS
+      // a PSHBTNFLD (pshbtnfldPanelHtml decides).
       attrsHtml += accordionHtml('field-' + field.sourceLine + '::push-button-field', 'Push button field (PSHBTNFLD/PSHBTNCHC)', WebviewClientHelpers.pshbtnfldPanelHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning, field, { fileKeywords: model.fileKeywords, recordKeywords: ownerRecord.keywords }), false);
-      // Task I-65 - CHCCTL and CHCAVAIL/CHCUNAVAIL are allowed on a
-      // PSHBTNFLD field, but the SNGCHCFLD/MLTCHCFLD choice editors below
-      // also edit CHOICE/CHCACCEL/CHCSLT (forbidden there), so a
-      // push-button field gets its own CHCCTL-only and avail/unavail-only
-      // editors, under a distinct '-pbx' owner key so element ids can
-      // never collide with the choice-field editors' own.
+      // CHCCTL and CHCAVAIL/CHCUNAVAIL are allowed on a PSHBTNFLD field,
+      // but the SNGCHCFLD/MLTCHCFLD choice editors below also edit
+      // CHOICE/CHCACCEL/CHCSLT (forbidden there), so a push-button field
+      // gets its own CHCCTL-only and avail/unavail-only editors, under a
+      // distinct '-pbx' owner key so element ids can never collide with
+      // the choice-field editors' own.
       if (DspfWriter.getPshbtnfld(field.keywords).present) {
         attrsHtml += accordionHtml('field-' + field.sourceLine + '::pshbtn-choice-control', 'Push-button choice control (CHCCTL)', WebviewClientHelpers.pshbtnChoiceControlHtml(field.keywords, 'field-' + field.sourceLine + '-pbx'), false);
         attrsHtml += accordionHtml('field-' + field.sourceLine + '::pshbtn-choice-colors', 'Push-button colors & attributes (CHCAVAIL/CHCUNAVAIL)', WebviewClientHelpers.choiceColorStatesHtml(field.keywords, 'field-' + field.sourceLine + '-pbx', expandedKeywordConditioning, WebviewClientHelpers.pshbtnChoiceColorStateKeys(), ownerRecord.keywords), false);
@@ -4747,12 +4751,12 @@ const htmlTemplate = `<!DOCTYPE html>
         });
         updates.keywords = DspfWriter.setFileFlagKeyword(field.keywords, 'MSGCON', !!msgConParams, msgConParams);
       } else if (isHtmlConstant) {
-        // Task I-41 - setFileQuotedText already quotes+escapes and drops
-        // the keyword entirely when the text is blank (same convention
-        // MSGCON's own !!msgConParams branch above follows manually) -
-        // conditions are omitted here so any existing option-indicator
-        // conditioning on the HTML keyword is preserved untouched, same
-        // as HLPTITLE's own text-edit path.
+        // setFileQuotedText already quotes+escapes and drops the keyword
+        // entirely when the text is blank (same convention MSGCON's own
+        // !!msgConParams branch above follows manually) - conditions are
+        // omitted here so any existing option-indicator conditioning on
+        // the HTML keyword is preserved untouched, same as HLPTITLE's
+        // own text-edit path.
         updates.keywords = DspfWriter.setFileQuotedText(field.keywords, 'HTML', document.getElementById('p-const-html-text').value);
       } else if (isConstant) {
         updates.constantValue = document.getElementById('p-const-text').value;
@@ -4767,24 +4771,23 @@ const htmlTemplate = `<!DOCTYPE html>
         updates.decimalPositions = document.getElementById('p-dec').value === '' ? null : parseInt(document.getElementById('p-dec').value, 10);
         updates.dataType = document.getElementById('p-type').value || null;
         updates.usage = document.getElementById('p-usage').value || null;
-        // Task I-31 - L/T/Z (Date/Time/Timestamp) fields have their own
-        // narrower Usage restriction (O, B, or I only - no H/M/P) than
-        // every other data type; see DspfWriter.dateTimeUsageConflictReason's
-        // own doc comment for the DDS Reference citation. Blocked here,
-        // before commitEdit, rather than reverting the selects - the
-        // Apply button's own "click again after fixing" flow already
-        // lets the user adjust and retry, same posture as the other
-        // early-return guards on this panel (e.g. the incomplete-SFLMSGID
-        // case never gets applied either).
+        // L/T/Z (Date/Time/Timestamp) fields have their own narrower Usage
+        // restriction (O, B, or I only - no H/M/P) than every other data
+        // type; see DspfWriter.dateTimeUsageConflictReason's own doc comment
+        // for the DDS Reference citation. Blocked here, before commitEdit,
+        // rather than reverting the selects - the Apply button's own "click
+        // again after fixing" flow already lets the user adjust and retry,
+        // same posture as the other early-return guards on this panel (e.g.
+        // the incomplete-SFLMSGID case never gets applied either).
         const dateTimeUsageReason = DspfWriter.dateTimeUsageConflictReason(updates.dataType, updates.usage);
         if (dateTimeUsageReason) {
           window.alert(dateTimeUsageReason);
           return;
         }
-        // Task I-61: WRDWRAP is valid only on input-only (I) or
-        // input/output (B) fields and not on data types S, Y, D, M, F, J,
-        // O, E or G. I-58 blocked adding WRDWRAP's conflicting KEYWORDS to
-        // a WRDWRAP field; this blocks a data type or usage CHANGE on one.
+        // WRDWRAP is valid only on input-only (I) or input/output (B)
+        // fields and not on data types S, Y, D, M, F, J, O, E or G. I-58
+        // blocked adding WRDWRAP's conflicting KEYWORDS to a WRDWRAP
+        // field; this blocks a data type or usage CHANGE on one.
         // Diff-based (see wrdwrapBasicEditConflictReason), so an unrelated
         // Apply on an already-invalid hand-written field still goes
         // through. Early return, same as the date/time check above: the
@@ -4795,41 +4798,41 @@ const htmlTemplate = `<!DOCTYPE html>
           window.alert(wrdwrapEditReason);
           return;
         }
-        // Task I-62: a PSHBTNFLD field must stay an input-capable field
-        // with data type Y, length 2 and decimal positions 0 (DDS
-        // Reference). I-57 enforces that when the toggle is turned on;
-        // this blocks a data type, length, decimals or usage CHANGE that
-        // would break it afterwards. Same posture as the I-61 check above:
-        // diff-based (an unrelated Apply on an already-invalid
-        // hand-written field still goes through) and an early return, so
-        // the panel keeps the user's other pending edits.
+        // A PSHBTNFLD field must stay an input-capable field with data
+        // type Y, length 2 and decimal positions 0 (DDS Reference). I-57
+        // enforces that when the toggle is turned on; this blocks a data
+        // type, length, decimals or usage CHANGE that would break it
+        // afterwards. Same posture as the check above: diff-based (an
+        // unrelated Apply on an already-invalid hand-written field still
+        // goes through) and an early return, so the panel keeps the user's
+        // other pending edits.
         const pshbtnfldEditReason = DspfWriter.pshbtnfldBasicEditConflictReason(field.keywords, field, updates);
         if (pshbtnfldEditReason) {
           window.alert(pshbtnfldEditReason);
           return;
         }
-        // Task I-72: DUP cannot be specified on a floating-point field. The
-        // commitEdit backstop covers this too; it is repeated here as an
-        // early return, like the I-61 / I-62 checks above, so a blocked data
-        // type change does not re-render the panel and wipe the user's
-        // other pending edits.
+        // DUP cannot be specified on a floating-point field. The commitEdit
+        // backstop covers this too; it is repeated here as an early return,
+        // like the I-61 / I-62 checks above, so a blocked data type change
+        // does not re-render the panel and wipe the user's other pending
+        // edits.
         const dupFloatEditReason = DspfWriter.dupFloatNewConflictReason(field, updates);
         if (dupFloatEditReason) {
           window.alert(dupFloatEditReason);
           return;
         }
-        // Task I-82: BLKFOLD cannot be specified on a floating-point
-        // field. The commitEdit backstop covers this too; repeated here
-        // as an early return, same reasoning as the I-72 DUP check above.
+        // BLKFOLD cannot be specified on a floating-point field. The
+        // commitEdit backstop covers this too; repeated here as an early
+        // return, same reasoning as the I-72 DUP check above.
         const blkfoldFloatEditReason = DspfWriter.blkfoldFloatNewConflictReason(field, updates);
         if (blkfoldFloatEditReason) {
           window.alert(blkfoldFloatEditReason);
           return;
         }
-        // Task I-125: RANGE/COMP/VALUES cannot be specified on a
-        // floating-point field, same restriction and same shape as the
-        // DUP/BLKFOLD checks just above. The commitEdit backstop covers
-        // this too; repeated here as an early return, same reasoning.
+        // RANGE/COMP/VALUES cannot be specified on a floating-point
+        // field, same restriction and same shape as the DUP/BLKFOLD
+        // checks just above. The commitEdit backstop covers this too;
+        // repeated here as an early return, same reasoning.
         const rangeFloatEditReason = DspfWriter.rangeFloatNewConflictReason(field, updates);
         if (rangeFloatEditReason) {
           window.alert(rangeFloatEditReason);
@@ -4845,31 +4848,31 @@ const htmlTemplate = `<!DOCTYPE html>
           window.alert(valuesFloatEditReason);
           return;
         }
-        // Task I-125: CHECK(AB) specifically (not CHECK's other codes)
-        // cannot be specified on a floating-point field. The commitEdit
-        // backstop covers this too; repeated here as an early return,
-        // same reasoning as the RANGE/COMP/VALUES checks above.
+        // CHECK(AB) specifically (not CHECK's other codes) cannot be
+        // specified on a floating-point field. The commitEdit backstop
+        // covers this too; repeated here as an early return, same
+        // reasoning as the RANGE/COMP/VALUES checks above.
         const checkAbFloatEditReason = DspfWriter.checkAbFloatIncompatibleNewConflictReason(field, updates);
         if (checkAbFloatEditReason) {
           window.alert(checkAbFloatEditReason);
           return;
         }
-        // Task I-137: DFT/DFTVAL/EDTCDE/EDTWRD cannot be specified on a
-        // floating-point field either; same shape, same reasoning as above.
+        // DFT/DFTVAL/EDTCDE/EDTWRD cannot be specified on a floating-point
+        // field either; same shape, same reasoning as above.
         const dftFloatEditReason = DspfWriter.dftGroupFloatNewConflictReason(field, updates);
         if (dftFloatEditReason) {
           window.alert(dftFloatEditReason);
           return;
         }
-        // Task I-69: CHKMSGID also requires an input-capable field (usage B
-        // or I) - blocks a usage CHANGE to O/H/M/P on a field that already
-        // carries it. Same diff-based idiom as the WRDWRAP check above.
+        // CHKMSGID also requires an input-capable field (usage B or I) -
+        // blocks a usage CHANGE to O/H/M/P on a field that already carries
+        // it. Same diff-based idiom as the WRDWRAP check above.
         const chkmsgidEditReason = DspfWriter.chkmsgidBasicEditConflictReason(field.keywords, field.usage, updates.usage);
         if (chkmsgidEditReason) {
           window.alert(chkmsgidEditReason);
           return;
         }
-        // Task I-70: CHRID is not valid on hidden (H), message (M) or
+        // CHRID is not valid on hidden (H), message (M) or
         // program-to-system (P) fields, nor on numeric fields (decimal
         // positions specified) - blocks a usage or decimals CHANGE on a
         // field that already carries it. Same diff-based, early-return
@@ -4879,56 +4882,56 @@ const htmlTemplate = `<!DOCTYPE html>
           window.alert(chridEditReason);
           return;
         }
-        // Task I-94: IGCALTTYP needs an input- and output-capable (B) field
-        // with keyboard shift A/N/X/W/I - blocks a usage or data type CHANGE
-        // that would leave a field carrying it ineligible. Same diff-based,
+        // IGCALTTYP needs an input- and output-capable (B) field with
+        // keyboard shift A/N/X/W/I - blocks a usage or data type CHANGE that
+        // would leave a field carrying it ineligible. Same diff-based,
         // early-return idiom as the checks just above.
         const igcalttypEditReason = DspfWriter.igcalttypBasicEditConflictReason(field.keywords, field, updates);
         if (igcalttypEditReason) {
           window.alert(igcalttypEditReason);
           return;
         }
-        // Task I-131: VALNUM needs an input-capable (I/B) field with data
-        // type Y - blocks a usage or data type CHANGE that would leave a
-        // field carrying it ineligible. Same diff-based idiom as I-94 above.
+        // VALNUM needs an input-capable (I/B) field with data type Y -
+        // blocks a usage or data type CHANGE that would leave a field
+        // carrying it ineligible. Same diff-based idiom as above.
         const valnumEditReason = DspfWriter.valnumBasicEditConflictReason(field.keywords, field, updates);
         if (valnumEditReason) {
           window.alert(valnumEditReason);
           return;
         }
-        // Task I-179: DATFMT / DATSEP need data type L and TIMFMT / TIMSEP
-        // data type T - blocks a data type CHANGE that would strand them.
+        // DATFMT / DATSEP need data type L and TIMFMT / TIMSEP data type T
+        // - blocks a data type CHANGE that would strand them.
         const dateTimeFmtEditReason = DspfWriter.dateTimeFormatBasicEditConflictReason(field.keywords, field, updates);
         if (dateTimeFmtEditReason) {
           window.alert(dateTimeFmtEditReason);
           return;
         }
-        // Task I-138: EDTCDE (Y or blank) / EDTWRD (Y) - blocks a data type
-        // CHANGE that would leave a field carrying one on any other type.
+        // EDTCDE (Y or blank) / EDTWRD (Y) - blocks a data type CHANGE that
+        // would leave a field carrying one on any other type.
         const edtTypeEditReason = DspfWriter.editKeywordDataTypeBasicEditConflictReason(field.keywords, field, updates);
         if (edtTypeEditReason) {
           window.alert(edtTypeEditReason);
           return;
         }
-        // Task I-79: SFLCHCCTL requires the field to stay length 1, data
-        // type Y, 0 decimals, usage H. I-79's own checkbox handler brings
-        // a field into that shape when the keyword is turned ON; this
-        // blocks a later Apply that would break it. Same diff-based,
-        // early-return posture as the checks just above.
+        // SFLCHCCTL requires the field to stay length 1, data type Y, 0
+        // decimals, usage H. The checkbox handler brings a field into
+        // that shape when the keyword is turned ON; this blocks a later
+        // Apply that would break it. Same diff-based, early-return
+        // posture as the checks just above.
         const sflchcctlEditReason = DspfWriter.sflchcctlBasicEditConflictReason(field.keywords, field, updates);
         if (sflchcctlEditReason) {
           window.alert(sflchcctlEditReason);
           return;
         }
-        // Task I-126: SFLSCROLL requires a 5-digit signed numeric, 0-decimal,
-        // hidden field - blocks an Apply that would change it away from that.
+        // SFLSCROLL requires a 5-digit signed numeric, 0-decimal, hidden
+        // field - blocks an Apply that would change it away from that.
         const sflscrollEditReason = DspfWriter.sflscrollBasicEditConflictReason(field.keywords, field, updates);
         if (sflscrollEditReason) {
           window.alert(sflscrollEditReason);
           return;
         }
-        // Task I-177: SFLRCDNBR requires a signed numeric, 0-decimal field of
-        // at most 4 digits, usage O, B or H - same blocking Apply check.
+        // SFLRCDNBR requires a signed numeric, 0-decimal field of at most 4
+        // digits, usage O, B or H - same blocking Apply check.
         const sflrcdnbrEditReason = DspfWriter.sflrcdnbrBasicEditConflictReason(field.keywords, field, updates);
         if (sflrcdnbrEditReason) {
           window.alert(sflrcdnbrEditReason);
@@ -4946,7 +4949,8 @@ const htmlTemplate = `<!DOCTYPE html>
     }
     WebviewClientHelpers.wireKeywordEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), (name, params) => DspfWriter.htmlConflictReason(name, field.keywords, (model.records.find((r) => r.name === ownerRecordName) || {}).keywords) || DspfWriter.wrdwrapReverseConflictReason(name, params, field.keywords) || DspfWriter.igcalttypConflictReason(name, params, field.keywords, { usage: field.usage, dataType: field.dataType, isConstant: isConstant }) || DspfWriter.edtmskConflictReason(name, params, field.keywords) || DspfWriter.msgidExclusionConflictReason(name, field.keywords, found.record.keywords) || DspfWriter.msgconConflictReason(name, params, field.keywords, { nameType: field.nameType }) || DspfWriter.pshbtnfldConflictReason(name, params, field.keywords) || DspfWriter.pshbtnchcParamsProblem(name, params) || DspfWriter.chkmsgidFieldAddReason(name, field.keywords, field.usage) || DspfWriter.chkmsgidMsgDataAddReason(name, params, found.record.fields) || DspfWriter.messageIdMsgDataAddReason(name, params, found.record.fields) || DspfWriter.chridFieldAddReason(name, field.keywords, field.usage, field.decimalPositions, isConstant));
     WebviewClientHelpers.wireConditionsEditor('field', field.conditions, (newConditions) => commitEdit(ownerRecordName, field, { conditions: newConditions }), expandedKeywordConditioning, () => renderFieldProps(recordName));
-    // Task I-83: COLOR/DSPATR are on HTML's own exclusion list - blocked on the on-transition for an HTML constant.
+    // COLOR/DSPATR are on HTML's own exclusion list - blocked on the on-transition for an HTML
+    // constant.
     WebviewClientHelpers.wireColorAttrStatesEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), (name) => DspfWriter.htmlConflictReason(name, field.keywords, found.record.keywords));
     if (!isConstant) {
       WebviewClientHelpers.wireValidityAndEdit(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, { includeValidity: catVis.validityAndErrorMessage, includeEditKeyword: catVis.editingKeywords }, expandedKeywordConditioning, () => renderFieldProps(recordName), field.dataType, field.usage, found.record.fields);
@@ -4966,7 +4970,8 @@ const htmlTemplate = `<!DOCTYPE html>
       WebviewClientHelpers.wireKeyingOptionsEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), (newDataType) => commitEdit(ownerRecordName, field, { dataType: newDataType }));
       WebviewClientHelpers.wireInputKeywordsEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), field.dataType);
     }
-    // Task I-83: HTML's own exclusion list (COLOR/DFT/DSPATR/HLPID/NOCCSID/OVRATR/PUTRETAIN/...) applies to these rows too.
+    // HTML's own exclusion list (COLOR/DFT/DSPATR/HLPID/NOCCSID/OVRATR/PUTRETAIN/...) applies to
+    // these rows too.
     WebviewClientHelpers.wireGeneralFieldKeywordsEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), field.dataType, isConstant, field.usage, found.record.keywords, (name) => DspfWriter.htmlConflictReason(name, field.keywords, found.record.keywords) || DspfWriter.igcalttypConflictReason(name, '', field.keywords, { usage: field.usage, dataType: field.dataType, isConstant: isConstant }) || DspfWriter.msgidExclusionConflictReason(name, field.keywords, found.record.keywords) || DspfWriter.msgconConflictReason(name, '', field.keywords, { nameType: field.nameType }), field.decimalPositions);
     if (!isConstant && catVis.inputKeywords) {
       WebviewClientHelpers.wireEntFldAtrEditor(() => field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine + '-entfldatr', expandedKeywordConditioning, () => renderFieldProps(recordName));
@@ -4977,10 +4982,10 @@ const htmlTemplate = `<!DOCTYPE html>
     }
     if (isSflOrSflCtlRecord) {
       const siblingFieldsKeywords = (found.record.fields || []).filter((f) => f.sourceLine !== field.sourceLine).map((f) => f.keywords);
-      // Task I-79 - "first field" is the first NAMED field in the owning
-      // record (constants don't count as fields per the DDS Reference's
-      // own terminology - see DspfWriter.sflchcctlFieldConflictReason's
-      // own doc comment).
+      // "first field" is the first NAMED field in the owning record
+      // (constants don't count as fields per the DDS Reference's own
+      // terminology - see DspfWriter.sflchcctlFieldConflictReason's own
+      // doc comment).
       const firstNamedField = (found.record.fields || []).find((f) => f.nameType !== 'CONSTANT');
       const isFirstField = !!firstNamedField && firstNamedField.sourceLine === field.sourceLine;
       WebviewClientHelpers.wireSubfileFieldKeywords(field.keywords, (newKeywords, fieldUpdates) => commitEdit(ownerRecordName, field, Object.assign({ keywords: newKeywords }, fieldUpdates || {})), 'field-' + field.sourceLine, siblingFieldsKeywords, isFirstField, () => field, found.record.keywords);
@@ -4990,9 +4995,9 @@ const htmlTemplate = `<!DOCTYPE html>
       WebviewClientHelpers.wireMenuBarSeparatorEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName));
     }
     if (!isConstant) {
-      // Task I-57 - one edit carries both the keywords and, when turning
-      // PSHBTNFLD on requires it, the field's own Y/2/0/input-capable
-      // definition (see DspfWriter.pshbtnfldDefinitionUpdates).
+      // One edit carries both the keywords and, when turning PSHBTNFLD
+      // on requires it, the field's own Y/2/0/input-capable definition
+      // (see DspfWriter.pshbtnfldDefinitionUpdates).
       WebviewClientHelpers.wirePshbtnfldPanel(
         () => field.keywords,
         (newKeywords, fieldUpdates) => commitEdit(ownerRecordName, field, Object.assign({ keywords: newKeywords }, fieldUpdates || {})),
@@ -5029,9 +5034,9 @@ const htmlTemplate = `<!DOCTYPE html>
       // here; MSGCON's own length parameter IS its documented display
       // width (the constant is padded/truncated to it at run time), so
       // that input is the width directly, not a proxy for one. HTML has
-      // no length parameter of its own at all (Task I-41) - its own tag
-      // text length is used directly, same as a plain literal constant's
-      // own Text input would be.
+      // no length parameter of its own at all - its own tag text length
+      // is used directly, same as a plain literal constant's own Text
+      // input would be.
       const width = isSystemValueConstant
         ? DspfEngine.displayLength(field, found.record, model)
         : isMsgConConstant
@@ -5103,9 +5108,10 @@ const htmlTemplate = `<!DOCTYPE html>
    * which is what was actually asked for over the alternative of just
    * shrinking the same layout further.
    */
-  // Task I-195 - the maxlength attribute for a comment input: the source file's line length minus the seven
-  // prefix columns, or none for a local file. An existing comment that is already longer than that keeps
-  // its own length as the limit, so opening it never makes the input refuse what the file already holds.
+  // The maxlength attribute for a comment input: the source file's line length minus the seven
+  // prefix columns, or none for a local file. An existing comment that is already longer than that
+  // keeps its own length as the limit, so opening it never makes the input refuse what the file
+  // already holds.
   function commentMaxLengthAttr(existingText) {
     const hard = commentHardMax();
     if (hard === null) return '';
@@ -5234,18 +5240,18 @@ const htmlTemplate = `<!DOCTYPE html>
   }
 
   /**
-   * I-75: Usage P (program-to-system) fields, like Hidden (usage H)
-   * ones above, are excluded from canvas drawing (dspfEngine.js), so they
-   * need the exact same kind of list/select/add/delete surface - I-35
-   * found this gap (a P-usage field could exist in the DDS source with
-   * no click-to-select path anywhere in iSDA's own UI) but didn't fix it.
-   * Per the DDS Reference's own P section: "Program-to-system fields are
-   * always named" and "Locations are not valid for program-to-system
-   * fields" - same two constraints Hidden fields already have, so this
-   * reuses noOnScreenFieldsSectionHtml/wireNoOnScreenFieldsSection wholesale
-   * rather than duplicating the list/add/delete logic; only the labels, the
-   * usage code threaded into DspfWriter.insertField, and the element-id/
-   * class prefixes (so this tab's DOM never collides with the Hidden tab's)
+   * Usage P (program-to-system) fields, like Hidden (usage H) ones above,
+   * are excluded from canvas drawing (dspfEngine.js), so they need the exact
+   * same kind of list/select/add/delete surface - I-35 found this gap (a
+   * P-usage field could exist in the DDS source with no click-to-select path
+   * anywhere in iSDA's own UI) but didn't fix it. Per the DDS Reference's
+   * own P section: "Program-to-system fields are always named" and
+   * "Locations are not valid for program-to-system fields" - same two
+   * constraints Hidden fields already have, so this reuses
+   * noOnScreenFieldsSectionHtml/wireNoOnScreenFieldsSection wholesale rather
+   * than duplicating the list/add/delete logic; only the labels, the usage
+   * code threaded into DspfWriter.insertField, and the element-id/ class
+   * prefixes (so this tab's DOM never collides with the Hidden tab's)
    * differ.
    */
   function programFieldsSectionHtml(rec) {
@@ -5408,7 +5414,7 @@ const htmlTemplate = `<!DOCTYPE html>
     const tmp = order[idx];
     order[idx] = order[newIdx];
     order[newIdx] = tmp;
-    // Task I-87: SFLCHCCTL must stay on the first (named) field of its record;
+    // SFLCHCCTL must stay on the first (named) field of its record;
     // sflchcctlFieldConflictReason only checks that when the checkbox is
     // toggled, so a reorder needs its own diff-based check here.
     const reorderReason = DspfWriter.sflchcctlReorderConflictReason(rec, order);
@@ -5446,11 +5452,11 @@ const htmlTemplate = `<!DOCTYPE html>
     if (kind === 'CONSTANT') {
       // Task: *DATE/*TIME/*USER/*SYSTEM(SYSNAME) system-value constants
       // previously had NO way to be created here at all - "Enter the
-      // constant text" was required, with nothing offering the
-      // alternative of a keyword-only, no-text constant. A "Value source"
-      // dropdown picks between literal text, a system value, and (I-33) a
-      // MSGCON message reference - the three ways DDS lets a constant's
-      // value be non-literal (see renderFieldProps's own
+      // constant text" was required, with nothing offering the alternative
+      // of a keyword-only, no-text constant. A "Value source" dropdown
+      // picks between literal text, a system value, and a MSGCON message
+      // reference - the three ways DDS lets a constant's value be
+      // non-literal (see renderFieldProps's own
       // isSystemValueConstant/isMsgConConstant doc comments for the full
       // keyword list/reasoning). I-33 also removed 'PAGNBR' from the
       // system-value list here - it was never a real DDS keyword (see
@@ -5471,19 +5477,19 @@ const htmlTemplate = `<!DOCTYPE html>
       html += '<div class="two-col"><div class="field-row"><label>Message file</label><input type="text" id="p-place-msgcon-msgfile" /></div>';
       html += '<div class="field-row"><label>Library</label><input type="text" id="p-place-msgcon-library" placeholder="*LIBL" /></div></div>';
       html += '</div>';
-      // Task I-41 - HTML's own required parameter is a single quoted
-      // literal tag string (HTML('value')) - the &program-to-system-field
-      // reference form isn't offered here (matching every one of the DDS
+      // HTML's own required parameter is a single quoted literal tag
+      // string (HTML('value')) - the &program-to-system-field reference
+      // form isn't offered here (matching every one of the DDS
       // Reference's own HTML examples, which all use a quoted literal);
       // that form is still reachable via the raw keyword editor.
       html += '<div id="p-place-html-wrap" class="field-row" style="display:none;"><label>HTML tag</label><input type="text" id="p-place-html-text" placeholder="&lt;TITLE&gt;" /></div>';
     } else {
       html += '<div class="field-row"><label>Name</label><input type="text" id="p-place-name" maxlength="10" placeholder="FIELD1" /></div>';
-      // Task I-57 - a "Field kind" selector: a push-button field (PSHBTNFLD +
-      // PSHBTNCHC) has a fixed definition (input-capable, type Y, length 2,
-      // decimals 0 - see DspfWriter.pshbtnfldDefinitionUpdates), so choosing
-      // it swaps the free Length/Decimals/Type/Usage inputs for the one thing
-      // actually left to choose, the first button.
+      // A "Field kind" selector: a push-button field (PSHBTNFLD + PSHBTNCHC)
+      // has a fixed definition (input-capable, type Y, length 2, decimals 0 -
+      // see DspfWriter.pshbtnfldDefinitionUpdates), so choosing it swaps the
+      // free Length/Decimals/Type/Usage inputs for the one thing actually
+      // left to choose, the first button.
       html += '<div class="field-row"><label>Field kind</label><select id="p-place-field-kind"><option value="std">Standard field</option><option value="pshbtn">Push button (PSHBTNFLD)</option></select></div>';
       html += '<div id="p-place-pb-wrap" style="display:none;">';
       html += '<div class="field-row"><label>First button text</label><input type="text" id="p-place-pb-text" value="Enter" /></div>';
@@ -5548,15 +5554,16 @@ const htmlTemplate = `<!DOCTYPE html>
           if (!msgConParams) { errorEl.textContent = 'Enter the message length, message ID, and message file.'; return; }
           const msgConLengthProblem = DspfWriter.msgconLengthProblem(document.getElementById('p-place-msgcon-length').value);
           if (msgConLengthProblem) { errorEl.textContent = msgConLengthProblem; return; }
-          // Task I-153: the composed text must be the stated three-parameter form (a message ID with a blank in it, or a file / library box holding a slash, would not be).
+          // The composed text must be the stated three-parameter form (a message ID with a blank in
+          // it, or a file / library box holding a slash, would not be).
           const msgConStructureProblem = DspfWriter.msgconStructureProblem(msgConParams);
           if (msgConStructureProblem) { errorEl.textContent = msgConStructureProblem; return; }
           newFieldSpec = { nameType: 'CONSTANT', constantValue: null, keywords: [{ name: 'MSGCON', parameters: msgConParams, conditions: [], sourceLines: [] }], location: { line: line, column: column } };
         } else if (constKind === 'html') {
-          // Task I-41 - a brand-new constant can't yet carry any of
-          // HTML's own mutually-exclusive keywords (it has none yet), so
-          // only the SFL-record half of htmlConflictReason can ever fire
-          // here - still checked, since the field could be placed onto an
+          // A brand-new constant can't yet carry any of HTML's own
+          // mutually-exclusive keywords (it has none yet), so only the
+          // SFL-record half of htmlConflictReason can ever fire here -
+          // still checked, since the field could be placed onto an
           // EXISTING SFL record.
           const htmlText = document.getElementById('p-place-html-text').value;
           if (!htmlText) { errorEl.textContent = 'Enter the HTML tag text.'; return; }
@@ -5574,9 +5581,9 @@ const htmlTemplate = `<!DOCTYPE html>
         if (!WebviewClientHelpers.isValidDdsName(name)) { errorEl.textContent = 'Not a valid DDS name (1-10 chars, starts with a letter or $#@).'; return; }
         if (rec.fields.some((f) => f.name === name)) { errorEl.textContent = 'A field named "' + name + '" already exists in this record.'; return; }
         if (fieldKindSelect && fieldKindSelect.value === 'pshbtn') {
-          // Task I-57 - fixed PSHBTNFLD definition; see the Field kind
-          // selector's comment above. A brand-new field carries no other
-          // keywords, so pshbtnfldConflictReason has nothing to object to.
+          // Fixed PSHBTNFLD definition; see the Field kind selector's
+          // comment above. A brand-new field carries no other keywords, so
+          // pshbtnfldConflictReason has nothing to object to.
           const pbText = document.getElementById('p-place-pb-text').value.trim();
           if (!pbText) { errorEl.textContent = "Enter the first button's text."; return; }
           newFieldSpec = {
@@ -5999,12 +6006,12 @@ const htmlTemplate = `<!DOCTYPE html>
     // categories (see WebviewClientHelpers.isUsrDfnRecord's doc comment) -
     // narrow the subtabs to that subset for USRDFN records specifically.
     const rkPrefix = 'rk-' + rec.name;
-    // Task I-105: a USRDFN, SFL or MNUBAR record's Keywords subtabs carry only
-    // the rows on that record type's closed whitelist - every non-applicable
-    // row is hidden, not shown-and-refused - and a subtab with no applicable
-    // row is dropped (USRDFN: General/Indicator/Help/Print - the R2 subset plus
-    // I-114's HELP/HLPRTN-only Indicator; SFL: General/
-    // Indicator/Output/Input; MNUBAR: all seven; SFLMSG (I-115): none).
+    // A USRDFN, SFL or MNUBAR record's Keywords subtabs carry only the rows on
+    // that record type's closed whitelist - every non-applicable row is hidden,
+    // not shown-and-refused - and a subtab with no applicable row is dropped
+    // (USRDFN: General/Indicator/Help/Print - the R2 subset plus the
+    // HELP/HLPRTN-only Indicator; SFL: General/ Indicator/Output/Input; MNUBAR:
+    // all seven; SFLMSG: none).
     const rkRestriction = WebviewClientHelpers.recordKeywordsRestriction(rec);
     const rkPanels = WebviewClientHelpers.recordKeywordsPanelsHtml(rec.keywords, rkPrefix, expandedKeywordConditioning, rkRestriction);
     const rkAllTabs = [
@@ -6017,9 +6024,9 @@ const htmlTemplate = `<!DOCTYPE html>
       { id: 'print', label: 'Print', content: rkPanels.print },
     ];
     const rkTabs = rkRestriction ? rkAllTabs.filter((t) => t.content !== '') : rkAllTabs;
-    // Task I-115: a message-subfile (SFLMSG) record's whitelist is SFLMSGRCD
-    // only, so every subtab is empty and dropped - no subtab strip at all
-    // (rkTabs[0] would not exist); the raw editor and Conditioning below stay.
+    // A message-subfile (SFLMSG) record's whitelist is SFLMSGRCD only, so
+    // every subtab is empty and dropped - no subtab strip at all (rkTabs[0]
+    // would not exist); the raw editor and Conditioning below stay.
     let keywordsHtml = '';
     if (rkTabs.length > 0) {
       const rkActiveTab = rkTabs.some((t) => t.id === activeRecordKwTab) ? activeRecordKwTab : rkTabs[0].id;
@@ -6062,9 +6069,9 @@ const htmlTemplate = `<!DOCTYPE html>
     // canvas-click flow every other field/constant uses.
     const hiddenHtml = hiddenFieldsSectionHtml(rec);
 
-    // --- Program tab (I-75): usage=P (program-to-system) fields have the
-    // same no-on-screen-footprint problem as Hidden fields above, and were
-    // left with no reachable selection path at all when I-35 found the gap.
+    // --- Program tab: usage=P (program-to-system) fields have the same
+    // no-on-screen-footprint problem as Hidden fields above, and were left
+    // with no reachable selection path at all when I-35 found the gap.
     const programHtml = programFieldsSectionHtml(rec);
 
     // --- SFLMSG tab: only for message-subfile records (Task R5) - Message
@@ -6248,11 +6255,10 @@ const htmlTemplate = `<!DOCTYPE html>
     }
     WebviewClientHelpers.wireCommandKeysSection('record', rec.keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), expandedKeywordConditioning, () => renderRecordProps(recordName), (name) => DspfWriter.moubtnCommandKeyConflictReason({ name }, model.fileKeywords, [rec.keywords || []]));
     WebviewClientHelpers.wireRecordKeywordsPanels(rkPrefix, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), expandedKeywordConditioning, () => renderRecordProps(recordName), () => model.fileKeywords);
-    // Task I-49/I-46/I-47: guard the raw keyword editor's own "+ Add
-    // keyword" against USRDFN's whitelist, SFL's whitelist, and WINDOW's
-    // own six-keyword mutex list (rec.keywords is this render's own
-    // fresh snapshot, same as every other guard/panel wired in this
-    // function).
+    // Guard the raw keyword editor's own "+ Add keyword" against
+    // USRDFN's whitelist, SFL's whitelist, and WINDOW's own six-keyword
+    // mutex list (rec.keywords is this render's own fresh snapshot, same
+    // as every other guard/panel wired in this function).
     WebviewClientHelpers.wireKeywordEditor(rec.keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), 'record-' + rec.name, expandedKeywordConditioning, () => renderRecordProps(recordName), (name, params) => DspfWriter.usrdfnWhitelistConflictReason(name, rec.keywords) || DspfWriter.sflWhitelistConflictReason(name, rec.keywords) || DspfWriter.windowMutexConflictReason(name, rec.keywords) || DspfWriter.mnubarWhitelistConflictReason(name, rec.keywords) || DspfWriter.messageIdMsgDataAddReason(name, params, rec.fields) || DspfWriter.sflcsrrrnAddReason(name, params, rec.fields));
     WebviewClientHelpers.wireConditionsEditor('record', rec.conditions, (newConditions) => commitRecordEdit(recordName, { conditions: newConditions }), expandedKeywordConditioning, () => renderRecordProps(recordName));
     if (isSflMsg) {
@@ -6344,10 +6350,10 @@ const htmlTemplate = `<!DOCTYPE html>
     return true;
   }
 
-  // Task I-139: the alt keys' (ALTHELP / ALTPAGEDWN / ALTPAGEUP) file-wide
-  // command-key exclusions, checked on every committed edit - same shape and
-  // reasoning as scrbarGuardBlocks above. Returns true (after alerting) when
-  // the edit would introduce a clash.
+  // The alt keys' (ALTHELP / ALTPAGEDWN / ALTPAGEUP) file-wide command-key
+  // exclusions, checked on every committed edit - same shape and reasoning
+  // as scrbarGuardBlocks above. Returns true (after alerting) when the edit
+  // would introduce a clash.
   function keyClaimGuardBlocks(newLines) {
     let candidate;
     try { candidate = DspfParser.parseDspf(newLines.join('\\n')); } catch (e) { return false; }
@@ -6357,33 +6363,25 @@ const htmlTemplate = `<!DOCTYPE html>
     return true;
   }
 
-  // Task I-140 / I-141: record-level dependencies, checked on every committed
-  // edit (same shape as keyClaimGuardBlocks above): RMVWDW / USRRSTDSP need a
-  // WINDOW on the same record; SFLCSRRRN / SFLDLT / SFLINZ need an SFLCTL;
-  // SFLDLT takes option indicators, not display size names; Task I-144:
-  // DATE / TIME / USER / SYSNAME only on an unnamed constant, no parameters on
-  // TIME / USER / SYSNAME / NOCCSID, DATE's parameters valid. Task I-145:
-  // SFLRNA needs SFLINZ and is not for a message subfile, SFLINZ on a message
-  // subfile needs SFLPGMQ, SFLMODE's field and SFLMSGRCD's line / predefined
-  // fields are valid. Task I-146: field selection excludes SFLDROP / SFLFOLD /
-  // SFLINZ / SFLLIN / SFLRCDNBR / SFLRNA / SFLROLVAL on the control record,
-  // SFLFOLD is refused when SFLSIZ equals SFLPAG, SFLDROP and SFLFOLD share one
-  // key. Task I-151: ERASE / ERASEINP / MDTOFF / PROTECT need OVERLAY, PUTOVR
-  // is not with PUTRETAIN, ERASE names at most 20 record formats, CSRLOC and
-  // FRCDTA once per record format. Task I-148: GETRETAIN needs a bare UNLOCK,
-  // RTNDTA is not with UNLOCK, INZINP needs PUTOVR / OVERLAY / ERASEINP(*ALL).
-  // Task I-160: HLPFULL / HLPSCHIDX need HLPPNLGRP, HLPSCHIDX not with HLPSHELF,
-  // USRDSPMGT not with its eight forbidden keywords, HLPRCD needs a record format
-  // name, PASSRCD must name an existing record format.
-  // Task I-162: HELP with a response indicator excludes H specifications and
-  // HLPRCD / HLPPNLGRP / HLPDOC / HLPRTN anywhere in the file; those need a HELP
-  // with no response indicator.
-  // Task I-170: REFFLD / DLTCHK / DLTEDT need R in position 29, ALIAS differs from
-  // every other alias and field name, HLPID is a constant-field number 1-999 unique in the record.
-  // Task I-147: the other five subfile-control
-  // keywords also need an SFLCTL, and SFLCLR / SFLDSP / SFLDSPCTL / SFLINZ take
-  // no display size names. Returns true
-  // (after alerting) when the edit would break one - whether by adding the
+  // Record-level dependencies, checked on every committed edit (same shape as keyClaimGuardBlocks
+  // above): RMVWDW / USRRSTDSP need a WINDOW on the same record; SFLCSRRRN / SFLDLT / SFLINZ need
+  // an SFLCTL; SFLDLT takes option indicators, not display size names; DATE / TIME / USER /
+  // SYSNAME only on an unnamed constant, no parameters on TIME / USER / SYSNAME / NOCCSID, DATE's
+  // parameters valid. SFLRNA needs SFLINZ and is not for a message subfile, SFLINZ on a message
+  // subfile needs SFLPGMQ, SFLMODE's field and SFLMSGRCD's line / predefined fields are valid.
+  // field selection excludes SFLDROP / SFLFOLD / SFLINZ / SFLLIN / SFLRCDNBR / SFLRNA / SFLROLVAL
+  // on the control record, SFLFOLD is refused when SFLSIZ equals SFLPAG, SFLDROP and SFLFOLD share
+  // one key. ERASE / ERASEINP / MDTOFF / PROTECT need OVERLAY, PUTOVR is not with PUTRETAIN, ERASE
+  // names at most 20 record formats, CSRLOC and FRCDTA once per record format. GETRETAIN needs a
+  // bare UNLOCK, RTNDTA is not with UNLOCK, INZINP needs PUTOVR / OVERLAY / ERASEINP(*ALL).
+  // HLPFULL / HLPSCHIDX need HLPPNLGRP, HLPSCHIDX not with HLPSHELF, USRDSPMGT not with its eight
+  // forbidden keywords, HLPRCD needs a record format name, PASSRCD must name an existing record
+  // format. HELP with a response indicator excludes H specifications and HLPRCD / HLPPNLGRP /
+  // HLPDOC / HLPRTN anywhere in the file; those need a HELP with no response indicator. REFFLD /
+  // DLTCHK / DLTEDT need R in position 29, ALIAS differs from every other alias and field name,
+  // HLPID is a constant-field number 1-999 unique in the record. the other five subfile-control
+  // keywords also need an SFLCTL, and SFLCLR / SFLDSP / SFLDSPCTL / SFLINZ take no display size
+  // names. Returns true (after alerting) when the edit would break one - whether by adding the
   // dependent keyword or by removing what it depends on.
   function windowDependencyGuardBlocks(newLines) {
     let candidate;
@@ -6450,9 +6448,8 @@ const htmlTemplate = `<!DOCTYPE html>
   // this is a DOM-built equivalent instead. Removes any dialog already open
   // first (last one wins) rather than stacking them. Clicking the backdrop
   // or Cancel dismisses without calling onConfirm; only the confirm button
-  // does.
-  // Task I-119: was copy-pasted verbatim into buildMenuWebviewTemplate.js's
-  // own inline script too - now the one shared implementation lives in
+  // does. was copy-pasted verbatim into buildMenuWebviewTemplate.js's own
+  // inline script too - now the one shared implementation lives in
   // WebviewClientHelpers.showConfirmDialog (bare global, same load-order
   // idiom as DspfEngine/DspfWriter elsewhere in this template).
   function showConfirmDialog(title, bodyText, confirmLabel, onConfirm) {
@@ -6865,31 +6862,31 @@ const htmlTemplate = `<!DOCTYPE html>
   }
 
   function commitEdit(recordName, field, updates) {
-    // Task I-72: DUP cannot be specified on a floating-point field (DDS
-    // Reference). Same choke point as the keyword backstops below, but kept
-    // OUTSIDE their updates.keywords block because one of the two directions
-    // is a data type change (the Basic tab) that carries no keywords at
-    // all. Blocks an edit that would INTRODUCE the violation - adding DUP
-    // to an F field (Input keywords checkbox, raw keyword editor) or
-    // changing a DUP field to data type F; a field that was already
-    // floating-point with DUP is not re-reported. render() puts the panel
-    // back to the model's real state.
+    // DUP cannot be specified on a floating-point field (DDS Reference).
+    // Same choke point as the keyword backstops below, but kept OUTSIDE
+    // their updates.keywords block because one of the two directions is a
+    // data type change (the Basic tab) that carries no keywords at all.
+    // Blocks an edit that would INTRODUCE the violation - adding DUP to an F
+    // field (Input keywords checkbox, raw keyword editor) or changing a DUP
+    // field to data type F; a field that was already floating-point with DUP
+    // is not re-reported. render() puts the panel back to the model's real
+    // state.
     const dupFloatReason = DspfWriter.dupFloatNewConflictReason(field, updates);
     if (dupFloatReason) {
       window.alert(dupFloatReason);
       render();
       return;
     }
-    // Task I-82: BLKFOLD cannot be specified on a floating-point field
-    // (DDS Reference) - same shape and same reasoning as the DUP check
-    // just above (I-72).
+    // BLKFOLD cannot be specified on a floating-point field (DDS
+    // Reference) - same shape and same reasoning as the DUP check just
+    // above.
     const blkfoldFloatReason = DspfWriter.blkfoldFloatNewConflictReason(field, updates);
     if (blkfoldFloatReason) {
       window.alert(blkfoldFloatReason);
       render();
       return;
     }
-    // Task I-125: RANGE/COMP/VALUES/CHECK(AB) cannot be specified on a
+    // RANGE/COMP/VALUES/CHECK(AB) cannot be specified on a
     // floating-point field (DDS Reference) - same shape and same
     // reasoning as the DUP/BLKFOLD checks just above.
     const rangeFloatReason = DspfWriter.rangeFloatNewConflictReason(field, updates);
@@ -6916,35 +6913,35 @@ const htmlTemplate = `<!DOCTYPE html>
       render();
       return;
     }
-    // Task I-137: DFT/DFTVAL/EDTCDE/EDTWRD on a floating-point field.
+    // DFT/DFTVAL/EDTCDE/EDTWRD on a floating-point field.
     const dftFloatReason = DspfWriter.dftGroupFloatNewConflictReason(field, updates);
     if (dftFloatReason) {
       window.alert(dftFloatReason);
       render();
       return;
     }
-    // Task I-101 batch 4: SFLMSGKEY's own section says option indicators are
-    // "not valid for this keyword or with the associated field" - the field
-    // half. Blocks an edit that would leave a field carrying SFLMSGKEY with
-    // option indicators it did not have: indicators added to the field's own
-    // Conditioning editor, or SFLMSGKEY (raw editor) added to a conditioned
-    // field. Outside the updates.keywords block below because the first
-    // direction carries no keywords at all.
+    // SFLMSGKEY's own section says option indicators are "not valid for this
+    // keyword or with the associated field" - the field half. Blocks an edit
+    // that would leave a field carrying SFLMSGKEY with option indicators it
+    // did not have: indicators added to the field's own Conditioning editor,
+    // or SFLMSGKEY (raw editor) added to a conditioned field. Outside the
+    // updates.keywords block below because the first direction carries no
+    // keywords at all.
     const sflmsgkeyFieldReason = DspfWriter.sflmsgkeyFieldNewConflictReason(field, updates);
     if (sflmsgkeyFieldReason) {
       window.alert(sflmsgkeyFieldReason);
       render();
       return;
     }
-    // Task I-58: reverse-direction WRDWRAP guard, ONE choke point for every
+    // Reverse-direction WRDWRAP guard, ONE choke point for every
     // field-level panel that writes keywords (CHECK Keying/Validity codes,
     // CHGINPDFT, DUP, DSPATR OID/SP, FLTFIXDEC, IGCALTTYP, the raw editor -
     // AUTO(RAZ/RAB) has no panel of its own and is only reachable via the
-    // raw editor). Blocks an edit that would INTRODUCE one of WRDWRAP's
-    // own conflicting keywords onto a field that already carries WRDWRAP;
-    // render() puts the panel back to the model's real state.
-    // Task I-64 reuses this exact same choke point for PSHBTNFLD's own
-    // closed whitelist, right below.
+    // raw editor). Blocks an edit that would INTRODUCE one of WRDWRAP's own
+    // conflicting keywords onto a field that already carries WRDWRAP;
+    // render() puts the panel back to the model's real state. Task I-64
+    // reuses this exact same choke point for PSHBTNFLD's own closed
+    // whitelist, right below.
     if (updates && updates.keywords) {
       const wrdwrapReason = DspfWriter.wrdwrapNewConflictReason(field.keywords, updates.keywords);
       if (wrdwrapReason) {
@@ -6952,37 +6949,36 @@ const htmlTemplate = `<!DOCTYPE html>
         render();
         return;
       }
-      // Task I-64: same choke point, same shape, for PSHBTNFLD's own
-      // closed whitelist - covers every field-level panel that writes
-      // keywords (Color & attributes, Keying options, Edit code/word,
-      // validity checks, Reference, date/time, the General keyword rows,
-      // CHECK, CHGINPDFT, DUP, DSPATR, etc.), none of which previously
-      // had any PSHBTNFLD guard at all (only the raw keyword editor and
-      // the Choice Selection Type editor did, from I-57).
+      // Same choke point, same shape, for PSHBTNFLD's own closed
+      // whitelist - covers every field-level panel that writes keywords
+      // (Color & attributes, Keying options, Edit code/word, validity
+      // checks, Reference, date/time, the General keyword rows, CHECK,
+      // CHGINPDFT, DUP, DSPATR, etc.), none of which previously had any
+      // PSHBTNFLD guard at all (only the raw keyword editor and the
+      // Choice Selection Type editor did, from I-57).
       const pshbtnfldReason = DspfWriter.pshbtnfldNewConflictReason(field.keywords, updates.keywords);
       if (pshbtnfldReason) {
         window.alert(pshbtnfldReason);
         render();
         return;
       }
-      // Task I-85: the removal direction of the same pairing - removing
-      // PSHBTNFLD while a PSHBTNCHC stays, or the last PSHBTNCHC while
-      // PSHBTNFLD stays (I-57/I-64 above only check what an edit ADDS).
+      // The removal direction of the same pairing - removing PSHBTNFLD
+      // while a PSHBTNCHC stays, or the last PSHBTNCHC while PSHBTNFLD
+      // stays (I-57/I-64 above only check what an edit ADDS).
       const pshbtnfldRemovalReason = DspfWriter.pshbtnfldRemovalConflictReason(field.keywords, updates.keywords);
       if (pshbtnfldRemovalReason) {
         window.alert(pshbtnfldRemovalReason);
         render();
         return;
       }
-      // Task I-71: same choke point again, for IGCALTTYP's own mutual-
-      // exclusion list (AUTO(RAZ), BLKFOLD, CHECK(M10 M11 M10F M11F RL RZ VN
-      // VNE), CMP, COMP, DUP, RANGE, VALUES), both directions - introducing
-      // IGCALTTYP on a field that carries one of them, or one of them onto a
-      // field that carries IGCALTTYP. Covers every panel that writes keywords
-      // without wiring each one.
-      // Task I-94: also IGCALTTYP's eligibility (usage B only, keyboard shift
-      // A/N/X/W/I, not a constant) for an edit that INTRODUCES it, judged on
-      // the field's kind as it will be AFTER the edit.
+      // Same choke point again, for IGCALTTYP's own mutual- exclusion list
+      // (AUTO(RAZ), BLKFOLD, CHECK(M10 M11 M10F M11F RL RZ VN VNE), CMP,
+      // COMP, DUP, RANGE, VALUES), both directions - introducing IGCALTTYP on
+      // a field that carries one of them, or one of them onto a field that
+      // carries IGCALTTYP. Covers every panel that writes keywords without
+      // wiring each one. also IGCALTTYP's eligibility (usage B only, keyboard
+      // shift A/N/X/W/I, not a constant) for an edit that INTRODUCES it,
+      // judged on the field's kind as it will be AFTER the edit.
       const igcalttypReason = DspfWriter.igcalttypNewConflictReason(field.keywords, updates.keywords, {
         usage: Object.prototype.hasOwnProperty.call(updates, 'usage') ? updates.usage : field.usage,
         dataType: Object.prototype.hasOwnProperty.call(updates, 'dataType') ? updates.dataType : field.dataType,
@@ -6993,10 +6989,10 @@ const htmlTemplate = `<!DOCTYPE html>
         render();
         return;
       }
-      // Task I-131: VALNUM's field-definition rule (input-capable usage I/B,
-      // data type Y) for an edit that INTRODUCES it, judged on the field's
-      // kind as it will be AFTER the edit - covers the raw keyword editor's
-      // add, which nothing else guarded.
+      // VALNUM's field-definition rule (input-capable usage I/B, data type
+      // Y) for an edit that INTRODUCES it, judged on the field's kind as it
+      // will be AFTER the edit - covers the raw keyword editor's add, which
+      // nothing else guarded.
       const valnumReason = DspfWriter.valnumNewConflictReason(field.keywords, updates.keywords, {
         usage: Object.prototype.hasOwnProperty.call(updates, 'usage') ? updates.usage : field.usage,
         dataType: Object.prototype.hasOwnProperty.call(updates, 'dataType') ? updates.dataType : field.dataType,
@@ -7006,8 +7002,8 @@ const htmlTemplate = `<!DOCTYPE html>
         render();
         return;
       }
-      // Task I-179: DATFMT / DATSEP / TIMFMT / TIMSEP - data type (L / T),
-      // value domain and the fixed-separator pairing, for an edit that
+      // DATFMT / DATSEP / TIMFMT / TIMSEP - data type (L / T), value
+      // domain and the fixed-separator pairing, for an edit that
       // introduces or changes one, judged on the data type after the edit.
       const dateTimeFmtReason = DspfWriter.dateTimeFormatNewConflictReason(field.keywords, updates.keywords, {
         dataType: Object.prototype.hasOwnProperty.call(updates, 'dataType') ? updates.dataType : field.dataType,
@@ -7017,8 +7013,8 @@ const htmlTemplate = `<!DOCTYPE html>
         render();
         return;
       }
-      // Task I-138: EDTCDE / EDTWRD data type eligibility for an edit that
-      // INTRODUCES one, judged on the field's data type after the edit.
+      // EDTCDE / EDTWRD data type eligibility for an edit that INTRODUCES
+      // one, judged on the field's data type after the edit.
       const edtTypeReason = DspfWriter.editKeywordDataTypeNewConflictReason(field.keywords, updates.keywords, {
         dataType: Object.prototype.hasOwnProperty.call(updates, 'dataType') ? updates.dataType : field.dataType,
       });
@@ -7027,34 +7023,34 @@ const htmlTemplate = `<!DOCTYPE html>
         render();
         return;
       }
-      // Task I-130: same choke point again, for EDTMSK's own "cannot be
-      // specified with" list (AUTO(RAB, RAZ), CHECK(AB, MF, RB, RZ, RLTB),
-      // CHOICE, CNTFLD, DSPATR(OID SP)), both directions. Covers every
-      // panel that writes keywords, including the edit-mask panel itself.
+      // Same choke point again, for EDTMSK's own "cannot be specified
+      // with" list (AUTO(RAB, RAZ), CHECK(AB, MF, RB, RZ, RLTB), CHOICE,
+      // CNTFLD, DSPATR(OID SP)), both directions. Covers every panel that
+      // writes keywords, including the edit-mask panel itself.
       const edtmskReason = DspfWriter.edtmskNewConflictReason(field.keywords, updates.keywords);
       if (edtmskReason) {
         window.alert(edtmskReason);
         render();
         return;
       }
-      // Task I-134: same choke point again, for the layout parameters of
-      // SNGCHCFLD / MLTCHCFLD / PSHBTNFLD (*NUMCOL xor *NUMROW, the *GUTTER
-      // minimum, and - SNGCHCFLD / MLTCHCFLD only - a *GUTTER needing one of
-      // them), which only the two panels' Apply buttons checked before.
-      // Diff-based: a problem already on the field is not re-reported.
+      // Same choke point again, for the layout parameters of SNGCHCFLD /
+      // MLTCHCFLD / PSHBTNFLD (*NUMCOL xor *NUMROW, the *GUTTER minimum, and
+      // - SNGCHCFLD / MLTCHCFLD only - a *GUTTER needing one of them), which
+      // only the two panels' Apply buttons checked before. Diff-based: a
+      // problem already on the field is not re-reported.
       const layoutParamsReason = DspfWriter.layoutParametersNewConflictReason(field.keywords, updates.keywords);
       if (layoutParamsReason) {
         window.alert(layoutParamsReason);
         render();
         return;
       }
-      // Task I-91: same choke point again, for MSGID's own exclusion list (DFT,
-      // DFTVAL, FLTFIXDEC, FLTPCN, MSGCON cannot be on a field with MSGID),
-      // both directions - adding MSGID to a field carrying one of them, or
-      // one of them to a field carrying MSGID. Covers every panel that writes
-      // keywords, including the MSGID panel itself.
-      // Task I-92: and MSGID's own record-level rule - not in a field of a
-      // subfile (SFL) record - for an edit that adds a MSGID.
+      // Same choke point again, for MSGID's own exclusion list (DFT, DFTVAL,
+      // FLTFIXDEC, FLTPCN, MSGCON cannot be on a field with MSGID), both
+      // directions - adding MSGID to a field carrying one of them, or one of
+      // them to a field carrying MSGID. Covers every panel that writes
+      // keywords, including the MSGID panel itself. and MSGID's own
+      // record-level rule - not in a field of a subfile (SFL) record - for an
+      // edit that adds a MSGID.
       const msgidSflReason = DspfWriter.msgidSflNewConflictReason(field.keywords, updates.keywords, (model.records.find((r) => r.name === recordName) || {}).keywords);
       if (msgidSflReason) {
         window.alert(msgidSflReason);
@@ -7067,23 +7063,23 @@ const htmlTemplate = `<!DOCTYPE html>
         render();
         return;
       }
-      // Task I-143: same choke point again, for MSGCON's own three rules - not
-      // on a named field, not beside DATE / DFT / EDTCDE / EDTWRD / TIME (both
-      // directions), and a length of 1 to 132. Task I-153: and the stated
-      // three-parameter form (length, message ID, [library/]file).
+      // Same choke point again, for MSGCON's own three rules - not on a named
+      // field, not beside DATE / DFT / EDTCDE / EDTWRD / TIME (both
+      // directions), and a length of 1 to 132. and the stated three-parameter
+      // form (length, message ID, [library/]file).
       const msgconReason = DspfWriter.msgconNewConflictReason(field.keywords, updates.keywords, field.nameType);
       if (msgconReason) {
         window.alert(msgconReason);
         render();
         return;
       }
-      // Task I-69: same choke point again, for CHKMSGID's own dependency
-      // ("allowed only on fields which also contain a CHECK(M10)/(M11)/
+      // Same choke point again, for CHKMSGID's own dependency ("allowed
+      // only on fields which also contain a CHECK(M10)/(M11)/
       // (VN)/(VNE), CMP, COMP, RANGE, or VALUES keyword"), both
       // directions - introducing CHKMSGID with no qualifier, or removing
       // the last qualifier while CHKMSGID stays. Every panel that writes
       // keywords (the CHKMSGID Apply, Keying options' CHECK codes, the
-      // RANGE/COMP/VALUES editors, the raw editor's remove button, ...)
+      // RANGE/COMP/VALUES editors, the raw editor's remove button,...)
       // is covered without wiring each one.
       const chkmsgidReason = DspfWriter.chkmsgidNewConflictReason(field.keywords, updates.keywords);
       if (chkmsgidReason) {
@@ -7091,9 +7087,9 @@ const htmlTemplate = `<!DOCTYPE html>
         render();
         return;
       }
-      // Task I-89: and CHKMSGID's message data field - a NEW or changed
-      // &field must name a character (A) field with usage P in this same
-      // record. Covers every panel that writes keywords (the raw editor's
+      // And CHKMSGID's message data field - a NEW or changed &field must
+      // name a character (A) field with usage P in this same record.
+      // Covers every panel that writes keywords (the raw editor's
       // parameter edit included).
       const chkmsgidDataReason = DspfWriter.chkmsgidMsgDataNewConflictReason(field.keywords, updates.keywords, (model.records.find((r) => r.name === recordName) || {}).fields);
       if (chkmsgidDataReason) {
@@ -7101,17 +7097,17 @@ const htmlTemplate = `<!DOCTYPE html>
         render();
         return;
       }
-      // Task I-97: and ERRMSGID's own &msg-data (same rule, same choke
-      // point) - a new name must be a character (A) field with usage P in
-      // this record.
+      // And ERRMSGID's own &msg-data (same rule, same choke point) - a
+      // new name must be a character (A) field with usage P in this
+      // record.
       const errmsgidDataReason = DspfWriter.messageIdMsgDataNewConflictReason('ERRMSGID', field.keywords, updates.keywords, (model.records.find((r) => r.name === recordName) || {}).fields);
       if (errmsgidDataReason) {
         window.alert(errmsgidDataReason);
         render();
         return;
       }
-      // Task I-129: SFLSCROLL / SFLRCDNBR / SFLROLVAL are valid only for
-      // the subfile-control record format; the panel is also offered on a
+      // SFLSCROLL / SFLRCDNBR / SFLROLVAL are valid only for the
+      // subfile-control record format; the panel is also offered on a
       // field in an SFL detail record, and the raw editor on any field.
       const sflCtlOnlyReason = DspfWriter.subfileControlOnlyFieldNewConflictReason(
         field.keywords, updates.keywords,
@@ -7121,12 +7117,12 @@ const htmlTemplate = `<!DOCTYPE html>
         render();
         return;
       }
-      // Task I-126 / I-127: same choke point for SFLSCROLL - an edit that
-      // INTRODUCES it must leave the field as a 5-digit signed numeric,
-      // 0-decimal, hidden field (taken as it will be AFTER this edit), and
-      // the owning record's SFLSIZ must not equal its SFLPAG. The checkbox
-      // folds the shape rewrite into the same edit; this covers every path
-      // that does not (the raw keyword editor's add).
+      // Same choke point for SFLSCROLL - an edit that INTRODUCES it must
+      // leave the field as a 5-digit signed numeric, 0-decimal, hidden
+      // field (taken as it will be AFTER this edit), and the owning
+      // record's SFLSIZ must not equal its SFLPAG. The checkbox folds the
+      // shape rewrite into the same edit; this covers every path that does
+      // not (the raw keyword editor's add).
       const sflscrollNewReason = DspfWriter.sflscrollNewConflictReason(field.keywords, updates.keywords, {
         dataType: Object.prototype.hasOwnProperty.call(updates, 'dataType') ? updates.dataType : field.dataType,
         length: Object.prototype.hasOwnProperty.call(updates, 'length') ? updates.length : field.length,
@@ -7138,9 +7134,9 @@ const htmlTemplate = `<!DOCTYPE html>
         render();
         return;
       }
-      // Task I-177: and SFLRCDNBR's own rules at the same choke point - an
-      // edit that introduces it (or changes its parameters) must keep to
-      // [CURSOR] [*TOP], leave the field a signed numeric / 0-decimal /
+      // And SFLRCDNBR's own rules at the same choke point - an edit that
+      // introduces it (or changes its parameters) must keep to [CURSOR]
+      // [*TOP], leave the field a signed numeric / 0-decimal /
       // up-to-4-digit / O, B or H field, and not put it beside SFLROLVAL.
       const sflrcdnbrNewReason = DspfWriter.sflrcdnbrNewConflictReason(field.keywords, updates.keywords, {
         dataType: Object.prototype.hasOwnProperty.call(updates, 'dataType') ? updates.dataType : field.dataType,
@@ -7153,13 +7149,13 @@ const htmlTemplate = `<!DOCTYPE html>
         render();
         return;
       }
-      // Task I-70: same choke point once more, for CHRID's own rules -
-      // introducing it on a constant/hidden/message/program-to-system/
-      // numeric field or together with DUP, and adding DUP to a field
-      // that already has CHRID (the Input keywords panel's DUP checkbox
-      // has no guard of its own, so this is what covers it). The field's
-      // kind is taken as it will be AFTER this edit, in case an update
-      // carries usage/decimals alongside the keywords.
+      // Same choke point once more, for CHRID's own rules - introducing
+      // it on a constant/hidden/message/program-to-system/ numeric field
+      // or together with DUP, and adding DUP to a field that already has
+      // CHRID (the Input keywords panel's DUP checkbox has no guard of
+      // its own, so this is what covers it). The field's kind is taken
+      // as it will be AFTER this edit, in case an update carries
+      // usage/decimals alongside the keywords.
       const chridReason = DspfWriter.chridNewConflictReason(field.keywords, updates.keywords, {
         usage: Object.prototype.hasOwnProperty.call(updates, 'usage') ? updates.usage : field.usage,
         decimalPositions: Object.prototype.hasOwnProperty.call(updates, 'decimalPositions') ? updates.decimalPositions : field.decimalPositions,
@@ -7170,7 +7166,7 @@ const htmlTemplate = `<!DOCTYPE html>
         render();
         return;
       }
-      // Task I-80: the field-level side of SFLCSRPRG vs SFLLIN (see
+      // The field-level side of SFLCSRPRG vs SFLLIN (see
       // commitRecordEdit for the record-level side): introducing
       // SFLCSRPRG on a field of a subfile record whose control record
       // already carries SFLLIN.
@@ -7222,16 +7218,16 @@ const htmlTemplate = `<!DOCTYPE html>
   function commitRecordEdit(recordName, updates) {
     const rec = model.records.find((r) => r.name === recordName);
     if (!rec) return;
-    // Task I-81: SFLRTNSEL requires SFLMLTCHC or SFLSNGCHC (DDS Reference).
-    // ONE choke point for every record-level path that writes keywords -
-    // the SFLCTL panel's SFLRTNSEL checkbox and type selector AND the raw
-    // keyword editor (whose Remove has no guard hook of its own) - the same
-    // shape as I-58's and I-64's field-level backstops in commitEdit. Blocks
-    // an edit that would INTRODUCE the violation, in either direction
-    // (adding SFLRTNSEL with no choice keyword, or removing the last choice
-    // keyword while SFLRTNSEL stays); a record that was already invalid is
-    // not re-reported. renderRecordProps puts the checkbox / selector back
-    // to the model's real state.
+    // SFLRTNSEL requires SFLMLTCHC or SFLSNGCHC (DDS Reference). ONE choke
+    // point for every record-level path that writes keywords - the SFLCTL
+    // panel's SFLRTNSEL checkbox and type selector AND the raw keyword
+    // editor (whose Remove has no guard hook of its own) - the same shape as
+    // the field-level backstops in commitEdit. Blocks an edit that would
+    // INTRODUCE the violation, in either direction (adding SFLRTNSEL with no
+    // choice keyword, or removing the last choice keyword while SFLRTNSEL
+    // stays); a record that was already invalid is not re-reported.
+    // renderRecordProps puts the checkbox / selector back to the model's
+    // real state.
     if (updates && updates.keywords) {
       const sflrtnselReason = DspfWriter.sflrtnselNewConflictReason(rec.keywords, updates.keywords);
       if (sflrtnselReason) {
@@ -7239,7 +7235,7 @@ const htmlTemplate = `<!DOCTYPE html>
         renderRecordProps(recordName);
         return;
       }
-      // Task I-128: the reverse direction of I-26's choice-list mutex -
+      // The reverse direction of the choice-list mutex -
       // SFLDROP/SFLFOLD (or the other choice keyword) added to a record
       // that already carries SFLSNGCHC/SFLMLTCHC. Same choke point and
       // diff-based shape as SFLRTNSEL just above.
@@ -7249,48 +7245,47 @@ const htmlTemplate = `<!DOCTYPE html>
         renderRecordProps(recordName);
         return;
       }
-      // Task I-80: SFLLIN is not allowed with SFLCSRPRG. This is the
-      // record-level side (introducing SFLLIN on a control record, or
-      // pointing one that has it at a subfile record via SFLCTL, when that
-      // subfile record has a SFLCSRPRG field); the field-level side is in
-      // commitEdit. Same choke point, same diff-based shape as SFLRTNSEL
-      // just above.
+      // SFLLIN is not allowed with SFLCSRPRG. This is the record-level
+      // side (introducing SFLLIN on a control record, or pointing one that
+      // has it at a subfile record via SFLCTL, when that subfile record
+      // has a SFLCSRPRG field); the field-level side is in commitEdit.
+      // Same choke point, same diff-based shape as SFLRTNSEL just above.
       const sfllinReason = DspfWriter.sfllinRecordEditConflictReason(rec, updates.keywords, model.records);
       if (sfllinReason) {
         window.alert(sfllinReason);
         renderRecordProps(recordName);
         return;
       }
-      // Task I-127: SFLSCROLL is not allowed when SFLSIZ equals SFLPAG -
-      // the record-level side (an edit that makes the two equal on a
-      // control record that has a SFLSCROLL field); the field-level side
-      // is the checkbox and commitEdit. Diff-based.
+      // SFLSCROLL is not allowed when SFLSIZ equals SFLPAG - the
+      // record-level side (an edit that makes the two equal on a control
+      // record that has a SFLSCROLL field); the field-level side is the
+      // checkbox and commitEdit. Diff-based.
       const sflscrollSizeReason = DspfWriter.sflscrollSizeRecordEditConflictReason(rec, updates.keywords);
       if (sflscrollSizeReason) {
         window.alert(sflscrollSizeReason);
         renderRecordProps(recordName);
         return;
       }
-      // Task I-97: SFLMSGID's optional &msg-data must name a character (A)
-      // field with usage P in this (subfile-control) record - a NEW name
-      // only, so a hand-written one is never re-reported.
+      // SFLMSGID's optional &msg-data must name a character (A) field with
+      // usage P in this (subfile-control) record - a NEW name only, so a
+      // hand-written one is never re-reported.
       const sflmsgidDataReason = DspfWriter.messageIdMsgDataNewConflictReason('SFLMSGID', rec.keywords, updates.keywords, rec.fields);
       if (sflmsgidDataReason) {
         window.alert(sflmsgidDataReason);
         renderRecordProps(recordName);
         return;
       }
-      // Task I-142: SFLCSRRRN(&relative-record) - parameter required, with a
-      // leading ampersand, naming an S / length 5 / 0 decimals / usage H field
-      // of this record. A NEW or changed parameter only.
+      // SFLCSRRRN(&relative-record) - parameter required, with a leading
+      // ampersand, naming an S / length 5 / 0 decimals / usage H field of this
+      // record. A NEW or changed parameter only.
       const sflcsrrrnReason = DspfWriter.sflcsrrrnNewConflictReason(rec.keywords, updates.keywords, rec.fields);
       if (sflcsrrrnReason) {
         window.alert(sflcsrrrnReason);
         renderRecordProps(recordName);
         return;
       }
-      // Task I-147: SFLEND's parameter grammar - the second parameter only after
-      // *SCRBAR. A NEW or changed parameter text only.
+      // SFLEND's parameter grammar - the second parameter only after *SCRBAR. A
+      // NEW or changed parameter text only.
       const sflendReason = DspfWriter.sflendNewConflictReason(rec.keywords, updates.keywords);
       if (sflendReason) {
         window.alert(sflendReason);
@@ -7507,7 +7502,7 @@ const htmlTemplate = `<!DOCTYPE html>
       clearSelection();
       render();
     } else if (msg.type === 'referencesResolved') {
-      // Task I-74 - see resolvedReferences' own comment.
+      // See resolvedReferences' own comment.
       (msg.entries || []).forEach((entry) => { resolvedReferences[entry.key] = entry.definition; });
       render();
     } else if (msg.type === 'databaseFieldsResult') {
@@ -7518,13 +7513,13 @@ const htmlTemplate = `<!DOCTYPE html>
     } else if (msg.type === 'codeForIStatus') {
       updateCodeForIBadge(msg.installed, msg.connected);
     } else if (msg.type === 'jobDateFormat') {
-      // Task I-156 - the connected job's DATFMT / DATSEP (QUSRJOBI JOBI0400).
-      // Only the engine's DATE preview and width follow it; an unusable value
-      // clears it back to the design-time assumption (MDY, slash).
+      // The connected job's DATFMT / DATSEP (QUSRJOBI JOBI0400). Only the
+      // engine's DATE preview and width follow it; an unusable value clears
+      // it back to the design-time assumption (MDY, slash).
       DspfEngine.setJobDateFormat(msg.ok === false ? null : { dateFormat: msg.dateFormat, dateSeparator: msg.dateSeparator });
       render();
     } else if (msg.type === 'sourceLineWidth') {
-      // Task I-195 - see sourceLineMax. A missing / non-positive maxLength means "no limit".
+      // See sourceLineMax. A missing / non-positive maxLength means "no limit".
       sourceLineMax = typeof msg.maxLength === 'number' && msg.maxLength > 0 ? Math.floor(msg.maxLength) : Infinity;
       render();
     } else if (msg.type === 'modTrackingConfig') {

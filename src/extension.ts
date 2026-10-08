@@ -40,7 +40,7 @@ const DspfWriter: {
   insertTypedRecordWithDependent(dspfFile: any, sourceLines: string[], mainRecord: { name: string; keywords: any[] }, dependentRecord: { name: string; keywords: any[] }): string[];
 } = require('./dspfWriter.js');
 // Same reasoning again: plain dependency-free JS (see its own file header).
-// Task I-116's own QDBRTVFD (FILD0200) receiver decoder - see
+// Task the QDBRTVFD (FILD0200) receiver decoder - see
 // fetchReferencedFieldValidity below for why this needs a live IBM i call at
 // all (DSPFFD's own OUTFILE, used everywhere else in this file, does not
 // carry validity-checking keywords or FLTPCN).
@@ -49,15 +49,15 @@ const QdbrtvfdParser: {
   inheritableValidityKeywords(field: any): Array<{ name: string; parameters: string }>;
   bytesFromRows(rows: any[]): Uint8Array | null;
 } = require('./qdbrtvfdParser.js');
-// Task I-156: the connected job's DATFMT / DATSEP via QUSRJOBI JOBI0400 (so the
-// DATE keyword's preview follows the job attribute IBM says it follows). Plain
+// The connected job's DATFMT / DATSEP via QUSRJOBI JOBI0400 (so the DATE
+// keyword's preview follows the job attribute IBM says it follows). Plain
 // dependency-free JS with its own fake-connection tests; see its file header.
 const JobDateFormat: {
   fetchJobDateFormat(connection: any, hooks?: { ensureLibrary?: (connection: any) => Promise<string | null> }): Promise<{ ok: boolean; error?: string; dateFormat?: string; dateSeparator?: string; timeSeparator?: string | null }>;
 } = require('./jobDateFormat.js');
-// Task I-195: the longest line the source member can hold (the SRCDTA width of its source file), so the
-// Comments panel keeps, shows and stores text past column 80 and warns before a line would no longer fit.
-// Plain dependency-free JS with its own fake-connection tests; see its file header.
+// The longest line the source member can hold (the SRCDTA width of its source file), so the
+// Comments panel keeps, shows and stores text past column 80 and warns before a line would no
+// longer fit. Plain dependency-free JS with its own fake-connection tests; see its file header.
 const SourceLineWidth: {
   DEFAULT_WIDTH: number;
   fetchSourceLineMax(connection: any, member: { library: string; file: string }): Promise<{ maxLength: number; source: 'member' | 'default' }>;
@@ -747,17 +747,17 @@ async function openInDesigner(uri: vscode.Uri, viewType: string): Promise<void> 
 type ReferencedFieldAttributes = { length: number; dataType: string; decimalPositions: number | null };
 
 /**
- * Task I-74: what a resolve returns for one referenced field - its length/type/
- * decimals plus the keywords it lets a referencing field inherit (TEXT, ALIAS,
- * CCSID, editing, date/time formats - see DspfEngine.inheritableKeywordsFromDspffdRow).
- * Held in memory by the webview, never written into the DDS source.
+ * What a resolve returns for one referenced field - its length/type/ decimals plus the
+ * keywords it lets a referencing field inherit (TEXT, ALIAS, CCSID, editing, date/time
+ * formats - see DspfEngine.inheritableKeywordsFromDspffdRow). Held in memory by the
+ * webview, never written into the DDS source.
  */
 type ResolvedReference = ReferencedFieldAttributes & {
   keywords: Array<{ name: string; parameters: string }>;
-  // Task I-116: whether a QDBRTVFD validity-keywords fetch was attempted for
-  // this field (true on success, false on any failure - see
+  // Whether a QDBRTVFD validity-keywords fetch was attempted for this field
+  // (true on success, false on any failure - see
   // fetchReferencedFieldValidity's own doc comment). Absent on a definition
-  // resolved before I-116 shipped (or, in the future, from an older cache) -
+  // resolved before shipped (or, in the future, from an older cache) -
   // referenceInheritedHtml treats that the same as false. validityError is
   // the reason, shown in the fallback hint, only set when validityChecked is
   // false.
@@ -851,9 +851,9 @@ async function fetchReferencedFieldAttributes(
   }
 
   const escapedField = target.fieldName.toUpperCase().replace(/'/g, "''");
-  // Task I-74: SELECT * (not a column list) - the keyword columns (WHFTXT, WHALIS/WHALI2,
-  // WHCSID, WHECDE, WHEWRD, WHFMT, WHSEP) are read by name from the row, so a release
-  // that lacks one of them (e.g. WHALI2) just yields no keyword instead of failing the whole resolve.
+  // SELECT * (not a column list) - the keyword columns (WHFTXT, WHALIS/WHALI2, WHCSID, WHECDE,
+  // WHEWRD, WHFMT, WHSEP) are read by name from the row, so a release that lacks one of them (e.g.
+  // WHALI2) just yields no keyword instead of failing the whole resolve.
   const sql = `SELECT * FROM QTEMP.${tempMember} WHERE WHFLDI = '${escapedField}' FETCH FIRST 1 ROW ONLY`;
   let rows: any[];
   try {
@@ -869,11 +869,10 @@ async function fetchReferencedFieldAttributes(
 }
 
 /**
- * Task I-116 (decision: "Yes We will use iSDAtemp library") - the fixed
- * library the QDBRTVFD wrapper procedure lives in on the connected system.
- * Not a setting: every iSDA install uses the same name, so the procedure
- * this extension creates on one connection is reused (not recreated) the
- * next time iSDA connects to that same system, by any user.
+ * The fixed library the QDBRTVFD wrapper procedure lives in on the
+ * connected system. Not a setting: every iSDA install uses the same name,
+ * so the procedure this extension creates on one connection is reused (not
+ * recreated) the next time iSDA connects to that same system, by any user.
  */
 const ISDA_TEMP_LIBRARY = 'ISDATEMP';
 
@@ -889,13 +888,13 @@ const ISDA_TEMP_LIBRARY = 'ISDATEMP';
 let isdaTempQdbrtvfdEnsured = false;
 
 /**
- * Task I-156: the library step of the ISDATEMP setup, shared by every
- * procedure this extension keeps there (QDBRTVFD_X for I-116, QUSRJOBI_X for
- * the job date format), so a session checks for / creates the library once no
- * matter which API asks first - and two asks at the same moment share one
- * in-flight check rather than racing two. Same checks as before: look for the
- * schema, CRTLIB if it is missing, CPF2111 (someone else just created it) is
- * not an error. Returns null on success, or a short error string. Never throws.
+ * The library step of the ISDATEMP setup, shared by every procedure this
+ * extension keeps there (QDBRTVFD_X for I-116, QUSRJOBI_X for the job date
+ * format), so a session checks for / creates the library once no matter which
+ * API asks first - and two asks at the same moment share one in-flight check
+ * rather than racing two. Same checks as before: look for the schema, CRTLIB if
+ * it is missing, CPF2111 (someone else just created it) is not an error.
+ * Returns null on success, or a short error string. Never throws.
  */
 let isdaTempLibraryEnsured = false;
 let isdaTempLibraryEnsuring: Promise<string | null> | null = null;
@@ -932,8 +931,8 @@ function ensureIsdaTempLibrary(connection: any): Promise<string | null> {
  * the same shape docs/sda-reference/source/"Block B.txt" etc. are in, and
  * what QdbrtvfdParser.bytesFromRows() expects.
  *
- * Two things confirmed during I-116's own captures make this necessary
- * rather than simpler:
+ * Two things confirmed during the captures make this necessary rather than
+ * simpler:
  *  - A plain `CALL QSYS.QDBRTVFD(...)` issued directly from SQL did not
  *    return data (see docs/sda-reference/source/"iSDA IBMi functionality.sql",
  *    the RTVFD_DIAG/RTVFD_DIAG3 attempts) - only a CL-language wrapper worked.
@@ -1012,7 +1011,7 @@ CREATE OR REPLACE PROCEDURE ${ISDA_TEMP_LIBRARY}.QDBRTVFD_X (
 }
 
 /**
- * Task I-116 - fetches one referenced field's validity-checking keywords
+ * Fetches one referenced field's validity-checking keywords
  * (CHECK/COMP/RANGE/VALUES/CHKMSGID) and FLTPCN from a connected IBM i, via
  * QDBRTVFD (format FILD0200; see src/qdbrtvfdParser.js's own doc comment for
  * the receiver layout and exactly what is/isn't decoded).
@@ -1031,11 +1030,11 @@ CREATE OR REPLACE PROCEDURE ${ISDA_TEMP_LIBRARY}.QDBRTVFD_X (
  * ISDA_TEMP_LIBRARY's procedure, the field just isn't found, the receiver
  * doesn't decode) is returned as `{error}`, and the caller keeps the
  * definition it already has and falls back to a hint in the panel instead of
- * leaving the whole resolve half-done. Per the I-116 decision ("if connection
- * to IBM i is not [available], [show a] hint; also don't allow to edit"),
- * these keywords are shown, when available, exactly like every other
- * inherited keyword already is - read-only chips, never editable - so there
- * is nothing extra to wire for the "don't allow to edit" half; see
+ * leaving the whole resolve half-done. Per the decision ("if connection to
+ * IBM i is not [available], [show a] hint; also don't allow to edit"), these
+ * keywords are shown, when available, exactly like every other inherited
+ * keyword already is - read-only chips, never editable - so there is nothing
+ * extra to wire for the "don't allow to edit" half; see
  * webviewClientHelpers.js's referenceInheritedHtml for the "not available"
  * hint this feeds.
  */
@@ -1177,7 +1176,7 @@ async function fetchDatabaseFileFields(
   // format change, exactly the "group by format" this function itself
   // needs to do next).
   //
-  // Task I-113: SELECT * (not a column list), same reasoning as
+  // SELECT * (not a column list), same reasoning as
   // fetchReferencedFieldAttributes - the keyword columns (WHFTXT, WHALIS/WHALI2,
   // WHCSID, WHECDE, WHEWRD, WHFMT, WHSEP) are read by name from each row, so a
   // release that lacks one of them just yields no keyword. Each listed field now
@@ -1225,11 +1224,11 @@ async function fetchDatabaseFileFields(
  * target field's real attributes over Code for i, and posts every successful
  * one back to the webview as a 'referencesResolved' message.
  *
- * Task I-74: nothing is written into the document any more. A resolved
- * definition (length/type/decimals plus the keywords the field inherits) lives in
- * the webview's memory, keyed by DspfEngine.referenceKey(), and is applied on top
- * of the reference field when the screen is drawn. Writing the database's
- * absolute length/type/decimals into columns 30-37 both erased a "+n"/"-n" length
+ * Nothing is written into the document any more. A resolved definition
+ * (length/type/decimals plus the keywords the field inherits) lives in the
+ * webview's memory, keyed by DspfEngine.referenceKey(), and is applied on top of
+ * the reference field when the screen is drawn. Writing the database's absolute
+ * length/type/decimals into columns 30-37 both erased a "+n"/"-n" length
  * adjustment and, per the DDS Reference (position 29), stopped the referenced
  * field's editing and validity-checking keywords from being copied at all.
  */
@@ -1279,8 +1278,8 @@ async function handleResolveReferencedField(
           continue;
         }
 
-        // Task I-88: the database's definition is checked against the keywords the
-        // field carries (WRDWRAP, PSHBTNFLD, CHRID, DUP, BLKFOLD, SFLCHCCTL), so a
+        // The database's definition is checked against the keywords the field
+        // carries (WRDWRAP, PSHBTNFLD, CHRID, DUP, BLKFOLD, SFLCHCCTL), so a
         // resolve can never leave a field in a state the panels themselves refuse.
         // A field that would end up invalid is left unresolved and reported.
         const conflict = DspfWriter.referencedFieldResolveConflictReason(field, {
@@ -1294,10 +1293,10 @@ async function handleResolveReferencedField(
           fetched.delete(key);
           continue;
         }
-        // Task I-116: never blocks the resolve above - a failure here just
-        // means the panel falls back to its "not available" hint for these
-        // particular keywords (see fetchReferencedFieldValidity's own doc
-        // comment for the reasoning and referenceInheritedHtml for the hint).
+        // Never blocks the resolve above - a failure here just means the
+        // panel falls back to its "not available" hint for these particular
+        // keywords (see fetchReferencedFieldValidity's own doc comment for
+        // the reasoning and referenceInheritedHtml for the hint).
         const validity = await fetchReferencedFieldValidity(target);
         if ('error' in validity) {
           outcome.validityChecked = false;
@@ -1358,19 +1357,19 @@ async function handleListDatabaseFields(
  * DSPFFD a second time here, since it's the exact same data the person
  * already saw and picked from a moment ago.
  *
- * Task I-113: each field is written as a BARE reference field - "R" in
- * position 29, name, usage and location, plus REFFLD, and NO length, data type
- * or decimal positions. Per the DDS Reference (position 29) a field that
- * specifies its own length, data type or decimals does not inherit the
- * referenced field's editing and validity checking, and I-74 made the designer
- * show those as inherited; writing the database's absolute attributes here
- * (what this used to do) defeated that for every field it added. It also let a
- * packed or binary type reach position 35 of a display file, where IBM turns
- * it into zoned. The definitions the picker already holds are instead posted to
- * the webview as 'referencesResolved' (same message, same key, same in-memory
- * store as Resolve Referenced Field), so the preview and the "Inherited from
- * referenced field" panel are populated straight away and the source stays
- * bare. The +n/-n length adjustment keeps working on the added fields.
+ * Each field is written as a BARE reference field - "R" in position 29, name,
+ * usage and location, plus REFFLD, and NO length, data type or decimal
+ * positions. Per the DDS Reference (position 29) a field that specifies its own
+ * length, data type or decimals does not inherit the referenced field's editing
+ * and validity checking, and made the designer show those as inherited; writing
+ * the database's absolute attributes here (what this used to do) defeated that
+ * for every field it added. It also let a packed or binary type reach position
+ * 35 of a display file, where IBM turns it into zoned. The definitions the
+ * picker already holds are instead posted to the webview as
+ * 'referencesResolved' (same message, same key, same in-memory store as Resolve
+ * Referenced Field), so the preview and the "Inherited from referenced field"
+ * panel are populated straight away and the source stays bare. The +n/-n length
+ * adjustment keeps working on the added fields.
  *
  * Task L53: the batch's starting position now comes from `msg.location` -
  * the Line/Column the person clicked on the screen preview via the
@@ -1430,7 +1429,7 @@ async function handleAddFieldsFromDatabase(
   }
   const PLACEMENT_COLUMN = msg.location ? Math.max(1, msg.location.column) : 2;
 
-  // Task I-113: the name each picked database field was actually given (after
+  // The name each picked database field was actually given (after
   // nextAvailableFieldName's collision handling), so its resolved definition
   // can be keyed exactly the way the designer will look it up afterwards.
   const addedNames: Array<{ fieldName: string; dbField: (typeof msg.fields)[number] }> = [];
@@ -1446,8 +1445,8 @@ async function handleAddFieldsFromDatabase(
     const newLines = DspfWriter.insertField(rec, lines, {
       nameType: 'FIELD',
       name: fieldName,
-      // Task I-113: no length / dataType / decimalPositions - a bare reference
-      // field (see this function's doc comment).
+      // No length / dataType / decimalPositions - a bare reference field (see
+      // this function's doc comment).
       length: null,
       dataType: null,
       decimalPositions: null,
@@ -1473,11 +1472,11 @@ async function handleAddFieldsFromDatabase(
   // onDidChangeTextDocument -> 'externalUpdate' path.
   await vscode.workspace.applyEdit(edit);
 
-  // Task I-113: hand the designer the definitions the picker already fetched, keyed
-  // from the fields as they now stand in the source (the same resolveReferenceTarget /
+  // Hand the designer the definitions the picker already fetched, keyed from the
+  // fields as they now stand in the source (the same resolveReferenceTarget /
   // referenceKey pair the render path and Resolve Referenced Field use), so the added
-  // fields draw at their real width and list what they inherit without a second
-  // DSPFFD round-trip. Nothing is written into the document for this.
+  // fields draw at their real width and list what they inherit without a second DSPFFD
+  // round-trip. Nothing is written into the document for this.
   const finalRecord = currentModel.records.find((r: any) => r.name === msg.recordName);
   const entries: Array<{ key: string; definition: ResolvedReference }> = [];
   if (finalRecord) {
@@ -1616,21 +1615,20 @@ class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
     // reflect that from the very first render, not just after the next edit.
     postDirtyState(webviewPanel.webview, document);
 
-    // Task L18: pushes a fresh "IBM i: Connected/Not connected/Not
-    // installed" status to the webview's badge. Called on 'ready' (so the
-    // badge is populated immediately, before the person clicks anything
-    // that needs a connection), right after every Code-for-i-dependent
-    // action below (so a just-established or just-dropped connection is
-    // reflected without waiting for the next poll), on a cheap poll while
-    // the panel is open (catches a connection made/lost from OUTSIDE this
-    // panel - e.g. Code for i's own connection tree), and on
-    // vscode.extensions.onDidChange (catches Code for i being installed or
-    // uninstalled while this panel is already open).
-    // Task I-156: once per panel and per connection, ask the connected job for
-    // its DATFMT / DATSEP and hand them to the webview. Failures are silent on
-    // purpose - the preview keeps its MDY / slash assumption (a missing
-    // procedure library, no authority, an older system); the badge already says
-    // whether IBM i is connected.
+    // Task L18: pushes a fresh "IBM i: Connected/Not connected/Not installed"
+    // status to the webview's badge. Called on 'ready' (so the badge is
+    // populated immediately, before the person clicks anything that needs a
+    // connection), right after every Code-for-i-dependent action below (so a
+    // just-established or just-dropped connection is reflected without waiting
+    // for the next poll), on a cheap poll while the panel is open (catches a
+    // connection made/lost from OUTSIDE this panel - e.g. Code for i's own
+    // connection tree), and on vscode.extensions.onDidChange (catches Code for
+    // i being installed or uninstalled while this panel is already open). once
+    // per panel and per connection, ask the connected job for its DATFMT /
+    // DATSEP and hand them to the webview. Failures are silent on purpose - the
+    // preview keeps its MDY / slash assumption (a missing procedure library, no
+    // authority, an older system); the badge already says whether IBM i is
+    // connected.
     let jobDateSent = false;
     let jobDateAttempts = 0;
     const sendJobDateFormat = async () => {
@@ -1648,9 +1646,10 @@ class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
         jobDateSent = false;
       }
     };
-    // Task I-195: tells the webview how long a line the source can hold. An IBM i member answers with its
-    // source file's SRCDTA width (80 if that cannot be read - and it is asked again on the next connection
-    // poll while only the default is known); a local or stream file has no limit, sent as null.
+    // Tells the webview how long a line the source can hold. An IBM i member answers with its
+    // source file's SRCDTA width (80 if that cannot be read - and it is asked again on the next
+    // connection poll while only the default is known); a local or stream file has no limit, sent
+    // as null.
     let sourceLineWidthSent = false;
     let lastSourceLineWidth: number | null | undefined;
     // Posts only when the answer differs from the last one: the webview re-renders on every message, and
@@ -1733,7 +1732,7 @@ class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
       } else if (msg.type === 'setUiTheme') {
         await this.context.globalState.update(UI_THEME_KEY, msg.value);
       } else if (msg.type === 'ready') {
-        // A (re)loaded webview starts with no line width, so the next answer is always posted (Task I-195).
+        // A (re)loaded webview starts with no line width, so the next answer is always posted.
         lastSourceLineWidth = undefined;
         sourceLineWidthSent = false;
         await sendCodeForIStatus();

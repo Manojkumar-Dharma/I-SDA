@@ -80,6 +80,6 @@ check('COLOR_HEX keys equal the spec COLOR values', j(Object.keys(DspfEngine.COL
 check('every COLOR_HEX value is a CSS hex colour', Object.keys(DspfEngine.COLOR_HEX).every((k) => /^#[0-9a-f]{6}$/i.test(DspfEngine.COLOR_HEX[k])));
 const eng = src('dspfEngine.js');
 const wr = src('dspfWriter.js');
-check('engine records the presentation / stays-in-engine decisions', /Task I-121s - COLOR_HEX is PRESENTATION/.test(eng) && /Task I-121s - NUMERIC_TYPES/.test(eng) && /Task I-121s decision: edtwrdDisplayWidth stays/.test(eng) && /Task I-121s - USAGE_LABEL/.test(eng));
-check('writer records that NO_OPTION_INDICATOR_MESSAGES is presentation', /Task I-121s decision: this wording -> message mapping is PRESENTATION/.test(wr));
+check('engine records the presentation / stays-in-engine decisions', /COLOR_HEX is PRESENTATION/.test(eng) && /NUMERIC_TYPES picks the 9-vs-X/.test(eng) && /Task I-121s decision: edtwrdDisplayWidth stays/.test(eng) && /USAGE_LABEL and the data-type words/.test(eng));
+check('writer records that NO_OPTION_INDICATOR_MESSAGES is presentation', /decision: this wording -> message mapping is PRESENTATION/.test(wr));
 check('edtwrdDisplayWidth behaviour unchanged', ["'  0 .  '", "'AB''C'", '', "'&CR'"].map((p) => DspfEngine.displayLength({ dataType: 'S', length: 5, keywords: [{ name: 'EDTWRD', parameters: p }] }, {}, {})).every((n) => Number.isFinite(n)));

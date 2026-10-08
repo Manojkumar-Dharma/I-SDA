@@ -104,11 +104,11 @@ function parseNumericField(raw: string): number | null {
 }
 
 /**
- * Task I-74: a length written as "+n" or "-n" is an increase/decrease relative to
- * the referenced field's length, not an absolute length - IBM: "To increase the
- * length, specify +n ... To decrease the length, specify -n". Returned as a signed
- * number ("+2" -> 2, "-1" -> -1); null for blank or an absolute length. (The engine
- * needs the referenced field's own length before it can turn this into a width.)
+ * A length written as "+n" or "-n" is an increase/decrease relative to the
+ * referenced field's length, not an absolute length - IBM: "To increase the length,
+ * specify +n... To decrease the length, specify -n". Returned as a signed number
+ * ("+2" -> 2, "-1" -> -1); null for blank or an absolute length. (The engine needs
+ * the referenced field's own length before it can turn this into a width.)
  */
 function parseLengthAdjust(raw: string): number | null {
   const trimmed = raw.trim();
@@ -283,9 +283,9 @@ function buildLogicalEntries(lines: string[]): {
     }
 
     if (commentFlag === '*') {
-      // Task I-195: the whole comment, column 8 to the end of the line - not just columns 8-80. A source
-      // line can be longer than 80 (a longer source-file record length, or a local file), and the Comments
-      // panel has to show it as it is so an edit does not cut the tail off.
+      // The whole comment, column 8 to the end of the line - not just columns 8-80. A source line
+      // can be longer than 80 (a longer source-file record length, or a local file), and the
+      // Comments panel has to show it as it is so an edit does not cut the tail off.
       comments.push({ line: sourceLine, text: padded.substring(7).trimEnd() });
       continue;
     }

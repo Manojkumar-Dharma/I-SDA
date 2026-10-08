@@ -1,12 +1,11 @@
 /**
  * qdbrtvfdParser.js
  *
- * Task I-116 - decodes the receiver variable of the IBM i "Retrieve Database
- * File Description" API (QDBRTVFD, format FILD0200) far enough to read a
- * referenced field's validity-checking keywords (CHECK / COMP / RANGE / VALUES
- * / CHKMSGID) and its floating-point precision. DSPFFD's OUTFILE carries none
- * of these (I-112: only a count, WHVCNE), which is why the REFFLD-inherited
- * panel had to say "not listed here".
+ * Decodes the receiver variable of the IBM i "Retrieve Database File Description"
+ * API (QDBRTVFD, format FILD0200) far enough to read a referenced field's
+ * validity-checking keywords (CHECK / COMP / RANGE / VALUES / CHKMSGID) and its
+ * floating-point precision. DSPFFD's OUTFILE carries none of these, which is why
+ * the REFFLD-inherited panel had to say "not listed here".
  *
  * NOT built from IBM's published structure layout. It was worked out from three
  * real captures on IBM i 7.3, CCSID 37 (docs/sda-reference/source/Block B.txt,

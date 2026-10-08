@@ -1,5 +1,5 @@
 /**
- * sourceLineWidth.js - Task I-195: the longest line a source member can hold.
+ * sourceLineWidth.js - the longest line a source member can hold.
  *
  * An IBM i source physical file stores a 6-digit sequence number and a 6-digit date in front of each line,
  * so the line itself is the SRCDTA column: 80 characters in the usual QDDSSRC, more in a file created

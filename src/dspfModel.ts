@@ -83,7 +83,10 @@ export interface DdsFieldBase {
   lengthRaw: string | null;
   /** Absolute length; null when blank OR when lengthRaw is a +n/-n adjustment (see lengthAdjust). */
   length: number | null;
-  /** Task I-74: the signed +n/-n length adjustment against the referenced field ("+2" -> 2, "-1" -> -1); null when the length is blank or absolute. */
+  /**
+   * The signed +n/-n length adjustment against the referenced field ("+2" -> 2, "-1" -> -1); null
+   * when the length is blank or absolute.
+   */
   lengthAdjust: number | null;
   /** Position 35 raw character */
   dataType: string | null;

@@ -1,10 +1,9 @@
 /**
- * jobDateFormat.js - Task I-156: the connected IBM i job's date format and
- * date separator, read with QUSRJOBI format JOBI0400, so the DATE keyword's
- * design-time preview can follow the job attributes IBM says it follows
- * ("the job attribute DATFMT determines the order of the month, day, and
- * year ... DATSEP can be a slash, dash, period, or comma",
- * DDS_Keyword_V7r6.txt, DATE keyword).
+ * jobDateFormat.js - the connected IBM i job's date format and date separator,
+ * read with QUSRJOBI format JOBI0400, so the DATE keyword's design-time preview
+ * can follow the job attributes IBM says it follows ("the job attribute DATFMT
+ * determines the order of the month, day, and year... DATSEP can be a slash, dash,
+ * period, or comma", DDS_Keyword_V7r6.txt, DATE keyword).
  *
  * JOBI0400 (IBM i 7.3 Knowledge Center, Retrieve Job Information API) is the
  * job-attribute format; JOBI0200 is "WRKACTJOB information" and carries
@@ -16,13 +15,13 @@
  * ('*', letters, '/', '-', '.', ',', ':', blank) is in the invariant character set
  * every EBCDIC code page agrees on, so CCSID 037 decodes it correctly.
  *
- * The host (extension.ts) reaches the API the same way it reaches QDBRTVFD for
- * Task I-116: a CL-language external SQL procedure in the ISDATEMP library
- * wraps QSYS/QUSRJOBI (a direct SQL CALL of the API does not work - see
- * extension.ts, ensureIsdaTempQdbrtvfdProcedure), and a second procedure
- * returns the receiver as hex rows. fetchJobDateFormat() does that against any
- * object with runSQL() / runCommand() (Code for i's connection), so it is
- * testable with a fake. It never throws.
+ * The host (extension.ts) reaches the API the same way it reaches QDBRTVFD for a
+ * CL-language external SQL procedure in the ISDATEMP library wraps QSYS/QUSRJOBI
+ * (a direct SQL CALL of the API does not work - see extension.ts,
+ * ensureIsdaTempQdbrtvfdProcedure), and a second procedure returns the receiver as
+ * hex rows. fetchJobDateFormat() does that against any object with runSQL() /
+ * runCommand() (Code for i's connection), so it is testable with a fake. It never
+ * throws.
  *
  * The qualified job name '*' is the job the call runs in - the SQL server job
  * Code for i holds - not the job the finished screen will run in. Its

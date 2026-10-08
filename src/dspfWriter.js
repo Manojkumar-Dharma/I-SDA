@@ -18,20 +18,19 @@
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
-    // Task I-119: parseDisplaySizeTriples now delegates to DspfEngine's
-    // canonical parseScreenSizes (see that function's own comment in
-    // dspfEngine.js for the full story) instead of keeping a second,
-    // hand-synced copy. Required only here in Node; the real webview
-    // gets DspfEngine from the global its own script-load order already
-    // sets (dspfEngine.js's <script> tag loads before this file's in
-    // both buildWebviewTemplate.js and buildMenuWebviewTemplate.js), the
-    // same bare-free-variable idiom this file already uses nowhere else
-    // needed until now since this was previously self-contained.
-    // Task I-121: KeywordSpec (keywordSpec.js) is the new declarative
-    // record-type rule source, loaded the same "require in Node, global in
-    // the browser" way as DspfEngine above - see that file's own doc
-    // comment for what it holds today (USRDFN's whitelist, the first I-121
-    // slice).
+    // parseDisplaySizeTriples now delegates to DspfEngine's canonical
+    // parseScreenSizes (see that function's own comment in dspfEngine.js
+    // for the full story) instead of keeping a second, hand-synced copy.
+    // Required only here in Node; the real webview gets DspfEngine from
+    // the global its own script-load order already sets (dspfEngine.js's
+    // <script> tag loads before this file's in both
+    // buildWebviewTemplate.js and buildMenuWebviewTemplate.js), the same
+    // bare-free-variable idiom this file already uses nowhere else needed
+    // until now since this was previously self-contained. KeywordSpec
+    // (keywordSpec.js) is the new declarative record-type rule source,
+    // loaded the same "require in Node, global in the browser" way as
+    // DspfEngine above - see that file's own doc comment for what it holds
+    // today (USRDFN's whitelist, the first I-121 slice).
     module.exports = factory(require('./dspfEngine.js'), require('./keywordSpec.js'));
   } else {
     root.DspfWriter = factory(root.DspfEngine, root.KeywordSpec);
@@ -575,10 +574,9 @@
   // never numbers used by some OTHER record.
   // ---------------------------------------------------------------------
 
-  // Task I-121 (command-key grammar slice): the CAnn / CFnn name shape is
-  // KeywordSpec's own fact (parseCommandKey / isCommandKeyName); this is only
-  // the regex-exec-shaped view the callers below were written against
-  // ([token, type, number], or null).
+  // The CAnn / CFnn name shape is KeywordSpec's own fact (parseCommandKey /
+  // isCommandKeyName); this is only the regex-exec-shaped view the callers
+  // below were written against ([token, type, number], or null).
   function commandKeyMatch(token) {
     var p = KeywordSpec.parseCommandKey(token);
     return p ? [token, p.type, p.number] : null;
@@ -938,7 +936,7 @@
     return setColorAttrStates(keywords, states);
   }
 
-  //  Task I-121: the three kinds and CMP's legacy spelling are keywordSpec.js's
+  //  The three kinds and CMP's legacy spelling are keywordSpec.js's
   //  REPEATABLE_INSTANCE_GROUPS.validityCheck (one fact per keyword).
   var VALIDITY_CHECK_KEYWORDS = KeywordSpec.repeatableGroupKinds('validityCheck');
   var VALIDITY_CHECK_ALT_KIND = KeywordSpec.repeatableGroupAlternateKinds('validityCheck');
@@ -1009,18 +1007,16 @@
     return setRepeatableKeywordInstances(keywords, VALIDITY_CHECK_READ_KEYWORDS, flat);
   }
 
-  // Task I-31 finding: EDTMSK used to live in this same mutually-exclusive
-  // group as EDTCDE/EDTWRD, but IBM's own DDS Reference states EDTMSK
-  // "must also contain the EDTCDE or EDTWRD keywords" - it can never
-  // stand alone, so treating it as a third alternative to EDTCDE/EDTWRD
-  // (selecting it wiped out whichever of the other two the field already
-  // carried, and vice versa) could never actually produce the EDTCDE+
-  // EDTMSK or EDTWRD+EDTMSK combination IBM's own text requires. EDTMSK
-  // now has its own independent get/set pair (getEditMask/setEditMask)
-  // and its own conflict check (editMaskConflictReason) below, entirely
-  // separate from this group.
-  // Task I-121 (edit/validity keyword groups slice): a spec fact now
-  // (KeywordSpec.fieldKeywordGroup('EDIT')), shared with the engine's REF inheritance.
+  // Task I-31 finding: EDTMSK used to live in this same mutually-exclusive group as
+  // EDTCDE/EDTWRD, but IBM's own DDS Reference states EDTMSK "must also contain the
+  // EDTCDE or EDTWRD keywords" - it can never stand alone, so treating it as a third
+  // alternative to EDTCDE/EDTWRD (selecting it wiped out whichever of the other two
+  // the field already carried, and vice versa) could never actually produce the
+  // EDTCDE+ EDTMSK or EDTWRD+EDTMSK combination IBM's own text requires. EDTMSK now
+  // has its own independent get/set pair (getEditMask/setEditMask) and its own
+  // conflict check (editMaskConflictReason) below, entirely separate from this group.
+  // A spec fact now (KeywordSpec.fieldKeywordGroup('EDIT')), shared with the engine's
+  // REF inheritance.
   var EDIT_KEYWORDS = KeywordSpec.fieldKeywordGroup('EDIT').keywords;
 
   /** A field can't carry more than one of an edit code or an edit word -
@@ -1045,14 +1041,14 @@
   }
 
   // -----------------------------------------------------------------------
-  // Task I-78 - EDTCDE's optional second parameter. The DDS Reference gives
-  // the format as `EDTCDE(edit-code [* |floating-currency-symbol])`: after
-  // the edit-code letter, an optional `*` (asterisk fill - "an asterisk is
-  // printed for each zero that is suppressed") or a floating currency
-  // symbol (which "must match the system value for the currency symbol
-  // (QCURSYM)"). Real SDA's own "Select Editing Keywords" screen shows it
-  // as its own prompt, "Replace leading zeros with". Until now it was only
-  // reachable by typing it into the same box as the letter.
+  // EDTCDE's optional second parameter. The DDS Reference gives the format
+  // as `EDTCDE(edit-code [* |floating-currency-symbol])`: after the
+  // edit-code letter, an optional `*` (asterisk fill - "an asterisk is
+  // printed for each zero that is suppressed") or a floating currency symbol
+  // (which "must match the system value for the currency symbol (QCURSYM)").
+  // Real SDA's own "Select Editing Keywords" screen shows it as its own
+  // prompt, "Replace leading zeros with". Until now it was only reachable by
+  // typing it into the same box as the letter.
   //
   // The keyword's parameters stay ONE string ("J *"); these helpers split
   // it for the widget and join it back. The canonical joined form has a
@@ -1066,8 +1062,8 @@
   // (5-9) are not mentioned either way and are left alone, as is any
   // parameter string that does not look like `<code> [<char>]` at all.
   // -----------------------------------------------------------------------
-  //  Task I-121 (EDTCDE/EDTMSK slice): the no-fill code list (W, X, Y, Z) is
-  //  now KeywordSpec's RECORD_TYPES.EDTCDE.noFillCodes.
+  //  The no-fill code list (W, X, Y, Z) is now KeywordSpec's
+  //  RECORD_TYPES.EDTCDE.noFillCodes.
 
   /** Splits an EDTCDE parameter string into { code, fill }. A string that
    *  is not `<one character>` optionally followed by `<one character>`
@@ -1108,10 +1104,12 @@
     return null;
   }
 
-  /** Task I-31 - EDTMSK (Edit Mask), independent of getEditKeyword/
-   *  setEditKeyword above. { text: string } - the full quoted mask
-   *  string, e.g. "'(999) 999-9999'" (caller supplies quoting, same
-   *  convention EDTWRD's own parameters use). */
+  /**
+   * EDTMSK (Edit Mask), independent of getEditKeyword/ setEditKeyword
+   * above. { text: string } - the full quoted mask string, e.g. "'(999)
+   * 999-9999'" (caller supplies quoting, same convention EDTWRD's own
+   * parameters use).
+   */
   function getEditMask(keywords) {
     var k = (keywords || []).find(function (k) { return k.name === 'EDTMSK'; });
     return { text: k ? (k.parameters || '') : '' };
@@ -1128,20 +1126,21 @@
     return next;
   }
 
-  /** Task I-31 - EDTMSK's own two documented requirements, both stated
-   *  individually in its DDS Reference section: "The field containing
-   *  the EDTMSK keyword must be usage I or usage B. It must also contain
-   *  the EDTCDE or EDTWRD keywords." `usage` and `keywords` are checked
-   *  against whatever the caller is ABOUT to leave on the field (not
-   *  necessarily what's already saved - a same-click "add EDTCDE and
-   *  EDTMSK together" must be allowed), so callers pass the pending
-   *  EDTCDE/EDTWRD state via `keywords` themselves. Returns a
-   *  human-readable reason if turning EDTMSK on right now would violate
-   *  either rule (checked in the order IBM's own text states them), or
-   *  null if it's fine. */
+  /**
+   * EDTMSK's own two documented requirements, both stated individually
+   * in its DDS Reference section: "The field containing the EDTMSK
+   * keyword must be usage I or usage B. It must also contain the EDTCDE
+   * or EDTWRD keywords." `usage` and `keywords` are checked against
+   * whatever the caller is ABOUT to leave on the field (not necessarily
+   * what's already saved - a same-click "add EDTCDE and EDTMSK together"
+   * must be allowed), so callers pass the pending EDTCDE/EDTWRD state
+   * via `keywords` themselves. Returns a human-readable reason if
+   * turning EDTMSK on right now would violate either rule (checked in
+   * the order IBM's own text states them), or null if it's fine.
+   */
   function editMaskConflictReason(keywords, usage) {
-    // Task I-121 (EDTCDE/EDTMSK slice): the allowed usage set and the
-    // qualifying keyword names now read RECORD_TYPES.EDTMSK.
+    // The allowed usage set and the qualifying keyword names now read
+    // RECORD_TYPES.EDTMSK.
     var u = (usage || '').toUpperCase();
     var allowedUsage = KeywordSpec.definitionRequirements('EDTMSK').usage;
     if (allowedUsage.indexOf(u) < 0) {
@@ -1153,15 +1152,17 @@
     return null;
   }
 
-  /** Task I-130 - EDTMSK's own DDS Reference section: "The following
-   *  keywords cannot be specified on a field with the EDTMSK keyword:
-   *  AUTO (RAB, RAZ), CHECK(AB, MF, RB, RZ, RLTB), CHOICE, CNTFLD,
-   *  DSPATR(OID SP)." A bidirectional mutual exclusion on the SAME field,
-   *  same shape as igcalttypConflictReason; the conflict map itself lives on
-   *  keywordSpec.js's RECORD_TYPES.EDTMSK.conditionalMutex and is token-
-   *  matched by KeywordSpec.conditionalMutexHit (AUTO(RAB) hits, a bare
-   *  DSPATR(HI) does not). Returns the labels ("CHECK(AB)", "CHOICE") of
-   *  every keyword instance in `keywords` on EDTMSK's own list. */
+  /**
+   * EDTMSK's own DDS Reference section: "The following keywords cannot be
+   * specified on a field with the EDTMSK keyword: AUTO (RAB, RAZ), CHECK(AB,
+   * MF, RB, RZ, RLTB), CHOICE, CNTFLD, DSPATR(OID SP)." A bidirectional
+   * mutual exclusion on the SAME field, same shape as
+   * igcalttypConflictReason; the conflict map itself lives on
+   * keywordSpec.js's RECORD_TYPES.EDTMSK.conditionalMutex and is token-
+   * matched by KeywordSpec.conditionalMutexHit (AUTO(RAB) hits, a bare
+   * DSPATR(HI) does not). Returns the labels ("CHECK(AB)", "CHOICE") of
+   * every keyword instance in `keywords` on EDTMSK's own list.
+   */
   function edtmskKeywordHits(keywords) {
     var hits = [];
     (keywords || []).forEach(function (k) {
@@ -1179,10 +1180,12 @@
     return hits.join(', ') + ' cannot be specified on a field that already has EDTMSK (per the DDS Reference).';
   }
 
-  /** Task I-130 - add-time check, BOTH directions, for one keyword being
-   *  added (name + parameters): adding EDTMSK to a field that already
-   *  carries a listed keyword, or adding a listed keyword to a field that
-   *  already carries EDTMSK. A no-op for every other keyword. */
+  /**
+   * Add-time check, BOTH directions, for one keyword being added (name +
+   * parameters): adding EDTMSK to a field that already carries a listed
+   * keyword, or adding a listed keyword to a field that already carries
+   * EDTMSK. A no-op for every other keyword.
+   */
   function edtmskConflictReason(keywordName, parameters, fieldKeywords) {
     var name = String(keywordName || '').toUpperCase();
     var kws = fieldKeywords || [];
@@ -1195,14 +1198,16 @@
     return hit ? edtmskReverseReason([hit]) : null;
   }
 
-  /** Task I-130 - diff-based backstop for EVERY field-level panel (all
-   *  commit through commitEdit's keywords update), same shape as
-   *  igcalttypNewConflictReason: only a conflict the edit INTRODUCES is
-   *  reported. EDTMSK not on the field after the edit: null. EDTMSK newly
-   *  added: any listed keyword now on the field (forward message). EDTMSK
-   *  already there: only a listed keyword the edit ADDED (reverse
-   *  message). Conflicts already present in a hand-written file are not
-   *  re-reported, so unrelated edits stay possible. */
+  /**
+   * Diff-based backstop for EVERY field-level panel (all commit through
+   * commitEdit's keywords update), same shape as
+   * igcalttypNewConflictReason: only a conflict the edit INTRODUCES is
+   * reported. EDTMSK not on the field after the edit: null. EDTMSK newly
+   * added: any listed keyword now on the field (forward message). EDTMSK
+   * already there: only a listed keyword the edit ADDED (reverse
+   * message). Conflicts already present in a hand-written file are not
+   * re-reported, so unrelated edits stay possible.
+   */
   function edtmskNewConflictReason(oldKeywords, newKeywords) {
     var has = function (kws) { return (kws || []).some(function (k) { return k.name === 'EDTMSK'; }); };
     if (!has(newKeywords)) return null;
@@ -1217,15 +1222,16 @@
     return added.length ? edtmskReverseReason(added) : null;
   }
 
-  /** Task I-134 - the layout-parameter problems in ONE SNGCHCFLD / MLTCHCFLD
-   *  / PSHBTNFLD instance's parameter string, as `[{code, reason}]` (empty
-   *  when fine or when `keywordName` is none of the three). The rules are the
-   *  ones the panels' Apply buttons already enforce: *NUMCOL and *NUMROW are
-   *  alternatives, a *GUTTER must reach the keyword's minimum (I-133), and -
-   *  where the keyword's section says so (SNGCHCFLD / MLTCHCFLD, not
-   *  PSHBTNFLD) - a *GUTTER needs one of them. Reads through
-   *  readChoiceLayoutNumber, so both the IBM shape `(*NUMCOL 3)` and the
-   *  legacy `*NUMCOL(3)` count. */
+  /**
+   * The layout-parameter problems in ONE SNGCHCFLD / MLTCHCFLD / PSHBTNFLD
+   * instance's parameter string, as `[{code, reason}]` (empty when fine or
+   * when `keywordName` is none of the three). The rules are the ones the
+   * panels' Apply buttons already enforce: *NUMCOL and *NUMROW are
+   * alternatives, a *GUTTER must reach the keyword's minimum, and - where the
+   * keyword's section says so (SNGCHCFLD / MLTCHCFLD, not PSHBTNFLD) - a
+   * *GUTTER needs one of them. Reads through readChoiceLayoutNumber, so both
+   * the IBM shape `(*NUMCOL 3)` and the legacy `*NUMCOL(3)` count.
+   */
   function layoutParameterProblems(keywordName, parameters) {
     var minimum = KeywordSpec.gutterMinimum(keywordName);
     if (!minimum) return [];
@@ -1245,13 +1251,15 @@
     return out;
   }
 
-  /** Task I-134 - diff-based backstop for EVERY field-level path that writes
-   *  keywords (all commit through commitEdit), same shape as
-   *  edtmskNewConflictReason: only a layout problem the edit INTRODUCES is
-   *  reported - one already present on the same keyword before the edit
-   *  (a hand-written file, or the legacy `*NUMCOL(3)` shape) is not, so
-   *  unrelated edits stay possible and fixing a field is never blocked.
-   *  Returns the first new problem's reason, or null. */
+  /**
+   * Diff-based backstop for EVERY field-level path that writes keywords
+   * (all commit through commitEdit), same shape as edtmskNewConflictReason:
+   * only a layout problem the edit INTRODUCES is reported - one already
+   * present on the same keyword before the edit (a hand-written file, or
+   * the legacy `*NUMCOL(3)` shape) is not, so unrelated edits stay possible
+   * and fixing a field is never blocked. Returns the first new problem's
+   * reason, or null.
+   */
   function layoutParametersNewConflictReason(oldKeywords, newKeywords) {
     var names = ['SNGCHCFLD', 'MLTCHCFLD', 'PSHBTNFLD'];
     var codesFor = function (kws, name) {
@@ -1277,20 +1285,20 @@
     return null;
   }
 
-  /** Task I-31 - the named sub-check keywordFixes.md's own I-31 write-up
-   *  calls out: L/T/Z (Date/Time/Timestamp) data types have their own,
-   *  narrower Usage restriction than every other data type. IBM's DDS
-   *  Reference states it plainly, right after these three types' own
-   *  field-length rules: "Valid field usage (DDS position 38) can be O,
-   *  B, or I" - no H (Hidden), M (Message text), or P (Program-to-
-   *  system) at all, unlike every numeric/character data type, all of
-   *  which allow the full H/I/O/B/M/P set. Returns a reason string if
-   *  `usage` is invalid for `dataType`, or null if it's fine (including
-   *  for every non-L/T/Z data type, which this check doesn't apply to
-   *  at all). */
-  // Task I-121 date/time-keyword slice - now reads
-  // KeywordSpec.isDateTimeDataType/dateTimeAllowedUsage instead of its own
-  // hard-coded 'L'/'T'/'Z' and 'O'/'B'/'I' checks.
+  /**
+   * The named sub-check keywordFixes.md's own write-up calls out: L/T/Z
+   * (Date/Time/Timestamp) data types have their own, narrower Usage
+   * restriction than every other data type. IBM's DDS Reference states
+   * it plainly, right after these three types' own field-length rules:
+   * "Valid field usage (DDS position 38) can be O, B, or I" - no H
+   * (Hidden), M (Message text), or P (Program-to- system) at all,
+   * unlike every numeric/character data type, all of which allow the
+   * full H/I/O/B/M/P set. Returns a reason string if `usage` is invalid
+   * for `dataType`, or null if it's fine (including for every non-L/T/Z
+   * data type, which this check doesn't apply to at all).
+   */
+  // Now reads KeywordSpec.isDateTimeDataType/dateTimeAllowedUsage instead
+  // of its own hard-coded 'L'/'T'/'Z' and 'O'/'B'/'I' checks.
   function dateTimeUsageConflictReason(dataType, usage) {
     if (!KeywordSpec.isDateTimeDataType(dataType)) return null;
     var u = (usage || '').toUpperCase();
@@ -1299,18 +1307,18 @@
   }
 
   // ---------------------------------------------------------------------
-  // I-32 - DATFMT/DATSEP (date fields, data type L only) and TIMFMT/
-  // TIMSEP (time fields, data type T only). Both pairs were entirely
-  // unexposed anywhere in iSDA before this task - DspfEngine.dateFieldLength
-  // already READ DATFMT (for display-width purposes) but nothing ever let
-  // the user set it, or DATSEP/TIMFMT/TIMSEP at all. Neither applies to
-  // timestamp (Z) fields - DATFMT's own text: "valid only for date fields
-  // (data type L)"; TIMFMT's own text: "valid for time fields (data type
-  // T)" - Z has its own fixed standard format
-  // (yyyy-mm-dd-hh.mm.ss.mmmmmm) with no DATFMT/TIMFMT/DATSEP/TIMSEP
-  // customization at all (confirmed: neither keyword's DDS Reference
-  // section, nor anywhere else in DDS_Keyword_V7r6.txt, ever mentions
-  // data type Z in connection with either pair).
+  // DATFMT/DATSEP (date fields, data type L only) and TIMFMT/ TIMSEP (time
+  // fields, data type T only). Both pairs were entirely unexposed anywhere
+  // in iSDA before this task - DspfEngine.dateFieldLength already READ
+  // DATFMT (for display-width purposes) but nothing ever let the user set
+  // it, or DATSEP/TIMFMT/TIMSEP at all. Neither applies to timestamp (Z)
+  // fields - DATFMT's own text: "valid only for date fields (data type L)";
+  // TIMFMT's own text: "valid for time fields (data type T)" - Z has its own
+  // fixed standard format (yyyy-mm-dd-hh.mm.ss.mmmmmm) with no
+  // DATFMT/TIMFMT/DATSEP/TIMSEP customization at all (confirmed: neither
+  // keyword's DDS Reference section, nor anywhere else in
+  // DDS_Keyword_V7r6.txt, ever mentions data type Z in connection with
+  // either pair).
   //
   // Each pair is single-instance (not repeatable) and option-indicator-
   // free by its own text ("Option indicators are not valid for this
@@ -1321,9 +1329,9 @@
   // getEditMask/setEditMask's own pattern directly.
   // ---------------------------------------------------------------------
 
-  // Task I-121 date/time-keyword slice - these two arrays moved to
-  // keywordSpec.js's own DATSEP/TIMSEP `fixedSeparatorFormats` entries
-  // (identical values, now declared once each instead of twice here).
+  // These two arrays moved to keywordSpec.js's own DATSEP/TIMSEP
+  // `fixedSeparatorFormats` entries (identical values, now declared
+  // once each instead of twice here).
 
   /** DATFMT's own parameter is a bare special value (e.g. "*JUL") with no
    *  quoting - unlike DATSEP/TIMSEP below, there's no free text to parse
@@ -1494,16 +1502,16 @@
   }
 
   // -----------------------------------------------------------------------
-  // Task I-69 - CHKMSGID's own dependency and usage rules. Its DDS
-  // Reference section states both in one place: "CHKMSGID is allowed only
-  // on fields which also contain a CHECK(M10), CHECK(M11), CHECK(VN),
-  // CHECK(VNE), CMP, COMP, RANGE, or VALUES keyword. The field must be
-  // input-capable (usage B or I)." (It also says it takes no option
-  // indicators, which setCheckMsgId above already honours.) I-30 found the
-  // gap: nothing enforced either rule.
+  // CHKMSGID's own dependency and usage rules. Its DDS Reference section
+  // states both in one place: "CHKMSGID is allowed only on fields which
+  // also contain a CHECK(M10), CHECK(M11), CHECK(VN), CHECK(VNE), CMP,
+  // COMP, RANGE, or VALUES keyword. The field must be input-capable (usage
+  // B or I)." (It also says it takes no option indicators, which
+  // setCheckMsgId above already honours.) I-30 found the gap: nothing
+  // enforced either rule.
   //
   // Unlike the mutual-exclusion guards this is a *dependency*, so it has
-  // two directions, both diff-based (same shape as I-58's
+  // two directions, both diff-based (same shape as the
   // wrdwrapNewConflictReason, the same commitEdit choke point) so a
   // hand-written file that is already invalid never blocks an unrelated
   // edit:
@@ -1514,9 +1522,9 @@
   //              so the user's message id/file are never deleted behind
   //              their back - remove CHKMSGID first).
   // -----------------------------------------------------------------------
-  // Task I-121 (CHKMSGID slice) - the qualifying-names/check-codes/list-
-  // text local constants are gone; hasChkmsgidQualifier and every message
-  // below now read KeywordSpec's own RECORD_TYPES.CHKMSGID entry.
+  // The qualifying-names/check-codes/list- text local constants are gone;
+  // hasChkmsgidQualifier and every message below now read KeywordSpec's own
+  // RECORD_TYPES.CHKMSGID entry.
 
   /** True when `keywords` carries a keyword CHKMSGID may accompany. CHECK
    *  only qualifies with one of its four message-producing codes (so
@@ -1526,9 +1534,11 @@
     return KeywordSpec.hasQualifyingKeyword('CHKMSGID', keywords);
   }
 
-  /** Task I-121 (CHKMSGID slice) - the allowed-usage set now reads
-   *  KeywordSpec.definitionRequirements('CHKMSGID').usage instead of the
-   *  hard-coded 'I'/'B' literals. */
+  /**
+   * The allowed-usage set now reads
+   * KeywordSpec.definitionRequirements('CHKMSGID').usage instead of the
+   * hard-coded 'I'/'B' literals.
+   */
   function chkmsgidUsageReason(usage) {
     var u = String(usage == null ? '' : usage).trim().toUpperCase();
     var allowedUsage = KeywordSpec.definitionRequirements('CHKMSGID').usage;
@@ -1568,10 +1578,12 @@
     return hasChkmsgidQualifier(fieldKeywords) ? null : CHKMSGID_NEEDS_QUALIFIER_TEXT;
   }
 
-  /** Basic tab Apply guard (same idiom and blank-usage handling as I-61's
-   *  wrdwrapBasicEditConflictReason): a usage CHANGE to a non-input-capable
-   *  value on a field that already carries CHKMSGID. Diff-based, so an
-   *  unrelated Apply on an already-invalid field still goes through. */
+  /**
+   * Basic tab Apply guard (same idiom and blank-usage handling as the
+   * wrdwrapBasicEditConflictReason): a usage CHANGE to a non-input-capable
+   * value on a field that already carries CHKMSGID. Diff-based, so an
+   * unrelated Apply on an already-invalid field still goes through.
+   */
   function chkmsgidBasicEditConflictReason(fieldKeywords, oldUsage, newUsage) {
     if (!(fieldKeywords || []).some(function (k) { return k.name === 'CHKMSGID'; })) return null;
     var norm = function (v) { return String(v == null ? '' : v).trim().toUpperCase(); };
@@ -1582,11 +1594,11 @@
   }
 
   // -----------------------------------------------------------------------
-  // Task I-89 - CHKMSGID's optional &message-data-field parameter. Its DDS
-  // Reference section: "The field name must exist in the record format, and
-  // the field must be defined as a character field (data type A) with usage
-  // P." (ERRMSGID's and SFLMSGID's msg-data parameters carry the same
-  // sentence - see Deferred findings; only CHKMSGID is covered here.)
+  // CHKMSGID's optional &message-data-field parameter. Its DDS Reference
+  // section: "The field name must exist in the record format, and the field
+  // must be defined as a character field (data type A) with usage P."
+  // (ERRMSGID's and SFLMSGID's msg-data parameters carry the same sentence
+  // - see Deferred findings; only CHKMSGID is covered here.)
   //
   // Enforced on the way IN: the name typed into the CHKMSGID panel, added
   // through the raw editor, or written by any panel via the commitEdit
@@ -1626,10 +1638,9 @@
   function messageDataFieldProblem(keywordName, name, recordFields) {
     var shown = '&' + String(name || '').replace(/^&/, '').trim().toUpperCase();
     if (shown === '&') return null;
-    // Task I-121 message-data-field slice: the rule itself (must exist,
-    // data type, usage) is KeywordSpec's own fact for the keyword, shared
-    // by CHKMSGID/ERRMSGID/SFLMSGID; a keyword with no spec fact is not
-    // checked (fail open).
+    // The rule itself (must exist, data type, usage) is KeywordSpec's own
+    // fact for the keyword, shared by CHKMSGID/ERRMSGID/SFLMSGID; a
+    // keyword with no spec fact is not checked (fail open).
     var rule = KeywordSpec.msgDataFieldRule(keywordName);
     if (!rule) return null;
     var f = msgDataFieldFind(recordFields, name);
@@ -1674,12 +1685,11 @@
   }
 
   // -----------------------------------------------------------------------
-  // Task I-97 (opened from I-89's deferred finding) - the same rule for
-  // ERRMSGID's and SFLMSGID's optional `&msg-data` parameter. Their DDS
-  // Reference text is the same sentence as CHKMSGID's: "The field must
-  // exist in the record format [, and] the field must be defined as a
-  // character field (data type A) with usage P." Both keywords share the
-  // grammar `msgid [library-name/]msg-file [response-indicator]
+  // The same rule for ERRMSGID's and SFLMSGID's optional `&msg-data`
+  // parameter. Their DDS Reference text is the same sentence as CHKMSGID's:
+  // "The field must exist in the record format [, and] the field must be
+  // defined as a character field (data type A) with usage P." Both keywords
+  // share the grammar `msgid [library-name/]msg-file [response-indicator]
   // [&msg-data]`, and a msg-data token always starts with `&` (the other
   // optional token is a bare number), so the names are read straight off
   // the raw parameter text of every instance of the keyword - no dependence
@@ -1695,10 +1705,9 @@
   // record), so "the record format" is the field's own record / the
   // control record itself.
   // -----------------------------------------------------------------------
-  // Task I-121 message-data-field slice: derived from KeywordSpec (every
-  // keyword with a message-data-field fact except CHKMSGID, whose
-  // parameter has its own structured getter above) instead of a
-  // hand-written array.
+  // Derived from KeywordSpec (every keyword with a message-data-field fact
+  // except CHKMSGID, whose parameter has its own structured getter above)
+  // instead of a hand-written array.
   var MSGID_MSGDATA_KEYWORDS = KeywordSpec.msgDataFieldKeywords().filter(function (k) { return k !== 'CHKMSGID'; });
 
   /** The `&msg-data` names (upper case, no &) across every instance of
@@ -1744,15 +1753,15 @@
   }
 
   // -----------------------------------------------------------------------
-  // Task I-70 - CHRID's own eligibility and mutual-exclusion rules. Its DDS
-  // Reference section states them in three sentences: "The CHRID keyword
-  // is not valid on constant fields, numeric fields (fields with decimal
-  // positions specified in positions 36 through 37), message fields (M
-  // specified in position 38), hidden fields (H specified in position
-  // 38), or program-to-system fields (P in Position 38)." and "The CHRID
-  // keyword cannot be specified with the DUP (Duplication) keyword."
-  // I-30 found none of it enforced beyond hiding the General keywords row
-  // for constants and M/P fields.
+  // CHRID's own eligibility and mutual-exclusion rules. Its DDS Reference
+  // section states them in three sentences: "The CHRID keyword is not valid
+  // on constant fields, numeric fields (fields with decimal positions
+  // specified in positions 36 through 37), message fields (M specified in
+  // position 38), hidden fields (H specified in position 38), or
+  // program-to-system fields (P in Position 38)." and "The CHRID keyword
+  // cannot be specified with the DUP (Duplication) keyword." I-30 found
+  // none of it enforced beyond hiding the General keywords row for
+  // constants and M/P fields.
   //
   // "Numeric" is taken literally from that text - decimal positions
   // specified (0 counts) - NOT inferred from the data type: a Y (numeric
@@ -1776,8 +1785,8 @@
   // The option-indicator side ("Option indicators are not valid for this
   // keyword") was already handled by I-30.
   // -----------------------------------------------------------------------
-  // Task I-121 (CHRID slice) - CHRID_USAGE_LABELS is gone; chridUsageReason
-  // now reads KeywordSpec.ineligibleUsageLabel('CHRID', ...) instead.
+  // CHRID_USAGE_LABELS is gone; chridUsageReason now reads
+  // KeywordSpec.ineligibleUsageLabel('CHRID',...) instead.
   // CHRID_DUP_TEXT/CHRID_NUMERIC_TEXT remain local message text (the
   // underlying "which values are ineligible" facts moved to the spec; the
   // wording did not need to).
@@ -1793,21 +1802,25 @@
     return t !== '' && !isNaN(Number(t));
   }
 
-  /** Task I-121 (CHRID slice) - reads KeywordSpec.ineligibleUsageLabel
-   *  instead of the local CHRID_USAGE_LABELS map (now removed). */
+  /**
+   * Reads KeywordSpec.ineligibleUsageLabel instead of the local
+   * CHRID_USAGE_LABELS map (now removed).
+   */
   function chridUsageReason(usage) {
     var label = KeywordSpec.ineligibleUsageLabel('CHRID', usage);
     return label ? 'CHRID is not valid on ' + label + ' fields (per the DDS Reference).' : null;
   }
 
-  /** Why CHRID cannot be on a field of this kind, or null when the field
+  /**
+   * Why CHRID cannot be on a field of this kind, or null when the field
    *  is eligible: constant, usage H/M/P, or decimal positions specified.
    *  (DUP is a keyword-vs-keyword rule, checked separately.)
    *
-   *  Task I-121 (CHRID slice) - the constant/numeric restrictions now read
+   *  The constant/numeric restrictions now read
    *  KeywordSpec.ineligibleOnConstant/ineligibleWhenDecimalsSpecified
    *  instead of being unconditional; behavior is unchanged since both are
-   *  true for CHRID. */
+   *  true for CHRID.
+   */
   function chridEligibilityReason(usage, decimalPositions, isConstant) {
     if (isConstant && KeywordSpec.ineligibleOnConstant('CHRID')) return 'CHRID is not valid on constant fields (per the DDS Reference).';
     var usageReason = chridUsageReason(usage);
@@ -1944,7 +1957,8 @@
     return (codes || []).filter(Boolean).join(' ');
   }
 
-  /** L81 - DFT/DFTVAL validity check, confirmed against IBM's own DDS
+  /**
+   * L81 - DFT/DFTVAL validity check, confirmed against IBM's own DDS
    *  Reference for BOTH keywords (each documents the identical rule from
    *  its own side):
    *  - DFT: "The DFTVAL, EDTCDE, and EDTWRD keywords cannot be specified
@@ -1969,14 +1983,15 @@
    *  own page states "The DFT and DFTVAL keywords cannot be specified with
    *  the EDTCDE keyword."
    *
-   *  Task I-121 - the group itself (formerly the local
-   *  DFT_DFTVAL_CONFLICT_GROUP array here) now lives on keywordSpec.js's
-   *  declarative MUTEX_GROUPS, evaluated via KeywordSpec.groupMutexKeywords -
-   *  a new shape from every other RECORD_TYPES entry (a full N-way mutual
-   *  exclusion rather than a pairwise owner-and-partners relationship). */
+   *  The group itself (formerly the local DFT_DFTVAL_CONFLICT_GROUP array
+   *  here) now lives on keywordSpec.js's declarative MUTEX_GROUPS, evaluated
+   *  via KeywordSpec.groupMutexKeywords - a new shape from every other
+   *  RECORD_TYPES entry (a full N-way mutual exclusion rather than a pairwise
+   *  owner-and-partners relationship).
+   */
   function dftGroupConflictReason(keywordName, keywords, dataType) {
-    // Task I-121 (DFT/DFTVAL floating-point slice) - the floating-point clause
-    // is a spec fact (RECORD_TYPES.{DFT,DFTVAL,EDTCDE,EDTWRD}), not a literal.
+    // The floating-point clause is a spec fact
+    // (RECORD_TYPES.{DFT,DFTVAL,EDTCDE,EDTWRD}), not a literal.
     if ((dataType || '').toUpperCase() === 'F' && KeywordSpec.isNotAllowedOnFloatingPointField(keywordName)) {
       return keywordName + ' is not valid on floating-point fields (per the DDS Reference).';
     }
@@ -2007,8 +2022,8 @@
    *  them (I/H/P are exempt - only O/output and B/both need this) or both
    *  are already present. */
   function dftOutputRequirementNote(usage, fieldKeywords, recordKeywords) {
-    // Task I-121 (DFT output-requirement slice) - the usages and the two
-    // companion keyword names are a spec fact (RECORD_TYPES.DFT.outputRequirement).
+    // The usages and the two companion keyword names are a spec fact
+    // (RECORD_TYPES.DFT.outputRequirement).
     var req = KeywordSpec.outputRequirement('DFT');
     var u = (usage || '').toUpperCase();
     if (req.usages.indexOf(u) < 0) return null;
@@ -2021,50 +2036,55 @@
     return 'DFT on an output-capable field also requires ' + missing.join(' and ') + ' (per the DDS Reference).';
   }
 
-  /** Task I-42 - WRDWRAP's own DDS Reference section (now offered at field
-   *  level, per the audit's Finding C) states, in one place, everything
-   *  that can make it invalid on a given field: (1) "This keyword can only
-   *  be specified on fields that have a usage of input-only (I) or
-   *  input/output (B)"; (2) "You cannot specify the WRDWRAP keyword on the
-   *  following keyboard shifts: Signed Numeric (S), Numeric Only (Y),
-   *  Digits Only (D), Numeric Only Character (M), Floating Point (F), DBCS
-   *  Only (J), DBCS Open (O), DBCS Either (E), Graphic (G)"; (3) "WRDWRAP
-   *  cannot be specified with the following keywords: AUTO(RAZ, RAB),
-   *  CHECK(MF, M10F, M11F, RB, RZ, RL, RLTB), CHGINPDFT(MF), DSPATR(OID,
-   *  SP), DUP, FLTFIXDEC, IGCALTTYP"; and (4) note 3, "Subfiles do not
-   *  support WRDWRAP" (checked here as the literal SFL keyword on the
-   *  field's own record, the same test dspmodSflConflictReason uses, so
-   *  a subfile detail record's own fields are covered).
+  /**
+   * WRDWRAP's own DDS Reference section (now offered at field level, per
+   * the audit's Finding C) states, in one place, everything that can make
+   * it invalid on a given field: (1) "This keyword can only be specified
+   * on fields that have a usage of input-only (I) or input/output (B)";
+   * (2) "You cannot specify the WRDWRAP keyword on the following keyboard
+   * shifts: Signed Numeric (S), Numeric Only (Y), Digits Only (D), Numeric
+   * Only Character (M), Floating Point (F), DBCS Only (J), DBCS Open (O),
+   * DBCS Either (E), Graphic (G)"; (3) "WRDWRAP cannot be specified with
+   * the following keywords: AUTO(RAZ, RAB), CHECK(MF, M10F, M11F, RB, RZ,
+   * RL, RLTB), CHGINPDFT(MF), DSPATR(OID, SP), DUP, FLTFIXDEC, IGCALTTYP";
+   * and (4) note 3, "Subfiles do not support WRDWRAP" (checked here as the
+   * literal SFL keyword on the field's own record, the same test
+   * dspmodSflConflictReason uses, so a subfile detail record's own fields
+   * are covered).
    *
    *  Deliberately scoped to keywordName === 'WRDWRAP' (a safe no-op for
    *  every other name), and to the FORWARD direction only - turning
    *  WRDWRAP on while a conflicting keyword is already on the field. The
-   *  reverse direction (adding AUTO/CHECK/DUP/etc. to a field that
-   *  already carries WRDWRAP) is Task I-58's wrdwrapReverseConflictReason
-   *  (raw editor) and wrdwrapNewConflictReason (commitEdit backstop for
-   *  every panel), defined just above. Changing the data type or usage of
-   *  a field that already carries WRDWRAP (Basic tab Apply) is Task I-61's
+   *  reverse direction (adding AUTO/CHECK/DUP/etc. to a field that already
+   *  carries WRDWRAP) is Task the wrdwrapReverseConflictReason (raw
+   *  editor) and wrdwrapNewConflictReason (commitEdit backstop for every
+   *  panel), defined just above. Changing the data type or usage of a
+   *  field that already carries WRDWRAP (Basic tab Apply) is Task the
    *  wrdwrapBasicEditConflictReason, which shares this function's wording.
    *  Usage/data type are checked here even though the field-level row is
-   *  already hidden for them (see generalFieldKeywordRowMatchesDataType/
-   *  ...MatchesUsage), so this function is correct on its own for any
-   *  future caller. A blank usage or data type is treated as "not yet
-   *  set" and never blocks (same fail-open posture as
-   *  fieldKeywordCategoryVisibility's own blank-usage branch).
-   *  Returns a reason string, or null when WRDWRAP is fine to add. */
-  // Task I-121 (WRDWRAP/IGCALTTYP eligibility slice) - the nine blocked
-  // keyboard shifts now live in keywordSpec.js (RECORD_TYPES.WRDWRAP.blockedDataTypes).
-  /** Task I-58 - shared by both directions: the label ("CHECK(RB)", "DUP")
-   *  when ONE keyword instance is on WRDWRAP's own conflict list, else
-   *  null. Token-matched (split on whitespace/commas/parens) rather than
-   *  substring-matched, so e.g. CHECK(RB) hits but CHECK(AB) doesn't.
+   *  already hidden for them (see
+   *  generalFieldKeywordRowMatchesDataType/...MatchesUsage), so this
+   *  function is correct on its own for any future caller. A blank usage
+   *  or data type is treated as "not yet set" and never blocks (same
+   *  fail-open posture as fieldKeywordCategoryVisibility's own blank-usage
+   *  branch). Returns a reason string, or null when WRDWRAP is fine to
+   *  add.
+   */
+  // The nine blocked keyboard shifts now live in keywordSpec.js
+  // (RECORD_TYPES.WRDWRAP.blockedDataTypes).
+  /**
+   * Shared by both directions: the label ("CHECK(RB)", "DUP") when ONE
+   * keyword instance is on WRDWRAP's own conflict list, else null.
+   * Token-matched (split on whitespace/commas/parens) rather than
+   * substring-matched, so e.g. CHECK(RB) hits but CHECK(AB) doesn't.
    *
-   *  Task I-121 - WRDWRAP's own conflict map (formerly
-   *  WRDWRAP_KEYWORD_CONFLICTS here) and the token-matching engine itself
-   *  (formerly this file's own exclusionListHit, shared with
-   *  igcalttypKeywordHits below) both moved to keywordSpec.js's
-   *  declarative RECORD_TYPES.WRDWRAP.conditionalMutex, evaluated via
-   *  KeywordSpec.conditionalMutexHit. */
+   *  WRDWRAP's own conflict map (formerly WRDWRAP_KEYWORD_CONFLICTS here)
+   *  and the token-matching engine itself (formerly this file's own
+   *  exclusionListHit, shared with igcalttypKeywordHits below) both moved
+   *  to keywordSpec.js's declarative
+   *  RECORD_TYPES.WRDWRAP.conditionalMutex, evaluated via
+   *  KeywordSpec.conditionalMutexHit.
+   */
   function wrdwrapKeywordHit(k) {
     return KeywordSpec.conditionalMutexHit('WRDWRAP', k);
   }
@@ -2077,12 +2097,14 @@
     return hits;
   }
 
-  /** Task I-58 - the REVERSE direction of wrdwrapFieldConflictReason:
-   *  adding one keyword (name + parameters, as typed into the field-level
-   *  raw keyword editor's "+ Add keyword") to a field that ALREADY carries
-   *  WRDWRAP. Returns a reason string, or null when it's fine to add.
-   *  Deliberately a no-op when the field has no WRDWRAP, and for any
-   *  keyword not on WRDWRAP's own list. */
+  /**
+   * The REVERSE direction of wrdwrapFieldConflictReason: adding one
+   * keyword (name + parameters, as typed into the field-level raw keyword
+   * editor's "+ Add keyword") to a field that ALREADY carries WRDWRAP.
+   * Returns a reason string, or null when it's fine to add. Deliberately a
+   * no-op when the field has no WRDWRAP, and for any keyword not on
+   * WRDWRAP's own list.
+   */
   function wrdwrapReverseConflictReason(keywordName, parameters, fieldKeywords) {
     var hasWrdwrap = (fieldKeywords || []).some(function (k) { return k.name === 'WRDWRAP'; });
     if (!hasWrdwrap) return null;
@@ -2091,16 +2113,18 @@
     return hit + ' cannot be specified on a field that already has WRDWRAP (per the DDS Reference).';
   }
 
-  /** Task I-58 - diff-based backstop for EVERY field-level panel (CHECK's
-   *  Keying/Validity codes, CHGINPDFT, DUP, DSPATR's OID/SP, FLTFIXDEC,
-   *  IGCALTTYP, the raw editor - all commit through commitEdit's own
-   *  keywords update): given the field's keyword list before and after
-   *  an edit, returns a reason when the edit INTRODUCES a WRDWRAP
-   *  conflict on a field that carries WRDWRAP after the edit. Conflicts
-   *  already present before the edit (a hand-written file that was
-   *  already invalid) are not re-reported, so unrelated edits to such a
-   *  field are never blocked, and turning WRDWRAP itself on is left to
-   *  the forward-direction wrdwrapFieldConflictReason. */
+  /**
+   * Diff-based backstop for EVERY field-level panel (CHECK's
+   * Keying/Validity codes, CHGINPDFT, DUP, DSPATR's OID/SP, FLTFIXDEC,
+   * IGCALTTYP, the raw editor - all commit through commitEdit's own
+   * keywords update): given the field's keyword list before and after an
+   * edit, returns a reason when the edit INTRODUCES a WRDWRAP conflict
+   * on a field that carries WRDWRAP after the edit. Conflicts already
+   * present before the edit (a hand-written file that was already
+   * invalid) are not re-reported, so unrelated edits to such a field are
+   * never blocked, and turning WRDWRAP itself on is left to the
+   * forward-direction wrdwrapFieldConflictReason.
+   */
   function wrdwrapNewConflictReason(oldKeywords, newKeywords) {
     var hasWrdwrap = (newKeywords || []).some(function (k) { return k.name === 'WRDWRAP'; });
     if (!hasWrdwrap) return null;
@@ -2116,13 +2140,14 @@
     return added.join(', ') + ' cannot be specified on a field that already has WRDWRAP (per the DDS Reference).';
   }
 
-  /** Task I-71 - IGCALTTYP's own DDS Reference section: "The following
-   *  keywords are not allowed with the IGCALTTYP keyword: AUTO(RAZ), BLKFOLD,
-   *  CHECK(M10 M11 M10F M11F RL RZ VN VNE), CMP(EQ GE GT LE LT NE NG NL),
-   *  COMP(EQ GE GT LE LT NE NG NL), DUP, RANGE, VALUES." A bidirectional
-   *  mutual exclusion on the SAME field, same shape as htmlConflictReason
-   *  and I-58's WRDWRAP pair (which already covers IGCALTTYP-vs-WRDWRAP from
-   *  WRDWRAP's side - that pair is NOT repeated here).
+  /**
+   * IGCALTTYP's own DDS Reference section: "The following keywords are not
+   * allowed with the IGCALTTYP keyword: AUTO(RAZ), BLKFOLD, CHECK(M10 M11 M10F
+   * M11F RL RZ VN VNE), CMP(EQ GE GT LE LT NE NG NL), COMP(EQ GE GT LE LT NE NG
+   * NL), DUP, RANGE, VALUES." A bidirectional mutual exclusion on the SAME
+   * field, same shape as htmlConflictReason and the WRDWRAP pair (which already
+   * covers IGCALTTYP-vs-WRDWRAP from WRDWRAP's side - that pair is NOT repeated
+   * here).
    *
    *  CMP/COMP list every comparison operator they can take (EQ GE GT LE LT NE
    *  NG NL is the whole set), so any use of them is excluded (null). AUTO is
@@ -2130,11 +2155,11 @@
    *  codes listed (CHECK(ME), CHECK(AB), CHECK(FE)... are fine). Token-matched,
    *  never substring-matched, exactly as wrdwrapKeywordHit does.
    *
-   *  Task I-121 - IGCALTTYP's own conflict map (formerly
-   *  IGCALTTYP_KEYWORD_CONFLICTS here) now lives on keywordSpec.js's
-   *  declarative RECORD_TYPES.IGCALTTYP.conditionalMutex, evaluated via
-   *  the same KeywordSpec.conditionalMutexHit engine WRDWRAP's own entry
-   *  uses above. */
+   *  IGCALTTYP's own conflict map (formerly IGCALTTYP_KEYWORD_CONFLICTS here)
+   *  now lives on keywordSpec.js's declarative
+   *  RECORD_TYPES.IGCALTTYP.conditionalMutex, evaluated via the same
+   *  KeywordSpec.conditionalMutexHit engine WRDWRAP's own entry uses above.
+   */
   function igcalttypKeywordHits(keywords) {
     var hits = [];
     (keywords || []).forEach(function (k) {
@@ -2151,17 +2176,16 @@
   }
 
   // -----------------------------------------------------------------------
-  // Task I-94 - IGCALTTYP eligibility. Its own DDS Reference section: "Specify
-  // this keyword only for input- and output-capable fields whose keyboard shift
-  // type is A, N, X, W, or I. Do not specify this keyword for DBCS fields." and,
-  // in the DBCS chapter, "Do not use the IGCALTTYP, IGCANKCNV, CHECK(LC), and
-  // LOWER keywords on DBCS-graphic fields (G specified in position 35)." The
-  // keyword's own opening sentence says what it does: it changes "alphanumeric
-  // character fields that are capable of input and output to DBCS fields with
-  // data type O".
+  // IGCALTTYP eligibility. Its own DDS Reference section: "Specify this keyword
+  // only for input- and output-capable fields whose keyboard shift type is A, N,
+  // X, W, or I. Do not specify this keyword for DBCS fields." and, in the DBCS
+  // chapter, "Do not use the IGCALTTYP, IGCANKCNV, CHECK(LC), and LOWER keywords
+  // on DBCS-graphic fields (G specified in position 35)." The keyword's own
+  // opening sentence says what it does: it changes "alphanumeric character fields
+  // that are capable of input and output to DBCS fields with data type O".
   //
-  // So two field-kind rules (I-71 already enforced the keyword-vs-keyword ones
-  // and I-95 the option-indicator one):
+  // So two field-kind rules (I-71 already enforced the keyword-vs-keyword ones and
+  // the option-indicator one):
   //   - usage B only ("input- and output-capable"): not I, O, H, M or P, and
   //     not a constant (a constant has no usage at all);
   //   - keyboard shift / data type (position 35) one of A, N, X, W, I: every
@@ -2179,7 +2203,7 @@
   // the Basic tab's Apply refuses a usage / data type change that would leave
   // a field carrying IGCALTTYP ineligible.
   // -----------------------------------------------------------------------
-  // Task I-121 - the allowed usage (B) and keyboard shifts (A/N/X/W/I) now live in
+  // The allowed usage (B) and keyboard shifts (A/N/X/W/I) now live in
   // keywordSpec.js (RECORD_TYPES.IGCALTTYP.allowedUsage / allowedDataTypes).
   function igcalttypUsageReason(usage) {
     var u = String(usage == null ? '' : usage).trim().toUpperCase();
@@ -2204,15 +2228,17 @@
     return igcalttypUsageReason(usage) || igcalttypDataTypeReason(dataType);
   }
 
-  /** Task I-94 - Basic tab Apply guard: a usage change to anything but B, or
-   *  a data type change to anything outside A/N/X/W/I, on a field that
-   *  ALREADY carries IGCALTTYP. `field` is the field before the edit,
-   *  `updates` the Apply's changes (only keys present in `updates` count as
-   *  changed). Diff-based like wrdwrapBasicEditConflictReason: a blank usage
-   *  is O on BOTH sides of the comparison (the Basic tab shows O for it),
-   *  and a blank data type fails open, so unrelated edits on an
-   *  already-invalid hand-written field, and changes TO a valid value, are
-   *  never blocked. Returns a reason string or null. */
+  /**
+   * Basic tab Apply guard: a usage change to anything but B, or a data type
+   * change to anything outside A/N/X/W/I, on a field that ALREADY carries
+   * IGCALTTYP. `field` is the field before the edit, `updates` the Apply's
+   * changes (only keys present in `updates` count as changed). Diff-based
+   * like wrdwrapBasicEditConflictReason: a blank usage is O on BOTH sides of
+   * the comparison (the Basic tab shows O for it), and a blank data type
+   * fails open, so unrelated edits on an already-invalid hand-written field,
+   * and changes TO a valid value, are never blocked. Returns a reason string
+   * or null.
+   */
   function igcalttypBasicEditConflictReason(fieldKeywords, field, updates) {
     if (!(fieldKeywords || []).some(function (k) { return k.name === 'IGCALTTYP'; })) return null;
     var f = field || {};
@@ -2235,18 +2261,20 @@
     return null;
   }
 
-  /** Task I-71 - add-time check, BOTH directions, for one keyword being
-   *  added (name + parameters, as typed into the raw keyword editor's "+ Add
-   *  keyword" or as a General-row checkbox being ticked):
+  /**
+   * Add-time check, BOTH directions, for one keyword being added (name +
+   * parameters, as typed into the raw keyword editor's "+ Add keyword" or as
+   * a General-row checkbox being ticked):
    *   - adding IGCALTTYP to a field that already carries an excluded keyword;
    *   - adding an excluded keyword to a field that already carries IGCALTTYP.
-   *  Returns a reason string, or null. A no-op for every other keyword. */
+   *  Returns a reason string, or null. A no-op for every other keyword.
+   */
   function igcalttypConflictReason(keywordName, parameters, fieldKeywords, fieldKind) {
     var name = String(keywordName || '').toUpperCase();
     var kws = fieldKeywords || [];
     if (name === 'IGCALTTYP') {
-      // Task I-94: `fieldKind` ({ usage, dataType, isConstant }) is optional;
-      // omitted, only the keyword-vs-keyword rules apply (I-71's behaviour).
+      // `fieldKind` ({ usage, dataType, isConstant }) is optional; omitted,
+      // only the keyword-vs-keyword rules apply (the behaviour).
       if (fieldKind) {
         var eligibility = igcalttypEligibilityReason(fieldKind.usage, fieldKind.dataType, fieldKind.isConstant);
         if (eligibility) return eligibility;
@@ -2259,27 +2287,28 @@
     return hit ? igcalttypReverseReason([hit]) : null;
   }
 
-  /** Task I-71 - diff-based backstop for EVERY field-level panel (Keying
-   *  options' CHECK codes, the RANGE/VALUES/CMP/COMP editors, DUP, BLKFOLD,
-   *  AUTO, the General rows, the raw editor - all commit through commitEdit's
-   *  own keywords update), same shape as wrdwrapNewConflictReason. Given the
-   *  field's keyword list before and after an edit, returns a reason when
-   *  the edit INTRODUCES a conflict on a field that carries IGCALTTYP after
-   *  it:
+  /**
+   * Diff-based backstop for EVERY field-level panel (Keying options' CHECK
+   * codes, the RANGE/VALUES/CMP/COMP editors, DUP, BLKFOLD, AUTO, the General
+   * rows, the raw editor - all commit through commitEdit's own keywords
+   * update), same shape as wrdwrapNewConflictReason. Given the field's
+   * keyword list before and after an edit, returns a reason when the edit
+   * INTRODUCES a conflict on a field that carries IGCALTTYP after it:
    *   - IGCALTTYP was not there before: any excluded keyword now on the field
    *     is a conflict this edit created (forward message);
    *   - IGCALTTYP was already there: only an excluded keyword the edit
    *     ADDED counts (reverse message). Conflicts already present before
    *     the edit (a hand-written file that was already invalid) are not
    *     re-reported, so unrelated edits to such a field are never blocked,
-   *     and removing IGCALTTYP or the excluded keyword is always allowed. */
+   *     and removing IGCALTTYP or the excluded keyword is always allowed.
+   */
   function igcalttypNewConflictReason(oldKeywords, newKeywords, fieldKind) {
     var has = function (kws) { return (kws || []).some(function (k) { return k.name === 'IGCALTTYP'; }); };
     if (!has(newKeywords)) return null;
-    // Task I-94: `fieldKind` ({ usage, dataType, isConstant } as they will be
-    // AFTER this edit) is optional. Only an edit that INTRODUCES IGCALTTYP
-    // is blamed for the field's kind; one that was already there is left
-    // alone (an already-ineligible hand-written field stays editable).
+    // `fieldKind` ({ usage, dataType, isConstant } as they will be AFTER this
+    // edit) is optional. Only an edit that INTRODUCES IGCALTTYP is blamed for
+    // the field's kind; one that was already there is left alone (an
+    // already-ineligible hand-written field stays editable).
     if (!has(oldKeywords) && fieldKind) {
       var eligibility = igcalttypEligibilityReason(fieldKind.usage, fieldKind.dataType, fieldKind.isConstant);
       if (eligibility) return eligibility;
@@ -2295,13 +2324,14 @@
     return added.length ? igcalttypReverseReason(added) : null;
   }
 
-  /** Task I-95 - keywords whose own DDS Reference section says option
-   *  indicators cannot be used with them. IGCALTTYP: "Option indicators are
-   *  not allowed with IGCALTTYP." I-30 made its General row non-conditionable,
-   *  but the raw keyword editor (shared by the file, field, record and
-   *  help-entry levels) draws a Conditioning toggle on EVERY keyword chip, so
-   *  an indicator could still be put on a raw-added IGCALTTYP and a
-   *  hand-written one carrying an indicator was never flagged.
+  /**
+   * Keywords whose own DDS Reference section says option indicators cannot be
+   * used with them. IGCALTTYP: "Option indicators are not allowed with
+   * IGCALTTYP." I-30 made its General row non-conditionable, but the raw
+   * keyword editor (shared by the file, field, record and help-entry levels)
+   * draws a Conditioning toggle on EVERY keyword chip, so an indicator could
+   * still be put on a raw-added IGCALTTYP and a hand-written one carrying an
+   * indicator was never flagged.
    *
    *  No generic list of such keywords existed - the panels' per-row
    *  `conditionable` flags only cover the structured rows - so this is that
@@ -2310,15 +2340,16 @@
    *  populated from a guess. Note the reference words the rule two ways: a
    *  keyword that "cannot be conditioned itself" but sits on a field that can
    *  (DATFMT, EDTMSK, ...) and this outright "not allowed with" - only add a
-   *  keyword after reading which one it is. */
-  //  Task I-121: which keywords take no option indicators - and in which of
-  //  the sections' wordings - is keywordSpec.js's `noOptionIndicators` fact
-  //  per keyword (95 every-level keywords plus the file-level-only
-  //  HLPTITLE; the I-95 / I-101 batch 1-4 arrays and their reading notes
-  //  moved there). Only the wording -> message mapping stays here.
-  //  Task I-121s decision: this wording -> message mapping is PRESENTATION
-  //  (the error text shown to the user), so it deliberately stays here; the
-  //  facts it renders are the spec's `kind` per keyword.
+   *  keyword after reading which one it is.
+   */
+  //  Which keywords take no option indicators - and in which of the
+  //  sections' wordings - is keywordSpec.js's `noOptionIndicators` fact per
+  //  keyword (95 every-level keywords plus the file-level-only HLPTITLE;
+  //  the I-95 / I-101 batch 1-4 arrays and their reading notes moved
+  //  there). Only the wording -> message mapping stays here. Task I-121s
+  //  decision: this wording -> message mapping is PRESENTATION (the error
+  //  text shown to the user), so it deliberately stays here; the facts it
+  //  renders are the spec's `kind` per keyword.
   var NO_OPTION_INDICATOR_MESSAGES = {
     notValid: function (n) { return 'Option indicators are not valid for ' + n + ' (per the DDS Reference).'; },
     notValidDisplaySizeValid: function (n) { return 'Option indicators are not valid for ' + n + ' (per the DDS Reference); display size condition names are.'; },
@@ -2414,7 +2445,7 @@
    *  not re-reported, and removing indicators or the keyword is always fine. */
   function sflmsgkeyFieldNewConflictReason(field, updates) {
     if (!field || !updates) return null;
-    // Task I-121: which keyword counts (SFLMSGKEY) comes from the spec's
+    // Which keyword counts (SFLMSGKEY) comes from the spec's
     // `noOptionIndicatorsOnField` fact instead of a string literal.
     var has = function (kws) { return (kws || []).some(function (k) { return k && KeywordSpec.noOptionIndicatorsOnField(k.name); }); };
     var own = function (k) { return Object.prototype.hasOwnProperty.call(updates, k); };
@@ -2427,19 +2458,21 @@
     return after > optionIndicatorCount(field.conditions) ? 'Option indicators are not valid on a field that carries SFLMSGKEY (per the DDS Reference).' : null;
   }
 
-  /** Task I-91 - MSGID's own DDS Reference section: "The following keywords
-   *  cannot be specified on a field with the MSGID keyword: DFT, DFTVAL,
-   *  FLTFIXDEC, FLTPCN, MSGCON." A bidirectional mutual exclusion on the SAME
-   *  field, same shape as I-71's IGCALTTYP pair and htmlConflictReason. None
-   *  of the five takes a "which parameters" qualifier - any use of them is
-   *  excluded - so this is a plain name set, not a token list. MSGCON only
-   *  applies to constants, which cannot carry MSGID, so it is out of practical
-   *  reach, but it is on IBM's list and costs nothing here. MSGID may be
-   *  specified several times on a field; ONE of them is enough to exclude.
+  /**
+   * MSGID's own DDS Reference section: "The following keywords cannot be
+   * specified on a field with the MSGID keyword: DFT, DFTVAL, FLTFIXDEC,
+   * FLTPCN, MSGCON." A bidirectional mutual exclusion on the SAME field, same
+   * shape as the IGCALTTYP pair and htmlConflictReason. None of the five takes
+   * a "which parameters" qualifier - any use of them is excluded - so this is
+   * a plain name set, not a token list. MSGCON only applies to constants,
+   * which cannot carry MSGID, so it is out of practical reach, but it is on
+   * IBM's list and costs nothing here. MSGID may be specified several times on
+   * a field; ONE of them is enough to exclude.
    *
-   *  Task I-121 - the five partner names now come from keywordSpec.js's
-   *  declarative RECORD_TYPES.MSGID.mutex instead of the hand-written
-   *  MSGID_EXCLUDED_KEYWORDS array. */
+   *  The five partner names now come from keywordSpec.js's declarative
+   *  RECORD_TYPES.MSGID.mutex instead of the hand-written
+   *  MSGID_EXCLUDED_KEYWORDS array.
+   */
   function msgidExcludedHits(keywords) {
     var hits = [];
     (keywords || []).forEach(function (k) {
@@ -2457,16 +2490,18 @@
     return hits.join(', ') + ' cannot be specified on a field that already has MSGID (per the DDS Reference).';
   }
 
-  /** Task I-92 - MSGID's own DDS Reference section: "You cannot specify MSGID
-   *  in a subfile record format (SFL keyword)." Record-level, so it needs the
-   *  RECORD's keywords rather than the field's (same as htmlConflictReason's
-   *  SFL branch, I-41). Only the SFL record itself: SFLCTL is the subfile
-   *  CONTROL record, an ordinary display record whose fields are not subfile
-   *  detail fields, and is not what this sentence names.
+  /**
+   * MSGID's own DDS Reference section: "You cannot specify MSGID in a subfile
+   * record format (SFL keyword)." Record-level, so it needs the RECORD's
+   * keywords rather than the field's (same as htmlConflictReason's SFL
+   * branch, I-41). Only the SFL record itself: SFLCTL is the subfile CONTROL
+   * record, an ordinary display record whose fields are not subfile detail
+   * fields, and is not what this sentence names.
    *
-   *  Task I-121 - the excluded record type now comes from keywordSpec.js's
-   *  declarative RECORD_TYPES.MSGID.notAllowedInRecordType instead of a
-   *  bare 'SFL' literal. */
+   *  The excluded record type now comes from keywordSpec.js's declarative
+   *  RECORD_TYPES.MSGID.notAllowedInRecordType instead of a bare 'SFL'
+   *  literal.
+   */
   function msgidRecordIsSubfile(recordKeywords) {
     var excludedRecordType = KeywordSpec.notAllowedInRecordType('MSGID');
     return (recordKeywords || []).some(function (k) { return k && k.name === excludedRecordType; });
@@ -2480,24 +2515,28 @@
     return (keywords || []).filter(function (k) { return k && k.name === 'MSGID'; }).length;
   }
 
-  /** Task I-92 - diff-based backstop for the SFL rule, for the commitEdit
-   *  choke point (covers the Message ID panel's "+ Add message ID", which
-   *  the add-time check above does not see). Blocks an edit that would
-   *  INTRODUCE MSGID on a field of an SFL record: the field carries more
-   *  MSGID keywords after the edit than before. A hand-written field that
-   *  already has MSGID on an SFL record is not re-reported on unrelated
-   *  edits, and removing or editing its MSGID in place is always allowed. */
+  /**
+   * Diff-based backstop for the SFL rule, for the commitEdit choke point
+   * (covers the Message ID panel's "+ Add message ID", which the add-time
+   * check above does not see). Blocks an edit that would INTRODUCE MSGID
+   * on a field of an SFL record: the field carries more MSGID keywords
+   * after the edit than before. A hand-written field that already has
+   * MSGID on an SFL record is not re-reported on unrelated edits, and
+   * removing or editing its MSGID in place is always allowed.
+   */
   function msgidSflNewConflictReason(oldKeywords, newKeywords, recordKeywords) {
     if (msgidCount(newKeywords) <= msgidCount(oldKeywords)) return null;
     return msgidSflRecordReason(recordKeywords);
   }
 
-  /** Task I-91 - add-time check, BOTH directions, for one keyword being added
-   *  (as typed into the raw keyword editor's "+ Add keyword" or ticked as a
-   *  General row): adding MSGID to a field that carries DFT / DFTVAL /
-   *  FLTFIXDEC / FLTPCN / MSGCON, or adding one of those to a field that
-   *  already carries MSGID. Returns a reason string, or null. A no-op for
-   *  every other keyword. */
+  /**
+   * Add-time check, BOTH directions, for one keyword being added (as typed
+   * into the raw keyword editor's "+ Add keyword" or ticked as a General
+   * row): adding MSGID to a field that carries DFT / DFTVAL / FLTFIXDEC /
+   * FLTPCN / MSGCON, or adding one of those to a field that already carries
+   * MSGID. Returns a reason string, or null. A no-op for every other
+   * keyword.
+   */
   function msgidExclusionConflictReason(keywordName, fieldKeywords, recordKeywords) {
     var name = String(keywordName || '').toUpperCase();
     if (name === 'MSGID') {
@@ -2510,17 +2549,19 @@
     return msgidHasMsgid(fieldKeywords) ? msgidExclusionReverseReason([name]) : null;
   }
 
-  /** Task I-91 - diff-based backstop for every field-level panel (the MSGID
-   *  panel itself, the Default value editors, the General rows, the raw
-   *  editor - all commit through commitEdit), same shape as I-71's
-   *  igcalttypNewConflictReason. If MSGID is on the field after the edit:
+  /**
+   * Diff-based backstop for every field-level panel (the MSGID panel itself,
+   * the Default value editors, the General rows, the raw editor - all commit
+   * through commitEdit), same shape as the igcalttypNewConflictReason. If
+   * MSGID is on the field after the edit:
    *   - it was NOT there before: any excluded keyword now on the field is a
    *     conflict this edit created (forward message);
    *   - it was already there: only an excluded keyword the edit ADDED counts
    *     (reverse message).
    *  Conflicts already present before the edit (a hand-written field that was
    *  already invalid) are not re-reported, and removing either keyword is
-   *  always allowed. */
+   *  always allowed.
+   */
   function msgidExclusionNewConflictReason(oldKeywords, newKeywords) {
     if (!msgidHasMsgid(newKeywords)) return null;
     var nowHits = msgidExcludedHits(newKeywords);
@@ -2534,21 +2575,23 @@
     return added.length ? msgidExclusionReverseReason(added) : null;
   }
 
-  /** Task I-143 - MSGCON's own DDS Reference section (~line 8922) states
-   *  three rules the writer did not enforce:
+  /**
+   * MSGCON's own DDS Reference section (~line 8922) states three rules the writer
+   * did not enforce:
    *   1. "The MSGCON keyword cannot be used to initialize a named field" -
    *      it belongs on a constant field only (the spec's constantFieldOnly
    *      fact on RECORD_TYPES.MSGCON).
    *   2. "The MSGCON keyword cannot be specified with any of the following
    *      keywords: DATE, DFT, EDTCDE, EDTWRD, TIME" - a bidirectional
    *      exclusion on the same field, the list being RECORD_TYPES.MSGCON.mutex
-   *      (the same shape as I-91's MSGID exclusion). The same section adds
+   *      (the same shape as the MSGID exclusion). The same section adds
    *      that DFT and MSGCON together make the file not be created, which
    *      the DFT entry of that list already covers.
    *   3. "The length can be from 1 to 132 bytes" - KeywordSpec.msgconLengthRange().
    *  A blank parameter text, or a blank length, is "not yet set" and is not
    *  reported here (the panels drop an incomplete MSGCON; a bare raw-added
-   *  one has always been accepted - its completeness is a separate rule). */
+   *  one has always been accepted - its completeness is a separate rule).
+   */
   function msgconCount(keywords) {
     return (keywords || []).filter(function (k) { return k && k.name === 'MSGCON'; }).length;
   }
@@ -2591,17 +2634,19 @@
     return tokens.length ? msgconLengthProblem(tokens[0]) : null;
   }
 
-  /** Task I-153 - the format line `MSGCON(length message-ID
-   *  [library-name/]message-file-name)` states three parameters, only the
-   *  library being optional. A parameter text that is not exactly three
-   *  blank-separated tokens (a bare MSGCON, a two-token one, a fourth token),
-   *  or whose file token is not `message-file-name` / `library-name/message-
-   *  file-name` (a second or leading / trailing slash), is not that form. The
-   *  length token is msgconLengthProblem's; the message-ID and the file and
-   *  library names get no content check because the section states no rule
-   *  for them (an open question in the spec, not an invented rule). Unlike
-   *  msgconParamsProblem a BLANK text is reported here: a bare MSGCON is
-   *  incomplete. Callers run it only for text an edit introduces. */
+  /**
+   * The format line `MSGCON(length message-ID
+   * [library-name/]message-file-name)` states three parameters, only the
+   * library being optional. A parameter text that is not exactly three
+   * blank-separated tokens (a bare MSGCON, a two-token one, a fourth token),
+   * or whose file token is not `message-file-name` / `library-name/message-
+   * file-name` (a second or leading / trailing slash), is not that form. The
+   * length token is msgconLengthProblem's; the message-ID and the file and
+   * library names get no content check because the section states no rule for
+   * them (an open question in the spec, not an invented rule). Unlike
+   * msgconParamsProblem a BLANK text is reported here: a bare MSGCON is
+   * incomplete. Callers run it only for text an edit introduces.
+   */
   function msgconStructureProblem(paramText) {
     var shape = KeywordSpec.msgconParameterShape();
     var tokens = String(paramText == null ? '' : paramText).trim().split(/\s+/).filter(Boolean);
@@ -2616,10 +2661,12 @@
     }
     return null;
   }
-  /** Task I-166 - the advisory (not a refusal) for a MSGCON message ID that is not the usual
-   *  seven characters, or null. The section states no rule for the message ID, so nothing is
-   *  refused (I-153 still accepts any token); the usual IBM i form is the only thing said.
-   *  Blank is "not set" (null). The file and library names get no advisory: nothing settles them. */
+  /**
+   * The advisory (not a refusal) for a MSGCON message ID that is not the usual seven characters,
+   * or null. The section states no rule for the message ID, so nothing is refused (I-153 still
+   * accepts any token); the usual IBM i form is the only thing said. Blank is "not set" (null).
+   * The file and library names get no advisory: nothing settles them.
+   */
   function msgconMessageIdAdvisory(msgId) {
     var id = String(msgId == null ? '' : msgId).trim();
     if (id === '') return null;
@@ -2690,15 +2737,19 @@
     return reason;
   }
 
-  /** Task I-61 - the usage and data-type branches of
-   *  wrdwrapFieldConflictReason, pulled out unchanged so the forward check
-   *  (turning WRDWRAP on) and wrdwrapBasicEditConflictReason (changing the
-   *  type or usage of a field that already carries WRDWRAP) share one
-   *  wording. A blank value returns null here (fail-open, "not yet set"). */
-  /** Task I-121 (VALNUM slice) - webview bridge over the spec's `allowedUsage`:
-   *  true when `keywordName` has no usage restriction, the usage is blank (not
-   *  yet chosen - fail-open, like fieldKeywordCategoryVisibility), or it is
-   *  one of the keyword's allowed usages. */
+  /**
+   * The usage and data-type branches of wrdwrapFieldConflictReason, pulled
+   * out unchanged so the forward check (turning WRDWRAP on) and
+   * wrdwrapBasicEditConflictReason (changing the type or usage of a field
+   * that already carries WRDWRAP) share one wording. A blank value returns
+   * null here (fail-open, "not yet set").
+   */
+  /**
+   * Webview bridge over the spec's `allowedUsage`: true when `keywordName` has
+   * no usage restriction, the usage is blank (not yet chosen - fail-open, like
+   * fieldKeywordCategoryVisibility), or it is one of the keyword's allowed
+   * usages.
+   */
   function keywordUsageAllowed(keywordName, usage) {
     var allowed = KeywordSpec.allowedUsage(keywordName);
     if (!allowed) return true;
@@ -2713,14 +2764,16 @@
     if (!required) return true;
     return required.indexOf(String(dataType == null ? '' : dataType).trim().toUpperCase()) >= 0;
   }
-  /** Task I-131 - VALNUM's field-definition rule, enforced at the writer
-   *  (until now only the General-tab row filter hid the row). DDS Reference,
-   *  VALNUM section (line ~13146): "The field containing the VALNUM keyword
-   *  must be defined as an input-capable field with the data type Y." Both
-   *  facts come from RECORD_TYPES.VALNUM (`allowedUsage`, `requiredDataTypes`).
-   *  A blank usage is O (the Basic tab shows O for it) so it is NOT
-   *  input-capable; a blank data type is not Y either - the same strictness
-   *  the row filter already applies. Returns a reason string or null. */
+  /**
+   * VALNUM's field-definition rule, enforced at the writer (until now only the
+   * General-tab row filter hid the row). DDS Reference, VALNUM section (line
+   * ~13146): "The field containing the VALNUM keyword must be defined as an
+   * input-capable field with the data type Y." Both facts come from
+   * RECORD_TYPES.VALNUM (`allowedUsage`, `requiredDataTypes`). A blank usage is
+   * O (the Basic tab shows O for it) so it is NOT input-capable; a blank data
+   * type is not Y either - the same strictness the row filter already applies.
+   * Returns a reason string or null.
+   */
   function valnumUsageReason(usage) {
     var u = String(usage == null ? '' : usage).trim().toUpperCase() || 'O';
     if (KeywordSpec.allowedUsage('VALNUM').indexOf(u) < 0) {
@@ -2738,13 +2791,15 @@
     return valnumUsageReason(usage) || valnumDataTypeReason(dataType);
   }
 
-  /** Task I-131 - diff-based backstop for every field-level keyword commit
-   *  (the raw editor's add, the General rows, every panel - all go through
-   *  commitEdit), same shape as igcalttypNewConflictReason's eligibility half:
-   *  only an edit that INTRODUCES VALNUM on the field is judged, against the
-   *  field's kind ({ usage, dataType } as it will be AFTER the edit). A
-   *  hand-written field that already carries VALNUM on an ineligible kind
-   *  stays editable, and removing VALNUM is always allowed. */
+  /**
+   * Diff-based backstop for every field-level keyword commit (the raw editor's
+   * add, the General rows, every panel - all go through commitEdit), same
+   * shape as igcalttypNewConflictReason's eligibility half: only an edit that
+   * INTRODUCES VALNUM on the field is judged, against the field's kind ({
+   * usage, dataType } as it will be AFTER the edit). A hand-written field that
+   * already carries VALNUM on an ineligible kind stays editable, and removing
+   * VALNUM is always allowed.
+   */
   function valnumNewConflictReason(oldKeywords, newKeywords, fieldKind) {
     var has = function (kws) { return (kws || []).some(function (k) { return k.name === 'VALNUM'; }); };
     if (!has(newKeywords) || has(oldKeywords)) return null;
@@ -2752,12 +2807,14 @@
     return valnumEligibilityReason(k.usage, k.dataType);
   }
 
-  /** Task I-131 - Basic tab Apply guard: a usage change to O/H/M/P, or a data
-   *  type change away from Y, on a field that ALREADY carries VALNUM. Diff-
-   *  based like igcalttypBasicEditConflictReason (blank usage is O on BOTH
-   *  sides; only keys present in `updates` and actually changed count), so
-   *  unrelated edits on an already-invalid field and changes TO a valid
-   *  value are never blocked. */
+  /**
+   * Basic tab Apply guard: a usage change to O/H/M/P, or a data type change
+   * away from Y, on a field that ALREADY carries VALNUM. Diff- based like
+   * igcalttypBasicEditConflictReason (blank usage is O on BOTH sides; only
+   * keys present in `updates` and actually changed count), so unrelated
+   * edits on an already-invalid field and changes TO a valid value are never
+   * blocked.
+   */
   function valnumBasicEditConflictReason(fieldKeywords, field, updates) {
     if (!(fieldKeywords || []).some(function (k) { return k.name === 'VALNUM'; })) return null;
     var f = field || {};
@@ -2776,18 +2833,21 @@
     return null;
   }
 
-  /** Task I-138 - bridge over the spec's `allowedDataTypes`: true when the
-   *  keyword has no allow-list, the data type is blank (not yet chosen, or the
-   *  DDS default that the keyword itself turns into Y - fail-open), or it is
-   *  on the list. */
+  /**
+   * Bridge over the spec's `allowedDataTypes`: true when the keyword has no
+   * allow-list, the data type is blank (not yet chosen, or the DDS default
+   * that the keyword itself turns into Y - fail-open), or it is on the list.
+   */
   function keywordAllowedDataTypeAllows(keywordName, dataType) {
     var allowed = KeywordSpec.allowedDataTypes(keywordName);
     if (!allowed) return true;
     var dt = String(dataType == null ? '' : dataType).trim().toUpperCase();
     return dt === '' || allowed.indexOf(dt) >= 0;
   }
-  /** Task I-138 - the members of the DFT/DFTVAL/EDTCDE/EDTWRD group that carry
-   *  an `allowedDataTypes` fact (EDTCDE and EDTWRD), in group order. */
+  /**
+   * The members of the DFT/DFTVAL/EDTCDE/EDTWRD group that carry an
+   * `allowedDataTypes` fact (EDTCDE and EDTWRD), in group order.
+   */
   function dataTypeRestrictedEditKeywords() {
     return ['DFT'].concat(KeywordSpec.groupMutexKeywords('DFT')).filter(function (n) {
       return !!KeywordSpec.allowedDataTypes(n);
@@ -2799,11 +2859,13 @@
     return keywordName + ' can only be specified on a field with data type ' + KeywordSpec.allowedDataTypes(keywordName).join(', ') +
       ' (or a blank data type), not ' + dt + ' (per the DDS Reference).';
   }
-  /** Task I-138 - diff-based add-path backstop (the raw keyword editor, the
-   *  Input keywords panel - everything goes through commitEdit): an edit that
-   *  INTRODUCES EDTCDE or EDTWRD is judged on the field's data type as it
-   *  will be AFTER the edit. A hand-written field that already carries one
-   *  on an ineligible type stays editable, and removing it is always allowed. */
+  /**
+   * Diff-based add-path backstop (the raw keyword editor, the Input keywords
+   * panel - everything goes through commitEdit): an edit that INTRODUCES
+   * EDTCDE or EDTWRD is judged on the field's data type as it will be AFTER
+   * the edit. A hand-written field that already carries one on an ineligible
+   * type stays editable, and removing it is always allowed.
+   */
   function editKeywordDataTypeNewConflictReason(oldKeywords, newKeywords, fieldKind) {
     var has = function (kws, n) { return (kws || []).some(function (k) { return k.name === n; }); };
     var names = dataTypeRestrictedEditKeywords();
@@ -2815,11 +2877,13 @@
     }
     return null;
   }
-  /** Task I-138 - Basic tab Apply guard: a data type CHANGE to one outside the
-   *  allow-list on a field that ALREADY carries EDTCDE or EDTWRD. Diff-based
-   *  like valnumBasicEditConflictReason: only a changed data type counts, so
-   *  unrelated edits on an already-invalid field and changes TO a valid or
-   *  blank type are never blocked. */
+  /**
+   * Basic tab Apply guard: a data type CHANGE to one outside the allow-list
+   * on a field that ALREADY carries EDTCDE or EDTWRD. Diff-based like
+   * valnumBasicEditConflictReason: only a changed data type counts, so
+   * unrelated edits on an already-invalid field and changes TO a valid or
+   * blank type are never blocked.
+   */
   function editKeywordDataTypeBasicEditConflictReason(fieldKeywords, field, updates) {
     var f = field || {};
     var u = updates || {};
@@ -2837,21 +2901,21 @@
   }
 
   // ---------------------------------------------------------------------
-  // Task I-179 - DATFMT / DATSEP (date fields, data type L) and TIMFMT /
-  // TIMSEP (time fields, data type T): the rules their own sections state,
-  // enforced at the writer through the commitEdit choke point (the raw keyword
-  // editor, every panel and the General rows all end there). Until now only
-  // the panel's Apply handler checked the fixed-separator rule; the raw editor
-  // accepted any of them on any field with any value. Every fact is read from
+  // DATFMT / DATSEP (date fields, data type L) and TIMFMT / TIMSEP (time
+  // fields, data type T): the rules their own sections state, enforced at the
+  // writer through the commitEdit choke point (the raw keyword editor, every
+  // panel and the General rows all end there). Until now only the panel's
+  // Apply handler checked the fixed-separator rule; the raw editor accepted
+  // any of them on any field with any value. Every fact is read from
   // RECORD_TYPES (`validDataType`, `validValues`, `fixedSeparatorFormats`).
   // Decision: DATSEP with no DATFMT is allowed. DATFMT's own text makes *ISO
   // the default, a fixed-separator format, but the restriction is worded about
-  // a DATFMT value the user specified ("If you specify ... *ISO ..."), and the
+  // a DATFMT value the user specified ("If you specify... *ISO..."), and the
   // panel's Apply (dateSeparatorConflictReason('')) already treats a blank
-  // format as fine; refusing it would also block building the pair one
-  // keyword at a time. Same diff-based posture as I-131 / I-138: only an edit
-  // that introduces or changes a keyword is judged, so a hand-written field
-  // already carrying a problem stays editable and removal is always allowed.
+  // format as fine; refusing it would also block building the pair one keyword
+  // at a time. Same diff-based posture as I-131 / I-138: only an edit that
+  // introduces or changes a keyword is judged, so a hand-written field already
+  // carrying a problem stays editable and removal is always allowed.
   // ---------------------------------------------------------------------
   var DATE_TIME_FORMAT_KEYWORDS = ['DATFMT', 'DATSEP', 'TIMFMT', 'TIMSEP'];
   function dateTimeFormatTypeLabel(dataType) {
@@ -2889,13 +2953,15 @@
     return keywordName + '(' + raw + ') is not a valid separator. Use *JOB or one separator character in single quotes (' +
       values.filter(function (v) { return v !== '*JOB'; }).map(function (v) { return v === ' ' ? 'blank' : v; }).join(' ') + ') (per the DDS Reference).';
   }
-  /** Task I-179 - diff-based add/change guard for all four keywords, judged
-   *  on the field's data type as it will be AFTER the edit
-   *  (`fieldKind.dataType`): eligibility when a keyword is introduced, the
-   *  value domain when it is introduced or its parameter changes, and the
-   *  fixed-separator pairing (DATFMT *ISO/*USA/*EUR/*JIS with DATSEP, TIMFMT
-   *  likewise with TIMSEP) in both directions when the pair becomes
-   *  conflicting. Returns a reason string or null. */
+  /**
+   * Diff-based add/change guard for all four keywords, judged on the field's
+   * data type as it will be AFTER the edit (`fieldKind.dataType`):
+   * eligibility when a keyword is introduced, the value domain when it is
+   * introduced or its parameter changes, and the fixed-separator pairing
+   * (DATFMT *ISO/*USA/*EUR/*JIS with DATSEP, TIMFMT likewise with TIMSEP) in
+   * both directions when the pair becomes conflicting. Returns a reason
+   * string or null.
+   */
   function dateTimeFormatNewConflictReason(oldKeywords, newKeywords, fieldKind) {
     var find = function (kws, n) { return (kws || []).find(function (k) { return k.name === n; }); };
     var kind = fieldKind || {};
@@ -2929,11 +2995,13 @@
     }
     return null;
   }
-  /** Task I-179 - Basic tab Apply guard: a data type CHANGE on a field that
-   *  ALREADY carries one of the four keywords, to a type that is not the
-   *  keyword's own (L for DATFMT / DATSEP, T for TIMFMT / TIMSEP). Diff-based
-   *  like editKeywordDataTypeBasicEditConflictReason: only a changed data
-   *  type counts, unrelated edits are never blocked. */
+  /**
+   * Basic tab Apply guard: a data type CHANGE on a field that ALREADY carries
+   * one of the four keywords, to a type that is not the keyword's own (L for
+   * DATFMT / DATSEP, T for TIMFMT / TIMSEP). Diff-based like
+   * editKeywordDataTypeBasicEditConflictReason: only a changed data type
+   * counts, unrelated edits are never blocked.
+   */
   function dateTimeFormatBasicEditConflictReason(fieldKeywords, field, updates) {
     var f = field || {};
     var u = updates || {};
@@ -2965,21 +3033,23 @@
     return null;
   }
 
-  /** Task I-61 - a data type or usage CHANGE on a field that ALREADY carries
-   *  WRDWRAP (the Basic tab's Apply changes). I-58 covered adding WRDWRAP's
-   *  conflicting keywords to such a field; this covers the two other
-   *  things the DDS Reference rules out for WRDWRAP - usage other than I/B,
-   *  and data type S/Y/D/M/F/J/O/E/G. Returns a reason string, or null.
+  /**
+   * A data type or usage CHANGE on a field that ALREADY carries WRDWRAP
+   * (the Basic tab's Apply changes). I-58 covered adding WRDWRAP's
+   * conflicting keywords to such a field; this covers the two other things
+   * the DDS Reference rules out for WRDWRAP - usage other than I/B, and
+   * data type S/Y/D/M/F/J/O/E/G. Returns a reason string, or null.
    *
-   *  Diff-based, like I-58's wrdwrapNewConflictReason: only a change TO an
+   *  Diff-based, like the wrdwrapNewConflictReason: only a change TO an
    *  invalid value is blocked, so an unrelated edit (rename, length) on a
    *  hand-written field that is already invalid is never blocked. A blank
    *  usage is the DDS default, which is output (O) - the Basic tab's Usage
    *  select has no blank option and shows O for it - so a blank usage
    *  counts as O on BOTH sides of the comparison. Changing between two
    *  different invalid values is still blocked (the edit does not fix
-   *  anything); changing to a valid one, or leaving a value alone, is
-   *  never blocked. A field without WRDWRAP is never affected. */
+   *  anything); changing to a valid one, or leaving a value alone, is never
+   *  blocked. A field without WRDWRAP is never affected.
+   */
   function wrdwrapBasicEditConflictReason(fieldKeywords, oldDataType, oldUsage, newDataType, newUsage) {
     var hasWrdwrap = (fieldKeywords || []).some(function (k) { return k.name === 'WRDWRAP'; });
     if (!hasWrdwrap) return null;
@@ -3000,9 +3070,9 @@
     return null;
   }
 
-  /** Task I-72 - DUP's own DDS Reference section says "You cannot specify the
-   *  DUP keyword on a floating-point field (F in position 35)." Both
-   *  directions:
+  /**
+   * DUP's own DDS Reference section says "You cannot specify the DUP keyword
+   * on a floating-point field (F in position 35)." Both directions:
    *   A. adding DUP to a field whose data type is F;
    *   B. changing the data type of a field that already carries DUP to F.
    *  (DUP's "Restrictions on validity checking" paragraph says CHECK, COMP,
@@ -3015,38 +3085,40 @@
    *  is absent counts as unchanged). Returns a reason string when the edit
    *  INTRODUCES the violation, else null.
    *
-   *  Diff-based, like I-58's wrdwrapNewConflictReason and I-61 / I-62's Basic
-   *  tab checks, and meant for the same two call sites: commitEdit, the one
-   *  choke point every field-level write goes through (the Input keywords
-   *  checkbox, the raw keyword editor, the Basic tab), plus the Basic tab's
-   *  Apply handler as an early return so the panel keeps the user's other
-   *  pending edits. A field that was ALREADY floating-point with DUP (a
-   *  hand-written file) is not re-reported, so unrelated edits to it are
-   *  never blocked, and fixing it (removing DUP, or changing the data type)
-   *  is always allowed. */
-  // Task I-119: dupFloatNewConflictReason/blkfoldFloatNewConflictReason
-  // below were structural clones (I-82's own comment on
-  // blkfoldFloatNewConflictReason already says as much: "Exact same shape
-  // as I-72's dupFloatNewConflictReason") - same diff-based
-  // oldField/updates contract, same "only blame the edit that introduced
-  // the violation" logic, differing only in which keyword name is
-  // checked. Extracted into one generic check, parameterized on the
-  // keyword name; the two originally-named functions are now thin
-  // wrappers so both existing call sites (commitEdit's guard chain) keep
-  // working unchanged.
-  /** Task I-72/I-96 - generic diff-based guard shared by dupFloatNewConflictReason
-   *  and blkfoldFloatNewConflictReason: given a field's state before an edit
-   *  and the edit's own updates, returns a reason string if the edit either
-   *  introduces `keywordName` onto an already-floating-point field or
-   *  changes the data type to F while `keywordName` is already present,
-   *  else null. Diff-based (only an edit that INTRODUCES the violation is
-   *  blocked; an already-invalid hand-written field is not re-reported).
+   *  Diff-based, like the wrdwrapNewConflictReason and I-61 / the Basic tab
+   *  checks, and meant for the same two call sites: commitEdit, the one choke
+   *  point every field-level write goes through (the Input keywords checkbox,
+   *  the raw keyword editor, the Basic tab), plus the Basic tab's Apply
+   *  handler as an early return so the panel keeps the user's other pending
+   *  edits. A field that was ALREADY floating-point with DUP (a hand-written
+   *  file) is not re-reported, so unrelated edits to it are never blocked,
+   *  and fixing it (removing DUP, or changing the data type) is always
+   *  allowed.
+   */
+  // dupFloatNewConflictReason/blkfoldFloatNewConflictReason below were
+  // structural clones (the comment on blkfoldFloatNewConflictReason
+  // already says as much: "Exact same shape as the
+  // dupFloatNewConflictReason") - same diff-based oldField/updates
+  // contract, same "only blame the edit that introduced the violation"
+  // logic, differing only in which keyword name is checked. Extracted
+  // into one generic check, parameterized on the keyword name; the two
+  // originally-named functions are now thin wrappers so both existing
+  // call sites (commitEdit's guard chain) keep working unchanged.
+  /**
+   * Generic diff-based guard shared by dupFloatNewConflictReason and
+   * blkfoldFloatNewConflictReason: given a field's state before an edit and the
+   * edit's own updates, returns a reason string if the edit either introduces
+   * `keywordName` onto an already-floating-point field or changes the data type
+   * to F while `keywordName` is already present, else null. Diff-based (only an
+   * edit that INTRODUCES the violation is blocked; an already-invalid
+   * hand-written field is not re-reported).
    *
-   *  Task I-121 DUP/BLKFOLD-floating-point slice - `keywordName` is now
-   *  asserted against KeywordSpec.isNotAllowedOnFloatingPointField before
-   *  proceeding, rather than trusting every caller to only ever pass one
-   *  of the (previously unwritten-down) valid names - harmless to both
-   *  existing callers, DUP and BLKFOLD, since both are spec-flagged. */
+   *  `keywordName` is now asserted against
+   *  KeywordSpec.isNotAllowedOnFloatingPointField before proceeding, rather than
+   *  trusting every caller to only ever pass one of the (previously
+   *  unwritten-down) valid names - harmless to both existing callers, DUP and
+   *  BLKFOLD, since both are spec-flagged.
+   */
   function floatIncompatibleKeywordNewConflictReason(keywordName, oldField, updates) {
     if (!KeywordSpec.isNotAllowedOnFloatingPointField(keywordName)) return null;
     var o = oldField || {};
@@ -3069,17 +3141,19 @@
     return floatIncompatibleKeywordNewConflictReason('DUP', oldField, updates);
   }
 
-  /** Task I-96 - I-72 blocks DUP on a floating-point field (DDS Reference:
-   *  "You cannot specify the DUP keyword on a floating-point field (F in
-   *  position 35)") but left the Input keywords panel offering the DUP
-   *  checkbox there, refused only after the fact by an alert. The panel now
-   *  does not offer it (dupCheckboxOffered), with one exception: a
-   *  hand-written floating-point field that ALREADY carries DUP keeps its
-   *  ticked row so it can still be un-ticked - the very reason I-72 rejected
-   *  a plain dtScope-style hidden row - and dupFloatFieldNote says why it is
-   *  invalid. The block itself (dupFloatNewConflictReason) is unchanged and
-   *  still covers the raw editor and the Basic tab; this is presentation.
-   *  `dataType` is field.dataType (position 35); blank/unknown keeps the row. */
+  /**
+   * I-72 blocks DUP on a floating-point field (DDS Reference: "You cannot
+   * specify the DUP keyword on a floating-point field (F in position 35)") but
+   * left the Input keywords panel offering the DUP checkbox there, refused
+   * only after the fact by an alert. The panel now does not offer it
+   * (dupCheckboxOffered), with one exception: a hand-written floating-point
+   * field that ALREADY carries DUP keeps its ticked row so it can still be
+   * un-ticked - the very reason I-72 rejected a plain dtScope-style hidden row
+   * - and dupFloatFieldNote says why it is invalid. The block itself
+   * (dupFloatNewConflictReason) is unchanged and still covers the raw editor
+   * and the Basic tab; this is presentation. `dataType` is field.dataType
+   * (position 35); blank/unknown keeps the row.
+   */
   function dupIsFloatType(dataType) {
     return String(dataType == null ? '' : dataType).trim().toUpperCase() === 'F';
   }
@@ -3093,34 +3167,37 @@
     return 'DUP cannot be specified on a floating-point field (per the DDS Reference). Untick it, or change the data type.';
   }
 
-  /** Task I-82 - BLKFOLD's own DDS Reference section says "You cannot
-   *  specify the BLKFOLD keyword on a floating-point field (F in position
-   *  35)." I-39's dtScope gating ('non-float') already keeps the row from
-   *  being offered on a float field, so this is the "belt and suspenders"
-   *  half: a field whose data type is changed to F AFTER BLKFOLD is set
-   *  (the Basic tab), or BLKFOLD typed into the raw editor on an existing
-   *  float field. Exact same shape as I-72's dupFloatNewConflictReason
-   *  just above - same oldField/updates contract, same diff-based
-   *  (only an edit that INTRODUCES the violation is blocked; an
-   *  already-invalid hand-written field is not re-reported and can always
-   *  be fixed), same two call sites (commitEdit, plus the Basic tab's
-   *  Apply as an early return). */
+  /**
+   * BLKFOLD's own DDS Reference section says "You cannot specify the
+   * BLKFOLD keyword on a floating-point field (F in position 35)." the
+   * dtScope gating ('non-float') already keeps the row from being offered
+   * on a float field, so this is the "belt and suspenders" half: a field
+   * whose data type is changed to F AFTER BLKFOLD is set (the Basic tab),
+   * or BLKFOLD typed into the raw editor on an existing float field.
+   * Exact same shape as the dupFloatNewConflictReason just above - same
+   * oldField/updates contract, same diff-based (only an edit that
+   * INTRODUCES the violation is blocked; an already-invalid hand-written
+   * field is not re-reported and can always be fixed), same two call
+   * sites (commitEdit, plus the Basic tab's Apply as an early return).
+   */
   function blkfoldFloatNewConflictReason(oldField, updates) {
     return floatIncompatibleKeywordNewConflictReason('BLKFOLD', oldField, updates);
   }
 
-  /** Task I-125 - RANGE's/COMP's/VALUES' own DDS Reference sections each
-   *  independently state the identical "cannot be specified on a
-   *  floating-point field (F in position 35)" restriction DUP/BLKFOLD's
-   *  own sections state. All three are field-level-only keywords, and
-   *  each is a plain named keyword occurrence (per
-   *  getValidityCheckInstances' own doc comment: mutually exclusive
-   *  alternative keyword NAMES, not two keywords paired into one state),
-   *  so floatIncompatibleKeywordNewConflictReason's (I-72/I-96) existing
-   *  name-presence diff logic applies unchanged - same shape as
-   *  dupFloatNewConflictReason/blkfoldFloatNewConflictReason just above,
-   *  same two call sites (commitEdit, plus the Basic tab's Apply as an
-   *  early return). */
+  /**
+   * RANGE's/COMP's/VALUES' own DDS Reference sections each independently
+   * state the identical "cannot be specified on a floating-point field
+   * (F in position 35)" restriction DUP/BLKFOLD's own sections state.
+   * All three are field-level-only keywords, and each is a plain named
+   * keyword occurrence (per getValidityCheckInstances' own doc comment:
+   * mutually exclusive alternative keyword NAMES, not two keywords
+   * paired into one state), so
+   * floatIncompatibleKeywordNewConflictReason's existing name-presence
+   * diff logic applies unchanged - same shape as
+   * dupFloatNewConflictReason/blkfoldFloatNewConflictReason just above,
+   * same two call sites (commitEdit, plus the Basic tab's Apply as an
+   * early return).
+   */
   function rangeFloatNewConflictReason(oldField, updates) {
     return floatIncompatibleKeywordNewConflictReason('RANGE', oldField, updates);
   }
@@ -3131,15 +3208,17 @@
     return floatIncompatibleKeywordNewConflictReason('VALUES', oldField, updates);
   }
 
-  /** Task I-137 - DFT, DFTVAL, EDTCDE and EDTWRD are barred on a
-   *  floating-point field (their RECORD_TYPES entries, I-121 DFT/DFTVAL
-   *  slice), but dftGroupConflictReason only runs when one of their rows is
-   *  switched ON. This is the diff-based guard for the other two ways in: a
-   *  raw-editor add to an F field, and a Basic-tab data type change to F
-   *  while the field carries one. Same shape and wording as the DUP/BLKFOLD/
-   *  RANGE/COMP/VALUES wrappers above (an already-invalid hand-written field
-   *  is not re-reported). The members come from the spec's mutex group,
-   *  filtered to the ones flagged float-incompatible, in group order. */
+  /**
+   * DFT, DFTVAL, EDTCDE and EDTWRD are barred on a floating-point field
+   * (their RECORD_TYPES entries, I-121 DFT/DFTVAL slice), but
+   * dftGroupConflictReason only runs when one of their rows is switched ON.
+   * This is the diff-based guard for the other two ways in: a raw-editor add
+   * to an F field, and a Basic-tab data type change to F while the field
+   * carries one. Same shape and wording as the DUP/BLKFOLD/
+   * RANGE/COMP/VALUES wrappers above (an already-invalid hand-written field
+   * is not re-reported). The members come from the spec's mutex group,
+   * filtered to the ones flagged float-incompatible, in group order.
+   */
   function dftGroupFloatNewConflictReason(oldField, updates) {
     var names = ['DFT'].concat(KeywordSpec.groupMutexKeywords('DFT')).filter(function (n) {
       return KeywordSpec.isNotAllowedOnFloatingPointField(n);
@@ -3151,22 +3230,23 @@
     return null;
   }
 
-  /** Task I-125 - CHECK(AB) specifically (not CHECK's other validity-
-   *  check codes) cannot be specified on a floating-point field (F in
-   *  position 35, per CHECK's own DDS Reference section). CHECK's own
-   *  keyword NAME never changes across its many codes - only the code
-   *  within its `parameters` string does (e.g. `CHECK(M10 ME)` vs
-   *  `CHECK(AB)`) - so the plain by-name presence check
-   *  floatIncompatibleKeywordNewConflictReason's other three callers
-   *  reuse unchanged doesn't fit here; this tokenizes `parameters` the
-   *  same way hasChkmsgidQualifier (I-69) already does for its own
-   *  CHECK-code check, testing for the forbidden code(s) instead. Task
-   *  I-121 (CHECK(AB) slice): those codes now come from
-   *  RECORD_TYPES.CHECK's `notAllowedOnFloatingPointCodes` (a
-   *  token-qualified fact, since it describes one code among several,
-   *  not the whole keyword). Same diff-based shape and two call sites
-   *  (commitEdit, plus the Basic tab's Apply as an early return) as the
-   *  other three floating-point guards above.
+  /**
+   * CHECK(AB) specifically (not CHECK's other validity- check codes)
+   * cannot be specified on a floating-point field (F in position 35,
+   * per CHECK's own DDS Reference section). CHECK's own keyword NAME
+   * never changes across its many codes - only the code within its
+   * `parameters` string does (e.g. `CHECK(M10 ME)` vs `CHECK(AB)`) - so
+   * the plain by-name presence check
+   * floatIncompatibleKeywordNewConflictReason's other three callers
+   * reuse unchanged doesn't fit here; this tokenizes `parameters` the
+   * same way hasChkmsgidQualifier already does for its own CHECK-code
+   * check, testing for the forbidden code(s) instead. Task I-121
+   * (CHECK(AB) slice): those codes now come from RECORD_TYPES.CHECK's
+   * `notAllowedOnFloatingPointCodes` (a token-qualified fact, since it
+   * describes one code among several, not the whole keyword). Same
+   * diff-based shape and two call sites (commitEdit, plus the Basic
+   * tab's Apply as an early return) as the other three floating-point
+   * guards above.
    *
    *  File/record-level CHECK(AB) needs no separate guard: it only
    *  "applies for all input-capable fields... for which a validity
@@ -3175,15 +3255,16 @@
    *  codes) is itself floating-point-incompatible, so a floating-point
    *  field can never legally carry one for a file/record-level
    *  CHECK(AB) to apply to - the restriction is structurally moot at
-   *  those two levels. */
+   *  those two levels.
+   */
   function checkAbFloatIncompatibleNewConflictReason(oldField, updates) {
     var o = oldField || {};
     var u = updates || {};
-    // Task I-121 (CHECK(AB) floating-point slice) - the forbidden codes
-    // come from KeywordSpec (RECORD_TYPES.CHECK), not a literal 'AB'.
-    // Task I-132 - that list now also holds M10, M10F, M11 and M11F (CHECK's
-    // note 3), so this one guard covers all five; the function keeps its
-    // I-125 name for its call sites and tests.
+    // Task I-121 (CHECK(AB) floating-point slice) - the forbidden codes come
+    // from KeywordSpec (RECORD_TYPES.CHECK), not a literal 'AB'. That list
+    // now also holds M10, M10F, M11 and M11F (CHECK's note 3), so this one
+    // guard covers all five; the function keeps its name for its call sites
+    // and tests.
     var badCodes = KeywordSpec.floatIncompatibleCheckCodes('CHECK');
     // The forbidden codes present on any CHECK instance in `kws`, in
     // badCodes order (each once).
@@ -3231,36 +3312,37 @@
     return null;
   }
 
-  /** Task I-11 - SFLNXTCHG vs SFLMSGRCD, both record-level keywords on the
-   *  subfile (SFL) detail record format. The DDS Reference documents these
-   *  as two DIFFERENT keyword sets for the same record format - "for
-   *  message subfiles: SFLMSGRCD/SFLMSGKEY/SFLPGMQ" vs "for all other
-   *  subfiles (at the record level): CHANGE/CHECK(AB)/CHECK(RL)/
-   *  CHGINPDFT/INDTXT/KEEP/LOGINP/LOGOUT/SETOF/SETOFF/SFLNXTCHG/TEXT" - and
-   *  separately states outright, under SFLNXTCHG's own note: "You cannot
-   *  specify SFLNXTCHG with the SFLMSGRCD keyword." That's the one
-   *  explicit, unambiguous prohibition in this pair of lists (the rest are
-   *  only implied by the "for X / for all other Y" framing, not each
-   *  individually restated the way SFLNXTCHG is), so only SFLNXTCHG is
-   *  hard-blocked here - Task I-23 verified the remaining ~10 keywords
-   *  (TEXT included - the "for all other subfiles" list has 11 entries,
-   *  not the ~9 the original I-11 audit estimated) and found NONE of them
-   *  carry an individual "cannot specify" statement anywhere in the DDS
-   *  Reference, so none of them get a hard-block guard - see
-   *  loginpLogoutSflMsgRcdIgnoredNote below for the one advisory-level
-   *  finding I-23 DID confirm, and keywordFixes.md's I-23 section for the
-   *  full per-keyword audit trail. Real SDA's own "Select General
-   *  Keywords" screen for a message-subfile record still offers
-   *  SFLNXTCHG unconditionally (this audit's own screenshot evidence) - it
-   *  relies on CRTDSPF's own compile error rather than blocking data
-   *  entry - but this project's own established precedent (L81, S36-4) is
-   *  to hard-block real DDS compile errors the reference explicitly
-   *  documents, even where real SDA lets them through. Returns a reason
-   *  string if turning SFLNXTCHG on (or SFLMSGRCD on, checked from the
-   *  other side) would violate the rule, or null if fine. */
-  //  Task I-121 - the SFLNXTCHG<->SFLMSGRCD pair moved to keywordSpec.js's
-  //  declarative RECORD_TYPES.SFLNXTCHG.mutex (a single-member list); this
-  //  function now reads the partner name from there through
+  /**
+   * SFLNXTCHG vs SFLMSGRCD, both record-level keywords on the subfile (SFL)
+   * detail record format. The DDS Reference documents these as two
+   * DIFFERENT keyword sets for the same record format - "for message
+   * subfiles: SFLMSGRCD/SFLMSGKEY/SFLPGMQ" vs "for all other subfiles (at
+   * the record level): CHANGE/CHECK(AB)/CHECK(RL)/
+   * CHGINPDFT/INDTXT/KEEP/LOGINP/LOGOUT/SETOF/SETOFF/SFLNXTCHG/TEXT" - and
+   * separately states outright, under SFLNXTCHG's own note: "You cannot
+   * specify SFLNXTCHG with the SFLMSGRCD keyword." That's the one explicit,
+   * unambiguous prohibition in this pair of lists (the rest are only
+   * implied by the "for X / for all other Y" framing, not each individually
+   * restated the way SFLNXTCHG is), so only SFLNXTCHG is hard-blocked here
+   * - Task I-23 verified the remaining ~10 keywords (TEXT included - the
+   * "for all other subfiles" list has 11 entries, not the ~9 the original
+   * audit estimated) and found NONE of them carry an individual "cannot
+   * specify" statement anywhere in the DDS Reference, so none of them get a
+   * hard-block guard - see loginpLogoutSflMsgRcdIgnoredNote below for the
+   * one advisory-level finding I-23 DID confirm, and keywordFixes.md's
+   * section for the full per-keyword audit trail. Real SDA's own "Select
+   * General Keywords" screen for a message-subfile record still offers
+   * SFLNXTCHG unconditionally (this audit's own screenshot evidence) - it
+   * relies on CRTDSPF's own compile error rather than blocking data entry -
+   * but this project's own established precedent (L81, S36-4) is to
+   * hard-block real DDS compile errors the reference explicitly documents,
+   * even where real SDA lets them through. Returns a reason string if
+   * turning SFLNXTCHG on (or SFLMSGRCD on, checked from the other side)
+   * would violate the rule, or null if fine.
+   */
+  //  The SFLNXTCHG<->SFLMSGRCD pair moved to keywordSpec.js's declarative
+  //  RECORD_TYPES.SFLNXTCHG.mutex (a single-member list); this function
+  //  now reads the partner name from there through
   //  KeywordSpec.mutexKeywords instead of its own inline ternary.
   function sflNxtchgSflMsgRcdConflictReason(keywordName, recordKeywords) {
     var other = keywordName === 'SFLNXTCHG' ? KeywordSpec.mutexKeywords('SFLNXTCHG')[0] : 'SFLNXTCHG';
@@ -3269,32 +3351,33 @@
     return keywordName + ' cannot be specified together with ' + other + ' on the same subfile record (per the DDS Reference).';
   }
 
-  /** Task I-23 - of the ~10 other keywords in the same "for all other
-   *  subfiles" list SFLNXTCHG appears in (see
-   *  sflNxtchgSflMsgRcdConflictReason's own doc comment just above), only
-   *  LOGINP and LOGOUT individually restate anything about message
-   *  subfiles in their OWN dedicated DDS Reference sections - and it's
-   *  NOT a "cannot specify" prohibition like SFLNXTCHG's: "The IBM i
-   *  operating system ignores LOGINP/LOGOUT for... The record format is a
-   *  subfile record format for a message subfile." That's a documented
-   *  no-effect condition, not a compile error, so this is advisory-only
-   *  (matches mnubarFieldShapeNote's own non-blocking precedent) rather
-   *  than a hard block via sflNxtchgSflMsgRcdConflictReason's shape.
-   *  Everything else in that list was individually checked and ruled out
-   *  during I-23's audit: TEXT's own section explicitly says it's "valid
-   *  for any record format ... except a SFLMSGKEY or SFLPGMQ field" (so
-   *  explicitly NOT restricted here); KEEP's own "cannot be specified
-   *  with" list is ALWROL/CLRL/SLNO only, pointedly not SFLMSGRCD; CHANGE/
-   *  CHECK(AB)/CHECK(RL)/CHGINPDFT/SETOF all key off an input-capable
-   *  field or an input operation, which a message-subfile record
-   *  structurally lacks (SFL's own text: "At least one displayable field
-   *  must be specified ... unless the subfile is a message subfile"), but
-   *  none of those five keywords' own sections restate that as an
-   *  explicit rule the way LOGINP/LOGOUT do, so this task deliberately
-   *  does NOT add a guessed-at note for them - see keywordFixes.md's I-23
-   *  section for the full per-keyword citations. Returns an advisory
-   *  string when `keywordName` (LOGINP or LOGOUT) is on and the same
-   *  record already has SFLMSGRCD, or null otherwise. */
+  /**
+   * Of the ~10 other keywords in the same "for all other subfiles" list
+   * SFLNXTCHG appears in (see sflNxtchgSflMsgRcdConflictReason's own doc
+   * comment just above), only LOGINP and LOGOUT individually restate
+   * anything about message subfiles in their OWN dedicated DDS Reference
+   * sections - and it's NOT a "cannot specify" prohibition like
+   * SFLNXTCHG's: "The IBM i operating system ignores LOGINP/LOGOUT for...
+   * The record format is a subfile record format for a message subfile."
+   * That's a documented no-effect condition, not a compile error, so this
+   * is advisory-only (matches mnubarFieldShapeNote's own non-blocking
+   * precedent) rather than a hard block via
+   * sflNxtchgSflMsgRcdConflictReason's shape. Everything else in that list
+   * was individually checked and ruled out during the audit: TEXT's own
+   * section explicitly says it's "valid for any record format... except a
+   * SFLMSGKEY or SFLPGMQ field" (so explicitly NOT restricted here);
+   * KEEP's own "cannot be specified with" list is ALWROL/CLRL/SLNO only,
+   * pointedly not SFLMSGRCD; CHANGE/ CHECK(AB)/CHECK(RL)/CHGINPDFT/SETOF
+   * all key off an input-capable field or an input operation, which a
+   * message-subfile record structurally lacks (SFL's own text: "At least
+   * one displayable field must be specified... unless the subfile is a
+   * message subfile"), but none of those five keywords' own sections
+   * restate that as an explicit rule the way LOGINP/LOGOUT do, so this
+   * task deliberately does NOT add a guessed-at note for them - see
+   * keywordFixes.md's section for the full per-keyword citations. Returns
+   * an advisory string when `keywordName` (LOGINP or LOGOUT) is on and the
+   * same record already has SFLMSGRCD, or null otherwise.
+   */
   function loginpLogoutSflMsgRcdIgnoredNote(keywordName, recordKeywords) {
     if (keywordName !== 'LOGINP' && keywordName !== 'LOGOUT') return null;
     var hasSflMsgRcd = (recordKeywords || []).some(function (k) { return k.name === 'SFLMSGRCD'; });
@@ -3302,12 +3385,13 @@
     return keywordName + ' is ignored by the IBM i operating system on a message-subfile record format (SFLMSGRCD present) - per the DDS Reference.';
   }
 
-  /** Task I-8 - USRDFN record-level keyword audit. Checking every keyword
-   *  in USRDFN's own narrowed General/Indicator/Help/Print subset (see
-   *  isUsrDfnRecord's own doc comment in webviewClientHelpers.js) against
-   *  the DDS Reference's own text turned up four - and only four -
-   *  keywords individually documented as incompatible with a user-defined
-   *  (USRDFN keyword) record format:
+  /**
+   * USRDFN record-level keyword audit. Checking every keyword in USRDFN's
+   * own narrowed General/Indicator/Help/Print subset (see isUsrDfnRecord's
+   * own doc comment in webviewClientHelpers.js) against the DDS Reference's
+   * own text turned up four - and only four - keywords individually
+   * documented as incompatible with a user-defined (USRDFN keyword) record
+   * format:
    *  - ALWROL: "The ALWROL keyword cannot be specified with any of the
    *    following keywords: ASSUME, KEEP, SFL, SFLCTL, USRDFN"
    *  - ASSUME: "This keyword cannot be specified with any of the following
@@ -3321,47 +3405,46 @@
    *  RETCMDKEY, CHGINPDFT, MNUBARDSP, ENTFLDATR, RTNCSRLOC, TEXT, ALTNAME,
    *  HLPCLR, HLPTITLE, PRINT) was checked the same way and has no such
    *  statement anywhere in its own DDS Reference section - left alone
-   *  rather than guessed at, same as I-4/I-6/I-11's own open questions.
-   *  HLPCLR is confirmed correct rather than just absent of a prohibition:
-   *  its own DDS Reference example literally shows `R RECORD1 USRDFN`
-   *  immediately followed by `HLPCLR` on the next line.
-   *  Unlike I-11's SFLNXTCHG/SFLMSGRCD pair (two keywords either one of
-   *  which can be independently toggled on the same record), USRDFN is
-   *  the record-type identifier itself (see isUsrDfnRecord's own doc
-   *  comment) - the "+ Add record" wizard writes it once at creation and
-   *  nothing in this UI ever removes it, so this is a one-directional
-   *  check: is USRDFN already on this record's keywords right now.
-   *  Returns a reason string if turning `keywordName` on would violate
-   *  the rule, or null if fine. Same alert+revert idiom as L81/I-11 -
-   *  turning any of these four OFF is never blocked, only the
+   *  rather than guessed at, same as I-4/I-6/the open questions. HLPCLR is
+   *  confirmed correct rather than just absent of a prohibition: its own
+   *  DDS Reference example literally shows `R RECORD1 USRDFN` immediately
+   *  followed by `HLPCLR` on the next line. Unlike the SFLNXTCHG/SFLMSGRCD
+   *  pair (two keywords either one of which can be independently toggled on
+   *  the same record), USRDFN is the record-type identifier itself (see
+   *  isUsrDfnRecord's own doc comment) - the "+ Add record" wizard writes
+   *  it once at creation and nothing in this UI ever removes it, so this is
+   *  a one-directional check: is USRDFN already on this record's keywords
+   *  right now. Returns a reason string if turning `keywordName` on would
+   *  violate the rule, or null if fine. Same alert+revert idiom as L81/I-11
+   *  - turning any of these four OFF is never blocked, only the
    *  on-transition (covers the edge case of hand-edited DDS that already
    *  has one of them set on a USRDFN record before iSDA opened it).
    *
-   *  Task I-102 - this used to refuse EVERY keyword name on a USRDFN
-   *  record. I-44 called it unconditionally from wirePulldownGuardedFlag on
-   *  the stated premise that none of its 15 call sites is on USRDFN's
-   *  whitelist; HLPCLR and INVITE were routed through that same function
-   *  afterwards (I-51 wired their Conditioning toggles there), so ticking
-   *  either on a USRDFN record was refused although both are on the
-   *  whitelist. It now consults the whitelist itself: a whitelisted
-   *  keyword returns null. That closes the gap for every caller by
-   *  construction (wireUsrdfnGuardedFlag, wireUsrdfnGuardedTwoField and
-   *  wirePulldownGuardedFlag) instead of depending on which keywords
-   *  happen to be wired where, and the refusal wording for everything
-   *  else is unchanged. It now agrees with usrdfnWhitelistConflictReason
-   *  (below) on WHICH keywords are refused; the two differ only in
-   *  wording.
+   *  This used to refuse EVERY keyword name on a USRDFN record. I-44 called
+   *  it unconditionally from wirePulldownGuardedFlag on the stated premise
+   *  that none of its 15 call sites is on USRDFN's whitelist; HLPCLR and
+   *  INVITE were routed through that same function afterwards (I-51 wired
+   *  their Conditioning toggles there), so ticking either on a USRDFN
+   *  record was refused although both are on the whitelist. It now consults
+   *  the whitelist itself: a whitelisted keyword returns null. That closes
+   *  the gap for every caller by construction (wireUsrdfnGuardedFlag,
+   *  wireUsrdfnGuardedTwoField and wirePulldownGuardedFlag) instead of
+   *  depending on which keywords happen to be wired where, and the refusal
+   *  wording for everything else is unchanged. It now agrees with
+   *  usrdfnWhitelistConflictReason (below) on WHICH keywords are refused;
+   *  the two differ only in wording.
    *
-   *  Task I-121 - both this function and usrdfnWhitelistConflictReason
-   *  read the exact same rule (USRDFN's own closed keyword whitelist) off
-   *  the exact same array; they existed as two separate functions only
-   *  because ~50 call sites across webviewClientHelpers.js already
-   *  reference one name or the other with different message wording, not
-   *  because the rule itself differs. Both now delegate to
-   *  usrdfnWhitelistCheck, and the whitelist array itself moved to
-   *  keywordSpec.js's declarative RECORD_TYPES.USRDFN.whitelist (I-121's
-   *  first slice) - this file's own USRDFN rule is now data, not a
-   *  hand-duplicated array plus prose doc comment. */
+   *  Both this function and usrdfnWhitelistConflictReason read the exact
+   *  same rule (USRDFN's own closed keyword whitelist) off the exact same
+   *  array; they existed as two separate functions only because ~50 call
+   *  sites across webviewClientHelpers.js already reference one name or the
+   *  other with different message wording, not because the rule itself
+   *  differs. Both now delegate to usrdfnWhitelistCheck, and the whitelist
+   *  array itself moved to keywordSpec.js's declarative
+   *  RECORD_TYPES.USRDFN.whitelist (the first slice) - this file's own
+   *  USRDFN rule is now data, not a hand-duplicated array plus prose doc
+   *  comment.
+   */
   function usrdfnWhitelistCheck(keywordName, recordKeywords, message) {
     var hasUsrdfn = (recordKeywords || []).some(function (k) { return k.name === 'USRDFN'; });
     if (!hasUsrdfn) return null;
@@ -3374,44 +3457,44 @@
     });
   }
 
-  /** Task I-49 - the strict USRDFN whitelist itself. USRDFN's own DDS
-   *  Reference text (see keywordSpec.js's RECORD_TYPES.USRDFN.ddsReference,
-   *  and I-44's keywordFixes.md row) is a WHITELIST: "No file- or
-   *  record-level keywords apply to this record except INVITE, KEEP,
-   *  PASSRCD, HLPRTN, HELP, HLPCLR, PRINT, OPENPRT, and TEXT." Every
-   *  existing USRDFN guard - usrdfnConflictReason above (ASSUME/ALWROL/
-   *  HLPSEQ/HLPCMDKEY) and I-44's 29 record-level keywords wired through
-   *  wireUsrdfnGuardedFlag/wireUsrdfnGuardedTwoField/
-   *  wirePulldownGuardedFlag - only ever fires for ONE specific,
-   *  individually-confirmed-not-whitelisted keyword per call site; none
-   *  of them actually consult the whitelist text itself.
-   *  This is the general case I-49 found missing: the Advanced/raw
-   *  keywords accordion (keywordEditorHtml/wireKeywordEditor) lets the
-   *  user add literally ANY keyword by name, to any entity including a
-   *  record, and isn't wired through any of the above at all. Given
-   *  `keywordName` (already uppercased by wireKeywordEditor's own add
-   *  handler) and the target record's current keywords, returns a reason
-   *  string if the record is USRDFN and `keywordName` is not on the
-   *  whitelist, or null otherwise (record isn't USRDFN, or the keyword
-   *  IS whitelisted). USRDFN itself is always allowed - it's the
-   *  record-type identifier and is already present by definition
-   *  whenever this returns non-null for anything else. Per USRDFN's own
-   *  text, HELP/HLPRTN/INVITE only count towards the whitelist when
-   *  added directly to this record (not at the file level) - this
-   *  function only ever sees record-level adds (the raw editor's
-   *  file-level call site never passes a guard, see I-49's
-   *  keywordFixes.md row), so that distinction doesn't need re-checking
-   *  here. */
+  /**
+   * The strict USRDFN whitelist itself. USRDFN's own DDS Reference text
+   * (see keywordSpec.js's RECORD_TYPES.USRDFN.ddsReference, and the
+   * keywordFixes.md row) is a WHITELIST: "No file- or record-level keywords
+   * apply to this record except INVITE, KEEP, PASSRCD, HLPRTN, HELP,
+   * HLPCLR, PRINT, OPENPRT, and TEXT." Every existing USRDFN guard -
+   * usrdfnConflictReason above (ASSUME/ALWROL/ HLPSEQ/HLPCMDKEY) and I-44's
+   * 29 record-level keywords wired through
+   * wireUsrdfnGuardedFlag/wireUsrdfnGuardedTwoField/
+   * wirePulldownGuardedFlag - only ever fires for ONE specific,
+   * individually-confirmed-not-whitelisted keyword per call site; none of
+   * them actually consult the whitelist text itself. This is the general
+   * case I-49 found missing: the Advanced/raw keywords accordion
+   * (keywordEditorHtml/wireKeywordEditor) lets the user add literally ANY
+   * keyword by name, to any entity including a record, and isn't wired
+   * through any of the above at all. Given `keywordName` (already
+   * uppercased by wireKeywordEditor's own add handler) and the target
+   * record's current keywords, returns a reason string if the record is
+   * USRDFN and `keywordName` is not on the whitelist, or null otherwise
+   * (record isn't USRDFN, or the keyword IS whitelisted). USRDFN itself is
+   * always allowed - it's the record-type identifier and is already present
+   * by definition whenever this returns non-null for anything else. Per
+   * USRDFN's own text, HELP/HLPRTN/INVITE only count towards the whitelist
+   * when added directly to this record (not at the file level) - this
+   * function only ever sees record-level adds (the raw editor's file-level
+   * call site never passes a guard, see the keywordFixes.md row), so that
+   * distinction doesn't need re-checking here.
+   */
   function usrdfnWhitelistConflictReason(keywordName, recordKeywords) {
     return usrdfnWhitelistCheck(keywordName, recordKeywords, function (name) {
       return name + ' cannot be added to a user-defined (USRDFN) record format - only INVITE, KEEP, PASSRCD, HLPRTN, HELP, HLPCLR, PRINT, OPENPRT, and TEXT are allowed (per the DDS Reference).';
     });
   }
 
-  /** Task I-46 - re-read SFL's and SFLCTL's own DDS Reference sections
-   *  fresh (split off from I-44's original USRDFN finding, to check
-   *  whether the same class of blanket-whitelist restriction applies to
-   *  either). Findings:
+  /**
+   * Re-read SFL's and SFLCTL's own DDS Reference sections fresh (split
+   * off from the original USRDFN finding, to check whether the same class
+   * of blanket-whitelist restriction applies to either). Findings:
    *
    *  SFL's own section states outright: "Besides SFL, the following
    *  keywords are also valid on the subfile record format:" followed by
@@ -3448,19 +3531,18 @@
    *  above for, and wired the same way (see buildWebviewTemplate.js's own
    *  wireKeywordEditor call site). An exhaustive sweep of every
    *  structured-checkbox row across the General/Indicator/Output/Input/
-   *  Overlay/Print tabs (the way I-44 individually rewired 29 USRDFN
-   *  call sites through wireUsrdfnGuardedFlag) is a separate, much larger
-   *  undertaking - logged as its own follow-up (I-52) rather than
-   *  attempted here, same "audit finds it, a separate task wires the
-   *  exhaustive per-checkbox sweep" split I-44/I-49 themselves went
-   *  through.
+   *  Overlay/Print tabs (the way I-44 individually rewired 29 USRDFN call
+   *  sites through wireUsrdfnGuardedFlag) is a separate, much larger
+   *  undertaking - logged as its own follow-up rather than attempted
+   *  here, same "audit finds it, a separate task wires the exhaustive
+   *  per-checkbox sweep" split I-44/I-49 themselves went through.
    *
-   *  Task I-121 - both whitelists (plain SFL and the message-subfile
-   *  SFL+SFLMSGRCD combination) moved to keywordSpec.js's declarative
-   *  RECORD_TYPES.SFL and RECORD_TYPES.SFLMSG respectively; this
-   *  function now reads those instead of its own hand-written
-   *  SFL_RECORD_WHITELIST_KEYWORDS array plus inline SFL/SFLMSGRCD
-   *  literal checks. */
+   *  Both whitelists (plain SFL and the message-subfile SFL+SFLMSGRCD
+   *  combination) moved to keywordSpec.js's declarative RECORD_TYPES.SFL
+   *  and RECORD_TYPES.SFLMSG respectively; this function now reads those
+   *  instead of its own hand-written SFL_RECORD_WHITELIST_KEYWORDS array
+   *  plus inline SFL/SFLMSGRCD literal checks.
+   */
   function sflWhitelistConflictReason(keywordName, recordKeywords) {
     var kws = recordKeywords || [];
     var hasSfl = kws.some(function (k) { return k.name === 'SFL'; });
@@ -3474,42 +3556,42 @@
     return keywordName + ' cannot be added to a subfile (SFL) record format - only CHANGE, LOGINP, CHECK, LOGOUT, SETOF/SETOFF, CHGINPDFT, INDTXT, SFLNXTCHG, KEEP, and TEXT are allowed besides SFL itself (per the DDS Reference).';
   }
 
-  /** Task I-13 - PULLDOWN record-level keyword audit. The PULLDOWN
-   *  keyword's own DDS Reference section states directly, right in its
-   *  own text: "The following keywords cannot be specified on a record
-   *  with the PULLDOWN keyword:" followed by this exact 27-keyword list:
-   *  ALARM, ALTNAME, ALWGPH, ALWROL, ASSUME, CLEAR, CLRL, ERASE,
-   *  ERASEINP, FRCDTA, HLPCLR, HLPSEQ, INVITE, INZRCD, MDTOFF, MNUBAR,
-   *  OVERLAY, OVRATR, OVRDTA, PUTOVR, PUTRETAIN, RTNDTA, SFL, SLNO,
-   *  USRDFN, WDWTITLE, WINDOW.
-   *  Unlike I-8's USRDFN case (a record-type identifier written once by
-   *  the "+ Add record" wizard and never removed by this UI, making the
-   *  check one-directional), PULLDOWN is itself toggled on/off
-   *  interactively from the Record Properties "Pull-down" tab's own
-   *  checkbox (see wirePulldownPanels/pulldownPanelsHtml), so this check
-   *  is bidirectional: turning PULLDOWN on while any of these 27 is
-   *  already present is blocked, and turning any of these 27 on while
-   *  PULLDOWN is already present is blocked. Same alert+revert idiom as
-   *  I-8/I-11 - turning any of them OFF (including PULLDOWN itself) is
-   *  never blocked, only the on-transition.
-   *  Of the 27, MNUBAR/SFL/USRDFN are themselves OTHER record-type
-   *  identifiers (gated by their own tabs/wizards, not by a checkbox on
-   *  this shared RECORD panel) and WINDOW/WDWTITLE belong to I-12's own
-   *  Window tab (explicitly out of THIS task's own scope per its
-   *  keywordFixes.md row) - all five are still included below so
-   *  PULLDOWN's own "on" checkbox is guarded against all 27; only the
-   *  remaining 22 (which do live on the shared RECORD panel I-7 built)
-   *  get their own individual keyword-side guard wired in
-   *  webviewClientHelpers.js. CLEAR is part of the repeatable Indicator-
-   *  instance model (Task L5d) - flagged, not wired this task, same
-   *  "shared component would need to be made kind-aware" deferral I-7
-   *  already took for VLDCMDKEY/SETOF/CHANGE.
+  /**
+   * PULLDOWN record-level keyword audit. The PULLDOWN keyword's own DDS
+   * Reference section states directly, right in its own text: "The
+   * following keywords cannot be specified on a record with the PULLDOWN
+   * keyword:" followed by this exact 27-keyword list: ALARM, ALTNAME,
+   * ALWGPH, ALWROL, ASSUME, CLEAR, CLRL, ERASE, ERASEINP, FRCDTA, HLPCLR,
+   * HLPSEQ, INVITE, INZRCD, MDTOFF, MNUBAR, OVERLAY, OVRATR, OVRDTA,
+   * PUTOVR, PUTRETAIN, RTNDTA, SFL, SLNO, USRDFN, WDWTITLE, WINDOW.
+   * Unlike the USRDFN case (a record-type identifier written once by the
+   * "+ Add record" wizard and never removed by this UI, making the check
+   * one-directional), PULLDOWN is itself toggled on/off interactively
+   * from the Record Properties "Pull-down" tab's own checkbox (see
+   * wirePulldownPanels/pulldownPanelsHtml), so this check is
+   * bidirectional: turning PULLDOWN on while any of these 27 is already
+   * present is blocked, and turning any of these 27 on while PULLDOWN is
+   * already present is blocked. Same alert+revert idiom as I-8/I-11 -
+   * turning any of them OFF (including PULLDOWN itself) is never blocked,
+   * only the on-transition. Of the 27, MNUBAR/SFL/USRDFN are themselves
+   * OTHER record-type identifiers (gated by their own tabs/wizards, not
+   * by a checkbox on this shared RECORD panel) and WINDOW/WDWTITLE belong
+   * to the Window tab (explicitly out of THIS task's own scope per its
+   * keywordFixes.md row) - all five are still included below so
+   * PULLDOWN's own "on" checkbox is guarded against all 27; only the
+   * remaining 22 (which do live on the shared RECORD panel I-7 built) get
+   * their own individual keyword-side guard wired in
+   * webviewClientHelpers.js. CLEAR is part of the repeatable Indicator-
+   * instance model (Task L5d) - flagged, not wired this task, same
+   * "shared component would need to be made kind-aware" deferral already
+   * took for VLDCMDKEY/SETOF/CHANGE.
    *
-   *  Task I-121 - the 27-keyword list itself moved to keywordSpec.js's
-   *  declarative RECORD_TYPES.PULLDOWN.mutex, the same closed-mutex shape
-   *  I-121's WINDOW slice introduced KeywordSpec.isMutex for (a much
-   *  larger list, same shape) - this function now reads that instead of
-   *  a hand-written array duplicated beside the doc comment above. */
+   *  The 27-keyword list itself moved to keywordSpec.js's declarative
+   *  RECORD_TYPES.PULLDOWN.mutex, the same closed-mutex shape the WINDOW
+   *  slice introduced KeywordSpec.isMutex for (a much larger list, same
+   *  shape) - this function now reads that instead of a hand-written
+   *  array duplicated beside the doc comment above.
+   */
   function pulldownConflictReason(keywordName, recordKeywords) {
     var kws = recordKeywords || [];
     if (keywordName === 'PULLDOWN') {
@@ -3523,91 +3605,91 @@
     return keywordName + ' cannot be specified on a record with the PULLDOWN keyword (per the DDS Reference).';
   }
 
-  /** Task I-12 - WINDOW record-level keyword audit. WINDOW's own DDS
-   *  Reference section states outright: "The WINDOW keyword is not
-   *  allowed on a record format that has any one of the following
-   *  keywords specified: ALWROL, ASSUME, MNUBAR, PULLDOWN, SFL, USRDFN."
-   *  Of these six, MNUBAR/PULLDOWN/SFL/USRDFN are each their own record
-   *  TYPE the "+ Add record" wizard picks once at creation time (see
-   *  RECORD_TYPES in webviewClientHelpers.js) - WINDOW is never addable
-   *  to an already-existing record of one of those types through this
-   *  UI (the Window tab/Apply button only ever appears for a record that
-   *  already carries WINDOW - see isWindowRecord), so there's no
-   *  reachable on-transition to guard for that half. ALWROL and ASSUME,
-   *  though, are plain toggles on the base Record Keywords -> General
-   *  tab (I-7's own set), reused unchanged for WINDOW records - turning
-   *  either ON while WINDOW is already present is a genuinely reachable,
-   *  previously-unguarded on-transition that would produce invalid DDS.
-   *  Same one-directional "hard-block only the on-transition" posture as
-   *  I-8's usrdfnConflictReason above (and same reasoning: WINDOW itself
-   *  is only ever written by the record-creation wizard, never toggled
-   *  through this function, so there's no reverse direction to check
-   *  here either) - turning ALWROL/ASSUME back off is never blocked,
-   *  which also covers hand-edited DDS that already combines them with
-   *  WINDOW before iSDA opened the file.
-   *  MNUBAR/PULLDOWN/SFL/USRDFN are deliberately NOT re-checked here even
-   *  though WINDOW's own text names them too - each already has its own
-   *  record-type identity keyword written once at creation (verbatim
-   *  the same reasoning USRDFN's own guard above gives for why it's a
-   *  one-directional check), and none of them exposes an on/off toggle
-   *  a WINDOW record could flip after the fact. */
+  /**
+   * WINDOW record-level keyword audit. WINDOW's own DDS Reference section
+   * states outright: "The WINDOW keyword is not allowed on a record
+   * format that has any one of the following keywords specified: ALWROL,
+   * ASSUME, MNUBAR, PULLDOWN, SFL, USRDFN." Of these six,
+   * MNUBAR/PULLDOWN/SFL/USRDFN are each their own record TYPE the "+ Add
+   * record" wizard picks once at creation time (see RECORD_TYPES in
+   * webviewClientHelpers.js) - WINDOW is never addable to an
+   * already-existing record of one of those types through this UI (the
+   * Window tab/Apply button only ever appears for a record that already
+   * carries WINDOW - see isWindowRecord), so there's no reachable
+   * on-transition to guard for that half. ALWROL and ASSUME, though, are
+   * plain toggles on the base Record Keywords -> General tab (the set),
+   * reused unchanged for WINDOW records - turning either ON while WINDOW
+   * is already present is a genuinely reachable, previously-unguarded
+   * on-transition that would produce invalid DDS. Same one-directional
+   * "hard-block only the on-transition" posture as the
+   * usrdfnConflictReason above (and same reasoning: WINDOW itself is only
+   * ever written by the record-creation wizard, never toggled through
+   * this function, so there's no reverse direction to check here either)
+   * - turning ALWROL/ASSUME back off is never blocked, which also covers
+   * hand-edited DDS that already combines them with WINDOW before iSDA
+   * opened the file. MNUBAR/PULLDOWN/SFL/USRDFN are deliberately NOT
+   * re-checked here even though WINDOW's own text names them too - each
+   * already has its own record-type identity keyword written once at
+   * creation (verbatim the same reasoning USRDFN's own guard above gives
+   * for why it's a one-directional check), and none of them exposes an
+   * on/off toggle a WINDOW record could flip after the fact.
+   */
   function windowConflictReason(keywordName, recordKeywords) {
     var hasWindow = (recordKeywords || []).some(function (k) { return k.name === 'WINDOW'; });
     if (!hasWindow) return null;
     return keywordName + ' cannot be specified on a record format that also has the WINDOW keyword (per the DDS Reference).';
   }
 
-  /** Task I-47 - re-read WINDOW's own DDS Reference section the same way
-   *  I-44 re-read USRDFN's. Findings: WINDOW's own text names SIX
-   *  keywords a record format can't also carry - ALWROL and ASSUME
-   *  (already individually known via windowConflictReason above, wired
-   *  through wireUsrdfnGuardedFlag's checkbox path) plus THREE not
-   *  previously cross-checked against WINDOW anywhere in this codebase:
-   *  MNUBAR, PULLDOWN, and SFL (USRDFN was already indirectly covered -
-   *  see below). No broader whitelist shape here (unlike USRDFN/SFL's
-   *  own sections) - just this one closed six-keyword exclusion list,
-   *  the same shape windowConflictReason/usrdfnConflictReason already
-   *  use, just parametrized over BOTH directions instead of one.
-   *  (Also confirmed, not a code change: "WINDOW is allowed on a record
-   *  with the SFLCTL keyword" is an explicit exception, so SFLCTL is
-   *  deliberately excluded from this list; WINDOW's own PASSRCD
-   *  restriction was already fixed by I-24; the ERRSFL/MSGLOC-"ignored"
-   *  and WDWBORDER-parameter-shape notes in the same section are
-   *  informational precedence/formatting guidance, not "cannot specify
-   *  together" rules - nothing to enforce there.)
-   *  The reachability gap: WINDOW, MNUBAR, PULLDOWN, SFL, and USRDFN are
-   *  each their own record TYPE the "+ Add record" wizard picks exactly
-   *  once (RECORD_TYPES in webviewClientHelpers.js - see
-   *  usrdfnWhitelistConflictReason's own doc comment for the identical
-   *  point made about USRDFN/SFL/SFLCTL), so the wizard itself can never
-   *  create a record combining two of them - only the raw/Advanced
-   *  keyword editor (keywordEditorHtml/wireKeywordEditor, the same
-   *  bypass I-49 and I-46 each closed for USRDFN's and SFL's own
-   *  whitelists) can. USRDFN and SFL are ALREADY indirectly blocked in
-   *  the WINDOW-has-them-add-it direction, because WINDOW isn't on
-   *  either one's own whitelist (usrdfnWhitelistConflictReason/
-   *  sflWhitelistConflictReason both already fire for `WINDOW` on a
-   *  USRDFN/SFL record) - but nothing existing catches MNUBAR/PULLDOWN
-   *  in that direction, and NOTHING existing catches the REVERSE
-   *  direction for any of the six (raw-adding WINDOW itself to a record
-   *  that already has ALWROL/ASSUME/MNUBAR/PULLDOWN/SFL/USRDFN).
-   *  This function is the general, bidirectional case: given `keywordName`
-   *  being added and the record's current keywords, returns a reason if
-   *  the add would create the forbidden mix in EITHER direction (record
-   *  already has WINDOW and keywordName is one of the six; or record
-   *  already has one of the six and keywordName is WINDOW), or null
-   *  otherwise. Wired only into the record-level raw keyword editor's
-   *  addGuardFn chain (buildWebviewTemplate.js), alongside the USRDFN/
-   *  SFL whitelist checks - windowConflictReason's own two existing
-   *  checkbox call sites (ASSUME/ALWROL) are untouched.
+  /**
+   * Re-read WINDOW's own DDS Reference section the same way I-44 re-read
+   * USRDFN's. Findings: WINDOW's own text names SIX keywords a record format
+   * can't also carry - ALWROL and ASSUME (already individually known via
+   * windowConflictReason above, wired through wireUsrdfnGuardedFlag's
+   * checkbox path) plus THREE not previously cross-checked against WINDOW
+   * anywhere in this codebase: MNUBAR, PULLDOWN, and SFL (USRDFN was already
+   * indirectly covered - see below). No broader whitelist shape here (unlike
+   * USRDFN/SFL's own sections) - just this one closed six-keyword exclusion
+   * list, the same shape windowConflictReason/usrdfnConflictReason already
+   * use, just parametrized over BOTH directions instead of one. (Also
+   * confirmed, not a code change: "WINDOW is allowed on a record with the
+   * SFLCTL keyword" is an explicit exception, so SFLCTL is deliberately
+   * excluded from this list; WINDOW's own PASSRCD restriction was already
+   * fixed by I-24; the ERRSFL/MSGLOC-"ignored" and WDWBORDER-parameter-shape
+   * notes in the same section are informational precedence/formatting
+   * guidance, not "cannot specify together" rules - nothing to enforce
+   * there.) The reachability gap: WINDOW, MNUBAR, PULLDOWN, SFL, and USRDFN
+   * are each their own record TYPE the "+ Add record" wizard picks exactly
+   * once (RECORD_TYPES in webviewClientHelpers.js - see
+   * usrdfnWhitelistConflictReason's own doc comment for the identical point
+   * made about USRDFN/SFL/SFLCTL), so the wizard itself can never create a
+   * record combining two of them - only the raw/Advanced keyword editor
+   * (keywordEditorHtml/wireKeywordEditor, the same bypass I-49 and each
+   * closed for USRDFN's and SFL's own whitelists) can. USRDFN and SFL are
+   * ALREADY indirectly blocked in the WINDOW-has-them-add-it direction,
+   * because WINDOW isn't on either one's own whitelist
+   * (usrdfnWhitelistConflictReason/ sflWhitelistConflictReason both already
+   * fire for `WINDOW` on a USRDFN/SFL record) - but nothing existing catches
+   * MNUBAR/PULLDOWN in that direction, and NOTHING existing catches the
+   * REVERSE direction for any of the six (raw-adding WINDOW itself to a
+   * record that already has ALWROL/ASSUME/MNUBAR/PULLDOWN/SFL/USRDFN). This
+   * function is the general, bidirectional case: given `keywordName` being
+   * added and the record's current keywords, returns a reason if the add
+   * would create the forbidden mix in EITHER direction (record already has
+   * WINDOW and keywordName is one of the six; or record already has one of
+   * the six and keywordName is WINDOW), or null otherwise. Wired only into
+   * the record-level raw keyword editor's addGuardFn chain
+   * (buildWebviewTemplate.js), alongside the USRDFN/ SFL whitelist checks -
+   * windowConflictReason's own two existing checkbox call sites
+   * (ASSUME/ALWROL) are untouched.
    *
-   *  Task I-121 - the six-keyword list itself moved to keywordSpec.js's
-   *  declarative RECORD_TYPES.WINDOW.mutex (I-121's WINDOW slice,
-   *  following the USRDFN slice's own whitelist -> KeywordSpec.isWhitelisted
-   *  precedent). Unlike USRDFN's one-directional isWhitelisted, WINDOW's
-   *  rule is a genuine mutex - both directions of this function now read
-   *  KeywordSpec.isMutex('WINDOW', ...) against the same list, rather than
-   *  a hand-written array duplicated beside the doc comment above. */
+   *  The six-keyword list itself moved to keywordSpec.js's declarative
+   *  RECORD_TYPES.WINDOW.mutex (the WINDOW slice, following the USRDFN
+   *  slice's own whitelist -> KeywordSpec.isWhitelisted precedent). Unlike
+   *  USRDFN's one-directional isWhitelisted, WINDOW's rule is a genuine
+   *  mutex - both directions of this function now read
+   *  KeywordSpec.isMutex('WINDOW',...) against the same list, rather than a
+   *  hand-written array duplicated beside the doc comment above.
+   */
   function windowMutexConflictReason(keywordName, recordKeywords) {
     var keywords = recordKeywords || [];
     var hasWindow = keywords.some(function (k) { return k.name === 'WINDOW'; });
@@ -3623,49 +3705,40 @@
     return null;
   }
 
-  /** Task I-48 - re-read MNUBAR's own DDS Reference section the same way
-   *  I-44/I-46/I-47 re-read USRDFN's/SFL's/WINDOW's. Finding: MNUBAR's
-   *  own section states outright, in the exact same closed-whitelist
-   *  shape as USRDFN's/SFL's own text: "The following keywords are
-   *  allowed on a record containing the MNUBAR keyword:" followed by a
-   *  27-entry table - CAnn, CFnn, CLEAR, CLRL, CSRLOC, DSPMOD, HELP,
-   *  HLPCLR, HLPCMDKEY, HLPRTN, HLPTITLE, HOME, INDTXT, INVITE, KEEP,
-   *  LOCK, MNUBARDSP, MNUBARSEP, MNUBARSW, MNUCNL, OVERLAY, PAGEDOWN/
-   *  PAGEUP, PRINT, PROTECT, ROLLUP/ROLLDOWN, TEXT, UNLOCK, VLDCMDKEY -
-   *  with no matching "anything else is fine too" language anywhere in
-   *  the section (same closed-list shape as USRDFN's/SFL's own "except"/
-   *  "also valid" text, just introduced as "allowed" instead).
-   *  MNUBAR's own record-composition rule (exactly one menu-bar field,
-   *  no other displayable fields) was already fixed by I-19
-   *  (mnubarFieldShapeNote above) and is out of this task's own scope -
-   *  this function covers the separate keyword-whitelist restriction
-   *  only, which had NO existing guard of any kind before this task:
-   *  isMnuBarRecord only drives whether the MNUBAR tab itself is shown
-   *  (unlike isUsrDfnRecord's own Task R2 narrowing), so a MNUBAR
-   *  record's other tabs (Indicator/Output/Input/Overlay) render the
-   *  full, unfiltered set, and the record-level raw keyword editor
-   *  (keywordEditorHtml/wireKeywordEditor) has no guard for it either.
-   *  CAnn/CFnn are represented in this codebase's own model as literal
-   *  keyword names CA01..CA24/CF01..CF24 (see DspfWriter.parseCommandKeys'
-   *  own comment), not as a single "CA"/"CF" name with a parameter, so
-   *  they're matched here by pattern rather than being spelled out
-   *  individually in the whitelist array; PAGEDOWN/ROLLUP and PAGEUP/
-   *  ROLLDOWN are DDS synonym pairs for the same two keywords (not four
-   *  distinct ones), both forms included since either spelling is valid
-   *  DDS. This function covers the record-level raw keyword editor only -
-   *  the same general-purpose catch-all I-49/I-46/I-47 each built their
-   *  own whitelist/mutex function for, wired the same way (see
-   *  buildWebviewTemplate.js's own wireKeywordEditor call site). An
-   *  exhaustive sweep of the structured per-keyword checkboxes across the
-   *  General/Indicator/Output/Input/Overlay/Print tabs (the same "much
-   *  larger undertaking" I-46 split off as I-53 for SFL's own whitelist)
-   *  is logged separately as I-54, not attempted here.
+  /**
+   * Re-read MNUBAR's own DDS Reference section the same way I-44/I-46/I-47
+   * re-read USRDFN's/SFL's/WINDOW's. Finding: MNUBAR's own section states
+   * outright, in the exact same closed-whitelist shape as USRDFN's/SFL's
+   * own text: "The following keywords are allowed on a record containing
+   * the MNUBAR keyword:" followed by a 27-entry table - CAnn, CFnn, CLEAR,
+   * CLRL, CSRLOC, DSPMOD, HELP, HLPCLR, HLPCMDKEY, HLPRTN, HLPTITLE, HOME,
+   * INDTXT, INVITE, KEEP, LOCK, MNUBARDSP, MNUBARSEP, MNUBARSW, MNUCNL,
+   * OVERLAY, PAGEDOWN/ PAGEUP, PRINT, PROTECT, ROLLUP/ROLLDOWN, TEXT,
+   * UNLOCK, VLDCMDKEY - with no matching "anything else is fine too"
+   * language anywhere in the section (same closed-list shape as
+   * USRDFN's/SFL's own "except"/ "also valid" text, just introduced as
+   * "allowed" instead). CAnn/CFnn are represented in this codebase's own
+   * model as literal keyword names CA01..CA24/CF01..CF24 (see
+   * DspfWriter.parseCommandKeys' own comment), not as a single "CA"/"CF"
+   * name with a parameter, so they're matched here by pattern rather than
+   * being spelled out individually in the whitelist array; PAGEDOWN/ROLLUP
+   * and PAGEUP/ ROLLDOWN are DDS synonym pairs for the same two keywords
+   * (not four distinct ones), both forms included since either spelling is
+   * valid DDS. This function covers the record-level raw keyword editor
+   * only - the same general-purpose catch-all I-49/I-46/I-47 each built
+   * their own whitelist/mutex function for, wired the same way (see
+   * buildWebviewTemplate.js's own wireKeywordEditor call site). An
+   * exhaustive sweep of the structured per-keyword checkboxes across the
+   * General/Indicator/Output/Input/Overlay/Print tabs (the same "much
+   * larger undertaking" I-46 split off as for SFL's own whitelist) is
+   * logged separately as I-54, not attempted here.
    *
-   *  Task I-121 - the whitelist itself (both the literal array and the
-   *  CAnn/CFnn pattern check) moved to keywordSpec.js's declarative
+   *  The whitelist itself (both the literal array and the CAnn/CFnn
+   *  pattern check) moved to keywordSpec.js's declarative
    *  RECORD_TYPES.MNUBAR, via the new whitelistPatterns field
-   *  isWhitelisted now also checks - this function now reads that
-   *  instead of the hand-written array plus its own inline regex test. */
+   *  isWhitelisted now also checks - this function now reads that instead
+   *  of the hand-written array plus its own inline regex test.
+   */
   function mnubarWhitelistConflictReason(keywordName, recordKeywords) {
     var hasMnubar = (recordKeywords || []).some(function (k) { return k.name === 'MNUBAR'; });
     if (!hasMnubar) return null;
@@ -3673,25 +3746,26 @@
     return keywordName + ' cannot be added to a menu-bar (MNUBAR) record format - only CAnn/CFnn, CLEAR, CLRL, CSRLOC, DSPMOD, HELP, HLPCLR, HLPCMDKEY, HLPRTN, HLPTITLE, HOME, INDTXT, INVITE, KEEP, LOCK, MNUBARDSP, MNUBARSEP, MNUBARSW, MNUCNL, OVERLAY, PAGEDOWN/PAGEUP, PRINT, PROTECT, ROLLUP/ROLLDOWN, TEXT, UNLOCK, and VLDCMDKEY are allowed (per the DDS Reference).';
   }
 
-  /** Task I-41 - HTML's own DDS Reference section states two restrictions:
-   *  (1) "The following keywords are not allowed with the HTML keyword:"
-   *  COLOR, DATE, DFT, DSPATR, EDTCDE, EDTWRD, HLPID, MSGCON, NOCCSID,
-   *  OVRATR, PUTRETAIN, SYSNAME, TIME, USER - a bidirectional mutual
-   *  exclusion on the SAME field, same shape as `windowMutexConflictReason`
-   *  above (a closed list, not a whitelist); (2) "The HTML keyword is not
-   *  allowed in a field of a subfile record" - a same-RECORD check against
-   *  the literal SFL keyword, same shape as `dspmodSflConflictReason`
-   *  above. `recordKeywords` is optional (omit when the owning record
-   *  isn't known/relevant, e.g. a brand-new field being created from
-   *  scratch that can't yet be on an SFL record) - the SFL check is
-   *  simply skipped when it's not supplied, matching every other
-   *  optional-context-arg guard in this file.
+  /**
+   * HTML's own DDS Reference section states two restrictions: (1) "The
+   * following keywords are not allowed with the HTML keyword:" COLOR, DATE,
+   * DFT, DSPATR, EDTCDE, EDTWRD, HLPID, MSGCON, NOCCSID, OVRATR, PUTRETAIN,
+   * SYSNAME, TIME, USER - a bidirectional mutual exclusion on the SAME
+   * field, same shape as `windowMutexConflictReason` above (a closed list,
+   * not a whitelist); (2) "The HTML keyword is not allowed in a field of a
+   * subfile record" - a same-RECORD check against the literal SFL keyword,
+   * same shape as `dspmodSflConflictReason` above. `recordKeywords` is
+   * optional (omit when the owning record isn't known/relevant, e.g. a
+   * brand-new field being created from scratch that can't yet be on an SFL
+   * record) - the SFL check is simply skipped when it's not supplied,
+   * matching every other optional-context-arg guard in this file.
    *
-   *  Task I-121 - both the field-level mutex list and the SFL record
-   *  restriction now come from keywordSpec.js's declarative
-   *  RECORD_TYPES.HTML (`mutex` and the new `notAllowedInRecordType`
-   *  field respectively) instead of the hand-written
-   *  HTML_MUTUAL_EXCLUSION_KEYWORDS array plus a bare 'SFL' literal. */
+   *  Both the field-level mutex list and the SFL record restriction now
+   *  come from keywordSpec.js's declarative RECORD_TYPES.HTML (`mutex` and
+   *  the new `notAllowedInRecordType` field respectively) instead of the
+   *  hand-written HTML_MUTUAL_EXCLUSION_KEYWORDS array plus a bare 'SFL'
+   *  literal.
+   */
   function htmlConflictReason(keywordName, fieldKeywords, recordKeywords) {
     var kws = fieldKeywords || [];
     if (keywordName === 'HTML') {
@@ -3710,11 +3784,11 @@
   }
 
   // -----------------------------------------------------------------------
-  // Task I-57 - PSHBTNFLD / PSHBTNCHC (push-button field). Both are
-  // field-level keywords; a field carrying PSHBTNFLD must also carry one or
-  // more PSHBTNCHC (the choices), and the two are structurally a sibling of
-  // the SNGCHCFLD/CHOICE pair above - but with three real differences that
-  // stop it from simply reusing getChoiceSelectionType/getChoices:
+  // PSHBTNFLD / PSHBTNCHC (push-button field). Both are field-level
+  // keywords; a field carrying PSHBTNFLD must also carry one or more
+  // PSHBTNCHC (the choices), and the two are structurally a sibling of the
+  // SNGCHCFLD/CHOICE pair above - but with three real differences that stop
+  // it from simply reusing getChoiceSelectionType/getChoices:
   //  1. Grammar. PSHBTNFLD[([*NORSTCSR|*RSTCSR] [(*NUMCOL n)|(*NUMROW n)]
   //     [(*GUTTER n)])] - each of the three numeric parameters is its own
   //     parenthesized `(*NAME value)` group, exactly as IBM writes it.
@@ -3775,13 +3849,13 @@
     return params;
   }
 
-  /** Task I-66 - splits a PSHBTNCHC LITERAL choice text into what IBM
-   *  defines: within the text a greater-than character (>) marks the
-   *  mnemonic - "the character to the right of the > is the mnemonic" -
-   *  and ">>" is a literal > (like a doubled apostrophe). Scanned left to
-   *  right, so 'X >>>= 1' is a literal > followed by a mnemonic marker on
-   *  "=" (the same pairing DspfEngine.pshbtnDisplayText already uses to
-   *  draw the button). Returns
+  /**
+   * Splits a PSHBTNCHC LITERAL choice text into what IBM defines: within the
+   * text a greater-than character (>) marks the mnemonic - "the character to
+   * the right of the > is the mnemonic" - and ">>" is a literal > (like a
+   * doubled apostrophe). Scanned left to right, so 'X >>>= 1' is a literal >
+   * followed by a mnemonic marker on "=" (the same pairing
+   * DspfEngine.pshbtnDisplayText already uses to draw the button). Returns
    *    { visible, mnemonic, markers, problem }
    *  where `visible` is the text as it APPEARS (markers removed, >> collapsed
    *  to >), `mnemonic` is the first mnemonic character ('' when none) and
@@ -3794,7 +3868,8 @@
    *      mnemonic" holds by construction.)
    *  A program-to-system field (&FIELD) is resolved at run time, so it is
    *  never checked here (IBM: the mnemonic "must be contained in the text
-   *  supplied by the application at run time"). */
+   *  supplied by the application at run time").
+   */
   function analyzePshbtnchcText(text) {
     var t = String(text == null ? '' : text);
     var result = { visible: '', mnemonic: '', markers: 0, problem: null };
@@ -3820,30 +3895,36 @@
     return result;
   }
 
-  /** Task I-66 - the reason a PSHBTNCHC literal choice text is invalid, or
-   *  null (see analyzePshbtnchcText). */
+  /**
+   * The reason a PSHBTNCHC literal choice text is invalid, or null (see
+   * analyzePshbtnchcText).
+   */
   function pshbtnchcTextProblem(text) {
     return analyzePshbtnchcText(text).problem;
   }
 
-  /** Task I-66 - guard for the raw keyword editor's "+ Add keyword": a
-   *  reason when `keywordName` is PSHBTNCHC and its choice text is invalid,
-   *  null for every other keyword (a safe no-op) or a valid one. */
+  /**
+   * Guard for the raw keyword editor's "+ Add keyword": a reason when
+   * `keywordName` is PSHBTNCHC and its choice text is invalid, null for
+   * every other keyword (a safe no-op) or a valid one.
+   */
   function pshbtnchcParamsProblem(keywordName, parameters) {
     if (String(keywordName || '').toUpperCase() !== 'PSHBTNCHC') return null;
     var f = parsePshbtnchcParams(parameters);
     return f.textIsField ? null : pshbtnchcTextProblem(f.text);
   }
 
-  /** Task I-66 - whole-field text review of the PSHBTNCHC choices, for the
-   *  panel to show on a hand-written source that already breaks a rule:
+  /**
+   * Whole-field text review of the PSHBTNCHC choices, for the panel to
+   * show on a hand-written source that already breaks a rule:
    *    textProblems: [{ id, message }]   - per-choice mnemonic errors
    *    duplicateMnemonics: [{ mnemonic, ids }] - "the same mnemonic
    *      character should not be specified for more than one choice. If
    *      the same mnemonic character is used more than once than the first
    *      definition of the mnemonic is used" - a warning, not an error,
    *      because IBM defines the fallback. Compared as the exact
-   *      character; the reference does not say the match is case-blind. */
+   *      character; the reference does not say the match is case-blind.
+   */
   function pshbtnchcFieldIssues(keywords) {
     var out = { textProblems: [], duplicateMnemonics: [] };
     var byMnemonic = {};
@@ -3864,22 +3945,24 @@
     return out;
   }
 
-  /** Task I-66 - an ESTIMATE of whether a push-button field's choices fit
-   *  the display, or null when they do (or when there is not enough to
-   *  tell). IBM: "The choice text must fit on one line of the display for
-   *  the smallest display size specified for the file", and gives no
-   *  formula - the maximum depends on the field's position, the choice
-   *  text length, the gutter, the number of columns, the smallest display
-   *  size and the window width if it is in a window. This uses the
-   *  designer's own push-button layout (DspfEngine.layoutPshbtn): every
-   *  button is as wide as the widest visible text plus 2 for its < >
-   *  brackets, buttons are `gutter` blanks apart (default 3), *NUMCOL n
-   *  gives n buttons per row, *NUMROW n gives ceil(slots / n) columns, and
-   *  with neither the buttons wrap onto as many lines as needed so only
-   *  ONE button has to fit. Choices whose text is a &FIELD are unknown at
-   *  design time and ignored. Because it is an estimate it is only ever
-   *  shown as a warning by the caller, never used to block an edit.
-   *  opts: { column (1-based field column), fileKeywords, recordKeywords }. */
+  /**
+   * An ESTIMATE of whether a push-button field's choices fit the display, or
+   * null when they do (or when there is not enough to tell). IBM: "The
+   * choice text must fit on one line of the display for the smallest display
+   * size specified for the file", and gives no formula - the maximum depends
+   * on the field's position, the choice text length, the gutter, the number
+   * of columns, the smallest display size and the window width if it is in a
+   * window. This uses the designer's own push-button layout
+   * (DspfEngine.layoutPshbtn): every button is as wide as the widest visible
+   * text plus 2 for its < > brackets, buttons are `gutter` blanks apart
+   * (default 3), *NUMCOL n gives n buttons per row, *NUMROW n gives
+   * ceil(slots / n) columns, and with neither the buttons wrap onto as many
+   * lines as needed so only ONE button has to fit. Choices whose text is a
+   * &FIELD are unknown at design time and ignored. Because it is an estimate
+   * it is only ever shown as a warning by the caller, never used to block an
+   * edit. opts: { column (1-based field column), fileKeywords,
+   * recordKeywords }.
+   */
   function pshbtnchcFitProblem(keywords, opts) {
     var o = opts || {};
     var column = parseInt(o.column, 10);
@@ -3925,23 +4008,26 @@
       'but only ' + available + ' are available from column ' + column + ' to the edge of ' + limitLabel + '. IBM requires the choice text to fit on one line for the smallest display size (this is an estimate).';
   }
 
-  /** Task I-63 - reads one of the layout parameters *NUMCOL / *NUMROW /
-   *  *GUTTER out of a SNGCHCFLD/MLTCHCFLD/PSHBTNFLD parameter string, as a
-   *  digit string ('' when absent). IBM's own format string is
-   *  `[(*NUMCOL nbr-of-cols) | (*NUMROW nbr-of-rows)] [(*GUTTER
-   *  gutter-width)]` - each a PARENTHESIZED GROUP with a space, e.g.
-   *  `(*NUMCOL 3)`. Also reads, leniently, the `*NUMCOL(3)` shape earlier
-   *  iSDA versions wrote for SNGCHCFLD/MLTCHCFLD (invalid DDS) so sources
-   *  written by them still load; the next Apply rewrites it correctly. */
+  /**
+   * Reads one of the layout parameters *NUMCOL / *NUMROW / *GUTTER out of
+   * a SNGCHCFLD/MLTCHCFLD/PSHBTNFLD parameter string, as a digit string
+   * ('' when absent). IBM's own format string is `[(*NUMCOL nbr-of-cols) |
+   * (*NUMROW nbr-of-rows)] [(*GUTTER gutter-width)]` - each a
+   * PARENTHESIZED GROUP with a space, e.g. `(*NUMCOL 3)`. Also reads,
+   * leniently, the `*NUMCOL(3)` shape earlier iSDA versions wrote for
+   * SNGCHCFLD/MLTCHCFLD (invalid DDS) so sources written by them still
+   * load; the next Apply rewrites it correctly.
+   */
   function readChoiceLayoutNumber(params, name) {
     var m = new RegExp('\\(\\s*\\*' + name + '\\s+(\\d+)\\s*\\)', 'i').exec(params || '') ||
       new RegExp('\\*' + name + '\\((\\d+)\\)', 'i').exec(params || '');
     return m ? m[1] : '';
   }
 
-  /** Task I-63 - the parameter string with every layout group (either
-   *  shape) removed, so what's left tokenizes cleanly on whitespace into
-   *  the bare *flags. */
+  /**
+   * The parameter string with every layout group (either shape) removed,
+   * so what's left tokenizes cleanly on whitespace into the bare *flags.
+   */
   function stripChoiceLayoutParams(params) {
     return String(params || '')
       .replace(/\(\s*\*(?:NUMCOL|NUMROW|GUTTER)\s+\d+\s*\)/gi, ' ')
@@ -3984,33 +4070,34 @@
     var gutter = parseInt(state.gutter, 10);
     if (numCol > 0) parts.push('(*NUMCOL ' + numCol + ')');
     else if (numRow > 0) parts.push('(*NUMROW ' + numRow + ')');
-    // Task I-133: a gutter below the documented minimum (2) is dropped, like
-    // the other invalid layout values this backstop already drops.
+    // A gutter below the documented minimum (2) is dropped, like the other
+    // invalid layout values this backstop already drops.
     if (gutter >= Math.max(1, KeywordSpec.gutterMinimum('PSHBTNFLD'))) parts.push('(*GUTTER ' + gutter + ')');
     return next.concat([{ name: 'PSHBTNFLD', parameters: parts.join(' '), conditions: [], raw: '', sourceLines: [] }]);
   }
 
-  /** PSHBTNFLD's own list: "The following keywords can be specified on a
-   *  field with the PSHBTNFLD keyword: ALIAS, CHANGE, CHCAVAIL,
-   *  CHCUNAVAIL, CHCCTL, INDTXT, NOCCSID, PSHBTNCHC, DSPATR(PC), TEXT" -
-   *  a closed whitelist, the same shape as USRDFN's/SFL's/MNUBAR's
-   *  record-level ones (I-49/I-46/I-48), just at field level. DSPATR is
-   *  allowed ONLY with the PC parameter. PSHBTNFLD itself is implicitly
-   *  allowed.
+  /**
+   * PSHBTNFLD's own list: "The following keywords can be specified on a
+   * field with the PSHBTNFLD keyword: ALIAS, CHANGE, CHCAVAIL,
+   * CHCUNAVAIL, CHCCTL, INDTXT, NOCCSID, PSHBTNCHC, DSPATR(PC), TEXT" -
+   * a closed whitelist, the same shape as USRDFN's/SFL's/MNUBAR's
+   * record-level ones, just at field level. DSPATR is allowed ONLY with
+   * the PC parameter. PSHBTNFLD itself is implicitly allowed.
    *
-   *  Task I-121 (PSHBTNFLD slice) - now reads `keywordSpec.js`'s
-   *  `RECORD_TYPES.PSHBTNFLD` instead of a hand-written array plus its
-   *  own inline DSPATR(PC) token check; both are now data on the spec
-   *  (`whitelist` and `whitelistRequiredTokens`), consulted via
-   *  `isWhitelisted`'s own new optional `parameters` argument. Behavior
-   *  is unchanged. */
+   *  Now reads `keywordSpec.js`'s `RECORD_TYPES.PSHBTNFLD` instead of a
+   *  hand-written array plus its own inline DSPATR(PC) token check; both
+   *  are now data on the spec (`whitelist` and
+   *  `whitelistRequiredTokens`), consulted via `isWhitelisted`'s own new
+   *  optional `parameters` argument. Behavior is unchanged.
+   */
   function pshbtnfldKeywordAllowed(name, parameters) {
     return KeywordSpec.isWhitelisted('PSHBTNFLD', name, parameters);
   }
 
-  /** Task I-57 - the three field-level PSHBTNFLD rules, in one
-   *  bidirectional check (same shape as htmlConflictReason above; safe to
-   *  call for any keyword name - returns null when none applies):
+  /**
+   * The three field-level PSHBTNFLD rules, in one bidirectional check
+   * (same shape as htmlConflictReason above; safe to call for any keyword
+   * name - returns null when none applies):
    *   1. turning PSHBTNFLD ON while the field already carries a keyword
    *      outside the whitelist above;
    *   2. adding a non-whitelisted keyword to a field that already carries
@@ -4019,7 +4106,8 @@
    *      PSHBTNCHC keyword is specified on a field, the PSHBTNFLD keyword
    *      must also be specified").
    *  `parameters` matters only for DSPATR (allowed solely as DSPATR(PC)).
-   *  Removing a keyword is never checked, only adding one. */
+   *  Removing a keyword is never checked, only adding one.
+   */
   function pshbtnfldConflictReason(keywordName, parameters, fieldKeywords) {
     var kws = fieldKeywords || [];
     var hasPshbtnfld = kws.some(function (k) { return k.name === 'PSHBTNFLD'; });
@@ -4045,23 +4133,23 @@
     return null;
   }
 
-  /** Task I-64 - diff-based backstop for EVERY field-level panel (Color &
-   *  attributes, Keying options, Edit code/word, validity checks,
-   *  Reference, date/time, the General keyword rows, CHECK, CHGINPDFT,
-   *  DUP, DSPATR, etc. - all commit through commitEdit's own keywords
-   *  update, the exact same choke point I-58's own wrdwrapNewConflictReason
-   *  already uses), same shape as that function: given the field's
-   *  keyword list before and after an edit, returns a reason when the
-   *  edit INTRODUCES a non-whitelisted keyword onto a field that carries
-   *  PSHBTNFLD both before and after the edit. Conflicts already present
-   *  before the edit (a hand-written file that was already invalid) are
-   *  not re-reported, so unrelated edits to such a field are never
-   *  blocked, and turning PSHBTNFLD itself on is left to the
-   *  forward-direction pshbtnfldConflictReason (already wired at I-57's
-   *  own on/off toggle call site) - this function only fires when
-   *  PSHBTNFLD was ALREADY present both before and after, exactly
-   *  mirroring wrdwrapNewConflictReason's own hadWrdwrap/hasWrdwrap
-   *  double-check. */
+  /**
+   * Diff-based backstop for EVERY field-level panel (Color & attributes,
+   * Keying options, Edit code/word, validity checks, Reference, date/time,
+   * the General keyword rows, CHECK, CHGINPDFT, DUP, DSPATR, etc. - all
+   * commit through commitEdit's own keywords update, the exact same choke
+   * point the wrdwrapNewConflictReason already uses), same shape as that
+   * function: given the field's keyword list before and after an edit,
+   * returns a reason when the edit INTRODUCES a non-whitelisted keyword
+   * onto a field that carries PSHBTNFLD both before and after the edit.
+   * Conflicts already present before the edit (a hand-written file that was
+   * already invalid) are not re-reported, so unrelated edits to such a
+   * field are never blocked, and turning PSHBTNFLD itself on is left to the
+   * forward-direction pshbtnfldConflictReason (already wired at the on/off
+   * toggle call site) - this function only fires when PSHBTNFLD was ALREADY
+   * present both before and after, exactly mirroring
+   * wrdwrapNewConflictReason's own hadWrdwrap/hasWrdwrap double-check.
+   */
   function pshbtnfldNewConflictReason(oldKeywords, newKeywords) {
     var hasPshbtnfld = (newKeywords || []).some(function (k) { return k.name === 'PSHBTNFLD'; });
     if (!hasPshbtnfld) return null;
@@ -4082,26 +4170,28 @@
     return added.join(', ') + ' cannot be specified on a push-button (PSHBTNFLD) field (per the DDS Reference, only ALIAS, CHANGE, CHCAVAIL, CHCUNAVAIL, CHCCTL, INDTXT, NOCCSID, PSHBTNCHC, DSPATR(PC) and TEXT are allowed).';
   }
 
-  /** Task I-85 - the REMOVAL direction of the PSHBTNFLD / PSHBTNCHC pairing,
-   *  which I-57 (pshbtnfldConflictReason) and I-64 (pshbtnfldNewConflictReason)
-   *  left open because both only look at what an edit ADDS. The DDS Reference
-   *  says "A field containing the PSHBTNFLD keyword must also contain one or
-   *  more PSHBTNCHC keywords" and that PSHBTNCHC needs PSHBTNFLD, so two
-   *  edits leave the field invalid:
+  /**
+   * The REMOVAL direction of the PSHBTNFLD / PSHBTNCHC pairing, which I-57
+   * (pshbtnfldConflictReason) and I-64 (pshbtnfldNewConflictReason) left open
+   * because both only look at what an edit ADDS. The DDS Reference says "A
+   * field containing the PSHBTNFLD keyword must also contain one or more
+   * PSHBTNCHC keywords" and that PSHBTNCHC needs PSHBTNFLD, so two edits leave
+   * the field invalid:
    *   A. removing PSHBTNFLD while a PSHBTNCHC stays (orphaned choices);
    *   B. removing the LAST PSHBTNCHC while PSHBTNFLD stays (a push-button
    *      field with no buttons).
    *  Given the field's keyword list before and after an edit, returns a reason
    *  string when the edit INTRODUCES either violation, else null.
    *
-   *  Same diff-based shape as I-81's sflrtnselNewConflictReason, for the same
-   *  ONE choke point (commitEdit): the PSHBTNFLD panel's choice rows, the raw
+   *  Same diff-based shape as the sflrtnselNewConflictReason, for the same ONE
+   *  choke point (commitEdit): the PSHBTNFLD panel's choice rows, the raw
    *  keyword editor's Remove, and every other path that writes keywords are
    *  covered at once. A field that was already invalid before the edit (a
    *  hand-written PSHBTNFLD with no PSHBTNCHC, or PSHBTNCHC with no PSHBTNFLD)
    *  is never re-reported, and fixing it is always allowed. Removing PSHBTNFLD
    *  together with every PSHBTNCHC (which is what the panel's own toggle-off
-   *  does) and removing one of several PSHBTNCHC are both fine. */
+   *  does) and removing one of several PSHBTNCHC are both fine.
+   */
   function pshbtnfldRemovalConflictReason(oldKeywords, newKeywords) {
     var has = function (kws, n) { return (kws || []).some(function (k) { return k.name === n; }); };
     var hadFld = has(oldKeywords, 'PSHBTNFLD');
@@ -4120,7 +4210,8 @@
     return null;
   }
 
-  /** PSHBTNFLD's own definition rule: "must be defined as an input-capable
+  /**
+   * PSHBTNFLD's own definition rule: "must be defined as an input-capable
    *  field with data type Y, length equal to 2, and decimal positions of
    *  0". Returns the field-property updates ({ dataType, length,
    *  decimalPositions, usage }, only the keys that need to change) that
@@ -4128,10 +4219,10 @@
    *  already-input-capable usage (I/B) is kept; anything else becomes B
    *  (matching every one of IBM's own examples).
    *
-   *  Task I-121 (PSHBTNFLD slice) - now reads
-   *  KeywordSpec.definitionRequirements('PSHBTNFLD') instead of its own
-   *  hand-written Y/2/0/I-B literals; behavior (including the specific
-   *  "becomes B" default) is unchanged. */
+   *  Now reads KeywordSpec.definitionRequirements('PSHBTNFLD') instead of
+   *  its own hand-written Y/2/0/I-B literals; behavior (including the
+   *  specific "becomes B" default) is unchanged.
+   */
   function pshbtnfldDefinitionUpdates(field) {
     var f = field || {};
     var req = KeywordSpec.definitionRequirements('PSHBTNFLD');
@@ -4144,30 +4235,31 @@
     return Object.keys(updates).length ? updates : null;
   }
 
-  /** Task I-62 - a data type, length, decimals or usage CHANGE on a field
-   *  that ALREADY carries PSHBTNFLD (the Basic tab's Apply changes). I-57
-   *  enforces PSHBTNFLD's own definition rule - "an input-capable field
-   *  with data type Y, length equal to 2, and decimal positions of 0" -
-   *  when the toggle is turned ON (it rewrites the field with
-   *  pshbtnfldDefinitionUpdates), but not afterwards; this closes that.
-   *  Returns a reason string, or null. It is driven by
-   *  pshbtnfldDefinitionUpdates: the field as it WOULD be after the edit is
-   *  handed to that function, and whatever it says still needs correcting
-   *  is a violation.
+  /**
+   * A data type, length, decimals or usage CHANGE on a field that ALREADY
+   * carries PSHBTNFLD (the Basic tab's Apply changes). I-57 enforces
+   * PSHBTNFLD's own definition rule - "an input-capable field with data type
+   * Y, length equal to 2, and decimal positions of 0" - when the toggle is
+   * turned ON (it rewrites the field with pshbtnfldDefinitionUpdates), but
+   * not afterwards; this closes that. Returns a reason string, or null. It
+   * is driven by pshbtnfldDefinitionUpdates: the field as it WOULD be after
+   * the edit is handed to that function, and whatever it says still needs
+   * correcting is a violation.
    *
    *  oldField is the field as stored ({ dataType, length, decimalPositions,
    *  usage }); updates carries only the properties being written (a key that
    *  is absent counts as unchanged; the Basic tab always sends all four).
    *
-   *  Diff-based, like I-61's wrdwrapBasicEditConflictReason and I-58's
+   *  Diff-based, like the wrdwrapBasicEditConflictReason and the
    *  wrdwrapNewConflictReason: only a change TO a non-conforming value is
    *  blocked, so an unrelated edit (rename, position) on a hand-written
    *  field that is already invalid is never blocked. Changing between two
    *  different invalid values is still blocked (the edit fixes nothing);
-   *  changing to a conforming value, or leaving a value alone, never is.
-   *  A blank usage is the DDS default, output (O) - the Usage select has no
-   *  blank option and shows O for it - so blank counts as O on BOTH sides.
-   *  A field without PSHBTNFLD is never affected. */
+   *  changing to a conforming value, or leaving a value alone, never is. A
+   *  blank usage is the DDS default, output (O) - the Usage select has no
+   *  blank option and shows O for it - so blank counts as O on BOTH sides. A
+   *  field without PSHBTNFLD is never affected.
+   */
   function pshbtnfldBasicEditConflictReason(fieldKeywords, oldField, updates) {
     var hasPshbtnfld = (fieldKeywords || []).some(function (k) { return k.name === 'PSHBTNFLD'; });
     if (!hasPshbtnfld) return null;
@@ -4203,18 +4295,18 @@
     return 'PSHBTNFLD requires an input-capable field (usage I or B) with data type Y, length 2 and decimal positions 0 (per the DDS Reference) - cannot set ' + problems.join(', ') + '.';
   }
 
-  /** Task I-24 - WINDOW's own DDS Reference section also states "WINDOW
-   *  cannot be specified for the record format specified by the PASSRCD
-   *  keyword" - flagged, not fixed, by I-12 (see that task's own
-   *  "Flagged, not fixed this task" note) because it's a
-   *  cross-reference-by-name check against a FILE-level keyword's string
-   *  parameter, not a same-record flag conflict windowConflictReason above
-   *  already covers.
-   *  (Note: the DDS Reference states the identical restriction for
-   *  ALWROL, CLRL, and SLNO too - all four keywords' own sections use the
-   *  same "cannot be specified for the record format specified by the
-   *  PASSRCD keyword" wording. I-24 is scoped to WINDOW only; the other
-   *  three are a follow-up finding, not implemented here.)
+  /**
+   * WINDOW's own DDS Reference section also states "WINDOW cannot be
+   * specified for the record format specified by the PASSRCD keyword" -
+   * flagged, not fixed, by I-12 (see that task's own "Flagged, not fixed
+   * this task" note) because it's a cross-reference-by-name check against
+   * a FILE-level keyword's string parameter, not a same-record flag
+   * conflict windowConflictReason above already covers. (Note: the DDS
+   * Reference states the identical restriction for ALWROL, CLRL, and SLNO
+   * too - all four keywords' own sections use the same "cannot be
+   * specified for the record format specified by the PASSRCD keyword"
+   * wording. I-24 is scoped to WINDOW only; the other three are a
+   * follow-up finding, not implemented here.)
    *
    *  Pure name-vs-name comparison (case-insensitive, blank-safe) rather
    *  than taking a full records array - this is deliberately the smallest
@@ -4229,7 +4321,7 @@
    *   2. Editing file-level PASSRCD to name a record that already carries
    *      WINDOW (wireFileKeywordsPanels' fk-passrcd handler in
    *      webviewClientHelpers.js - alert + revert, same idiom as I-12/
-   *      I-18's own file-level guards).
+   *      The file-level guards).
    *  Both directions are covered because, unlike WINDOW itself (only ever
    *  written by the record-creation wizard - see windowConflictReason's
    *  own doc comment), PASSRCD is a plain free-text file-level field a
@@ -4246,7 +4338,8 @@
    *  Task I-36 generalized this into passrcdRecordConflictReason
    *  (keywordName parametrized) once ALWROL/CLRL/SLNO turned out to need
    *  the identical check - passrcdWindowConflictReason is now a thin
-   *  wrapper kept for its own existing callers/tests. */
+   *  wrapper kept for its own existing callers/tests.
+   */
   function passrcdRecordConflictReason(keywordName, passrcdName, recordName) {
     var a = (passrcdName || '').trim().toUpperCase();
     var b = (recordName || '').trim().toUpperCase();
@@ -4257,26 +4350,27 @@
     return passrcdRecordConflictReason('WINDOW', passrcdName, windowRecordName);
   }
 
-  /** Task I-121 PASSRCD-restricted-keywords slice - the full list of
-   *  keyword names `passrcdRecordConflictReason` is meaningful for (WINDOW,
-   *  ALWROL, CLRL, SLNO), read from KeywordSpec's own declarative
-   *  `passrcdRestricted` flag rather than re-declared here. Re-exported off
-   *  DspfWriter (rather than only living as KeywordSpec.passrcdRestrictedKeywords)
-   *  because its one real consumer, the file-level PASSRCD-edit handler in
-   *  webviewClientHelpers.js, sees DspfWriter but not KeywordSpec directly -
-   *  same reasoning as every other KeywordSpec-backed DspfWriter function. */
+  /**
+   * The full list of keyword names `passrcdRecordConflictReason` is meaningful for
+   * (WINDOW, ALWROL, CLRL, SLNO), read from KeywordSpec's own declarative
+   * `passrcdRestricted` flag rather than re-declared here. Re-exported off
+   * DspfWriter (rather than only living as KeywordSpec.passrcdRestrictedKeywords)
+   * because its one real consumer, the file-level PASSRCD-edit handler in
+   * webviewClientHelpers.js, sees DspfWriter but not KeywordSpec directly - same
+   * reasoning as every other KeywordSpec-backed DspfWriter function.
+   */
   function passrcdRestrictedKeywords() {
     return KeywordSpec.passrcdRestrictedKeywords();
   }
 
-  /** Task I-36 - ALWROL/CLRL/SLNO's own DDS Reference sections state the
-   *  identical "cannot be specified for the record format specified by
-   *  the PASSRCD keyword" restriction I-24 fixed for WINDOW (flagged as
-   *  a follow-up finding by I-24 itself - see passrcdRecordConflictReason's
-   *  own doc comment just above). Reuses that same primitive rather than
-   *  a bespoke one per keyword.
-   *  Wired at the two reachable on-transitions, same shape as I-24's own
-   *  WINDOW guard:
+  /**
+   * ALWROL/CLRL/SLNO's own DDS Reference sections state the identical
+   * "cannot be specified for the record format specified by the PASSRCD
+   * keyword" restriction I-24 fixed for WINDOW (flagged as a follow-up
+   * finding by itself - see passrcdRecordConflictReason's own doc comment
+   * just above). Reuses that same primitive rather than a bespoke one per
+   * keyword. Wired at the two reachable on-transitions, same shape as the
+   * WINDOW guard:
    *   1. Turning ALWROL/CLRL/SLNO on on a record whose OWN name already
    *      matches the file's current PASSRCD value - wireUsrdfnGuardedFlag
    *      (ALWROL) / wirePulldownGuardedFlag (SLNO/CLRL)'s own new
@@ -4285,36 +4379,38 @@
    *      buildWebviewTemplate.js) for the "record name" side, since
    *      unlike WINDOW these three are ordinary toggles on ANY record,
    *      not a record-creation-time "type" - there's no wizard-time
-   *      creation path to guard the way I-24 guarded WINDOW's.
+   *      Creation path to guard the way I-24 guarded WINDOW's.
    *   2. Editing file-level PASSRCD to name a record that already
    *      carries ALWROL/CLRL/SLNO - wireFileKeywordsPanels' fk-passrcd
    *      handler now checks all four of WINDOW/ALWROL/CLRL/SLNO against
-   *      the named record, not just WINDOW. */
+   *      the named record, not just WINDOW.
+   */
 
-  /** Task I-28 - found auditing the base Record Keywords panel's KEEP row
-   *  (see that same task's own conditioning-toggle fix, wired alongside
-   *  this in webviewClientHelpers.js): KEEP's own DDS Reference section
-   *  states "This keyword cannot be specified with the following
-   *  keywords: ALWROL, CLRL, SLNO" - confirmed by each of those three's
-   *  OWN section individually restating the same exclusion against KEEP
-   *  the other direction (same cross-verification method I-23 used for
-   *  SFLMSGRCD).
-   *  One shared, order-independent primitive (like usrdfnConflictReason/
-   *  pulldownConflictReason above) rather than 4 separate pairwise
-   *  functions - callers pass whichever of the 4 keywords is transitioning
-   *  on plus the record's current keyword list, and it works no matter
-   *  which side of a conflicting pair the user toggles first.
-   *  Out of scope for this task: ALWROL/CLRL/SLNO's own sections each
-   *  ALSO list ASSUME/SFL/SFLCTL/USRDFN as mutually exclusive with
-   *  themselves (a broader web of restrictions than KEEP's own list) -
-   *  I-28's own title scopes this task to KEEP's restrictions only; the
-   *  wider ALWROL/CLRL/SLNO-vs-ASSUME/SFL/SFLCTL/USRDFN web is a
-   *  follow-up finding, not implemented here.
+  /**
+   * Found auditing the base Record Keywords panel's KEEP row (see that
+   * same task's own conditioning-toggle fix, wired alongside this in
+   * webviewClientHelpers.js): KEEP's own DDS Reference section states
+   * "This keyword cannot be specified with the following keywords: ALWROL,
+   * CLRL, SLNO" - confirmed by each of those three's OWN section
+   * individually restating the same exclusion against KEEP the other
+   * direction (same cross-verification method I-23 used for SFLMSGRCD).
+   * One shared, order-independent primitive (like usrdfnConflictReason/
+   * pulldownConflictReason above) rather than 4 separate pairwise
+   * functions - callers pass whichever of the 4 keywords is transitioning
+   * on plus the record's current keyword list, and it works no matter
+   * which side of a conflicting pair the user toggles first. Out of scope
+   * for this task: ALWROL/CLRL/SLNO's own sections each ALSO list
+   * ASSUME/SFL/SFLCTL/USRDFN as mutually exclusive with themselves (a
+   * broader web of restrictions than KEEP's own list) - the title scopes
+   * this task to KEEP's restrictions only; the wider
+   * ALWROL/CLRL/SLNO-vs-ASSUME/SFL/SFLCTL/USRDFN web is a follow-up
+   * finding, not implemented here.
    *
-   *  Task I-121 - the mutex list itself moved to keywordSpec.js's
-   *  declarative RECORD_TYPES.KEEP.mutex; this function now reads that
-   *  through KeywordSpec.isMutex/mutexKeywords instead of its own
-   *  hand-written KEEP_MUTEX array. */
+   *  The mutex list itself moved to keywordSpec.js's declarative
+   *  RECORD_TYPES.KEEP.mutex; this function now reads that through
+   *  KeywordSpec.isMutex/mutexKeywords instead of its own hand-written
+   *  KEEP_MUTEX array.
+   */
   function keepMutexConflictReason(keywordName, recordKeywords) {
     var kws = recordKeywords || [];
     function has(name) { return kws.some(function (k) { return k.name === name; }); }
@@ -4329,45 +4425,47 @@
     return null;
   }
 
-  /** Task I-37 - the follow-up finding I-28 flagged in its own doc
-   *  comment just above: ALWROL/CLRL/SLNO's own DDS Reference sections
-   *  each ALSO list ASSUME/SFL/SFLCTL/USRDFN as mutually exclusive with
-   *  themselves (identical three-way list on all three - "The ALWROL/
-   *  CLRL keyword cannot be specified with any of the following
-   *  keywords" / "The SLNO keyword is not allowed in a record format
-   *  that has one of the following keywords specified": ASSUME, KEEP,
-   *  SFL, SFLCTL, USRDFN - KEEP already covered by keepMutexConflictReason
-   *  above, the other four are this task's own scope).
-   *  Cross-verified from ASSUME's own section too (confirms ALWROL/CLRL/
-   *  SLNO/SFL/USRDFN/USRDSPMGT - same cross-check method I-23 used for
-   *  SFLMSGRCD): SFL and USRDSPMGT are on ASSUME's own list but not, per
-   *  ALWROL/CLRL/SLNO's own sections, symmetric with all three the other
-   *  way (ASSUME's list is ASSUME-specific, e.g. USRDSPMGT is an S36E
-   *  concern already handled separately) - so only the confirmed-
-   *  bidirectional ASSUME<->{ALWROL,CLRL,SLNO} pair is checked in reverse
-   *  below; SFL/SFLCTL/USRDFN are checked one-directionally only, same
-   *  reasoning usrdfnConflictReason's own doc comment gives: all three
-   *  are record-TYPE identifiers (see isSflRecord/isSflCtlRecord and
-   *  usrdfnConflictReason's own doc comments) written once by the
-   *  "+ Add record" wizard and never toggled off again by this UI, so
-   *  there's no reachable "turn SFL/SFLCTL/USRDFN on while ALWROL/CLRL/
-   *  SLNO is already present" transition to guard the other way.
-   *  USRDFN specifically was already guarded for ALWROL alone (I-8's own
-   *  usrdfnConflictReason, generic to whichever keyword calls through
-   *  wireUsrdfnGuardedFlag) - CLRL/SLNO go through wirePulldownGuardedFlag
-   *  instead, which never called usrdfnConflictReason, so USRDFN-vs-
-   *  CLRL/SLNO was a genuine gap alongside the SFL/SFLCTL one this task
-   *  closes too. Deliberately unconditional in both wire functions below
-   *  (no new alsoCheckX param needed) since this returns null for every
-   *  keywordName outside {ALWROL, CLRL, SLNO, ASSUME}.
+  /**
+   * The follow-up finding I-28 flagged in its own doc comment just above:
+   * ALWROL/CLRL/SLNO's own DDS Reference sections each ALSO list
+   * ASSUME/SFL/SFLCTL/USRDFN as mutually exclusive with themselves
+   * (identical three-way list on all three - "The ALWROL/ CLRL keyword
+   * cannot be specified with any of the following keywords" / "The SLNO
+   * keyword is not allowed in a record format that has one of the
+   * following keywords specified": ASSUME, KEEP, SFL, SFLCTL, USRDFN -
+   * KEEP already covered by keepMutexConflictReason above, the other four
+   * are this task's own scope). Cross-verified from ASSUME's own section
+   * too (confirms ALWROL/CLRL/ SLNO/SFL/USRDFN/USRDSPMGT - same
+   * cross-check method I-23 used for SFLMSGRCD): SFL and USRDSPMGT are on
+   * ASSUME's own list but not, per ALWROL/CLRL/SLNO's own sections,
+   * symmetric with all three the other way (ASSUME's list is
+   * ASSUME-specific, e.g. USRDSPMGT is an S36E concern already handled
+   * separately) - so only the confirmed- bidirectional
+   * ASSUME<->{ALWROL,CLRL,SLNO} pair is checked in reverse below;
+   * SFL/SFLCTL/USRDFN are checked one-directionally only, same reasoning
+   * usrdfnConflictReason's own doc comment gives: all three are
+   * record-TYPE identifiers (see isSflRecord/isSflCtlRecord and
+   * usrdfnConflictReason's own doc comments) written once by the "+ Add
+   * record" wizard and never toggled off again by this UI, so there's no
+   * reachable "turn SFL/SFLCTL/USRDFN on while ALWROL/CLRL/ SLNO is
+   * already present" transition to guard the other way. USRDFN
+   * specifically was already guarded for ALWROL alone (the
+   * usrdfnConflictReason, generic to whichever keyword calls through
+   * wireUsrdfnGuardedFlag) - CLRL/SLNO go through wirePulldownGuardedFlag
+   * instead, which never called usrdfnConflictReason, so USRDFN-vs-
+   * CLRL/SLNO was a genuine gap alongside the SFL/SFLCTL one this task
+   * closes too. Deliberately unconditional in both wire functions below
+   * (no new alsoCheckX param needed) since this returns null for every
+   * keywordName outside {ALWROL, CLRL, SLNO, ASSUME}.
    *
-   *  Task I-121 - both mutex lists (ALWROL/CLRL/SLNO's own shared
-   *  four-keyword list and ASSUME's own narrowed-to-this-function's-scope
-   *  three-keyword list) moved to keywordSpec.js's declarative
-   *  RECORD_TYPES.ALWROL/CLRL/SLNO/ASSUME entries; this function now
-   *  reads those through KeywordSpec.mutexKeywords instead of its own
+   *  Both mutex lists (ALWROL/CLRL/SLNO's own shared four-keyword list and
+   *  ASSUME's own narrowed-to-this-function's-scope three-keyword list)
+   *  moved to keywordSpec.js's declarative
+   *  RECORD_TYPES.ALWROL/CLRL/SLNO/ASSUME entries; this function now reads
+   *  those through KeywordSpec.mutexKeywords instead of its own
    *  hand-written TARGET and inline ['ASSUME','SFL','SFLCTL','USRDFN']
-   *  arrays. */
+   *  arrays.
+   */
   function alwrolClrlSlnoConflictReason(keywordName, recordKeywords) {
     var TARGET = KeywordSpec.alwrolClrlSlnoKeywords();
     var kws = recordKeywords || [];
@@ -4385,38 +4483,39 @@
     return null;
   }
 
-  /** Task I-18 - MNUBARSW/MNUCNL mutual CA-key exclusion guard. Both
-   *  keywords' own DDS Reference sections state the same rule, worded
-   *  from each side: under MNUBARSW, "Within a record, the CAnn key
-   *  specified by the MNUBARSW keyword cannot be specified again using
-   *  another keyword (such as MNUCNL)"; under MNUCNL, the mirror
-   *  statement naming MNUBARSW. Both sections go on to say the
-   *  file-level form "extends to all records in the file, this must be
-   *  considered when assigning a CAnn key" - so the scope genuinely
-   *  spans both file-level AND every individual record's own copy of
-   *  these two keywords, resolving this task's own scope question: it
-   *  is NOT just a same-record check.
-   *  `cakey` is the CAnn value about to be assigned to `keywordName` -
-   *  blank resolves to MNUBARSW's own documented default (CA10) or
-   *  MNUCNL's own documented default (CA12), since a blank box still
-   *  means a real, active CA key once the keyword itself is present, not
-   *  "no CA key". `fileKeywords` is always checked (a file-level
-   *  assignment of the OTHER keyword extends to every record, per both
-   *  sections' own text). `recordScopes` is an array of keyword-arrays -
-   *  the record(s) whose OWN copy of the other keyword also needs
-   *  checking: a caller editing one specific record's own MNUBARSW/
-   *  MNUCNL passes an array holding just that record's own keywords
-   *  (record-level values don't propagate to OTHER records - only the
-   *  file-level form does); a caller editing the FILE-level copy passes
-   *  every record's own keywords (a file-level assignment reaches all of
-   *  them). Same alert+revert idiom as this file's other Conflict Reason
-   *  functions; turning either keyword OFF, or lowering/blanking its own
-   *  CA key, is never blocked, only the on-transition/CA-key-collision. */
-  //  Task I-121 (MNUBARSW/MNUCNL slice) - the partner keyword and its
-  //  documented default CA key now come from KeywordSpec.caKeyPartner
-  //  instead of being hard-coded as inline ternaries here; the file-vs-
-  //  record scoping below (both sections' own stated behavior) is
-  //  unchanged, since it is genuinely procedural, not a per-keyword fact.
+  /**
+   * MNUBARSW/MNUCNL mutual CA-key exclusion guard. Both keywords' own
+   * DDS Reference sections state the same rule, worded from each side:
+   * under MNUBARSW, "Within a record, the CAnn key specified by the
+   * MNUBARSW keyword cannot be specified again using another keyword
+   * (such as MNUCNL)"; under MNUCNL, the mirror statement naming
+   * MNUBARSW. Both sections go on to say the file-level form "extends to
+   * all records in the file, this must be considered when assigning a
+   * CAnn key" - so the scope genuinely spans both file-level AND every
+   * individual record's own copy of these two keywords, resolving this
+   * task's own scope question: it is NOT just a same-record check.
+   * `cakey` is the CAnn value about to be assigned to `keywordName` -
+   * blank resolves to MNUBARSW's own documented default (CA10) or
+   * MNUCNL's own documented default (CA12), since a blank box still
+   * means a real, active CA key once the keyword itself is present, not
+   * "no CA key". `fileKeywords` is always checked (a file-level
+   * assignment of the OTHER keyword extends to every record, per both
+   * sections' own text). `recordScopes` is an array of keyword-arrays -
+   * the record(s) whose OWN copy of the other keyword also needs
+   * checking: a caller editing one specific record's own MNUBARSW/
+   * MNUCNL passes an array holding just that record's own keywords
+   * (record-level values don't propagate to OTHER records - only the
+   * file-level form does); a caller editing the FILE-level copy passes
+   * every record's own keywords (a file-level assignment reaches all of
+   * them). Same alert+revert idiom as this file's other Conflict Reason
+   * functions; turning either keyword OFF, or lowering/blanking its own
+   * CA key, is never blocked, only the on-transition/CA-key-collision.
+   */
+  //  The partner keyword and its documented default CA key now come from
+  //  KeywordSpec.caKeyPartner instead of being hard-coded as inline
+  //  ternaries here; the file-vs- record scoping below (both sections'
+  //  own stated behavior) is unchanged, since it is genuinely procedural,
+  //  not a per-keyword fact.
   function mnuBarKeyConflictReason(keywordName, cakey, fileKeywords, recordScopes) {
     var pair = KeywordSpec.caKeyPartner(keywordName);
     if (!pair) return null;
@@ -4447,19 +4546,20 @@
     }
     return null;
   }
-  /** Task I-19 - MNUBAR's own field-shape structural constraint. MNUBAR's
-   *  own DDS Reference section states, in its own prose (not a
-   *  keyword-compatibility list like windowConflictReason/
-   *  pulldownConflictReason/usrdfnConflictReason above): "A record with
-   *  the MNUBAR keyword specified must contain one and only one menu bar
-   *  field (a field with one or more MNUBARCHC keywords), and cannot
-   *  contain any displayable fields other than the menu bar field."
-   *  Unlike this file's other conflict-reason functions, this isn't a
-   *  same-record "does keyword X coexist with keyword Y" check - it's a
-   *  record-COMPOSITION rule (how many entries this record's own field
-   *  list contains, and of what shape), so it takes the record's
-   *  `fields` array (which, in this parser's model, holds both real DDS
-   *  fields and constants) rather than a `keywords` array.
+  /**
+   * MNUBAR's own field-shape structural constraint. MNUBAR's own DDS
+   * Reference section states, in its own prose (not a
+   * keyword-compatibility list like windowConflictReason/
+   * pulldownConflictReason/usrdfnConflictReason above): "A record with
+   * the MNUBAR keyword specified must contain one and only one menu bar
+   * field (a field with one or more MNUBARCHC keywords), and cannot
+   * contain any displayable fields other than the menu bar field." Unlike
+   * this file's other conflict-reason functions, this isn't a same-record
+   * "does keyword X coexist with keyword Y" check - it's a
+   * record-COMPOSITION rule (how many entries this record's own field
+   * list contains, and of what shape), so it takes the record's `fields`
+   * array (which, in this parser's model, holds both real DDS fields and
+   * constants) rather than a `keywords` array.
    *
    *  Scope decisions:
    *  - Identifying "the menu-bar field" considers BOTH real fields
@@ -4508,7 +4608,8 @@
    *  Returns null when the record is compliant (exactly one menu-bar
    *  entry, no other displayable fields), or a single message naming
    *  whichever of the two independent problems apply (both are named
-   *  together, joined, when both are true at once). */
+   *  together, joined, when both are true at once).
+   */
   function mnubarFieldShapeNote(fields) {
     var all = fields || [];
     var menuBarEntries = all.filter(function (f) { return (f.keywords || []).some(function (k) { return k.name === 'MNUBARCHC'; }); });
@@ -4632,7 +4733,8 @@
    *  name) rather than leaving REFFLD's always-required field name blank. */
   function applyReffldState(keywords, currentFieldName, state) {
     var s = state || {};
-    // Task I-170: with R off, DLTCHK / DLTEDT go too (every keyword the spec says is valid only with R in position 29), not just REFFLD.
+    // With R off, DLTCHK / DLTEDT go too (every keyword the spec says is valid only with R in
+    // position 29), not just REFFLD.
     var next = (keywords || []).filter(function (k) { return k.name !== 'REFFLD' && (s.isReference || !KeywordSpec.requiresReferenceFlag(k.name)); });
     if (s.isReference) {
       var hasAnyPart = !!((s.recordFormat || '').trim() || (s.fieldName || '').trim() || s.useSrc || (s.file || '').trim() || (s.library || '').trim());
@@ -4709,9 +4811,9 @@
   }
 
   // ---------------------------------------------------------------------
-  // I-33 - MSGCON's own structured parameters, as directly-editable
-  // prompts, same treatment MSGID's own parameters got under L79. Grammar,
-  // confirmed against the DDS Reference's own MSGCON entry:
+  // MSGCON's own structured parameters, as directly-editable prompts, same
+  // treatment MSGID's own parameters got under L79. Grammar, confirmed
+  // against the DDS Reference's own MSGCON entry:
   //   MSGCON(length message-ID [library-name/]message-file-name)
   // where length is 1-132 (the constant's max display length), message-ID
   // is the literal message description identifier (NOT a &field
@@ -4740,9 +4842,9 @@
     var slash = fileToken.indexOf('/');
     var library = slash >= 0 ? fileToken.slice(0, slash) : '';
     var msgFile = slash >= 0 ? fileToken.slice(slash + 1) : fileToken;
-    // Task I-153: the file token is `message-file-name` or `library-name/message-file-name` - a
-    // leading slash (empty library) or a second slash is not that form, so it stays unstructured
-    // (a raw edit) instead of being silently normalised by the next Apply.
+    // The file token is `message-file-name` or `library-name/message-file-name` - a leading
+    // slash (empty library) or a second slash is not that form, so it stays unstructured (a raw
+    // edit) instead of being silently normalised by the next Apply.
     if (msgconStructureProblem(trimmed)) return { structured: false, length: '', msgId: '', library: '', msgFile: '', raw: trimmed };
     if (!msgId || !msgFile) return { structured: false, length: '', msgId: '', library: '', msgFile: '', raw: trimmed };
     return { structured: true, length: length, msgId: msgId, library: library, msgFile: msgFile, raw: trimmed };
@@ -4800,13 +4902,14 @@
     return setRepeatableKeywordInstances(keywords, MESSAGE_ID_NAMES, raw);
   }
 
-  /** Task I-73 - MSGID's own position-dependent option-indicator rule,
-   *  from its DDS Reference entry: "When more than one MSGID keyword is
-   *  specified, option indicators are required on all except the last
-   *  MSGID keyword on a field. Option indicators are not allowed on the
-   *  last (or only) MSGID keyword specified on a field." (The first MSGID
-   *  in effect is used, which is why the earlier ones must be
-   *  conditioned - otherwise a later one could never be reached.)
+  /**
+   * MSGID's own position-dependent option-indicator rule, from its DDS
+   * Reference entry: "When more than one MSGID keyword is specified,
+   * option indicators are required on all except the last MSGID keyword
+   * on a field. Option indicators are not allowed on the last (or only)
+   * MSGID keyword specified on a field." (The first MSGID in effect is
+   * used, which is why the earlier ones must be conditioned - otherwise a
+   * later one could never be reached.)
    *
    *  Unlike a per-keyword exclusion this depends on an instance's
    *  POSITION among its siblings, and "last" changes as instances are
@@ -4822,7 +4925,8 @@
    *   - the REQUIRED half is advisory - msgidConditioningNotes returns
    *     the reminder lines for a live hint, same shape as L83's
    *     dftOutputRequirementNote.
-   *  `instances` is getMessageIdInstances' own output, in keyword order. */
+   *  `instances` is getMessageIdInstances' own output, in keyword order.
+   */
   function msgidInstanceAllowsConditioning(instances, inst) {
     var list = instances || [];
     var idx = list.indexOf(inst);
@@ -4831,11 +4935,13 @@
     return (inst.conditions || []).length > 0;
   }
 
-  /** Task I-73 - see msgidInstanceAllowsConditioning above. Returns an
-   *  array of reminder lines (empty when the field's MSGIDs satisfy the
-   *  rule): one naming every non-last MSGID that has no option indicator,
-   *  and one if the last/only MSGID has any. Instances are numbered from
-   *  1 in the order they appear on the field. */
+  /**
+   * See msgidInstanceAllowsConditioning above. Returns an array of
+   * reminder lines (empty when the field's MSGIDs satisfy the rule): one
+   * naming every non-last MSGID that has no option indicator, and one if
+   * the last/only MSGID has any. Instances are numbered from 1 in the
+   * order they appear on the field.
+   */
   function msgidConditioningNotes(keywords) {
     var instances = getMessageIdInstances(keywords);
     var notes = [];
@@ -4921,22 +5027,23 @@
       });
   }
 
-  /** Returns a NEW keywords array with every existing MNUBARCHC removed and
-   *  replaced by one per entry in `choices`
-   *  ({ id, pulldownRecord, text, returnField }), in the given order -
-   *  blank/incomplete entries (no id, record, or text) are skipped rather
-   *  than writing a malformed keyword. `returnField` is optional (real
-   *  SDA's own screen leaves it blank most of the time); when supplied
-   *  without a leading '&' one is added, since it's always a field
-   *  reference, never a literal. Task I-34: `conditions` is preserved by
-   *  choice-id across this batch rewrite when the caller's entry doesn't
-   *  explicitly supply its own - same "preserve unless overridden"
-   *  convention as setFileFlagKeyword/setChoiceColorState, closing the
-   *  same silent-data-loss class of bug those had before I-2/I-3 fixed
-   *  them (this list editor used to hard-code conditions: [] on every
-   *  write, which would have silently wiped any conditioning set through
-   *  the new per-choice Conditioning toggle the moment "Apply menu-bar
-   *  choices" was next clicked). */
+  /**
+   * Returns a NEW keywords array with every existing MNUBARCHC removed and
+   * replaced by one per entry in `choices` ({ id, pulldownRecord, text,
+   * returnField }), in the given order - blank/incomplete entries (no id,
+   * record, or text) are skipped rather than writing a malformed keyword.
+   * `returnField` is optional (real SDA's own screen leaves it blank most
+   * of the time); when supplied without a leading '&' one is added, since
+   * it's always a field reference, never a literal. `conditions` is
+   * preserved by choice-id across this batch rewrite when the caller's
+   * entry doesn't explicitly supply its own - same "preserve unless
+   * overridden" convention as setFileFlagKeyword/setChoiceColorState,
+   * closing the same silent-data-loss class of bug those had before
+   * I-2/I-3 fixed them (this list editor used to hard-code conditions: []
+   * on every write, which would have silently wiped any conditioning set
+   * through the new per-choice Conditioning toggle the moment "Apply
+   * menu-bar choices" was next clicked).
+   */
   function setMenubarChoices(keywords, choices) {
     var existingById = {};
     (keywords || []).forEach(function (k) {
@@ -4959,19 +5066,20 @@
     return next;
   }
 
-  /** Returns a NEW keywords array with the ONE MNUBARCHC keyword instance
-   *  whose choice-number matches `id` given a new `conditions` array,
-   *  leaving every other keyword (including other MNUBARCHC instances)
-   *  completely untouched. Task I-34: MNUBARCHC is documented "Option
-   *  indicators are valid for this keyword" - a reverse gap, no
-   *  Conditioning UI existed for it at all before this task. Keyed by
-   *  choice-id rather than ordinal position (unlike setCommandKeyAt's own
-   *  index-based approach) because IBM's own MNUBARCHC text states
-   *  duplicate choice-number values within a single menu-bar field are
-   *  not allowed - the same uniqueness assumption the id-keyed editors in
-   *  webviewClientHelpers.js already make. Powers the toggle's own
-   *  immediate commit, independent of the batch "Apply menu-bar choices"
-   *  button. */
+  /**
+   * Returns a NEW keywords array with the ONE MNUBARCHC keyword instance
+   * whose choice-number matches `id` given a new `conditions` array,
+   * leaving every other keyword (including other MNUBARCHC instances)
+   * completely untouched. MNUBARCHC is documented "Option indicators are
+   * valid for this keyword" - a reverse gap, no Conditioning UI existed
+   * for it at all before this task. Keyed by choice-id rather than
+   * ordinal position (unlike setCommandKeyAt's own index-based approach)
+   * because IBM's own MNUBARCHC text states duplicate choice-number
+   * values within a single menu-bar field are not allowed - the same
+   * uniqueness assumption the id-keyed editors in webviewClientHelpers.js
+   * already make. Powers the toggle's own immediate commit, independent
+   * of the batch "Apply menu-bar choices" button.
+   */
   function setMenubarChoiceConditions(keywords, id, conditions) {
     var target = String(id || '').trim();
     var seen = false;
@@ -5003,13 +5111,15 @@
     return result;
   }
 
-  /** Returns a NEW keywords array with MNUBARSEP built from `state` -
-   *  `{ colorEnabled, color, attrsEnabled, attrs, charEnabled, char,
-   *  conditions }` - removed entirely if none of the three groups are
-   *  enabled. Task I-34: MNUBARSEP is documented "Option indicators are
-   *  valid for this keyword" (reverse gap, no toggle existed before).
-   *  `conditions`, when OMITTED, preserves whatever conditioning already
-   *  existed - same convention as setFileFlagKeyword/setChoiceColorState. */
+  /**
+   * Returns a NEW keywords array with MNUBARSEP built from `state` - `{
+   * colorEnabled, color, attrsEnabled, attrs, charEnabled, char,
+   * conditions }` - removed entirely if none of the three groups are
+   * enabled. MNUBARSEP is documented "Option indicators are valid for this
+   * keyword" (reverse gap, no toggle existed before). `conditions`, when
+   * OMITTED, preserves whatever conditioning already existed - same
+   * convention as setFileFlagKeyword/setChoiceColorState.
+   */
   function setMenubarSeparator(keywords, state) {
     var existing = (keywords || []).find(function (kw) { return kw.name === 'MNUBARSEP'; });
     var next = (keywords || []).filter(function (kw) { return kw.name !== 'MNUBARSEP'; });
@@ -5030,7 +5140,7 @@
    *  grouped by the mutually-exclusive pairs the screen itself shows them
    *  in (only one of each pair applies at a time; *NUMCOL/*NUMROW/*GUTTER
    *  take a numeric argument instead of being a bare flag). */
-  //  Task I-121: the flag list is keywordSpec.js's SNGCHCFLD/MLTCHCFLD
+  //  The flag list is keywordSpec.js's SNGCHCFLD/MLTCHCFLD
   //  `selectionParameters` fact (every flag either keyword offers).
   var CHOICE_SELECTION_FLAGS = KeywordSpec.choiceSelectionAllFlags();
 
@@ -5045,10 +5155,10 @@
     var result = { kind: '', flags: [], numCol: '', numRow: '', gutter: '' };
     if (!k) return result;
     result.kind = k.name;
-    // Task I-63: the layout parameters are IBM's parenthesized groups
-    // `(*NUMCOL 3)` (a space INSIDE the parens), which whitespace
-    // tokenizing would split into `(*NUMCOL` / `3)` - so read them first
-    // with the shared reader, then tokenize only what's left for the flags.
+    // The layout parameters are IBM's parenthesized groups `(*NUMCOL 3)` (a
+    // space INSIDE the parens), which whitespace tokenizing would split
+    // into `(*NUMCOL` / `3)` - so read them first with the shared reader,
+    // then tokenize only what's left for the flags.
     result.numCol = readChoiceLayoutNumber(k.parameters, 'NUMCOL');
     result.numRow = readChoiceLayoutNumber(k.parameters, 'NUMROW');
     result.gutter = readChoiceLayoutNumber(k.parameters, 'GUTTER');
@@ -5064,25 +5174,26 @@
    *  MLTCHCFLD format string is `MLTCHCFLD[([*RSTCSR|*NORSTCSR]
    *  [*NOSLTIND|*SLTIND] [...*NUMCOL/*NUMROW/*GUTTER...])]` - no
    *  AUTOSLT/AUTOENT family at all. Task I-34. */
-  //  Task I-121: read from the spec - the flags SNGCHCFLD offers and
-  //  MLTCHCFLD does not.
+  //  Read from the spec - the flags SNGCHCFLD offers and MLTCHCFLD does
+  //  not.
   var SNGCHCFLD_ONLY_FLAGS = KeywordSpec.choiceSelectionFlagsNotOffered('MLTCHCFLD');
   /** The radio-group names only SNGCHCFLD offers (the webview hides them
    *  for MLTCHCFLD or an unset type). */
-  /** Task I-121 (date/time value-domain slice) - the declared values of
-   *  DATFMT / DATSEP / TIMFMT / TIMSEP for the webview's selects, read from
-   *  the spec (a copy). */
+  /**
+   * The declared values of DATFMT / DATSEP / TIMFMT / TIMSEP for the
+   * webview's selects, read from the spec (a copy).
+   */
   function dateTimeValidValues(keywordName) {
     return KeywordSpec.validValues(keywordName);
   }
 
   // -----------------------------------------------------------------------
-  // Task I-136 - MOUBTN's Command-key exclusions. KeywordSpec's
-  // MOUBTN.commandKeyExclusion holds the DDS Reference table as one rule:
-  // a MOUBTN Command key and a partner claiming the SAME number as the
-  // OPPOSITE type (CA vs CF) cannot coexist. The partners are the alt
-  // keys (ALTHELP claims CAnn, default CA01; ALTPAGEDWN / ALTPAGEUP claim
-  // CFnn, defaults CF08 / CF07) and the plain CAnn / CFnn keywords.
+  // MOUBTN's Command-key exclusions. KeywordSpec's
+  // MOUBTN.commandKeyExclusion holds the DDS Reference table as one rule: a
+  // MOUBTN Command key and a partner claiming the SAME number as the
+  // OPPOSITE type (CA vs CF) cannot coexist. The partners are the alt keys
+  // (ALTHELP claims CAnn, default CA01; ALTPAGEDWN / ALTPAGEUP claim CFnn,
+  // defaults CF08 / CF07) and the plain CAnn / CFnn keywords.
   // -----------------------------------------------------------------------
 
 
@@ -5184,17 +5295,17 @@
   }
 
   // -----------------------------------------------------------------------
-  // Task I-139 - the alt keys' file-wide command-key exclusions. ALTHELP,
-  // ALTPAGEDWN and ALTPAGEUP each claim a command key (the written one, or
-  // the documented default), and their DDS Reference sections list the
-  // keywords that "cannot be specified in a file with" them on the same key
-  // number: KeywordSpec.altKeyFileExclusions() holds the lists (plain CAnn /
-  // CFnn, MNUCNL, MNUBARSW, SFLDROP / SFLENTER / SFLFOLD, MOUBTN, PSHBTNCHC
-  // and the other alt keys). I-136 already guards the MOUBTN rows where the
-  // MOUBTN and alt-key panels are edited; this is the whole table, as a
-  // model-diff check run on every committed edit (same shape as
-  // scrbarReservedNewConflictReason, so every UI path and the raw editor
-  // are covered and an already-invalid hand-written file is not re-reported).
+  // The alt keys' file-wide command-key exclusions. ALTHELP, ALTPAGEDWN and
+  // ALTPAGEUP each claim a command key (the written one, or the documented
+  // default), and their DDS Reference sections list the keywords that "cannot
+  // be specified in a file with" them on the same key number:
+  // KeywordSpec.altKeyFileExclusions() holds the lists (plain CAnn / CFnn,
+  // MNUCNL, MNUBARSW, SFLDROP / SFLENTER / SFLFOLD, MOUBTN, PSHBTNCHC and the
+  // other alt keys). I-136 already guards the MOUBTN rows where the MOUBTN
+  // and alt-key panels are edited; this is the whole table, as a model-diff
+  // check run on every committed edit (same shape as
+  // scrbarReservedNewConflictReason, so every UI path and the raw editor are
+  // covered and an already-invalid hand-written file is not re-reported).
   // -----------------------------------------------------------------------
 
   /** One claim per keyword in the model that holds a command key the
@@ -5292,11 +5403,13 @@
     return null;
   }
 
-  /** Task I-140 / I-141 - keywords that each require a marker keyword on the
-   *  same record format. Every (record, dependent) pair in `model` whose
-   *  record carries the dependent but not the marker. Returns
-   *  { 'RECORD|KEYWORD': message }. `marker` is the required keyword, `dependents`
-   *  the keywords that need it, `article` its wording in the message. */
+  /**
+   * Keywords that each require a marker keyword on the same record format. Every
+   * (record, dependent) pair in `model` whose record carries the dependent but not
+   * the marker. Returns { 'RECORD|KEYWORD': message }. `marker` is the required
+   * keyword, `dependents` the keywords that need it, `article` its wording in the
+   * message.
+   */
   function recordDependencyViolations(model, marker, dependents, article) {
     var out = {};
     ((model && model.records) || []).forEach(function (r) {
@@ -5337,13 +5450,14 @@
     return firstNewViolation(windowDependencyViolations(oldModel), after);
   }
 
-  /** Task I-142 - SFLCSRRRN(&relative-record): the parameter is required, is
-   *  written with the leading `&`, and names a field of the subfile-control
-   *  record that is a signed numeric (S) field of length 5, 0 decimals, usage
-   *  H (DDS Reference; KeywordSpec.sflcsrrrnFieldRule). `parameters` is the raw
-   *  text inside the parentheses. Returns null when valid (or when the record's
-   *  field list is unavailable - fail open on the field checks), else the
-   *  reason. */
+  /**
+   * SFLCSRRRN(&relative-record): the parameter is required, is written with the
+   * leading `&`, and names a field of the subfile-control record that is a
+   * signed numeric (S) field of length 5, 0 decimals, usage H (DDS Reference;
+   * KeywordSpec.sflcsrrrnFieldRule). `parameters` is the raw text inside the
+   * parentheses. Returns null when valid (or when the record's field list is
+   * unavailable - fail open on the field checks), else the reason.
+   */
   function sflcsrrrnParameterProblem(parameters, recordFields) {
     var rule = KeywordSpec.sflcsrrrnFieldRule();
     if (!rule) return null;
@@ -5397,9 +5511,11 @@
     return sflcsrrrnParameterProblem(params, recordFields);
   }
 
-  /** Task I-141 - SFLCSRRRN, SFLDLT and SFLINZ are record-level keywords of
-   *  the subfile-control record format, i.e. a record that carries SFLCTL.
-   *  Same diff-based, both-directions shape as the WINDOW check above. */
+  /**
+   * SFLCSRRRN, SFLDLT and SFLINZ are record-level keywords of the
+   * subfile-control record format, i.e. a record that carries SFLCTL. Same
+   * diff-based, both-directions shape as the WINDOW check above.
+   */
   function sflctlDependencyViolations(model) {
     return recordDependencyViolations(model, 'SFLCTL', KeywordSpec.sflctlDependentKeywords(), 'an');
   }
@@ -5409,12 +5525,14 @@
     return firstNewViolation(sflctlDependencyViolations(oldModel), after);
   }
 
-  /** Task I-145 - the subfile-keyword rules the I-121d slice found unenforced.
-   *  Every rule is a fact in KeywordSpec (SFLRNA.requiresOnRecord /
-   *  notOnMessageSubfile, SFLMODE.modeField, SFLMSGRCD.predefinedFields /
-   *  requiresWithSflinz / parameterMaximum). Each is a violation keyed by
-   *  record, so the same diff-based check as I-140 / I-141 reports only what
-   *  an edit adds (whether it adds the keyword or removes what it needs). */
+  /**
+   * The subfile-keyword rules the slice found unenforced. Every rule is a
+   * fact in KeywordSpec (SFLRNA.requiresOnRecord / notOnMessageSubfile,
+   * SFLMODE.modeField, SFLMSGRCD.predefinedFields / requiresWithSflinz /
+   * parameterMaximum). Each is a violation keyed by record, so the same
+   * diff-based check as I-140 / I-141 reports only what an edit adds (whether
+   * it adds the keyword or removes what it needs).
+   */
   function hasKeywordNamed(list, name) {
     return (list || []).some(function (k) { return k && k.name === name; });
   }
@@ -5534,13 +5652,13 @@
             }
           });
         });
-        // Task I-155: "There can be only two predefined fields" - the message
-        // identifier (SFLMSGKEY) FIRST, the program queue name (SFLPGMQ) SECOND
-        // and immediately following. Positions and keywords are the spec's
+        // "There can be only two predefined fields" - the message identifier
+        // (SFLMSGKEY) FIRST, the program queue name (SFLPGMQ) SECOND and
+        // immediately following. Positions and keywords are the spec's
         // predefinedFields facts. Fewer than two fields is not refused (a
-        // message subfile is built field by field); a third field, a
-        // predefined keyword in the wrong place, or a first / second field
-        // without its keyword is.
+        // message subfile is built field by field); a third field, a predefined
+        // keyword in the wrong place, or a first / second field without its
+        // keyword is.
         var mfields = r.fields || [];
         var pfs = KeywordSpec.messageSubfileFacts().predefinedFields;
         if (mfields.length > pfs.length) {
@@ -5561,11 +5679,12 @@
     });
     return out;
   }
-  /** Task I-146 - three subfile-control rules the I-121c / I-121d slices
-   *  found unenforced, all from the DDS Reference and all as facts in
-   *  KeywordSpec (SFLPAG.excludesWithFieldSelection / sizeEqualsPageError,
-   *  SFLDROP / SFLFOLD pairedWith):
-   *  (1) field selection - "When subfile page equals subfile size, you can
+  /**
+   * Three subfile-control rules the I-121c / I-121d slices found unenforced,
+   * all from the DDS Reference and all as facts in KeywordSpec
+   * (SFLPAG.excludesWithFieldSelection / sizeEqualsPageError, SFLDROP /
+   * SFLFOLD pairedWith): (1) field selection - "When subfile page equals
+   * subfile size, you can
    *      specify option indicators for fields in the subfile record format.
    *      This is called field selection." - makes SFLDROP, SFLFOLD, SFLINZ,
    *      SFLLIN, SFLRCDNBR, SFLRNA and SFLROLVAL not valid on the
@@ -5579,7 +5698,8 @@
    *  (3) SFLDROP and SFLFOLD on one record "must use the same key".
    *  Violations are keyed by record, so firstNewViolation reports only what
    *  an edit adds, in either direction (adding the keyword, or the indicator
-   *  that makes the subfile a field-selection one). */
+   *  that makes the subfile a field-selection one).
+   */
   function subfileFoldDropViolations(model) {
     var out = {};
     var fieldSelectionList = KeywordSpec.excludedWithFieldSelection();
@@ -5627,9 +5747,10 @@
     return firstNewViolation(subfileFoldDropViolations(oldModel), after);
   }
 
-  /** Task I-151 - the output-control relations the I-121a slice found
-   *  unenforced, every one a fact in KeywordSpec.recordKeywordFacts (read per
-   *  keyword, nothing hand-copied here):
+  /**
+   * The output-control relations the slice found unenforced, every one a fact
+   * in KeywordSpec.recordKeywordFacts (read per keyword, nothing hand-copied
+   * here):
    *   requiresRecordKeyword  ERASE / ERASEINP / MDTOFF / PROTECT need OVERLAY
    *   mutex                  PUTOVR and PUTRETAIN cannot share a record
    *   parameterCount.max     ERASE names at most 20 record formats
@@ -5640,7 +5761,8 @@
    *  already-invalid hand-written file never blocks an unrelated edit.
    *  PROTECT needs no PULLDOWN rule of its own: PULLDOWN forbids OVERLAY (its
    *  section lists ERASE, ERASEINP, MDTOFF and OVERLAY, not PROTECT), so
-   *  PROTECT on a PULLDOWN record can never have the OVERLAY it requires. */
+   *  PROTECT on a PULLDOWN record can never have the OVERLAY it requires.
+   */
   function instancesOf(list, name) {
     return (list || []).filter(function (k) { return k && k.name === name; });
   }
@@ -5695,10 +5817,12 @@
     return firstNewViolation(outputControlViolations(oldModel), after);
   }
 
-  /** Task I-165 - why `kw` (OVRATR / OVRDTA / TEXT) cannot be on ONE field, or
-   *  null. `usage` blank is O; `fieldKeywords` is the field's keyword list
-   *  (TEXT is refused beside SFLMSGKEY / SFLPGMQ). Shared by the model guard
-   *  and the panel's row hiding so the two cannot disagree. */
+  /**
+   * Why `kw` (OVRATR / OVRDTA / TEXT) cannot be on ONE field, or null.
+   * `usage` blank is O; `fieldKeywords` is the field's keyword list (TEXT is
+   * refused beside SFLMSGKEY / SFLPGMQ). Shared by the model guard and the
+   * panel's row hiding so the two cannot disagree.
+   */
   function multiLevelFieldReason(kw, usage, isConstant, fieldKeywords, fieldLabel) {
     var rule = KeywordSpec.fieldLevelEligibility(kw);
     if (!rule) return null;
@@ -5716,9 +5840,10 @@
     }
     return null;
   }
-  /** Task I-165 - the multi-level keyword eligibility rules the I-121j slice
-   *  recorded as spec facts (KeywordSpec.fieldLevelEligibility /
-   *  putretainRecordRules - nothing hand-copied here):
+  /**
+   * The multi-level keyword eligibility rules the slice recorded as spec facts
+   * (KeywordSpec.fieldLevelEligibility / putretainRecordRules - nothing
+   * hand-copied here):
    *   OVRATR  field level only on usage I / O / B and constant fields (not H)
    *   OVRDTA  field level only on usage O / B / M and never on a constant
    *   TEXT    not on a field that carries SFLMSGKEY or SFLPGMQ
@@ -5729,7 +5854,8 @@
    *  usage, or removing OVERLAY) and an already-invalid hand-written file
    *  never blocks an unrelated edit. PUTRETAIN with DSPMOD is NOT a violation:
    *  the reference says a warning is issued, so it is an advisory note
-   *  (putretainDspmodAdvisory). */
+   *  (putretainDspmodAdvisory).
+   */
   function multiLevelEligibilityViolations(model) {
     var out = {};
     ((model && model.records) || []).forEach(function (r) {
@@ -5753,13 +5879,15 @@
     });
     return out;
   }
-  /** Task I-172 - the field-level companion rules of one choice keyword, as the list of problems
-   *  the keyword WOULD have if it were on this field: [{ rule, text }] (rule is the I-171 violation
-   *  key part - COMPANION / NOSLTIND for CHCAVAIL / CHCUNAVAIL / CHCSLT, FIELD / RECORD for
-   *  CHCACCEL). Both the I-171 model guard (which asks only when the keyword is present) and the
-   *  choice panels (which ask before offering a row) read it, so the two can never disagree.
-   *  `recordKeywords` undefined skips the record-level rules (CHCSLT's PULLDOWN(*NOSLTIND),
-   *  CHCACCEL's PULLDOWN); `label` / `recordName` only word the text. */
+  /**
+   * The field-level companion rules of one choice keyword, as the list of problems the keyword
+   * WOULD have if it were on this field: [{ rule, text }] (rule is the violation key part -
+   * COMPANION / NOSLTIND for CHCAVAIL / CHCUNAVAIL / CHCSLT, FIELD / RECORD for CHCACCEL). Both the
+   * model guard (which asks only when the keyword is present) and the choice panels (which ask
+   * before offering a row) read it, so the two can never disagree. `recordKeywords` undefined skips
+   * the record-level rules (CHCSLT's PULLDOWN(*NOSLTIND), CHCACCEL's PULLDOWN); `label` /
+   * `recordName` only word the text.
+   */
   function choiceFieldCompanionProblems(kw, fieldKeywords, recordKeywords, label, recordName) {
     var out = [];
     var rule = KeywordSpec.choiceCompanionRules(kw);
@@ -5787,19 +5915,23 @@
     }
     return out;
   }
-  /** Task I-172 - the first companion problem `kw` would have on this field, or '' when it is fine
-   *  (the panel's row-hiding reason; same text the guard refuses with). */
+  /**
+   * The first companion problem `kw` would have on this field, or '' when it is fine (the panel's
+   * row-hiding reason; same text the guard refuses with).
+   */
   function choiceFieldCompanionReason(kw, fieldKeywords, recordKeywords, label, recordName) {
     var p = choiceFieldCompanionProblems(kw, fieldKeywords, recordKeywords, label || 'this field', recordName || 'this record');
     return p.length ? p[0].text : '';
   }
-  /** Task I-173 - the number of lines a menu-bar field occupies, or null when it has no MNUBARCHC.
-   *  The reference's formula: the lengths of the choice texts (a literal without its trailing blanks;
-   *  a &field at its own length) with 3 blanks between choices. Two decisions the reference leaves
-   *  open (KeywordSpec.menuBarLineRules): a line holds (smallest DSPSIZ width - 4) text positions,
-   *  and a choice that does not fit moves whole to the next line. The separator line counts as one
-   *  of the 12 unless the record's MNUBAR says *NOSEPARATOR (or has no MNUBAR). A &field that does
-   *  not exist in the record is skipped (a forward reference is left to the compiler). */
+  /**
+   * The number of lines a menu-bar field occupies, or null when it has no MNUBARCHC. The
+   * reference's formula: the lengths of the choice texts (a literal without its trailing blanks; a
+   * &field at its own length) with 3 blanks between choices. Two decisions the reference leaves
+   * open (KeywordSpec.menuBarLineRules): a line holds (smallest DSPSIZ width - 4) text positions,
+   * and a choice that does not fit moves whole to the next line. The separator line counts as one
+   * of the 12 unless the record's MNUBAR says *NOSEPARATOR (or has no MNUBAR). A &field that does
+   * not exist in the record is skipped (a forward reference is left to the compiler).
+   */
   function menuBarFieldLineCount(model, record, field) {
     var choices = (field.keywords || []).filter(function (k) { return k.name === 'MNUBARCHC'; });
     if (!choices.length) return null;
@@ -5830,10 +5962,12 @@
     var separator = !!mb && rules.separatorCountsAsLine && String(mb.parameters || '').toUpperCase().indexOf('*NOSEPARATOR') < 0;
     return { text: lines, separator: separator, total: lines + (separator ? 1 : 0), max: rules.maxLines };
   }
-  /** Task I-183 - the value rules for CHCAVAIL / CHCUNAVAIL / CHCSLT ("one parameter must be specified";
-   *  (*COLOR x) one of the colour list; (*DSPATR ...) each of the display-attribute list; only those two
-   *  parameter forms, one group of each), as { key, text } problems. `where` names the place for the
-   *  message ("field F1" or "record format R1"). Lists come from KeywordSpec.choiceStateValueRules. */
+  /**
+   * The value rules for CHCAVAIL / CHCUNAVAIL / CHCSLT ("one parameter must be specified"; (*COLOR
+   * x) one of the colour list; (*DSPATR...) each of the display-attribute list; only those two
+   * parameter forms, one group of each), as { key, text } problems. `where` names the place for the
+   * message ("field F1" or "record format R1"). Lists come from KeywordSpec.choiceStateValueRules.
+   */
   function choiceStateValueProblems(kw, list, where) {
     var rules = KeywordSpec.choiceStateValueRules(kw);
     var found = [];
@@ -5871,14 +6005,16 @@
     });
     return found;
   }
-  /** Task I-183 - CHCACCEL(choice-number accelerator-text) and CHCCTL(choice-number &control-field
-   *  [message]) value rules, as { key, text } problems: the choice number is a whole number in the
-   *  entry's range (1-99); CHCACCEL's text is required and is a quoted string or a &field (a field that
-   *  exists must be character, usage P); CHCCTL's control field is required (its own sentence, so a
-   *  missing one is no longer reported as a missing CHOICE) and a message id needs a message file; a
-   *  message id / file given as &field that exists must be character, usage P, 7 / 10 long. A &field that
-   *  does not exist yet is left to the compiler (forward references, as for every other field reference).
-   *  Everything comes from KeywordSpec.choiceNumberRange / choiceTextAndMessageRules. */
+  /**
+   * CHCACCEL(choice-number accelerator-text) and CHCCTL(choice-number &control-field [message])
+   * value rules, as { key, text } problems: the choice number is a whole number in the entry's
+   * range (1-99); CHCACCEL's text is required and is a quoted string or a &field (a field that
+   * exists must be character, usage P); CHCCTL's control field is required (its own sentence, so a
+   * missing one is no longer reported as a missing CHOICE) and a message id needs a message file; a
+   * message id / file given as &field that exists must be character, usage P, 7 / 10 long. A &field
+   * that does not exist yet is left to the compiler (forward references, as for every other field
+   * reference). Everything comes from KeywordSpec.choiceNumberRange / choiceTextAndMessageRules.
+   */
   function choiceNumberedValueProblems(kws, fields, label) {
     var found = [];
     var shapes = KeywordSpec.choiceTextAndMessageRules();
@@ -5944,9 +6080,10 @@
     });
     return found;
   }
-  /** Task I-171 - the choice and menu-bar companion-keyword rules the I-121l slice recorded as
-   *  spec facts (KeywordSpec.choiceCompanionRules / chcctlRules / mnubarchcPullDownRecordKeyword -
-   *  nothing hand-copied here). Each is a "must also be specified" the DDS Reference states:
+  /**
+   * The choice and menu-bar companion-keyword rules the slice recorded as spec facts
+   * (KeywordSpec.choiceCompanionRules / chcctlRules / mnubarchcPullDownRecordKeyword - nothing
+   * hand-copied here). Each is a "must also be specified" the DDS Reference states:
    *   CHCAVAIL / CHCUNAVAIL / CHCSLT  the field carries one of their choice keywords; at record
    *                                   level (a subfile control record) SFLSNGCHC or SFLMLTCHC
    *   CHCSLT                          with CHOICE instead of MNUBARCHC the record needs PULLDOWN(*NOSLTIND)
@@ -5958,11 +6095,12 @@
    *  is built in any order, so a forward reference is left to the compiler. Violations are keyed
    *  record | keyword | rule | field, so firstNewViolation reports only what an edit adds, in either
    *  direction (adding the keyword, or removing what it depends on), and an already-invalid
-   *  hand-written file never blocks an unrelated edit. */
+   *  hand-written file never blocks an unrelated edit.
+   */
   function choiceMenuBarViolations(model) {
     var out = {};
     var records = (model && model.records) || [];
-    // I-121q: the three colour-state keyword names come from the spec.
+    // The three colour-state keyword names come from the spec.
     var STATE = CHOICE_COLOR_STATE_KEYWORDS;
     function anyOf(list, names) { return (names || []).filter(function (n) { return hasKeywordNamed(list, n); }); }
     function sameNumber(a, b) { return String(parseInt(a, 10)) === String(parseInt(b, 10)); }
@@ -5979,9 +6117,10 @@
       STATE.forEach(function (kw) {
         choiceStateValueProblems(kw, r.keywords, 'record format ' + r.name).forEach(function (p) { out[rname + '|' + kw + '|VAL|' + p.key] = p.text; });
       });
-      // Task I-184: SFLSNGCHC / SFLMLTCHC - valid only on a subfile control record; the subfile it names has
-      // one output field and no input-capable fields (hidden fields are fine); SFLMLTCHC's &number-selected
-      // names a hidden Y 4,0 field. A subfile or field that does not exist yet is a forward reference: not a violation.
+      // SFLSNGCHC / SFLMLTCHC - valid only on a subfile control record; the subfile it names has
+      // one output field and no input-capable fields (hidden fields are fine); SFLMLTCHC's
+      // &number-selected names a hidden Y 4,0 field. A subfile or field that does not exist yet is
+      // a forward reference: not a violation.
       KeywordSpec.sflChoiceKeywords().forEach(function (kw) {
         var ck = keywordNamed(r.keywords, kw);
         if (!ck) return;
@@ -6033,11 +6172,13 @@
             out[rname + '|' + kw + '|' + p.rule + '|' + fname] = p.text;
           });
         });
-        // Task I-183: the colour / display-attribute values of the three state keywords, after the companion rules.
+        // The colour / display-attribute values of the three state keywords, after the companion
+        // rules.
         STATE.forEach(function (kw) {
           choiceStateValueProblems(kw, kws, 'field ' + label).forEach(function (p) { out[rname + '|' + kw + '|VAL|' + fname + '|' + p.key] = p.text; });
         });
-        // Task I-183: CHCACCEL / CHCCTL choice numbers (1-99), CHCACCEL's required text, CHCCTL's required control field.
+        // CHCACCEL / CHCCTL choice numbers (1-99), CHCACCEL's required text, CHCCTL's required
+        // control field.
         choiceNumberedValueProblems(kws, r.fields, label).forEach(function (p) { out[rname + '|' + p.key + '|' + fname] = p.text; });
         var cr = KeywordSpec.chcctlRules();
         getChoiceControls(kws).forEach(function (c) {
@@ -6065,8 +6206,8 @@
             out[rname + '|MNUBARCHC|PULLDOWN|' + fname + '#' + target] = 'MNUBARCHC on field ' + label + ' names record format ' + rec.name + ', which has no ' + need + ' keyword: the record must contain ' + need + ' (per the DDS Reference).';
           }
         });
-        // Task I-175 - MNUBARCHC and MNUBARSEP need MNUBAR on the record; MNUBARSEP cannot sit
-        // beside MNUBAR(*NOSEPARATOR). Both read from the spec (KeywordSpec.menuBarRecordRules).
+        // MNUBARCHC and MNUBARSEP need MNUBAR on the record; MNUBARSEP cannot sit beside
+        // MNUBAR(*NOSEPARATOR). Both read from the spec (KeywordSpec.menuBarRecordRules).
         ['MNUBARCHC', 'MNUBARSEP'].forEach(function (mk) {
           if (!hasKeywordNamed(kws, mk)) return;
           var mr = KeywordSpec.menuBarRecordRules(mk);
@@ -6102,8 +6243,9 @@
     if (!Object.keys(after).length) return null;
     return firstNewViolation(multiLevelEligibilityViolations(oldModel), after);
   }
-  /** Task I-170 - the reference-field and help-identifier rules the I-121o
-   *  entries record (KeywordSpec.referenceFieldRules - nothing hand-copied):
+  /**
+   * The reference-field and help-identifier rules the entries record
+   * (KeywordSpec.referenceFieldRules - nothing hand-copied):
    *   REFFLD / DLTCHK / DLTEDT  valid only with R in position 29
    *   ALIAS   different from every other alternative name and from every
    *           field name in the record format (compared as upper case)
@@ -6112,7 +6254,8 @@
    *  Violations are keyed so firstNewViolation reports only what an edit
    *  adds: an already-invalid hand-written file never blocks an unrelated
    *  edit, but clearing the reference flag while DLTCHK / DLTEDT remain, or
-   *  adding a clashing alias, is reported. */
+   *  adding a clashing alias, is reported.
+   */
   function referenceFieldViolations(model) {
     var rules = KeywordSpec.referenceFieldRules();
     var out = {};
@@ -6171,8 +6314,10 @@
     if (!Object.keys(after).length) return null;
     return firstNewViolation(referenceFieldViolations(oldModel), after);
   }
-  /** Task I-165 - the advisory (not a refusal) for PUTRETAIN on a record that
-   *  also has DSPMOD, or null. `recordKeywords` / `fields` are the record's. */
+  /**
+   * The advisory (not a refusal) for PUTRETAIN on a record that also has
+   * DSPMOD, or null. `recordKeywords` / `fields` are the record's.
+   */
   function putretainDspmodAdvisory(recordKeywords, fields) {
     var pr = KeywordSpec.putretainRecordRules();
     var has = hasKeywordNamed(recordKeywords, 'PUTRETAIN') || (fields || []).some(function (f) { return hasKeywordNamed(f.keywords, 'PUTRETAIN'); });
@@ -6182,13 +6327,15 @@
     return 'PUTRETAIN with ' + other.join(', ') + ' on the same record format: the DDS Reference says a warning is issued when the display file is created, and PUTRETAIN is ignored when the display mode changes. Creating the file with RSTDSP(*YES) is recommended.';
   }
 
-  /** Task I-168 - the advisory (not a refusal) for the four keywords that only
-   *  the System/36 considerations list adds to USRDSPMGT's forbidden set
-   *  (ERRSFL, MNUBAR, PULLDOWN, SNGCHCFLD), or null. The keyword's own eight
-   *  names are refused by fileHelpViolations (I-160); the extras are read from
-   *  the spec as considerations minus own, never copied. Decision: that section
-   *  is conditioned on the System/36 environment, so the edit stays allowed and
-   *  the panel says so; promote to a refusal only if a compile settles it. */
+  /**
+   * The advisory (not a refusal) for the four keywords that only the System/36
+   * considerations list adds to USRDSPMGT's forbidden set (ERRSFL, MNUBAR,
+   * PULLDOWN, SNGCHCFLD), or null. The keyword's own eight names are refused by
+   * fileHelpViolations; the extras are read from the spec as considerations
+   * minus own, never copied. Decision: that section is conditioned on the
+   * System/36 environment, so the edit stays allowed and the panel says so;
+   * promote to a refusal only if a compile settles it.
+   */
   function usrdspmgtSystem36ExtrasNote(model) {
     var fileKws = (model && model.fileKeywords) || [];
     if (!hasKeywordNamed(fileKws, 'USRDSPMGT')) return null;
@@ -6207,10 +6354,11 @@
       'if the file is created for the System/36 environment, remove ' + (found.length > 1 ? 'them' : 'it') + '.';
   }
 
-  /** Task I-152 - the window, menu-bar, help and logging relations the
-   *  I-121e slice found unenforced, every value read from KeywordSpec
-   *  (recordRequires, notOnRecordTypes, fileExcludes, hlpseqLimits,
-   *  requiresHelpSpecification, mnubardspFieldShapes - nothing hand-copied):
+  /**
+   * The window, menu-bar, help and logging relations the slice found unenforced, every
+   * value read from KeywordSpec (recordRequires, notOnRecordTypes, fileExcludes,
+   * hlpseqLimits, requiresHelpSpecification, mnubardspFieldShapes - nothing
+   * hand-copied):
    *   HLPCMDKEY / HLPSEQ  not on the record types the spec lists (SFLCTL was the
    *                       unguarded one); HLPCMDKEY not in a file with USRDSPMGT
    *   WDWTITLE            needs a WINDOW on the record. A WINDOW that only
@@ -6222,17 +6370,20 @@
    *   MNUBARDSP           the menu-bar record it names exists in the file and
    *                       is a MNUBAR record; &choice-field / &pull-down-input
    *                       are written with the leading & the compiler requires
-   *                       (I-158) and are hidden fields of the documented shape; several
+   *                       And are hidden fields of the documented shape; several
    *                       MNUBARDSP on one record must all carry option
    *                       indicators
    *  Violations are keyed so firstNewViolation reports only what an edit adds,
    *  in either direction (adding the keyword, or removing what it needs), and
-   *  an already-invalid hand-written file never blocks an unrelated edit. */
-  /** Task I-182 - splits a WDWBORDER / WDWTITLE parameter string into its top-level items:
-   *  { kind: 'group', tag: '*COLOR', values: [...] } for (*TAG value ...), { kind: 'text' } for a
-   *  quoted string or &field (bare or in parentheses, the forms the editor writes), and
-   *  { kind: 'bare', token } for anything else (*TOP, *CENTER, ...). Quotes (with '' escapes) and
-   *  nested parentheses are respected. */
+   *  an already-invalid hand-written file never blocks an unrelated edit.
+   */
+  /**
+   * Splits a WDWBORDER / WDWTITLE parameter string into its top-level items: { kind: 'group',
+   * tag: '*COLOR', values: [...] } for (*TAG value...), { kind: 'text' } for a quoted string or
+   * &field (bare or in parentheses, the forms the editor writes), and { kind: 'bare', token } for
+   * anything else (*TOP, *CENTER,...). Quotes (with '' escapes) and nested parentheses are
+   * respected.
+   */
   function windowParameterItems(text) {
     var s = String(text == null ? '' : text);
     var items = [];
@@ -6298,11 +6449,13 @@
     }
     return items;
   }
-  /** Task I-182 - the WDWBORDER / WDWTITLE parameter rules, as violations keyed under `where` (a record
-   *  name, or 'file' at the file level): at least one parameter, colour and display-attribute values from
-   *  the keyword's own lists, only the parameter forms the format line shows, and one value per slot
-   *  (colour, text, character string, alignment, position) within a single keyword instance. Several
-   *  instances combine, so they are not compared. All lists are read from KeywordSpec. */
+  /**
+   * The WDWBORDER / WDWTITLE parameter rules, as violations keyed under `where` (a record name, or
+   * 'file' at the file level): at least one parameter, colour and display-attribute values from the
+   * keyword's own lists, only the parameter forms the format line shows, and one value per slot
+   * (colour, text, character string, alignment, position) within a single keyword instance. Several
+   * instances combine, so they are not compared. All lists are read from KeywordSpec.
+   */
   function windowParameterViolations(out, where, kws, name) {
     var vocab = name === 'WDWTITLE' ? KeywordSpec.wdwtitleVocabulary() : KeywordSpec.wdwborderVocabulary();
     var allowedGroups = name === 'WDWTITLE' ? ['*TEXT', '*COLOR', '*DSPATR'] : ['*COLOR', '*DSPATR', '*CHAR'];
@@ -6375,7 +6528,7 @@
       if (String(field.dataType || '').toUpperCase() !== shape.keyboardShift) bits.push('data type ' + shape.keyboardShift);
       return bits.length ? 'must be ' + bits.join(', ') : null;
     }
-    // Task I-182: WDWBORDER at the file level (its record-level use is checked per record below).
+    // WDWBORDER at the file level (its record-level use is checked per record below).
     windowParameterViolations(out, 'file', fileKws, 'WDWBORDER');
     records.forEach(function (r) {
       var kws = r.keywords || [];
@@ -6403,8 +6556,8 @@
           }
         });
       }
-      // (2b) Task I-182: WDWBORDER at the record level needs WINDOW or PULLDOWN on the record; the
-      // WDWBORDER / WDWTITLE parameter rules (at least one parameter, values from their own lists).
+      // (2b) WDWBORDER at the record level needs WINDOW or PULLDOWN on the record; the WDWBORDER /
+      // WDWTITLE parameter rules (at least one parameter, values from their own lists).
       if (hasKeywordNamed(kws, 'WDWBORDER')) {
         var needOne = KeywordSpec.wdwborderVocabulary().requiresOneOfOnRecord;
         if (!needOne.some(function (n) { return hasKeywordNamed(kws, n); })) {
@@ -6459,10 +6612,10 @@
         };
         var checkField = function (ref, shape, role) {
           if (!ref) return;
-          //  Task I-158: the compiler requires the leading & on both field
-          //  parameters (the reference syntax and all its examples write it),
-          //  so a bare name is a violation like any other here - reported only
-          //  when an edit adds it, so a hand-written bare file still opens.
+          //  The compiler requires the leading & on both field parameters (the
+          //  reference syntax and all its examples write it), so a bare name
+          //  is a violation like any other here - reported only when an edit
+          //  adds it, so a hand-written bare file still opens.
           if (ref.charAt(0) !== shapes.fieldReferencePrefix) {
             out[r.name + '|MNUBARDSP|AMP|' + role + '|' + i] = 'MNUBARDSP field ' + ref + ' on record format ' + r.name +
               ' must be written ' + shapes.fieldReferencePrefix + ref + ' (the field parameters take a leading ' +
@@ -6504,10 +6657,11 @@
     return firstNewViolation(windowHelpMenuViolations(oldModel), after);
   }
 
-  /** Task I-160 - the file-level help and USRDSPMGT relations the I-121g slice
-   *  found unenforced, every list read from KeywordSpec (requiresInFile,
-   *  excludesInFile, requiresKeywordAtLevels, cannotCoexistWith,
-   *  parameters.recordFormatName - nothing hand-copied):
+  /**
+   * The file-level help and USRDSPMGT relations the slice found unenforced,
+   * every list read from KeywordSpec (requiresInFile, excludesInFile,
+   * requiresKeywordAtLevels, cannotCoexistWith, parameters.recordFormatName -
+   * nothing hand-copied):
    *   HLPFULL    needs HLPPNLGRP at the file level or on a help specification
    *   HLPSCHIDX  needs at least one HLPPNLGRP (file level or help specification)
    *              and cannot be with HLPSHELF
@@ -6520,7 +6674,8 @@
    *  in either direction (adding the keyword, adding what it forbids, or
    *  removing what it needs), and an already-invalid hand-written file never
    *  blocks an unrelated edit. HLPSHELF has no section of its own in the
-   *  reference (only HLPSCHIDX names it), so it is matched at any level. */
+   *  reference (only HLPSCHIDX names it), so it is matched at any level.
+   */
   function fileHelpViolations(model) {
     var out = {};
     var fileKws = (model && model.fileKeywords) || [];
@@ -6586,15 +6741,15 @@
     return firstNewViolation(fileHelpViolations(oldModel), after);
   }
 
-  /** Task I-161 - the help-specification (H specification) rules the I-121k
-   *  slice recorded as facts (KeywordSpec.helpSpecificationRules and the
-   *  HLPARA / HLPBDY / HLPEXCLD entries) and no guard enforced. Diff-based, in
-   *  the I-140 / I-148 / I-160 shape: it reports only a violation the edit
-   *  adds, in either direction, so an already-invalid hand-written file never
-   *  blocks an unrelated edit. A violation is keyed by its rule, the record and
-   *  a signature of the H specification's own content (not its position), so
-   *  inserting an H specification above another does not make the other look
-   *  new. Checked:
+  /**
+   * The help-specification (H specification) rules the slice recorded as facts
+   * (KeywordSpec.helpSpecificationRules and the HLPARA / HLPBDY / HLPEXCLD
+   * entries) and no guard enforced. Diff-based, in the I-140 / I-148 / I-160
+   * shape: it reports only a violation the edit adds, in either direction, so
+   * an already-invalid hand-written file never blocks an unrelated edit. A
+   * violation is keyed by its rule, the record and a signature of the H
+   * specification's own content (not its position), so inserting an H
+   * specification above another does not make the other look new. Checked:
    *   - at most one of HLPRCD / HLPPNLGRP / HLPDOC, at most one of HLPBDY /
    *     HLPEXCLD, HLPEXCLD only with HLPPNLGRP, on the same H specification;
    *   - no H specification in an SFL record, or in the SFLCTL record of a
@@ -6609,7 +6764,8 @@
    *     one HLPARA per H specification without a display size condition, and
    *     no display size condition twice.
    *  Not enforced (it would refuse a half-built H specification): "exactly one"
-   *  / "at least one HLPARA" as a lower bound. */
+   *  / "at least one HLPARA" as a lower bound.
+   */
   function helpSpecViolations(model) {
     var out = {};
     var records = (model && model.records) || [];
@@ -6726,9 +6882,9 @@
         }
       });
     });
-    // I-190: HLPPNLGRP's file-wide exclusions ("a display file cannot contain both HLPPNLGRP and
-    // HLPRCD keywords, nor HLPPNLGRP and HLPDOC keywords") hold across the file level and every
-    // H specification, so HLPRCD / HLPDOC on an H specification beside HLPPNLGRP anywhere else is
+    // HLPPNLGRP's file-wide exclusions ("a display file cannot contain both HLPPNLGRP and HLPRCD
+    // keywords, nor HLPPNLGRP and HLPDOC keywords") hold across the file level and every H
+    // specification, so HLPRCD / HLPDOC on an H specification beside HLPPNLGRP anywhere else is
     // refused too. The pairs come from the spec's own mutex lists.
     var anywhere = {};
     function note(list) { (list || []).forEach(function (k) { if (k && k.name) anywhere[k.name] = true; }); }
@@ -6749,9 +6905,10 @@
     return firstNewViolation(helpSpecViolations(oldModel), after);
   }
 
-  /** Task I-162 - HELP's two relations to the other help keywords, the
-   *  I-121h spec facts read through KeywordSpec.helpRelations() (nothing
-   *  hand-copied). The HELP section (DDS_Keyword_V7r6.txt ~line 6564) says:
+  /**
+   * HELP's two relations to the other help keywords, the spec facts read
+   * through KeywordSpec.helpRelations() (nothing hand-copied). The HELP
+   * section (DDS_Keyword_V7r6.txt ~line 6564) says:
    *   1. "When a response indicator is specified on the HELP keyword, no H
    *      specifications or HLPRCD, HLPPNLGRP, HLPDOC, or HLPRTN keywords can
    *      be specified in the file."
@@ -6768,7 +6925,8 @@
    *  keyword, adding a help keyword beside HELP(95) or into a file with no
    *  bare HELP, removing the last bare HELP, giving a bare HELP an
    *  indicator), and an already-invalid hand-written file never blocks an
-   *  unrelated edit. */
+   *  unrelated edit.
+   */
   function helpKeywordRelationViolations(model) {
     var out = {};
     var rel = KeywordSpec.helpRelations();
@@ -6822,13 +6980,15 @@
     return firstNewViolation(helpKeywordRelationViolations(oldModel), after);
   }
 
-  /** Task I-149 - RETKEY / RETCMDKEY exclusions and file-level requirements
-   *  (the I-121b spec facts: fileAndRecordExcludes, recordExcludes,
-   *  fileExcludes, fileRequires). The exclusions span the file and the record,
-   *  so each violation is keyed record | keyword | other and the diff-based
-   *  check reports a clash an edit adds from EITHER side: adding RETKEY to a
-   *  record, or adding HELP at the file level while a record has RETKEY.
-   *  `CAnn` / `CFnn` in a spec list stand for any command key keyword. */
+  /**
+   * RETKEY / RETCMDKEY exclusions and file-level requirements (the spec facts:
+   * fileAndRecordExcludes, recordExcludes, fileExcludes, fileRequires). The
+   * exclusions span the file and the record, so each violation is keyed record
+   * | keyword | other and the diff-based check reports a clash an edit adds
+   * from EITHER side: adding RETKEY to a record, or adding HELP at the file
+   * level while a record has RETKEY. `CAnn` / `CFnn` in a spec list stand for
+   * any command key keyword.
+   */
   function retKeyViolations(model) {
     var out = {};
     var fileKws = (model && model.fileKeywords) || [];
@@ -6847,7 +7007,7 @@
       var kws = r.keywords || [];
       ['RETKEY', 'RETCMDKEY'].forEach(function (n) {
         if (!hasKeywordNamed(kws, n)) return;
-        // Task I-188: "Neither keyword is allowed on a subfile format (SFL keyword) or on a user-defined record
+        // "Neither keyword is allowed on a subfile format (SFL keyword) or on a user-defined record
         // (USRDFN keyword)" - the spec's notOnRecordTypes, read here like HLPCMDKEY / HLPSEQ's.
         KeywordSpec.notOnRecordTypes(n).forEach(function (type) {
           if (hasKeywordNamed(kws, type)) {
@@ -6888,12 +7048,15 @@
     return firstNewViolation(retKeyViolations(oldModel), after);
   }
 
-  /** Task I-196 - MNUBARSW / MNUCNL are "allowed only in a file containing a menu-bar record" (their own sections,
-   *  recorded by I-189 as requiresMenuBarRecordInFile). A menu-bar record is a record format with MNUBAR. Each
-   *  violation is keyed by the keyword and where it sits (file level, or the record), so the diff-based check reports
-   *  what an edit adds from either side: adding the keyword to a file with no menu-bar record, or removing / retyping
-   *  the last menu-bar record while either keyword is still there. A half-built file is not allowed: the menu-bar
-   *  record has to exist before the keyword is added (an edit that adds both together passes). */
+  /**
+   * MNUBARSW / MNUCNL are "allowed only in a file containing a menu-bar record" (their own
+   * sections, recorded by as requiresMenuBarRecordInFile). A menu-bar record is a record format
+   * with MNUBAR. Each violation is keyed by the keyword and where it sits (file level, or the
+   * record), so the diff-based check reports what an edit adds from either side: adding the keyword
+   * to a file with no menu-bar record, or removing / retyping the last menu-bar record while either
+   * keyword is still there. A half-built file is not allowed: the menu-bar record has to exist
+   * before the keyword is added (an edit that adds both together passes).
+   */
   function menuBarRecordRequiredViolations(model) {
     var out = {};
     var records = (model && model.records) || [];
@@ -6917,10 +7080,10 @@
   }
 
   // -----------------------------------------------------------------------
-  // Task I-159 - the file-level display and I/O rules the I-121f slice found
-  // unenforced. Each below is a sentence of the keyword's own DDS Reference
-  // section (see the spec entries); where a section does not settle a point
-  // the spec records an open question and nothing is invented:
+  // The file-level display and I/O rules the slice found unenforced. Each
+  // below is a sentence of the keyword's own DDS Reference section (see the
+  // spec entries); where a section does not settle a point the spec records
+  // an open question and nothing is invented:
   //   MSGLOC   the parameter is required, a line number 1 through 28
   //   ERRSFL   no MSGLOC of 25 for the 24 x 80 size or 28 for the 27 x 132
   //            size in a file that has ERRSFL (an unconditioned MSGLOC is the
@@ -7089,8 +7252,8 @@
   }
 
   // -----------------------------------------------------------------------
-  // Task I-163 - the parameter forms of the command-function keywords. Each is
-  // a format line of its own DDS Reference section, read through
+  // The parameter forms of the command-function keywords. Each is a format
+  // line of its own DDS Reference section, read through
   // KeywordSpec.commandFunctionParameterShapes():
   //   ALWGPH, INVITE         "This keyword has no parameters."
   //   VLDCMDKEY              VLDCMDKEY(response-indicator ['text']) - "The
@@ -7179,9 +7342,10 @@
     return firstNewViolation(commandFunctionParameterViolations(oldModel), after);
   }
 
-  /** Task I-148 - the initialize / retain / return relations the I-121b slice
-   *  found unenforced, read from KeywordSpec (recordRequires,
-   *  requiresBareKeyword, recordExcludes - nothing hand-copied here):
+  /**
+   * The initialize / retain / return relations the slice found unenforced, read
+   * from KeywordSpec (recordRequires, requiresBareKeyword, recordExcludes -
+   * nothing hand-copied here):
    *   GETRETAIN  needs UNLOCK with no parameters on the record (UNLOCK(any
    *              parameter) makes the system ignore GETRETAIN and issue an error)
    *   RTNDTA     cannot be with UNLOCK
@@ -7191,7 +7355,8 @@
    *  Violations are keyed by record, so firstNewViolation reports only what an
    *  edit adds, in either direction - adding the dependent keyword, or removing
    *  or changing what it needs - and an already-invalid hand-written file never
-   *  blocks an unrelated edit. */
+   *  blocks an unrelated edit.
+   */
   function initRetainReturnViolations(model) {
     var out = {};
     var names = KeywordSpec.initRetainReturnRelationKeywords();
@@ -7237,19 +7402,21 @@
     return firstNewViolation(initRetainReturnViolations(oldModel), after);
   }
 
-  /** Task I-150 - BLANKS / CNTFLD / FLDCSRPRG / FLTFIXDEC field rules (the
-   *  I-121n spec facts: allowedUsage, requiredDataTypes, plus notInSubfile,
-   *  notWithKeywords, widthMustBeLessThanFieldLength and
-   *  parameterNamesInputCapableFieldInSameRecord). A model-diff check, so the
-   *  raw keyword editor, every panel and the Basic tab's data type / usage
-   *  change are all covered, with the record context (subfile) the per-field
-   *  backstops lack. A blank usage is O; a blank data type is not F, but IS
-   *  character for CNTFLD when no decimal positions are given. Violations are
-   *  keyed record | keyword | rule | n (n = nth violating field of that kind in
-   *  the record), so renaming an already-wrong field is not a new violation. */
-  // Task I-192 - CNTFLD's layout rules. The width a continued-entry column
-  // must fit within is the record's WINDOW width (numeric forms, or one
-  // named reference resolved in the same model) and otherwise the narrowest
+  /**
+   * BLANKS / CNTFLD / FLDCSRPRG / FLTFIXDEC field rules (the spec facts:
+   * allowedUsage, requiredDataTypes, plus notInSubfile, notWithKeywords,
+   * widthMustBeLessThanFieldLength and
+   * parameterNamesInputCapableFieldInSameRecord). A model-diff check, so the
+   * raw keyword editor, every panel and the Basic tab's data type / usage
+   * change are all covered, with the record context (subfile) the per-field
+   * backstops lack. A blank usage is O; a blank data type is not F, but IS
+   * character for CNTFLD when no decimal positions are given. Violations are
+   * keyed record | keyword | rule | n (n = nth violating field of that kind in
+   * the record), so renaming an already-wrong field is not a new violation.
+   */
+  // CNTFLD's layout rules. The width a continued-entry column must fit
+  // within is the record's WINDOW width (numeric forms, or one named
+  // reference resolved in the same model) and otherwise the narrowest
   // display the file declares (24 x 80 when it declares none).
   function windowColumnsOf(model, rec, depth) {
     var w = getWindowParamsKeyword(rec && rec.keywords);
@@ -7327,7 +7494,8 @@
           if (kw === 'CNTFLD' && /^\d+$/.test(param) && Number(f.length) > 0 && Number(param) >= Number(f.length)) {
             add(kw, 'WIDTH', 'CNTFLD(' + param + ') on field ' + fname + ': the column width must be less than the field length (' + f.length + ') (per the DDS Reference).');
           }
-          // Task I-180 - CNTFLD's one parameter is a whole number; FLTPCN's is *SINGLE or *DOUBLE and caps the length.
+          // CNTFLD's one parameter is a whole number; FLTPCN's is *SINGLE or *DOUBLE and caps the
+          // length.
           if (KeywordSpec.widthParameterIsNumber(kw) && !/^\d+$/.test(param)) {
             add(kw, 'PARAM', kw + (param ? '(' + param + ')' : '') + ' on field ' + fname + ': the one parameter must be the column width, a whole number (per the DDS Reference).');
           }
@@ -7349,7 +7517,7 @@
             var hit = KeywordSpec.conditionalMutexHit(kw, other);
             if (hit) add(kw, 'WITH|' + hit, kw + ' cannot be specified with ' + hit + ' on field ' + fname + ' (per the DDS Reference).');
           });
-          // Task I-192 - the width fits the display or window, and 2 spaces from other fields.
+          // The width fits the display or window, and 2 spaces from other fields.
           if (KeywordSpec.widthMustFitDisplay(kw) && /^\d+$/.test(param) && Number(param) > 0) {
             var limit = cntfldWidthLimit(model, r);
             if (Number(param) > limit.columns) {
@@ -7389,15 +7557,17 @@
     return firstNewViolation(fieldKindViolations(oldModel), after);
   }
 
-  /** Task I-164 - the pairings I-121h found unenforced (spec facts:
-   *  notWithAlternateName on PAGEDOWN / PAGEUP, notAtBothFileAndRecordLevel on
-   *  INVITE). "The ROLLUP keyword cannot be specified with PAGEDOWN" and "The
-   *  ROLLDOWN keyword cannot be specified with PAGEUP" are applied at the
-   *  level the section states them - on the same record, and likewise on the
-   *  file level; a file-level ROLLUP with a record-level PAGEDOWN is NOT
-   *  refused, because the section does not say so. INVITE is refused at the
-   *  file level when any record has it and the reverse. Model-diff check
-   *  (the I-140 / I-149 shape), so only a clash an edit adds is reported. */
+  /**
+   * The pairings I-121h found unenforced (spec facts: notWithAlternateName on
+   * PAGEDOWN / PAGEUP, notAtBothFileAndRecordLevel on INVITE). "The ROLLUP
+   * keyword cannot be specified with PAGEDOWN" and "The ROLLDOWN keyword
+   * cannot be specified with PAGEUP" are applied at the level the section
+   * states them - on the same record, and likewise on the file level; a
+   * file-level ROLLUP with a record-level PAGEDOWN is NOT refused, because the
+   * section does not say so. INVITE is refused at the file level when any
+   * record has it and the reverse. Model-diff check (the I-140 / I-149 shape),
+   * so only a clash an edit adds is reported.
+   */
   function commandFunctionPairingViolations(model) {
     var out = {};
     var fileKws = (model && model.fileKeywords) || [];
@@ -7425,15 +7595,16 @@
     return firstNewViolation(commandFunctionPairingViolations(oldModel), after);
   }
 
-  /** Task I-169 - the same key number cannot be both a CA and a CF key. Both sections say
-   *  "CA02 and CF02 are not valid in the same display file" and that file-level keys extend to
-   *  the record level (CA02 at file level makes CF02 on a record an error), so the scope is
-   *  the whole file: file level, any record, same record or not. Facts through
-   *  KeywordSpec.commandKeyNumberClaim: the plain CAnn / CFnn keywords and (I-187) MNUBARSW / MNUCNL, whose
-   *  CAnn key (explicit or default CA10 / CA12) counts as a CA use (SFLDROP(CAnn), MOUBTN and the ALT keys
-   *  are other keywords with their own rules). One violation per key
-   *  number, keyed by it, so firstNewViolation reports only a clash an edit adds (in either
-   *  direction) and a hand-written file that is already clashing stays editable. */
+  /**
+   * The same key number cannot be both a CA and a CF key. Both sections say "CA02 and CF02 are not
+   * valid in the same display file" and that file-level keys extend to the record level (CA02 at
+   * file level makes CF02 on a record an error), so the scope is the whole file: file level, any
+   * record, same record or not. Facts through KeywordSpec.commandKeyNumberClaim: the plain CAnn /
+   * CFnn keywords and MNUBARSW / MNUCNL, whose CAnn key (explicit or default CA10 / CA12) counts as
+   * a CA use (SFLDROP(CAnn), MOUBTN and the ALT keys are other keywords with their own rules). One
+   * violation per key number, keyed by it, so firstNewViolation reports only a clash an edit adds
+   * (in either direction) and a hand-written file that is already clashing stays editable.
+   */
   function commandKeyNumberViolations(model) {
     var seen = {};
     function note(kws, where) {
@@ -7461,13 +7632,16 @@
     return firstNewViolation(commandKeyNumberViolations(oldModel), after);
   }
 
-  /** Task I-186 - the problem with the command key `token` used as the value of `keywordName`, or null. A key
-   *  is a CAnn / CFnn with nn in the type's stated range (KeywordSpec.commandKeyNumberRange, 01-24), and a
-   *  keyword that takes a command-key parameter takes only its stated type (KeywordSpec.commandKeyValueTypes:
-   *  MNUBARSW / MNUCNL / ALTHELP a CA key, ALTPAGEDWN / ALTPAGEUP a CF key). A blank value is not checked (it
-   *  means the keyword's default key); for a keyword that takes a command-key parameter a value that is not CAnn /
-   *  CFnn shaped (CA5, XYZ) is refused (I-194), while MOUBTN and PSHBTNCHC (whose key sits among other
-   *  parameters) are only range-checked. `keywordName` may be a plain CAnn / CFnn name (then `token` is that name). */
+  /**
+   * The problem with the command key `token` used as the value of `keywordName`, or null. A key is
+   * a CAnn / CFnn with nn in the type's stated range (KeywordSpec.commandKeyNumberRange, 01-24),
+   * and a keyword that takes a command-key parameter takes only its stated type
+   * (KeywordSpec.commandKeyValueTypes: MNUBARSW / MNUCNL / ALTHELP a CA key, ALTPAGEDWN / ALTPAGEUP
+   * a CF key). A blank value is not checked (it means the keyword's default key); for a keyword
+   * that takes a command-key parameter a value that is not CAnn / CFnn shaped (CA5, XYZ) is
+   * refused, while MOUBTN and PSHBTNCHC (whose key sits among other parameters) are only
+   * range-checked. `keywordName` may be a plain CAnn / CFnn name (then `token` is that name).
+   */
   function commandKeyValueProblem(keywordName, token) {
     var t = String(token || '').trim().toUpperCase();
     if (!t) return null;
@@ -7475,8 +7649,9 @@
     var types = KeywordSpec.commandKeyValueTypes(name);
     var k = KeywordSpec.parseCommandKey(t);
     if (!k) {
-      // Task I-194 - a keyword whose parameter IS a command key (MNUBARSW(CAnn), ALTPAGEDWN(CFnn), SFLDROP(CAnn | CFnn)...)
-      // takes one in the CAnn / CFnn shape with its leading zero; CA5, CA005 and XYZ are not keys.
+      // A keyword whose parameter IS a command key (MNUBARSW(CAnn), ALTPAGEDWN(CFnn), SFLDROP(CAnn
+      // | CFnn)...) takes one in the CAnn / CFnn shape with its leading zero; CA5, CA005 and XYZ
+      // are not keys.
       if (!types) return null;
       return name + ' takes ' + (types.length === 1 ? 'a ' + types[0] : 'a ' + types.join(' or ')) + ' key written ' +
         types.map(function (x) { return x + 'nn'; }).join(' or ') + ' with a two-digit number, not "' + t + '" (per the DDS Reference).';
@@ -7492,10 +7667,13 @@
     }
     return null;
   }
-  /** Task I-194 - the command-key token a MOUBTN / PSHBTNCHC carries, or null when there is none in the CAnn / CFnn
-   *  shape: MOUBTN's is the last parameter after the event(s) (before an optional *QUEUE / *NOQUEUE), PSHBTNCHC's is
-   *  any key-shaped token after the id and the choice text (the quoted text and a &field are skipped, so a literal
-   *  'CA25' is text, not a key). Only key-SHAPED tokens come back: ENTER, E05 and the like are other values. */
+  /**
+   * The command-key token a MOUBTN / PSHBTNCHC carries, or null when there is none in the CAnn /
+   * CFnn shape: MOUBTN's is the last parameter after the event(s) (before an optional *QUEUE /
+   * *NOQUEUE), PSHBTNCHC's is any key-shaped token after the id and the choice text (the quoted
+   * text and a &field are skipped, so a literal 'CA25' is text, not a key). Only key-SHAPED tokens
+   * come back: ENTER, E05 and the like are other values.
+   */
   function embeddedCommandKeyToken(name, parameters) {
     var rest = String(parameters || '').trim(), tokens;
     if (name === 'MOUBTN') {
@@ -7521,11 +7699,13 @@
     }
     return null;
   }
-  /** Task I-186 / I-194 - every command-key value in the model that is out of range, malformed or the wrong type for
-   *  its keyword: a plain CAnn / CFnn keyword name (file level, a record, a field), the first parameter token of the
-   *  alt keys and command-key parameter keywords, and the command key inside MOUBTN and PSHBTNCHC. Keyed by owner,
-   *  keyword and occurrence number so an edit that adds one more is a new violation (firstNewViolation) while a
-   *  hand-written file that already has one stays editable. */
+  /**
+   * Every command-key value in the model that is out of range, malformed or the wrong type for its
+   * keyword: a plain CAnn / CFnn keyword name (file level, a record, a field), the first parameter
+   * token of the alt keys and command-key parameter keywords, and the command key inside MOUBTN and
+   * PSHBTNCHC. Keyed by owner, keyword and occurrence number so an edit that adds one more is a new
+   * violation (firstNewViolation) while a hand-written file that already has one stays editable.
+   */
   function commandKeyRangeViolations(model) {
     var out = {};
     function scan(kws, owner) {
@@ -7563,12 +7743,14 @@
     return firstNewViolation(subfileKeywordViolations(oldModel), after);
   }
 
-  /** Task I-141 / I-147 - display size condition names (*DS3 / *DS4) are not
-   *  valid on SFLDLT (\"Option indicators are required for this keyword;
-   *  display size condition names are not valid\") nor on SFLCLR, SFLDSP,
-   *  SFLDSPCTL or SFLINZ (each section says the same). Per record, the number
-   *  of display-size condition groups on each such keyword; the keyword list
-   *  is KeywordSpec's `displaySizeNames: 'notValid'` fact, not a literal. */
+  /**
+   * Display size condition names (*DS3 / *DS4) are not valid on SFLDLT
+   * (\"Option indicators are required for this keyword; display size
+   * condition names are not valid\") nor on SFLCLR, SFLDSP, SFLDSPCTL or
+   * SFLINZ (each section says the same). Per record, the number of
+   * display-size condition groups on each such keyword; the keyword list is
+   * KeywordSpec's `displaySizeNames: 'notValid'` fact, not a literal.
+   */
   function displaySizeConditionsOnRequiredIndicatorKeywords(model) {
     var out = {};
     ((model && model.records) || []).forEach(function (r) {
@@ -7583,11 +7765,13 @@
     });
     return out;
   }
-  /** The reason the edit adds a display-size condition name to SFLDLT /
-   *  SFLCLR / SFLDSP / SFLDSPCTL / SFLINZ, or null. Diff-based; removing one
-   *  or an already-present one is fine. SFLDLT keeps its I-141 wording (it
-   *  also says an option indicator is required); the others say the keyword
-   *  takes no display size names. */
+  /**
+   * The reason the edit adds a display-size condition name to SFLDLT /
+   * SFLCLR / SFLDSP / SFLDSPCTL / SFLINZ, or null. Diff-based; removing one
+   * or an already-present one is fine. SFLDLT keeps its wording (it also
+   * says an option indicator is required); the others say the keyword takes
+   * no display size names.
+   */
   function optionIndicatorRequiredNewConflictReason(oldModel, newModel) {
     var after = displaySizeConditionsOnRequiredIndicatorKeywords(newModel);
     var keys = Object.keys(after);
@@ -7604,10 +7788,12 @@
     return null;
   }
 
-  /** Task I-147 - SFLEND[(*PLUS | *MORE | {*SCRBAR [*SCRBAR | *PLUS | *MORE]})]
-   *  (KeywordSpec.sflendGrammar): the problem with the parameter text, or null
-   *  when it is empty (the *PLUS default) or valid. The second parameter can
-   *  only follow *SCRBAR. */
+  /**
+   * SFLEND[(*PLUS | *MORE | {*SCRBAR [*SCRBAR | *PLUS | *MORE]})]
+   * (KeywordSpec.sflendGrammar): the problem with the parameter text, or null
+   * when it is empty (the *PLUS default) or valid. The second parameter can
+   * only follow *SCRBAR.
+   */
   function sflendParameterProblem(text) {
     var tokens = String(text == null ? '' : text).trim().split(/\s+/).filter(Boolean).map(function (t) { return t.toUpperCase(); });
     if (!tokens.length) return null;
@@ -7637,13 +7823,15 @@
     return null;
   }
 
-  /** Task I-147 - what a subfile-control record is still missing, as notes
-   *  (not refusals: the panel checkbox writes a bare keyword and its
-   *  Conditioning editor only exists once the keyword does, so refusing would
-   *  make the row unusable - the I-141 decision for SFLDLT). `keywords` is the
-   *  record's keyword list. Returns { missingRequired: [keyword names the
-   *  record must carry and does not], needsIndicator: [keyword names that
-   *  need an option indicator and have none] }. */
+  /**
+   * What a subfile-control record is still missing, as notes (not refusals:
+   * the panel checkbox writes a bare keyword and its Conditioning editor only
+   * exists once the keyword does, so refusing would make the row unusable -
+   * the decision for SFLDLT). `keywords` is the record's keyword list. Returns
+   * { missingRequired: [keyword names the record must carry and does not],
+   * needsIndicator: [keyword names that need an option indicator and have
+   * none] }.
+   */
   function subfileControlNotes(keywords) {
     var kws = keywords || [];
     var missing = KeywordSpec.subfileControlRequiredKeywords().filter(function (n) { return !hasKeywordNamed(kws, n); });
@@ -7654,9 +7842,11 @@
     return { missingRequired: missing, needsIndicator: needs };
   }
 
-  /** Task I-144 - DATE([*JOB|*SYS] [*Y|*YY]): the problem with the parameter
-   *  text, or null when it is empty (the defaults) or valid. Each token must
-   *  be one of the two groups' values and a group may appear once. */
+  /**
+   * DATE([*JOB|*SYS] [*Y|*YY]): the problem with the parameter text, or null
+   * when it is empty (the defaults) or valid. Each token must be one of the
+   * two groups' values and a group may appear once.
+   */
   function dateParameterProblem(text) {
     var tokens = String(text == null ? '' : text).trim().split(/\s+/).filter(Boolean);
     if (!tokens.length) return null;
@@ -7677,12 +7867,14 @@
     return null;
   }
 
-  /** Task I-144 - the DATE / TIME / USER / SYSNAME / NOCCSID rules from their
-   *  DDS Reference sections: the system-value keywords are for an unnamed
-   *  constant ("Positions 17 through 38 must be blank"), TIME / USER /
-   *  SYSNAME / NOCCSID "have no parameters", and DATE's parameters are
-   *  [*JOB|*SYS] [*Y|*YY]. Returns { signature: { count, text } } over the
-   *  model's fields. */
+  /**
+   * The DATE / TIME / USER / SYSNAME / NOCCSID rules from their DDS
+   * Reference sections: the system-value keywords are for an unnamed
+   * constant ("Positions 17 through 38 must be blank"), TIME / USER /
+   * SYSNAME / NOCCSID "have no parameters", and DATE's parameters are
+   * [*JOB|*SYS] [*Y|*YY]. Returns { signature: { count, text } } over the
+   * model's fields.
+   */
   function systemValueKeywordViolations(model) {
     var out = {};
     var systemValue = KeywordSpec.systemValueConstantKeywords();
@@ -7709,11 +7901,11 @@
             if (problem) add(r.name + '|dateparams|' + params.toUpperCase(), problem + ' (per the DDS Reference).');
           }
         });
-        // Task I-154: a keyword whose own section says "You can specify ONLY
-        // the location of the field, <keyword>, and optionally ..." (TIME
-        // alone - companionsStatedAsOnly) allows no other keyword on its
-        // field. DATE, USER and SYSNAME say "you can specify ... and,
-        // optionally, ..." without "only", so their lists stay unenforced
+        // A keyword whose own section says "You can specify ONLY the
+        // location of the field, <keyword>, and optionally..." (TIME alone -
+        // companionsStatedAsOnly) allows no other keyword on its field.
+        // DATE, USER and SYSNAME say "you can specify... and,
+        // optionally,..." without "only", so their lists stay unenforced
         // facts.
         var fieldKws = f.keywords || [];
         fieldKws.forEach(function (owner, oi) {
@@ -7754,9 +7946,10 @@
     return optionIndicatorCount(conditions) > 0;
   }
 
-  /** Task I-121 (MOUBTN parameter-domain slice) - the MOUBTN panel's EVENT /
-   *  TRAILING-EVENT values and *QUEUE flag values, read from the spec
-   *  (copies). */
+  /**
+   * The MOUBTN panel's EVENT / TRAILING-EVENT values and *QUEUE flag
+   * values, read from the spec (copies).
+   */
   function moubtnParameterDomain() {
     var spec = KeywordSpec.RECORD_TYPES.MOUBTN;
     return { events: spec.validValues.slice(), queueValues: spec.queueValues.slice() };
@@ -7765,16 +7958,18 @@
     return KeywordSpec.choiceSelectionExclusiveGroups('SNGCHCFLD');
   }
 
-  /** Returns a NEW keywords array with SNGCHCFLD/MLTCHCFLD replaced by one
-   *  keyword built from `state` (same shape getChoiceSelectionType
-   *  returns) - removed entirely if `state.kind` is blank. Task I-34: when
-   *  `state.kind` is MLTCHCFLD, any SNGCHCFLD_ONLY_FLAGS present in
-   *  `state.flags` are silently dropped rather than written - IBM's own
-   *  MLTCHCFLD format string has no AUTOSLT/AUTOENT family at all, so
-   *  writing one would produce DDS that fails to compile. Filtered here
-   *  (the actual DDS-writing layer) as well as in
-   *  wireChoiceSelectionTypeEditor's own UI-level guard, so this stays
-   *  correct even if some other future caller passes them directly. */
+  /**
+   * Returns a NEW keywords array with SNGCHCFLD/MLTCHCFLD replaced by one
+   * keyword built from `state` (same shape getChoiceSelectionType returns)
+   * - removed entirely if `state.kind` is blank. when `state.kind` is
+   * MLTCHCFLD, any SNGCHCFLD_ONLY_FLAGS present in `state.flags` are
+   * silently dropped rather than written - IBM's own MLTCHCFLD format
+   * string has no AUTOSLT/AUTOENT family at all, so writing one would
+   * produce DDS that fails to compile. Filtered here (the actual
+   * DDS-writing layer) as well as in wireChoiceSelectionTypeEditor's own
+   * UI-level guard, so this stays correct even if some other future caller
+   * passes them directly.
+   */
   function setChoiceSelectionType(keywords, state) {
     var next = (keywords || []).filter(function (kw) { return kw.name !== 'SNGCHCFLD' && kw.name !== 'MLTCHCFLD'; });
     if (!state || !state.kind) return next;
@@ -7783,32 +7978,34 @@
     if (notOffered.length) {
       parts = parts.filter(function (f) { return notOffered.indexOf(f) < 0; });
     }
-    // Task I-63: IBM's shape is `(*NUMCOL n)` / `(*NUMROW n)` / `(*GUTTER
-    // n)` - parenthesized groups with a space, not `*NUMCOL(n)`. A field
-    // takes *NUMCOL OR *NUMROW, never both (*NUMCOL wins if a caller
-    // passes both - the editor blocks that before it gets here), and
-    // *GUTTER "can only be specified if either *NUMCOL or *NUMROW has
-    // been specified", so it's dropped without one. Same backstop
-    // semantics as setPshbtnfld.
+    // IBM's shape is `(*NUMCOL n)` / `(*NUMROW n)` / `(*GUTTER n)` -
+    // parenthesized groups with a space, not `*NUMCOL(n)`. A field takes
+    // *NUMCOL OR *NUMROW, never both (*NUMCOL wins if a caller passes
+    // both - the editor blocks that before it gets here), and *GUTTER
+    // "can only be specified if either *NUMCOL or *NUMROW has been
+    // specified", so it's dropped without one. Same backstop semantics as
+    // setPshbtnfld.
     var numCol = parseInt(state.numCol, 10);
     var numRow = parseInt(state.numRow, 10);
     var gutter = parseInt(state.gutter, 10);
     if (numCol > 0) parts.push('(*NUMCOL ' + numCol + ')');
     else if (numRow > 0) parts.push('(*NUMROW ' + numRow + ')');
-    // Task I-133: also dropped when below the documented minimum (2).
+    // Also dropped when below the documented minimum (2).
     if (gutter >= Math.max(1, KeywordSpec.gutterMinimum(state.kind)) && (numCol > 0 || numRow > 0)) parts.push('(*GUTTER ' + gutter + ')');
     next = next.concat([{ name: state.kind, parameters: parts.join(' '), conditions: [], raw: '', sourceLines: [] }]);
     return next;
   }
 
-  /** CHOICE(id 'text' [*SPACEB]) - one per choice on a SNGCHCFLD/MLTCHCFLD
-   *  field. `text` mirrors DspfEngine.parseChoiceParams' own shape;
-   *  `spaceBefore` (Task I-34: IBM's own format string lists an optional
-   *  trailing *SPACEB - "insert a blank space/line before this choice",
-   *  for logical grouping of consecutively-numbered choices - previously
-   *  unmodeled entirely) and `conditions` (Task I-34: CHOICE is
-   *  documented "Option indicators are valid for this keyword" - a
-   *  reverse gap, no Conditioning UI existed for it before) are new. */
+  /**
+   * CHOICE(id 'text' [*SPACEB]) - one per choice on a SNGCHCFLD/MLTCHCFLD
+   * field. `text` mirrors DspfEngine.parseChoiceParams' own shape;
+   * `spaceBefore` (IBM's own format string lists an optional trailing
+   * *SPACEB - "insert a blank space/line before this choice", for logical
+   * grouping of consecutively-numbered choices - previously unmodeled
+   * entirely) and `conditions` (CHOICE is documented "Option indicators
+   * are valid for this keyword" - a reverse gap, no Conditioning UI
+   * existed for it before) are new.
+   */
   function getChoices(keywords) {
     return (keywords || [])
       .filter(function (k) { return k.name === 'CHOICE'; })
@@ -7822,17 +8019,19 @@
       });
   }
 
-  /** Returns a NEW keywords array with every existing CHOICE removed and
-   *  replaced by one per entry in `choices` ({ id, text, spaceBefore }) -
-   *  blank entries (no id or text) skipped. Task I-34: `conditions` is
-   *  preserved by choice-id across this batch rewrite when the caller's
-   *  entry doesn't explicitly supply its own - same "preserve unless
-   *  overridden" convention setMenubarChoices now also follows, closing
-   *  the same silent-data-loss class of bug I-2/I-3 fixed for
-   *  setFileFlagKeyword/setChoiceColorState (this editor used to
-   *  hard-code conditions: [] on every write, which would have silently
-   *  wiped any conditioning set through the new per-choice Conditioning
-   *  toggle the moment "Apply choice keywords" was next clicked). */
+  /**
+   * Returns a NEW keywords array with every existing CHOICE removed and
+   * replaced by one per entry in `choices` ({ id, text, spaceBefore }) -
+   * blank entries (no id or text) skipped. `conditions` is preserved by
+   * choice-id across this batch rewrite when the caller's entry doesn't
+   * explicitly supply its own - same "preserve unless overridden"
+   * convention setMenubarChoices now also follows, closing the same
+   * silent-data-loss class of bug I-2/I-3 fixed for
+   * setFileFlagKeyword/setChoiceColorState (this editor used to hard-code
+   * conditions: [] on every write, which would have silently wiped any
+   * conditioning set through the new per-choice Conditioning toggle the
+   * moment "Apply choice keywords" was next clicked).
+   */
   function setChoices(keywords, choices) {
     var existingByChoiceId = {};
     (keywords || []).forEach(function (k) {
@@ -7951,30 +8150,32 @@
     return next;
   }
 
-  //  Task I-121: the names are keywordSpec.js's CHOICE_COLOR_STATE_KEYWORDS.
+  //  The names are keywordSpec.js's CHOICE_COLOR_STATE_KEYWORDS.
   var CHOICE_COLOR_STATE_KEYWORDS = KeywordSpec.choiceColorStateKeywords();
 
-  /** CHCAVAIL/CHCUNAVAIL/CHCSLT ((*COLOR c) (*DSPATR a a)) - the three
-   *  whole-field (not per-choice) color/attribute states a SNGCHCFLD/
-   *  MLTCHCFLD field's choices can be shown in: available, unavailable
-   *  (see CHCCTL above), and selected. Same bracketed-groups shape as
-   *  MNUBARSEP/WDWBORDER minus the *CHAR group (these three have no
-   *  character sub-option on the real SDA screen). `keywordName` must be
-   *  one of CHOICE_COLOR_STATE_KEYWORDS, or ENTFLDATR (see that keyword's
-   *  own call sites - shares this same "(*COLOR c) (*DSPATR a a)" shape,
-   *  plus the two extra fields below that only it uses).
-   *  Task I-59: `present` (true whenever the keyword exists at all,
-   *  regardless of color/attrs) and `cursorVisible` ('' / 'CURSOR' /
-   *  'NOCURSOR', the bare cursor-visible literal ENTFLDATR's own DDS
-   *  Reference documents - "ENTFLDATR[([color] [display attribute]
-   *  [cursor visible])]") are new - both were previously silently
-   *  unread/undiscoverable by this getter, which only ever looked for
-   *  *COLOR/*DSPATR. Harmless for CHCAVAIL/CHCUNAVAIL/CHCSLT (neither
-   *  ever appears in their own DDS Reference sections, so `cursorVisible`
-   *  is always '' for them; `present` is simply true/false exactly when
-   *  the keyword exists, same information the three existing callers
-   *  already had by checking `!!current.color || current.attrs.length`
-   *  - which is why this change doesn't alter their own behavior). */
+  /**
+   * CHCAVAIL/CHCUNAVAIL/CHCSLT ((*COLOR c) (*DSPATR a a)) - the three
+   * whole-field (not per-choice) color/attribute states a SNGCHCFLD/
+   * MLTCHCFLD field's choices can be shown in: available, unavailable
+   * (see CHCCTL above), and selected. Same bracketed-groups shape as
+   * MNUBARSEP/WDWBORDER minus the *CHAR group (these three have no
+   * character sub-option on the real SDA screen). `keywordName` must be
+   * one of CHOICE_COLOR_STATE_KEYWORDS, or ENTFLDATR (see that keyword's
+   * own call sites - shares this same "(*COLOR c) (*DSPATR a a)" shape,
+   * plus the two extra fields below that only it uses). `present` (true
+   * whenever the keyword exists at all, regardless of color/attrs) and
+   * `cursorVisible` ('' / 'CURSOR' / 'NOCURSOR', the bare cursor-visible
+   * literal ENTFLDATR's own DDS Reference documents - "ENTFLDATR[([color]
+   * [display attribute] [cursor visible])]") are new - both were
+   * previously silently unread/undiscoverable by this getter, which only
+   * ever looked for *COLOR/*DSPATR. Harmless for
+   * CHCAVAIL/CHCUNAVAIL/CHCSLT (neither ever appears in their own DDS
+   * Reference sections, so `cursorVisible` is always '' for them;
+   * `present` is simply true/false exactly when the keyword exists, same
+   * information the three existing callers already had by checking
+   * `!!current.color || current.attrs.length`
+   *  - which is why this change doesn't alter their own behavior).
+   */
   function getChoiceColorState(keywords, keywordName) {
     var k = (keywords || []).find(function (kw) { return kw.name === keywordName; });
     var result = { present: false, color: '', attrs: [], cursorVisible: '', conditions: k ? (k.conditions || []) : [] };
@@ -7985,51 +8186,50 @@
     if (colorM) result.color = colorM[1].toUpperCase();
     var attrM = /\*DSPATR\s+([^()]*)/i.exec(text);
     if (attrM) result.attrs = attrM[1].trim().split(/\s+/).filter(Boolean).map(function (s) { return s.toUpperCase(); });
-    // Task I-59: checked before *CURSOR so the two can never be confused -
-    // not that they actually could collide (a literal "*CURSOR" substring
-    // never occurs inside "*NOCURSOR" at a "*"-prefixed position), but
-    // checking the more specific token first is the clearer, safer order.
+    // Checked before *CURSOR so the two can never be confused - not that
+    // they actually could collide (a literal "*CURSOR" substring never
+    // occurs inside "*NOCURSOR" at a "*"-prefixed position), but checking
+    // the more specific token first is the clearer, safer order.
     if (/\*NOCURSOR\b/i.test(text)) result.cursorVisible = 'NOCURSOR';
     else if (/\*CURSOR\b/i.test(text)) result.cursorVisible = 'CURSOR';
     return result;
   }
 
-  /** Returns a NEW keywords array with `keywordName` (one of
-   *  CHOICE_COLOR_STATE_KEYWORDS, or ENTFLDATR) built from `color`/
-   *  `attrs`(/`cursorVisible`, ENTFLDATR-only) - removed entirely if
-   *  nothing is set AND `forcePresent` is falsy - same shape as
-   *  setColorAttrStates but for a caller-chosen keyword name instead of the
-   *  fixed COLOR/DSPATR pair.
-   *  `conditions` (optional, Task I-3: ENTFLDATR is documented by IBM as
-   *  eligible for option-indicator conditioning - "not valid" was true for
-   *  every OTHER keyword sharing this state shape, not this one) - when
-   *  OMITTED, any existing conditioning is preserved, same convention as
-   *  setFileFlagKeyword's own `conditions` parameter.
-   *  Task I-59 - two new trailing params, both ENTFLDATR-only (harmless,
-   *  unused no-ops for the three existing CHCAVAIL/CHCUNAVAIL/CHCSLT call
-   *  sites, which never pass either):
-   *  `cursorVisible` ('' / 'CURSOR' / 'NOCURSOR') writes the bare
-   *  *CURSOR/*NOCURSOR literal ENTFLDATR's own DDS Reference documents
-   *  alongside the *COLOR/*DSPATR groups - previously not writable at
-   *  all, silently dropped by every prior round-trip through this editor.
-   *  `*CURSOR` is documented as the default, so is deliberately never
-   *  written even when explicitly chosen (matches this codebase's own
-   *  convention elsewhere of never writing a keyword's own documented
-   *  default value back out); only the non-default `*NOCURSOR` is ever
-   *  actually emitted.
-   *  `forcePresent` (boolean) - IBM's own `F1` example
-   *  (`ENTFLDATR` with NO parameters at all, defaults for color/attribute/
-   *  cursor-visible) is a real, documented, previously-unrepresentable
-   *  shape: the old "remove entirely unless color or attrs is set" rule
-   *  meant a bare ENTFLDATR could never survive a single Apply click, in
-   *  either direction - typing nothing and clicking Apply silently wrote
-   *  nothing, and opening a DSPF that already had a hand-written bare
-   *  ENTFLDATR then clicking Apply with the checkbox still checked would
-   *  also silently drop it (the render side already showed it as
-   *  unchecked, per I-59's own finding, so this was reachable both ways).
-   *  When true, the keyword is written (as a bare literal, if `color`/
-   *  `attrs`/`cursorVisible` are all also empty) even with nothing else
-   *  to write. */
+  /**
+   * Returns a NEW keywords array with `keywordName` (one of
+   * CHOICE_COLOR_STATE_KEYWORDS, or ENTFLDATR) built from `color`/
+   * `attrs`(/`cursorVisible`, ENTFLDATR-only) - removed entirely if nothing
+   * is set AND `forcePresent` is falsy - same shape as setColorAttrStates
+   * but for a caller-chosen keyword name instead of the fixed COLOR/DSPATR
+   * pair. `conditions` (optional, ENTFLDATR is documented by IBM as
+   * eligible for option-indicator conditioning - "not valid" was true for
+   * every OTHER keyword sharing this state shape, not this one) - when
+   * OMITTED, any existing conditioning is preserved, same convention as
+   * setFileFlagKeyword's own `conditions` parameter. Two new trailing
+   * params, both ENTFLDATR-only (harmless, unused no-ops for the three
+   * existing CHCAVAIL/CHCUNAVAIL/CHCSLT call sites, which never pass
+   * either): `cursorVisible` ('' / 'CURSOR' / 'NOCURSOR') writes the bare
+   * *CURSOR/*NOCURSOR literal ENTFLDATR's own DDS Reference documents
+   * alongside the *COLOR/*DSPATR groups - previously not writable at all,
+   * silently dropped by every prior round-trip through this editor.
+   * `*CURSOR` is documented as the default, so is deliberately never
+   * written even when explicitly chosen (matches this codebase's own
+   * convention elsewhere of never writing a keyword's own documented
+   * default value back out); only the non-default `*NOCURSOR` is ever
+   * actually emitted. `forcePresent` (boolean) - IBM's own `F1` example
+   * (`ENTFLDATR` with NO parameters at all, defaults for color/attribute/
+   * cursor-visible) is a real, documented, previously-unrepresentable
+   * shape: the old "remove entirely unless color or attrs is set" rule
+   * meant a bare ENTFLDATR could never survive a single Apply click, in
+   * either direction - typing nothing and clicking Apply silently wrote
+   * nothing, and opening a DSPF that already had a hand-written bare
+   * ENTFLDATR then clicking Apply with the checkbox still checked would
+   * also silently drop it (the render side already showed it as unchecked,
+   * per the finding, so this was reachable both ways). When true, the
+   * keyword is written (as a bare literal, if `color`/
+   * `attrs`/`cursorVisible` are all also empty) even with nothing else to
+   * write.
+   */
   function setChoiceColorState(keywords, keywordName, color, attrs, conditions, cursorVisible, forcePresent) {
     var existing = (keywords || []).find(function (kw) { return kw.name === keywordName; });
     var next = (keywords || []).filter(function (kw) { return kw.name !== keywordName; });
@@ -8247,19 +8447,20 @@
     return next;
   }
 
-  /** REF (Reference database file) - reads its Library/Record/
+  /**
+   * REF (Reference database file) - reads its Library/Record/
    *  record-format-name sub-fields out of the documented
    *  `[library-name/]database-file-name [record-format-name]` parameter
    *  form.
    *
-   *  Task I-4 (keyword parameter/sub-parameter completeness audit):
-   *  confirmed against IBM's own DDS Reference that REF's format has a
+   *  Confirmed against IBM's own DDS Reference that REF's format has a
    *  THIRD, optional, space-separated `record-format-name` sub-parameter
    *  (used when the referenced file has more than one record format) -
    *  this used to only split on `/` and treat everything else as one
    *  opaque `record` string, so the record-format-name was reachable only
    *  by accident (typing "FILE1 RECORD2" into the "record" box happened
-   *  to serialize correctly) and was never its own labeled field. */
+   *  to serialize correctly) and was never its own labeled field.
+   */
   function getFileRefKeyword(keywords) {
     var k = (keywords || []).find(function (kw) { return kw.name === 'REF'; });
     if (!k) return { library: '', record: '', recordFormat: '' };
@@ -8292,21 +8493,22 @@
     return next;
   }
 
-  /** HLPPNLGRP (file level only - see the H-spec-level usage's own,
+  /**
+   * HLPPNLGRP (file level only - see the H-spec-level usage's own,
    *  separate free-text handling in applicationHelpFieldsHtml, which this
    *  does not touch) - reads its Module name/Library/Panel group
    *  sub-fields out of the documented
    *  `help-module-name [library-name/]panel-group-name` parameter form.
    *
-   *  Task I-4 (keyword parameter/sub-parameter completeness audit):
-   *  confirmed against IBM's own DDS Reference that BOTH the module name
+   *  Confirmed against IBM's own DDS Reference that BOTH the module name
    *  and the panel group name are required (only the library qualifier on
    *  the panel group name is optional) - the file-level picker used to
    *  expose this as one free-text box whose own placeholder hint read
    *  "panel-group-name library module-name", the WRONG order relative to
    *  the documented `help-module-name [library-name/]panel-group-name`
    *  shape, which risked writing invalid DDS if someone typed it in the
-   *  order the hint suggested. */
+   *  order the hint suggested.
+   */
   function getFileHlpPnlGrpKeyword(keywords) {
     var k = (keywords || []).find(function (kw) { return kw.name === 'HLPPNLGRP'; });
     if (!k) return { moduleName: '', library: '', panelGroup: '' };
@@ -8320,12 +8522,14 @@
     return { moduleName: moduleName, library: '', panelGroup: rest };
   }
 
-  /** HLPSCHIDX - reads its Library/search-index-object sub-fields out of
+  /**
+   * HLPSCHIDX - reads its Library/search-index-object sub-fields out of
    *  the documented `[library-name/]search-index-object` parameter form.
    *
-   *  Task I-4: same "backwards placeholder hint" bug as HLPPNLGRP above -
-   *  the old free-text box's hint read "search-index-object library"
-   *  instead of the documented library-first, slash-joined order. */
+   *  Same "backwards placeholder hint" bug as HLPPNLGRP above - the old
+   *  free-text box's hint read "search-index-object library" instead of
+   *  the documented library-first, slash-joined order.
+   */
   function getFileHlpSchIdxKeyword(keywords) {
     var k = (keywords || []).find(function (kw) { return kw.name === 'HLPSCHIDX'; });
     if (!k) return { library: '', searchIndex: '' };
@@ -8337,23 +8541,23 @@
     return { library: '', searchIndex: raw };
   }
 
-  // Task I-38 (keywordFixes.md): HLPDOC was entirely absent from iSDA -
-  // confirmed missing from I-1's own original 39-keyword file-level
-  // baseline (I-5 later added 5 more confirmed-missing keywords, but
-  // HLPDOC wasn't among those 5 either - a gap in scope, not something
-  // previously found and deferred). IBM's own DDS Reference documents it
-  // as a file- OR help-specification-level keyword:
+  // HLPDOC was entirely absent from iSDA - confirmed missing from the
+  // original 39-keyword file-level baseline (I-5 later added 5 more
+  // confirmed-missing keywords, but HLPDOC wasn't among those 5 either - a
+  // gap in scope, not something previously found and deferred). IBM's own
+  // DDS Reference documents it as a file- OR help-specification-level
+  // keyword:
   //   HLPDOC(online-help-information-text-label-name document-name
   //          folder-name)
-  // all three parts required (no optional sub-parameter, unlike HLPRCD's
+  // All three parts required (no optional sub-parameter, unlike HLPRCD's
   // own [[library/]file-name]). Option indicators ARE valid. "You cannot
   // specify HLPDOC with HLPBDY, HLPPNLGRP, or HLPRTN." This task adds the
   // FILE-level form only (reusing getFileFlagKeyword/setFileFlagKeyword,
-  // same "generic primitive + client-side parse/compose" choice I-5's own
-  // HLPRCD addition made) - the H-specification-level form is a separate,
+  // same "generic primitive + client-side parse/compose" choice the HLPRCD
+  // addition made) - the H-specification-level form is a separate,
   // already-existing panel (applicationHelpFieldsHtml, HLPPNLGRP/HLPEXCLD/
   // HLPBDY/HLPARA) outside this task's own scope, same "file-level only,
-  // H-spec-level deferred" precedent I-5's own HLPRCD entry already set.
+  // H-spec-level deferred" precedent the HLPRCD entry already set.
   //
   // hlpdocConflictReason below checks HLPDOC against the two FILE-level
   // keywords iSDA already models that IBM's own text forbids alongside it
@@ -8361,18 +8565,17 @@
   // codebase (applicationHelpFieldsHtml's own per-H-spec panel), so there
   // is no file-level HLPBDY instance a file-level HLPDOC could ever
   // conflict with; that half of IBM's rule has nothing to check at this
-  // level. Same alertAndRevert-bidirectional idiom I-8/I-11/I-13's own
-  // conflict checkers use, checked from BOTH directions (turning on
-  // HLPDOC while HLPPNLGRP/HLPRTN is already present, and vice versa) -
-  // see wireUsrdfnGuardedFlag's own callers in webviewClientHelpers.js
-  // for where each direction is wired.
+  // level. Same alertAndRevert-bidirectional idiom I-8/I-11/the conflict
+  // checkers use, checked from BOTH directions (turning on HLPDOC while
+  // HLPPNLGRP/HLPRTN is already present, and vice versa) - see
+  // wireUsrdfnGuardedFlag's own callers in webviewClientHelpers.js for
+  // where each direction is wired.
   //
-  // Task I-121 (Help-keyword mutex web slice): the HLPPNLGRP/HLPRTN
-  // partner names now come from keywordSpec.js's RECORD_TYPES.HLPDOC.mutex
-  // instead of being bare string literals in the two `if` conditions
-  // below - same behavior, single declarative source shared with
-  // hlpdocHspecConflictReason below (which checks the H-spec-level half
-  // of this same rule).
+  // The HLPPNLGRP/HLPRTN partner names now come from keywordSpec.js's
+  // RECORD_TYPES.HLPDOC.mutex instead of being bare string literals in the
+  // two `if` conditions below - same behavior, single declarative source
+  // shared with hlpdocHspecConflictReason below (which checks the
+  // H-spec-level half of this same rule).
   function hlpdocConflictReason(keywordName, keywords) {
     var present = function (n) { return (keywords || []).some(function (kw) { return kw.name === n; }); };
     if (keywordName === 'HLPDOC') {
@@ -8387,10 +8590,10 @@
   }
 
   /**
-   * I-67: is `keywordName` present ANYWHERE in the display file - the
-   * file-level keyword list, or any help specification's own keywords on
-   * any record - other than the one instance being edited (`ownSourceLine`,
-   * a help entry's own sourceLine; omit/pass null when checking from the
+   * Is `keywordName` present ANYWHERE in the display file - the file-level
+   * keyword list, or any help specification's own keywords on any record -
+   * other than the one instance being edited (`ownSourceLine`, a help
+   * entry's own sourceLine; omit/pass null when checking from the
    * file-level panel, which has no "own" help entry to exclude). Backs the
    * HLPPNLGRP/HLPDOC half of hlpdocHspecConflictReason below: IBM's own
    * HLPPNLGRP section states that exclusion as file-wide ("a display file
@@ -8412,9 +8615,9 @@
   }
 
   /**
-   * I-67: HLPDOC's help-specification-level form (`applicationHelpFieldsHtml`'s
-   * per-H-spec panel, alongside HLPBDY/HLPARA/HLPPNLGRP/HLPEXCLD). Re-read
-   * both keywords' own DDS Reference sections rather than assuming
+   * HLPDOC's help-specification-level form (`applicationHelpFieldsHtml`'s
+   * per-H-spec panel, alongside HLPBDY/HLPARA/HLPPNLGRP/HLPEXCLD). Re-read both
+   * keywords' own DDS Reference sections rather than assuming
    * hlpdocConflictReason's file-level shape carries over unchanged:
    * - HLPDOC's own section: "You cannot specify HLPDOC with HLPBDY,
    *   HLPPNLGRP, or HLPRTN." HLPBDY only exists at H-spec level in this
@@ -8425,20 +8628,19 @@
    *   via anyHelpKeywordPresentInFile against the WHOLE file (file-level
    *   keywords plus every other help entry on every record), not just
    *   `ownKeywords`.
-   * - I-90's research found the HLPRTN cross-level question genuinely
-   *   unsettled by the DDS Reference alone (see I-90's own writeup) -
-   *   deliberately NOT checked here, on I-90's own recommendation.
+   * - the research found the HLPRTN cross-level question genuinely
+   *   Unsettled by the DDS Reference alone (see the writeup) -
+   *   Deliberately NOT checked here, on the recommendation.
    * `model` is the same shape anyHelpKeywordPresentInFile expects
    * (`.fileKeywords`, `.records[].helpEntries[].keywords`); `ownSourceLine`
    * is this help entry's own sourceLine, excluded from the file-wide
    * search so an H-spec's own not-yet-committed HLPDOC/HLPPNLGRP never
    * conflicts with itself.
    *
-   * Task I-121 (Help-keyword mutex web slice): the HLPBDY/HLPPNLGRP
-   * partner names now come from keywordSpec.js's RECORD_TYPES.HLPDOC.mutex
-   * (same entry hlpdocConflictReason above reads) instead of bare string
-   * literals - HLPRTN is deliberately absent from every check in this
-   * function, unchanged from before (I-90's own finding, see this
+   * The HLPBDY/HLPPNLGRP partner names now come from keywordSpec.js's
+   * RECORD_TYPES.HLPDOC.mutex (same entry hlpdocConflictReason above reads)
+   * instead of bare string literals - HLPRTN is deliberately absent from every
+   * check in this function, unchanged from before (the finding, see this
    * function's own doc comment above).
    */
   function hlpdocHspecConflictReason(keywordName, ownKeywords, model, ownSourceLine) {
@@ -8457,14 +8659,15 @@
     return '';
   }
 
-  /** Cross-check requested against I-38's own HLPDOC work: IBM's DDS
-   *  Reference states, right after HLPPNLGRP's own format description,
-   *  "a display file cannot contain both HLPPNLGRP and HLPRCD keywords,
-   *  nor HLPPNLGRP and HLPDOC keywords." The HLPDOC half is
-   *  hlpdocConflictReason just above; this is the HLPRCD half, which had
-   *  no conflict check of any kind before now - I-5 added HLPRCD's own
-   *  UI without one, and I-38's later HLPDOC work didn't retroactively
-   *  add it either.
+  /**
+   * Cross-check requested against the HLPDOC work: IBM's DDS Reference
+   * states, right after HLPPNLGRP's own format description, "a display
+   * file cannot contain both HLPPNLGRP and HLPRCD keywords, nor
+   * HLPPNLGRP and HLPDOC keywords." The HLPDOC half is
+   * hlpdocConflictReason just above; this is the HLPRCD half, which had
+   * no conflict check of any kind before now - I-5 added HLPRCD's own UI
+   * without one, and the later HLPDOC work didn't retroactively add it
+   * either.
    *
    *  HLPRCD and HLPDOC are deliberately NOT checked against each other
    *  here (and hlpdocConflictReason above deliberately doesn't check
@@ -8485,9 +8688,10 @@
    *  HLPRTN and HLPRCD coexisting is valid DDS and nothing here blocks
    *  it.
    *
-   *  Task I-121 (Help-keyword mutex web slice): the HLPPNLGRP partner
-   *  name now comes from keywordSpec.js's RECORD_TYPES.HLPPNLGRP.mutex
-   *  instead of a bare string literal - same behavior. */
+   *  The HLPPNLGRP partner name now comes from keywordSpec.js's
+   *  RECORD_TYPES.HLPPNLGRP.mutex instead of a bare string literal -
+   *  same behavior.
+   */
   function hlprcdConflictReason(keywordName, keywords) {
     var present = function (n) { return (keywords || []).some(function (kw) { return kw.name === n; }); };
     if (keywordName === 'HLPRCD' && present('HLPPNLGRP') && KeywordSpec.isMutex('HLPPNLGRP', 'HLPRCD')) {
@@ -8500,17 +8704,16 @@
   }
 
   /**
-   * Task I-2 (keywordFixes.md) - bug fix: there is no standalone PRTFILE
-   * keyword in real DDS. IBM's DDS Reference documents the printer-file
-   * name as PRINT's OWN third parameter form -
-   * `PRINT[(response-indicator ['text']) | (*PGM) |
+   * Bug fix: there is no standalone PRTFILE keyword in real DDS. IBM's
+   * DDS Reference documents the printer-file name as PRINT's OWN third
+   * parameter form - `PRINT[(response-indicator ['text']) | (*PGM) |
    * ([library-name/]printer-file-name)]` - and PRTFILE only exists as an
    * unrelated CRTDEVDSP/CHGDEVDSP COMMAND parameter (a device-level
    * fallback PRINT's own keyword text references, never written into DDS
-   * source). Real SDA's own "Define Print Keywords" screen confirms
-   * this: its "System handles print: Print file (Name, *PGM) / Library"
-   * fields write directly into PRINT, with no PRTFILE label anywhere on
-   * the screen. A previous version of this code wrote a bogus, separate
+   * source). Real SDA's own "Define Print Keywords" screen confirms this:
+   * its "System handles print: Print file (Name, *PGM) / Library" fields
+   * write directly into PRINT, with no PRTFILE label anywhere on the
+   * screen. A previous version of this code wrote a bogus, separate
    * `PRTFILE(name library)` keyword for this case - not real DDS syntax,
    * and would fail CRTDSPF.
    *
@@ -8587,13 +8790,15 @@
     return result;
   }
 
-  /** Returns a NEW keywords array with WDWBORDER built from `state` -
-   *  `{ colorEnabled, color, attrsEnabled, attrs, charsEnabled, chars }` -
-   *  removed entirely if none of the three groups are enabled.
-   *  `conditions` (optional, Task I-3: WDWBORDER is documented by IBM as
-   *  eligible for option-indicator conditioning) - when OMITTED, any
-   *  existing conditioning is preserved, same convention as
-   *  setFileFlagKeyword's own `conditions` parameter. */
+  /**
+   * Returns a NEW keywords array with WDWBORDER built from `state` - `{
+   * colorEnabled, color, attrsEnabled, attrs, charsEnabled, chars }` -
+   * removed entirely if none of the three groups are enabled. `conditions`
+   * (optional, WDWBORDER is documented by IBM as eligible for
+   * option-indicator conditioning) - when OMITTED, any existing
+   * conditioning is preserved, same convention as setFileFlagKeyword's own
+   * `conditions` parameter.
+   */
   function setWdwBorder(keywords, state, conditions) {
     var existing = (keywords || []).find(function (kw) { return kw.name === 'WDWBORDER'; });
     var next = (keywords || []).filter(function (kw) { return kw.name !== 'WDWBORDER'; });
@@ -8636,22 +8841,21 @@
     return next;
   }
 
-  /** Task I-45 (split off from I-44's original finding): DSPMOD's own DDS
-   *  Reference section states "This keyword is valid only when both the
-   *  24 x 80 and 27 x 132 display sizes are specified on the DSPSIZ
-   *  keyword" - a file-level prerequisite entirely unrelated to USRDFN
-   *  (I-44's own scope) and unchecked by any existing guard (DSPMOD's row
-   *  went through plain `simple()` before I-44's own pass, then
-   *  `wireUsrdfnGuardedFlag` after it - neither ever looked at DSPSIZ).
-   *  `getDisplaySizesList` already normalizes both of DSPSIZ's own valid
-   *  forms - named (`*DS3`/`*DS4`, resolved via KeywordSpec.standardDisplaySize)
-   *  and bare numeric (`24 80`/`27 132`) - to the same `{lines, columns}`
-   *  shape, so this just checks both required sizes are present in
-   *  whatever order the file lists them (DSPMOD's own text only requires
-   *  both be declared; the first one listed becomes the default display
-   *  mode, unaffected by this check). Returns a reason string if `sizes`
-   *  is missing either the 24x80 or 27x132 size, or null if both are
-   *  present. */
+  /**
+   * DSPMOD's own DDS Reference section states "This keyword is valid only when
+   * both the 24 x 80 and 27 x 132 display sizes are specified on the DSPSIZ
+   * keyword" - a file-level prerequisite entirely unrelated to USRDFN (the
+   * scope) and unchecked by any existing guard (DSPMOD's row went through plain
+   * `simple()` before the pass, then `wireUsrdfnGuardedFlag` after it - neither
+   * ever looked at DSPSIZ). `getDisplaySizesList` already normalizes both of
+   * DSPSIZ's own valid forms - named (`*DS3`/`*DS4`, resolved via
+   * KeywordSpec.standardDisplaySize) and bare numeric (`24 80`/`27 132`) - to
+   * the same `{lines, columns}` shape, so this just checks both required sizes
+   * are present in whatever order the file lists them (DSPMOD's own text only
+   * requires both be declared; the first one listed becomes the default display
+   * mode, unaffected by this check). Returns a reason string if `sizes` is
+   * missing either the 24x80 or 27x132 size, or null if both are present.
+   */
   function dspmodDspsizPrerequisiteReason(fileKeywords) {
     var sizes = getDisplaySizesList(fileKeywords);
     var hasBoth = KeywordSpec.standardDisplaySizes().every(function (z) {
@@ -8661,32 +8865,33 @@
     return 'DSPMOD is valid only when the DSPSIZ keyword specifies both the 24x80 and 27x132 display sizes (per the DDS Reference).';
   }
 
-  /** Task I-52 (gap found while implementing I-45): DSPMOD's own DDS
-   *  Reference section has a SECOND, independent prerequisite beyond
-   *  I-45's own DSPSIZ one, in the very next sentence after the "not
-   *  valid for user-defined records (USRDFN keyword)" line: "The DSPMOD
-   *  keyword cannot be specified on a subfile record (SFL keyword). The
-   *  subfile is [dis]played according to the DSPMOD of the corresponding
-   *  subfile control record." That second sentence is the key scoping
-   *  detail - it names the plain SFL (detail) record specifically, and
-   *  explains *why* only that record is restricted (the SFLCTL record's
-   *  own DSPMOD already governs the whole subfile), so SFLCTL is
-   *  deliberately NOT included here despite being the other half of
-   *  every other SFL-mutex rule in this file (see
-   *  alwrolClrlSlnoConflictReason's own ['ASSUME','SFL','SFLCTL',
-   *  'USRDFN'] list just above, which covers a DIFFERENT keyword's own
-   *  DDS Reference wording that names both). Checks the literal SFL
-   *  keyword's presence on `recordKeywords` directly (same shape as
-   *  alwrolClrlSlnoConflictReason above) rather than reusing
-   *  WebviewClientHelpers.isSflRecord, since that helper deliberately
-   *  excludes SFLMSG records for an unrelated UI-tab reason (see its own
-   *  doc comment) that has nothing to do with this keyword's own SFL
-   *  restriction. Deliberately unconditional on `keywordName` (same
-   *  "safe no-op for every other caller" shape as
-   *  alwrolClrlSlnoConflictReason/usrdfnConflictReason above) rather than
-   *  a new wireUsrdfnGuardedFlag trailing param, since it only ever
-   *  returns non-null for DSPMOD. */
-  //  Task I-121 - the SFL check moved to keywordSpec.js's declarative
+  /**
+   * DSPMOD's own DDS Reference section has a SECOND, independent
+   * prerequisite beyond the DSPSIZ one, in the very next sentence after
+   * the "not valid for user-defined records (USRDFN keyword)" line: "The
+   * DSPMOD keyword cannot be specified on a subfile record (SFL keyword).
+   * The subfile is [dis]played according to the DSPMOD of the
+   * corresponding subfile control record." That second sentence is the
+   * key scoping detail - it names the plain SFL (detail) record
+   * specifically, and explains *why* only that record is restricted (the
+   * SFLCTL record's own DSPMOD already governs the whole subfile), so
+   * SFLCTL is deliberately NOT included here despite being the other half
+   * of every other SFL-mutex rule in this file (see
+   * alwrolClrlSlnoConflictReason's own ['ASSUME','SFL','SFLCTL',
+   * 'USRDFN'] list just above, which covers a DIFFERENT keyword's own DDS
+   * Reference wording that names both). Checks the literal SFL keyword's
+   * presence on `recordKeywords` directly (same shape as
+   * alwrolClrlSlnoConflictReason above) rather than reusing
+   * WebviewClientHelpers.isSflRecord, since that helper deliberately
+   * excludes SFLMSG records for an unrelated UI-tab reason (see its own
+   * doc comment) that has nothing to do with this keyword's own SFL
+   * restriction. Deliberately unconditional on `keywordName` (same "safe
+   * no-op for every other caller" shape as
+   * alwrolClrlSlnoConflictReason/usrdfnConflictReason above) rather than
+   * a new wireUsrdfnGuardedFlag trailing param, since it only ever
+   * returns non-null for DSPMOD.
+   */
+  //  The SFL check moved to keywordSpec.js's declarative
   //  RECORD_TYPES.DSPMOD.mutex; this function now reads it through
   //  KeywordSpec.isMutex, still one-directional only (DSPMOD-on-an-
   //  SFL-record), matching the pre-existing behavior and the DDS
@@ -8702,9 +8907,9 @@
   // Confirmed via IBM's own DDS Reference: MSGLOC is a FILE-LEVEL keyword
   // with a single required numeric line-number parameter (1-28 - see
   // KeywordSpec.msgLocLimits; this comment said 1-27 until I-121f), used
-  // alongside DSPSIZ to give each display size its own error-message
-  // line - e.g. `A MSGLOC(1)` for the primary/unconditioned size and
-  // `A *DS4 MSGLOC(1)` for a secondary size, using the SAME display-size
+  // alongside DSPSIZ to give each display size its own error-message line
+  // - e.g. `A MSGLOC(1)` for the primary/unconditioned size and `A *DS4
+  // MSGLOC(1)` for a secondary size, using the SAME display-size
   // condition-name mechanism (`displaySizeCondition`) the parser already
   // builds for any keyword's conditioning columns - NOT a parameter of
   // DSPSIZ itself (confirmed against parseDisplaySizeTriples/
@@ -8713,7 +8918,7 @@
   // than a flat list since that mirrors exactly how the Display Sizes
   // picker's own sizeList already distinguishes the primary
   // (unconditioned) size from any secondary (named) ones.
-  // Task I-119: getFileMsgLocLines/setFileMsgLocLines and
+  // getFileMsgLocLines/setFileMsgLocLines and
   // getSflMsgRcdLines/setSflMsgRcdLines below were structural clones -
   // identical shape, differing only in which keyword name they read/write
   // (MSGLOC vs SFLMSGRCD, per the comments on each pair's own original
@@ -8818,8 +9023,8 @@
   /** UNLOCK - present/absent plus its two independent option VALUES
    *  (*ERASE, *MDTOFF), both optional, space-separated within the one
    *  keyword's own parameter list rather than separate keyword instances. */
-  //  Task I-121a: the two values are UNLOCK's spec fact (KeywordSpec.validValues);
-  //  only the mapping of each onto this reader's erase / mdtoff flag is here.
+  //  The two values are UNLOCK's spec fact (KeywordSpec.validValues); only the
+  //  mapping of each onto this reader's erase / mdtoff flag is here.
   function unlockHasValue(text, value) {
     return KeywordSpec.validValues('UNLOCK').indexOf(value) >= 0
       && new RegExp(value.replace('*', '\\*') + '\\b').test(text);
@@ -8850,14 +9055,16 @@
     return next;
   }
 
-  /** Generic "keyword(a b)" reader - two whitespace-separated tokens, both
-   *  optional individually (CSRLOC's row/col, HLPSEQ's help-group-name/
-   *  sequence-number). `conditions` (Task I-21) is always included in the
-   *  returned object, same "always present, empty array when there's
-   *  nothing" convention getFileFlagKeyword already follows - CSRLOC is
-   *  individually documented by IBM as eligible for option-indicator
-   *  conditioning; HLPSEQ is documented as NOT eligible, so its own call
-   *  sites simply never read/wire this field. */
+  /**
+   * Generic "keyword(a b)" reader - two whitespace-separated tokens, both
+   * optional individually (CSRLOC's row/col, HLPSEQ's help-group-name/
+   * sequence-number). `conditions` is always included in the returned
+   * object, same "always present, empty array when there's nothing"
+   * convention getFileFlagKeyword already follows - CSRLOC is
+   * individually documented by IBM as eligible for option-indicator
+   * conditioning; HLPSEQ is documented as NOT eligible, so its own call
+   * sites simply never read/wire this field.
+   */
   function getFileTwoFieldKeyword(keywords, name) {
     var k = (keywords || []).find(function (kw) { return kw.name === name; });
     if (!k) return { a: '', b: '', conditions: [] };
@@ -8919,7 +9126,7 @@
     return (keywords || []).find(function (k) {
       if (k.name !== 'RTNCSRLOC') return false;
       var first = ((k.parameters || '').trim().split(/\s+/)[0] || '').toUpperCase();
-      //  Task I-121a: *WINDOW / *MOUSE are RTNCSRLOC's spec fact.
+      //  *WINDOW / *MOUSE are RTNCSRLOC's spec fact.
       var isWm = KeywordSpec.recordKeywordFacts('RTNCSRLOC').windowMouseValues.indexOf(first) >= 0;
       return wantWindowMouse ? isWm : !isWm;
     });
@@ -9015,17 +9222,19 @@
       .filter(function (k) { return list.indexOf(k.name) >= 0; })
       .map(function (k) {
         var m = /^(\S+)\s*(?:'((?:[^']|'')*)')?/.exec((k.parameters || '').trim()) || [];
-        // Task I-135: a legacy / equivalent spelling (SETOFF) reads back as
-        // its canonical keyword (SETOF), the way ROLLUP reads as PAGEDOWN.
+        // A legacy / equivalent spelling (SETOFF) reads back as its
+        // canonical keyword (SETOF), the way ROLLUP reads as PAGEDOWN.
         return { keyword: alt[k.name] || k.name, indicator: m[1] || '', text: (m[2] || '').replace(/''/g, "'") };
       });
   }
 
-  /** Task I-135 - `names` plus every alternate spelling of a keyword in it
-   *  (keywordSpec.js's RECORD_INDICATOR_KEYWORDS `alternateNames`: SETOF ->
-   *  SETOFF, PAGEDOWN -> ROLLUP, PAGEUP -> ROLLDOWN), so a reader / writer
-   *  of `['INDTXT', 'SETOF', 'CHANGE']` also finds and replaces a
-   *  hand-written SETOFF instead of leaving it beside the new SETOF. */
+  /**
+   * `names` plus every alternate spelling of a keyword in it
+   * (keywordSpec.js's RECORD_INDICATOR_KEYWORDS `alternateNames`: SETOF ->
+   * SETOFF, PAGEDOWN -> ROLLUP, PAGEUP -> ROLLDOWN), so a reader / writer
+   * of `['INDTXT', 'SETOF', 'CHANGE']` also finds and replaces a
+   * hand-written SETOFF instead of leaving it beside the new SETOF.
+   */
   function withAlternateSpellings(names) {
     var list = (names || []).slice();
     var alt = KeywordSpec.recordIndicatorAlternateKinds();
@@ -9166,8 +9375,8 @@
   // layer never needs to parse/format the combined string itself.
   // -----------------------------------------------------------------------
 
-  //  Task I-121: the group, its order and the legacy spellings are
-  //  keywordSpec.js's RECORD_INDICATOR_KEYWORDS (one fact per keyword).
+  //  The group, its order and the legacy spellings are keywordSpec.js's
+  //  RECORD_INDICATOR_KEYWORDS (one fact per keyword).
   var RECORD_INDICATOR_KEYWORD_NAMES = KeywordSpec.recordIndicatorKeywordNames();
 
   // Task L22 remaining item: PAGEDOWN/PAGEUP have legacy alternate
@@ -9521,9 +9730,9 @@
     return sourceLines.slice(0, range[0] - 1).concat(newLines, sourceLines.slice(range[1]));
   }
 
-  // Task I-121s - the three record-name-reference shapes (SFLCTL / WINDOW /
-  // MNUBARCHC: where the record-format-name token sits in the keyword's
-  // parameter text, and the regex that locates it for replacement) are
+  // The three record-name-reference shapes (SFLCTL / WINDOW / MNUBARCHC:
+  // where the record-format-name token sits in the keyword's parameter
+  // text, and the regex that locates it for replacement) are
   // keywordSpec.js's RECORD_REFERENCES table, read through
   // KeywordSpec.recordReferenceName / recordReferenceLocator. They use the
   // same parsing dspfEngine.js relies on at render time (resolveWindow,
@@ -9588,8 +9797,8 @@
       updated.lengthRaw = updates.length == null ? null : String(updates.length);
       updated.lengthAdjust = null; // an absolute (or blank) length replaces any +n/-n adjustment
     }
-    // Task I-74: a signed +n/-n length adjustment against the referenced field -
-    // written back as "+n"/"-n" in the length columns, never as an absolute length.
+    // A signed +n/-n length adjustment against the referenced field - written back
+    // as "+n"/"-n" in the length columns, never as an absolute length.
     if (updates.lengthAdjust !== undefined) {
       updated.lengthAdjust = updates.lengthAdjust;
       updated.length = null;
@@ -9727,13 +9936,14 @@
   // writer-side action that changes how many sizes exist.
   // ---------------------------------------------------------------------
 
-  /** Same "lines cols [*qualifier]" triple-parsing, AND the same bare
-   *  "*DS3"/"*DS4" (no lines/cols at all - DDS's other valid DSPSIZ form,
-   *  `DSPSIZ(*DSw [*DSx])`) handling, as DspfEngine.screenSizeFromFileKeywords's
-   *  own parseScreenSizes.
-   *  Task I-119: now delegates to that canonical implementation (`DspfEngine`
-   *  bare free variable - see this file's own UMD-wrapper comment above)
-   *  instead of keeping a hand-synced duplicate. */
+  /**
+   * Same "lines cols [*qualifier]" triple-parsing, AND the same bare
+   * "*DS3"/"*DS4" (no lines/cols at all - DDS's other valid DSPSIZ form,
+   * `DSPSIZ(*DSw [*DSx])`) handling, as DspfEngine.screenSizeFromFileKeywords's
+   * own parseScreenSizes. now delegates to that canonical implementation
+   * (`DspfEngine` bare free variable - see this file's own UMD-wrapper comment
+   * above) instead of keeping a hand-synced duplicate.
+   */
   function parseDisplaySizeTriples(paramText) {
     return DspfEngine.parseScreenSizes(paramText);
   }
@@ -9860,11 +10070,11 @@
    * are scoped per record format, not file-wide) and I-SDA has no
    * cross-record model reference to check against here anyway.
    */
-  // Task I-119: nextAvailableFieldName/nextAvailableRecordName below were
-  // structural clones - same numeric-suffix/10-char-limit search, differing
-  // only in which name list they scan and the fallback base. Extracted
-  // into one generic search over a plain array of already-used names; the
-  // two originally-named functions are now thin wrappers.
+  // nextAvailableFieldName/nextAvailableRecordName below were structural
+  // clones - same numeric-suffix/10-char-limit search, differing only in
+  // which name list they scan and the fallback base. Extracted into one
+  // generic search over a plain array of already-used names; the two
+  // originally-named functions are now thin wrappers.
   function nextAvailableName(usedNames, baseName, defaultBase) {
     var MAX_LEN = 10;
     var used = {};
@@ -10070,10 +10280,12 @@
     return ('     A*' + t).replace(/\s+$/, '');
   }
 
-  /** Task I-195 - how many characters of comment text fit on a line whose longest allowed length is
-   *  `maxLineLength` (text starts in column 8, so the limit is maxLineLength - 7). An absent, invalid or
-   *  too-small value falls back to the 80-column DDS width (73 characters), the behaviour before I-195;
-   *  Infinity means "no limit" (a local file has no record length to respect). */
+  /**
+   * How many characters of comment text fit on a line whose longest allowed length is
+   * `maxLineLength` (text starts in column 8, so the limit is maxLineLength - 7). An absent,
+   * invalid or too-small value falls back to the 80-column DDS width (73 characters), the behaviour
+   * before I-195; Infinity means "no limit" (a local file has no record length to respect).
+   */
   function commentTextLimit(maxLineLength) {
     if (maxLineLength === Infinity) return Infinity;
     var n = Math.floor(Number(maxLineLength));
@@ -10140,8 +10352,8 @@
     var existing = sourceLines[idx];
     var padded = existing.length < LINE_WIDTH ? existing.padEnd(LINE_WIDTH, ' ') : existing;
     var prefix = padded.slice(0, 7);
-    // Task I-195: the cap is the source file's own line length, and a comment that is already longer than
-    // that cap (a line read from a longer record) is never cut shorter than it already is - an edit may
+    // The cap is the source file's own line length, and a comment that is already longer than that
+    // cap (a line read from a longer record) is never cut shorter than it already is - an edit may
     // not lose text just because the stated maximum is smaller than what the file holds.
     var limit = Math.max(commentTextLimit(maxLineLength), existing.length > 7 ? existing.length - 7 : 0);
     var t = (newText || '').replace(/[\r\n]/g, '').slice(0, limit);
@@ -10557,24 +10769,24 @@
   }
 
   // ---------------------------------------------------------------------
-  // Task I-26 - SFLSNGCHC/SFLMLTCHC (Subfile Single/Multiple Choice
-  // Selection List) - record-level SFLCTL keywords turning a subfile into
-  // a scrollable choice list instead of an ordinary paging subfile.
-  // Neither documents option indicators as valid. Both share the same
-  // *NORSTCSR/*RSTCSR and *NOSLTIND/*SLTIND bracket groups (SLTIND's own
-  // default is always *NOSLTIND regardless of context; RSTCSR's own
-  // default flips to *RSTCSR specifically "if the SFL[SNGCHC|MLTCHC]
-  // subfile control record is defined in a pulldown" - see
-  // isPulldownRecord in webviewClientHelpers.js, which is what "defined
-  // in a pulldown" means in DDS terms: the SFLCTL record itself also
-  // carries PULLDOWN). SFLSNGCHC additionally has a 3-way *NOAUTOSLT/
-  // *AUTOSLT/*AUTOSLTENH group whose default likewise flips to *AUTOSLT
-  // in a pulldown (SFLMLTCHC has no AUTOSLT group at all). SFLMLTCHC
-  // additionally takes an optional &number-selected field-name parameter
-  // (must name a hidden 4,0 signed-numeric field per its own DDS
-  // Reference text - left as free text here, same fallback the rest of
-  // this codebase uses for a keyword parameter this project doesn't yet
-  // validate the field's own shape for).
+  // SFLSNGCHC/SFLMLTCHC (Subfile Single/Multiple Choice Selection List) -
+  // record-level SFLCTL keywords turning a subfile into a scrollable
+  // choice list instead of an ordinary paging subfile. Neither documents
+  // option indicators as valid. Both share the same *NORSTCSR/*RSTCSR and
+  // *NOSLTIND/*SLTIND bracket groups (SLTIND's own default is always
+  // *NOSLTIND regardless of context; RSTCSR's own default flips to
+  // *RSTCSR specifically "if the SFL[SNGCHC|MLTCHC] subfile control
+  // record is defined in a pulldown" - see isPulldownRecord in
+  // webviewClientHelpers.js, which is what "defined in a pulldown" means
+  // in DDS terms: the SFLCTL record itself also carries PULLDOWN).
+  // SFLSNGCHC additionally has a 3-way *NOAUTOSLT/ *AUTOSLT/*AUTOSLTENH
+  // group whose default likewise flips to *AUTOSLT in a pulldown
+  // (SFLMLTCHC has no AUTOSLT group at all). SFLMLTCHC additionally takes
+  // an optional &number-selected field-name parameter (must name a hidden
+  // 4,0 signed-numeric field per its own DDS Reference text - left as
+  // free text here, same fallback the rest of this codebase uses for a
+  // keyword parameter this project doesn't yet validate the field's own
+  // shape for).
   //
   // Each RSTCSR/AUTOSLT tri/4-state getter/setter uses '' to mean
   // "not written - context default applies" (distinct from explicitly
@@ -10649,21 +10861,23 @@
     return next;
   }
 
-  /** Whether turning `name` (one of 'SFLSNGCHC'/'SFLMLTCHC') ON on this
-   *  record would conflict with something already there. Per both
-   *  keywords' own DDS Reference text, neither can share a record with
-   *  SFLDROP, SFLFOLD, or the OTHER of the pair - same
-   *  alertAndRevert-bidirectional idiom I-8/I-11/I-13's own conflict
-   *  checkers use, but this project doesn't yet also guard the reverse
-   *  direction (turning SFLDROP/SFLFOLD on while SFLSNGCHC/SFLMLTCHC is
-   *  already present) - left for a follow-up, same convention Task R3's
-   *  own CHGINPDFT/etc. partial guards took where only one direction was
-   *  built first. Returns a reason string, or '' if there's no conflict. */
-  //  Task I-121 (SFLSNGCHC/SFLMLTCHC slice) - the partner list (the other
-  //  choice keyword, SFLDROP, SFLFOLD) and its report order now come from
-  //  KeywordSpec.mutexKeywords(name) instead of being hard-coded here;
-  //  behavior and message wording are unchanged for the two names this is
-  //  called with. A name with no spec entry is fail-safe (no conflict).
+  /**
+   * Whether turning `name` (one of 'SFLSNGCHC'/'SFLMLTCHC') ON on this
+   * record would conflict with something already there. Per both
+   * keywords' own DDS Reference text, neither can share a record with
+   * SFLDROP, SFLFOLD, or the OTHER of the pair - same
+   * alertAndRevert-bidirectional idiom I-8/I-11/the conflict checkers
+   * use, but this project doesn't yet also guard the reverse direction
+   * (turning SFLDROP/SFLFOLD on while SFLSNGCHC/SFLMLTCHC is already
+   * present) - left for a follow-up, same convention Task R3's own
+   * CHGINPDFT/etc. partial guards took where only one direction was built
+   * first. Returns a reason string, or '' if there's no conflict.
+   */
+  //  The partner list (the other choice keyword, SFLDROP, SFLFOLD) and
+  //  its report order now come from KeywordSpec.mutexKeywords(name)
+  //  instead of being hard-coded here; behavior and message wording are
+  //  unchanged for the two names this is called with. A name with no spec
+  //  entry is fail-safe (no conflict).
   function sflChoiceListConflictReason(name, keywords) {
     var present = function (n) { return (keywords || []).some(function (kw) { return kw.name === n; }); };
     var partners = KeywordSpec.mutexKeywords(name);
@@ -10674,47 +10888,49 @@
   }
 
   // -----------------------------------------------------------------------
-  // Task I-80 - SFLCSRPRG vs SFLLIN. SFLCSRPRG's own DDS Reference section
-  // ends: "The SFLLIN keyword is not allowed in a record that contains the
-  // SFLCSRPRG." Read literally that is unsatisfiable - SFLCSRPRG is a
-  // FIELD-level keyword on a field of the subfile (SFL) record, while
-  // SFLLIN is a RECORD-level keyword that its own section says goes "on the
+  // SFLCSRPRG vs SFLLIN. SFLCSRPRG's own DDS Reference section ends: "The
+  // SFLLIN keyword is not allowed in a record that contains the SFLCSRPRG."
+  // Read literally that is unsatisfiable - SFLCSRPRG is a FIELD-level
+  // keyword on a field of the subfile (SFL) record, while SFLLIN is a
+  // RECORD-level keyword that its own section says goes "on the
   // subfile-control record format" - so no valid file can put both on one
-  // record. The only reading with any effect is through the association
-  // the two records already have (the control record's SFLCTL(sfl-record)
+  // record. The only reading with any effect is through the association the
+  // two records already have (the control record's SFLCTL(sfl-record)
   // parameter): a subfile record with a SFLCSRPRG field cannot be shown by
   // a control record that carries SFLLIN (a horizontal, multi-column
   // subfile, where "the same field in the NEXT subfile record" has no
   // single next). That is what is enforced here, in both directions; see
-  // the I-80 section of keywordFixes.md for the interpretation note.
-  // Both functions are diff-based (same shape as I-58/I-64/I-81's
-  // backstops, for the same commitEdit/commitRecordEdit choke points): an
-  // edit is only blamed for a violation it INTRODUCES, so a hand-written
-  // file that is already invalid never blocks an unrelated edit, and
-  // fixing it is always allowed.
+  // the section of keywordFixes.md for the interpretation note. Both
+  // functions are diff-based (same shape as I-58/I-64/the backstops, for
+  // the same commitEdit/commitRecordEdit choke points): an edit is only
+  // blamed for a violation it INTRODUCES, so a hand-written file that is
+  // already invalid never blocks an unrelated edit, and fixing it is always
+  // allowed.
   // -----------------------------------------------------------------------
 
   /** The name of the subfile record a control record's SFLCTL(name) points
    *  at, or '' when it has none. */
   function sflctlTargetName(keywords) {
-    // I-121q: where the record name sits in SFLCTL's parameter text is the
-    // spec's RECORD_REFERENCES fact (KeywordSpec.recordReferenceName).
+    // Where the record name sits in SFLCTL's parameter text is the spec's
+    // RECORD_REFERENCES fact (KeywordSpec.recordReferenceName).
     var k = (keywords || []).find(function (kw) { return kw.name === 'SFLCTL'; });
     if (!k) return '';
     var ref = KeywordSpec.recordReferenceName('SFLCTL', k.parameters);
     return ref ? String(ref).trim().replace(/^\(|\)$/g, '') : '';
   }
 
-  /** Task I-86 - the SFLCTL panel's own SFLNXTCHG row operates on the
-   *  SFLCTL record's OWN keywords, but SFLCHCCTL's field-level rule lives
-   *  on the LINKED subfile (SFL) record's fields - SFLCTL(subfile-record-
-   *  name) can point at a different record entirely, so the control
-   *  record's own (usually field-less) fields are the wrong thing to
-   *  check. Same target-resolution sfllinAssociatedViolation (I-80)
-   *  already established for the analogous SFLLIN/SFLCSRPRG cross-record
-   *  check just above - and it degrades correctly to the combined-record
-   *  case too (SFLCTL naming its OWN record resolves right back to itself,
-   *  same fields wireSflKeywordsPanels's own guard would see). */
+  /**
+   * The SFLCTL panel's own SFLNXTCHG row operates on the SFLCTL record's
+   * OWN keywords, but SFLCHCCTL's field-level rule lives on the LINKED
+   * subfile (SFL) record's fields - SFLCTL(subfile-record- name) can point
+   * at a different record entirely, so the control record's own (usually
+   * field-less) fields are the wrong thing to check. Same
+   * target-resolution sfllinAssociatedViolation already established for
+   * the analogous SFLLIN/SFLCSRPRG cross-record check just above - and it
+   * degrades correctly to the combined-record case too (SFLCTL naming its
+   * OWN record resolves right back to itself, same fields
+   * wireSflKeywordsPanels's own guard would see).
+   */
   function sflctlNxtchgSflchcctlConflictReason(keywords, records) {
     var target = sflctlTargetName(keywords);
     if (!target) return '';
@@ -10723,11 +10939,11 @@
     return sflNxtchgSflchcctlConflictReason((sflRec.fields || []).map(function (f) { return f.keywords; }));
   }
 
-  //  Task I-121 (SFLLIN/SFLCSRPRG slice) - the two keyword names below
-  //  now come from KeywordSpec.crossRecordExclusion('SFLLIN') instead of
-  //  being hard-coded in all three functions; behavior and message
-  //  wording are unchanged. sflctlTargetName stays the shared resolver
-  //  (the spec's `associatedVia` names the SFLCTL association it reads).
+  //  The two keyword names below now come from
+  //  KeywordSpec.crossRecordExclusion('SFLLIN') instead of being
+  //  hard-coded in all three functions; behavior and message wording are
+  //  unchanged. sflctlTargetName stays the shared resolver (the spec's
+  //  `associatedVia` names the SFLCTL association it reads).
   var SFLLIN_RULE = KeywordSpec.crossRecordExclusion('SFLLIN');
 
   function sfllinAssociatedViolation(keywords, records) {
@@ -10775,10 +10991,11 @@
       ' carries ' + ctlKw + ' - the DDS Reference does not allow ' + ctlKw + ' together with ' + fldKw + '. Remove ' + ctlKw + ' first.';
   }
 
-  /** Task I-81 - SFLRTNSEL's own DDS Reference section says "If this keyword
-   *  is specified then SFLMLTCHC or SFLSNGCHC must be specified". I-39 added
-   *  SFLRTNSEL with only a hint when neither is selected; this is the hard
-   *  block, for BOTH directions:
+  /**
+   * SFLRTNSEL's own DDS Reference section says "If this keyword is specified
+   * then SFLMLTCHC or SFLSNGCHC must be specified". I-39 added SFLRTNSEL with
+   * only a hint when neither is selected; this is the hard block, for BOTH
+   * directions:
    *   A. adding SFLRTNSEL to a record that has neither SFLSNGCHC nor
    *      SFLMLTCHC (after the edit);
    *   B. removing the LAST of SFLSNGCHC / SFLMLTCHC while SFLRTNSEL is
@@ -10786,19 +11003,19 @@
    *  Given the record's keyword list before and after an edit, returns a
    *  reason string when the edit INTRODUCES the violation, else null.
    *
-   *  Diff-based backstop, same shape as I-58's wrdwrapNewConflictReason and
-   *  I-64's pshbtnfldNewConflictReason, for ONE choke point (commitRecordEdit)
-   *  that covers every record-level path at once - the SFLCTL panel's
-   *  SFLRTNSEL checkbox, its type selector, and the raw keyword editor
-   *  (whose Remove has no guard hook of its own). A record that was already
-   *  invalid before the edit (a hand-written file with SFLRTNSEL and no
-   *  choice keyword) is not re-reported, so unrelated edits to it are never
-   *  blocked, and fixing it (adding a choice keyword or removing SFLRTNSEL)
-   *  is always allowed. */
+   *  Diff-based backstop, same shape as the wrdwrapNewConflictReason and the
+   *  pshbtnfldNewConflictReason, for ONE choke point (commitRecordEdit) that
+   *  covers every record-level path at once - the SFLCTL panel's SFLRTNSEL
+   *  checkbox, its type selector, and the raw keyword editor (whose Remove has
+   *  no guard hook of its own). A record that was already invalid before the
+   *  edit (a hand-written file with SFLRTNSEL and no choice keyword) is not
+   *  re-reported, so unrelated edits to it are never blocked, and fixing it
+   *  (adding a choice keyword or removing SFLRTNSEL) is always allowed.
+   */
   function sflrtnselNewConflictReason(oldKeywords, newKeywords) {
-    //  Task I-121 (SFLRTNSEL slice) - the two qualifying choice keywords
-    //  now come from KeywordSpec.hasQualifyingKeyword('SFLRTNSEL', ...)
-    //  instead of being hard-coded here; behavior and wording unchanged.
+    //  The two qualifying choice keywords now come from
+    //  KeywordSpec.hasQualifyingKeyword('SFLRTNSEL',...) instead of
+    //  being hard-coded here; behavior and wording unchanged.
     var has = function (kws, n) { return (kws || []).some(function (kw) { return kw.name === n; }); };
     var hasChoice = function (kws) { return KeywordSpec.hasQualifyingKeyword('SFLRTNSEL', kws); };
     if (!has(newKeywords, 'SFLRTNSEL')) return null;
@@ -10813,28 +11030,30 @@
     return null;
   }
 
-  /** Task I-128: the REVERSE direction of the I-26 choice-list exclusion.
-   *  SFLMLTCHC's and SFLSNGCHC's own DDS Reference sections say SFLDROP,
-   *  SFLFOLD and the other choice keyword cannot be specified on a record
-   *  with them (KeywordSpec `mutex` on each choice keyword).
-   *  sflChoiceListConflictReason only runs when the choice keyword is being
-   *  turned ON, so adding SFLDROP or SFLFOLD to a record that already has a
-   *  choice keyword - through the SFLCTL panel's SFLDROP/SFLFOLD rows or
-   *  the raw keyword editor - was unblocked. Given the record's keyword
-   *  list before and after an edit, returns a reason string when the edit
-   *  INTRODUCES a (choice keyword, partner) pair that was not already on
-   *  the record, else null.
+  /**
+   * The REVERSE direction of the choice-list exclusion. SFLMLTCHC's and
+   * SFLSNGCHC's own DDS Reference sections say SFLDROP, SFLFOLD and the
+   * other choice keyword cannot be specified on a record with them
+   * (KeywordSpec `mutex` on each choice keyword).
+   * sflChoiceListConflictReason only runs when the choice keyword is being
+   * turned ON, so adding SFLDROP or SFLFOLD to a record that already has a
+   * choice keyword - through the SFLCTL panel's SFLDROP/SFLFOLD rows or the
+   * raw keyword editor - was unblocked. Given the record's keyword list
+   * before and after an edit, returns a reason string when the edit
+   * INTRODUCES a (choice keyword, partner) pair that was not already on the
+   * record, else null.
    *
-   *  Diff-based backstop, same shape as I-81's sflrtnselNewConflictReason,
-   *  for ONE choke point (commitRecordEdit) that covers every record-level
-   *  path at once. Compared PER PAIR: a record that was already invalid (a
+   *  Diff-based backstop, same shape as the sflrtnselNewConflictReason, for
+   *  ONE choke point (commitRecordEdit) that covers every record-level path
+   *  at once. Compared PER PAIR: a record that was already invalid (a
    *  hand-written file) is not re-reported on an unrelated edit, removing
    *  either side of an existing pair is always allowed, but introducing a
    *  NEW bad pair on an already-invalid record is still blocked. Reads the
    *  partner lists from KeywordSpec.mutexKeywords, so the forward and
    *  reverse directions can never disagree; report order is the choice
    *  keyword order below, then the spec's partner order. The wording names
-   *  the keyword being ADDED first, matching sflChoiceListConflictReason. */
+   *  the keyword being ADDED first, matching sflChoiceListConflictReason.
+   */
   var SFL_CHOICE_KEYWORDS = KeywordSpec.sflChoiceKeywords();
   function sflChoiceListNewConflictReason(oldKeywords, newKeywords) {
     var has = function (kws, n) { return (kws || []).some(function (kw) { return kw.name === n; }); };
@@ -10856,23 +11075,24 @@
     return null;
   }
 
-  /** Task I-129: SFLSCROLL's, SFLRCDNBR's and SFLROLVAL's own DDS Reference
-   *  sections each say the keyword "is valid only for the subfile-control
-   *  record format" (KeywordSpec `validOnlyInSubfileControlRecord`), but the
-   *  Subfile keywords panel is also offered for a field in an SFL detail
-   *  record and the raw keyword editor takes any keyword on any field, so
-   *  nothing blocked them there. Given a field's keyword list before and
-   *  after an edit and whether its owning record is a subfile-control
-   *  record (the one carrying SFLCTL), returns a reason string when the
-   *  edit INTRODUCES one of those keywords on a field of any other kind of
-   *  record, else null.
+  /**
+   * SFLSCROLL's, SFLRCDNBR's and SFLROLVAL's own DDS Reference sections each
+   * say the keyword "is valid only for the subfile-control record format"
+   * (KeywordSpec `validOnlyInSubfileControlRecord`), but the Subfile
+   * keywords panel is also offered for a field in an SFL detail record and
+   * the raw keyword editor takes any keyword on any field, so nothing
+   * blocked them there. Given a field's keyword list before and after an
+   * edit and whether its owning record is a subfile-control record (the one
+   * carrying SFLCTL), returns a reason string when the edit INTRODUCES one
+   * of those keywords on a field of any other kind of record, else null.
    *
-   *  Diff-based, same shape as I-70's chridNewConflictReason and I-127's
-   *  sibling backstops, for ONE choke point (commitEdit) that covers the
-   *  panel and the raw editor at once: a hand-written file that already
-   *  has the keyword in the wrong record is not re-reported on an unrelated
-   *  edit, and turning it OFF is never blocked. Which keywords count comes
-   *  from the spec, not a literal list. */
+   *  Diff-based, same shape as the chridNewConflictReason and the sibling
+   *  backstops, for ONE choke point (commitEdit) that covers the panel and
+   *  the raw editor at once: a hand-written file that already has the
+   *  keyword in the wrong record is not re-reported on an unrelated edit,
+   *  and turning it OFF is never blocked. Which keywords count comes from
+   *  the spec, not a literal list.
+   */
   function subfileControlOnlyFieldNewConflictReason(oldKeywords, newKeywords, isSubfileControlRecord) {
     if (isSubfileControlRecord) return null;
     var had = function (n) { return (oldKeywords || []).some(function (kw) { return kw.name === n; }); };
@@ -10895,14 +11115,14 @@
    *  keywords array in the same record, needed only for that
    *  record-wide uniqueness check. Returns a reason string, or '' if
    *  there's no conflict. */
-  //  Task I-121 (SFLSCROLL slice) - the same-field mutex and one-per-
-  //  record facts now read from KeywordSpec.isMutex('SFLSCROLL', ...)
-  //  and KeywordSpec.isOnePerRecord('SFLSCROLL') instead of this
-  //  function's own hard-coded literals; behavior and message wording
-  //  are unchanged. Flagged as a deferred finding by the SFLCHCCTL slice.
-  //  Task I-127 - an optional third argument, the control record's own
-  //  keywords, adds the "not allowed when SFLSIZ equals SFLPAG" check
-  //  (sflsizPagEqualReason); omitted, that check is skipped (fail open).
+  //  The same-field mutex and one-per- record facts now read from
+  //  KeywordSpec.isMutex('SFLSCROLL',...) and
+  //  KeywordSpec.isOnePerRecord('SFLSCROLL') instead of this function's
+  //  own hard-coded literals; behavior and message wording are unchanged.
+  //  Flagged as a deferred finding by the SFLCHCCTL slice. An optional
+  //  third argument, the control record's own keywords, adds the "not
+  //  allowed when SFLSIZ equals SFLPAG" check (sflsizPagEqualReason);
+  //  omitted, that check is skipped (fail open).
   function sflScrollFieldConflictReason(fieldKeywords, siblingFieldsKeywords, recordKeywords) {
     var present = function (n) { return (fieldKeywords || []).some(function (kw) { return kw.name === n; }); };
     if (KeywordSpec.isMutex('SFLSCROLL', 'SFLROLVAL') && present('SFLROLVAL')) return 'SFLSCROLL cannot be specified on the same field as SFLROLVAL (mutually exclusive per the DDS Reference).';
@@ -10919,12 +11139,12 @@
   }
 
   // -----------------------------------------------------------------------
-  // Task I-127 - SFLSCROLL's own DDS Reference section: "SFLSCROLL is not
-  // allowed when SFLSIZ equals SFLPAG." (SFLSIZ's own section explains the
-  // case: "When you specify the same parameter values for SFLSIZ and the
-  // SFLPAG keyword..." - the subfile is then the field-selection kind.)
-  // Nothing enforced it. The rule lives in KeywordSpec
-  // (`notAllowedWhenEqual`); this is the comparison.
+  // SFLSCROLL's own DDS Reference section: "SFLSCROLL is not allowed when
+  // SFLSIZ equals SFLPAG." (SFLSIZ's own section explains the case: "When
+  // you specify the same parameter values for SFLSIZ and the SFLPAG
+  // keyword..." - the subfile is then the field-selection kind.) Nothing
+  // enforced it. The rule lives in KeywordSpec (`notAllowedWhenEqual`);
+  // this is the comparison.
   //
   // "Equal parameter values" is read as equal NUMBERS: SFLPAG only takes a
   // number, SFLSIZ may take a program-to-system field (&name), and a field
@@ -10987,13 +11207,13 @@
   // Task P12 - SFLEND(*SCRBAR)'s reserved columns. IBM's SFLEND section
   // ("Position of the scroll bar with *SCRBAR option") is unconditional: on
   // 24 x 80 positions 77-80 (27 x 132: 129-132) of every subfile line are
-  // reserved, "No fields of the subfile can use those columns. Thus no
-  // fields can occupy more than one line of the subfile." P9 already WARNS
-  // (banner) by resolving those collisions in DspfEngine's subfile preview;
-  // this turns the same resolution into an edit-time guard, the shape every
-  // other unconditional "cannot / not allowed" DDS Reference rule got (I-70,
-  // I-127, I-129). Design call (the reference does not say whether SDA itself
-  // rejects at edit time or only CRTDSPF does): enforce, as those did.
+  // reserved, "No fields of the subfile can use those columns. Thus no fields
+  // can occupy more than one line of the subfile." P9 already WARNS (banner)
+  // by resolving those collisions in DspfEngine's subfile preview; this turns
+  // the same resolution into an edit-time guard, the shape every other
+  // unconditional "cannot / not allowed" DDS Reference rule got. Design call
+  // (the reference does not say whether SDA itself rejects at edit time or
+  // only CRTDSPF does): enforce, as those did.
   //
   // ONE post-edit check instead of per-entry-point wiring: the collision set
   // is a property of the resulting source, so it covers, at once, the
@@ -11082,19 +11302,19 @@
   }
 
   // -----------------------------------------------------------------------
-  // Task I-126 - SFLSCROLL's own DDS Reference section: "This field must
-  // have the keyboard shift attribute of signed numeric with zero decimal
-  // positions. It has to be 5 digits in length, and it must be defined as
-  // a hidden field." Nothing enforced any of it (SFLSCROLL was a bare
-  // checkbox). Same split I-57/I-62/I-79 use: the shape is the field's OWN
-  // definition, so turning the keyword ON silently REWRITES the field to
-  // the required S / 5 / 0 / H shape (sflscrollDefinitionUpdates), and a
-  // later change AWAY from it is blocked (sflscrollBasicEditConflictReason,
-  // diff-based, so an already-invalid hand-written field never blocks an
-  // unrelated edit). The facts live in KeywordSpec's
-  // definitionRequirements('SFLSCROLL'), verified against IBM's own
-  // example (`F3  5S 0H  SFLSCROLL`). A blank data type WITH decimal
-  // positions specified is DDS's default signed numeric, so it conforms.
+  // SFLSCROLL's own DDS Reference section: "This field must have the
+  // keyboard shift attribute of signed numeric with zero decimal positions.
+  // It has to be 5 digits in length, and it must be defined as a hidden
+  // field." Nothing enforced any of it (SFLSCROLL was a bare checkbox).
+  // Same split I-57/I-62/I-79 use: the shape is the field's OWN definition,
+  // so turning the keyword ON silently REWRITES the field to the required S
+  // / 5 / 0 / H shape (sflscrollDefinitionUpdates), and a later change AWAY
+  // from it is blocked (sflscrollBasicEditConflictReason, diff-based, so an
+  // already-invalid hand-written field never blocks an unrelated edit). The
+  // facts live in KeywordSpec's definitionRequirements('SFLSCROLL'),
+  // verified against IBM's own example (`F3 5S 0H SFLSCROLL`). A blank data
+  // type WITH decimal positions specified is DDS's default signed numeric,
+  // so it conforms.
   // -----------------------------------------------------------------------
   function sflscrollDefinitionUpdates(field) {
     var f = field || {};
@@ -11151,14 +11371,16 @@
     return SFLSCROLL_SHAPE_TEXT + ' - cannot set ' + issues.join(', ') + '.';
   }
 
-  /** Commit choke point (commitEdit): an edit that INTRODUCES SFLSCROLL on
-   *  a field (the checkbox, the raw keyword editor, ...). Checks the field
-   *  as it will be AFTER the edit (`resultingField`: dataType, length,
-   *  decimalPositions, usage) against the required shape (I-126) and the
-   *  record's own SFLSIZ / SFLPAG against equality (I-127). The checkbox
-   *  brings the shape into line in the same edit, so it passes here; this
-   *  is what covers every path that does not. Diff-based: a field that
-   *  already had SFLSCROLL is never re-reported. */
+  /**
+   * Commit choke point (commitEdit): an edit that INTRODUCES SFLSCROLL on
+   * a field (the checkbox, the raw keyword editor,...). Checks the field
+   * as it will be AFTER the edit (`resultingField`: dataType, length,
+   * decimalPositions, usage) against the required shape and the record's
+   * own SFLSIZ / SFLPAG against equality. The checkbox brings the shape
+   * into line in the same edit, so it passes here; this is what covers
+   * every path that does not. Diff-based: a field that already had
+   * SFLSCROLL is never re-reported.
+   */
   function sflscrollNewConflictReason(oldKeywords, newKeywords, resultingField, recordKeywords) {
     var hasIt = function (kws) { return (kws || []).some(function (k) { return k.name === 'SFLSCROLL'; }); };
     if (hasIt(oldKeywords) || !hasIt(newKeywords)) return null;
@@ -11168,18 +11390,18 @@
   }
 
   // -----------------------------------------------------------------------
-  // Task I-177 - SFLRCDNBR's own DDS Reference section states three rules
-  // nothing enforced: "You cannot specify both SFLRCDNBR and SFLROLVAL for
-  // the same field", the format SFLRCDNBR[([CURSOR] [*TOP])], and the
-  // field's shape (zoned decimal / signed numeric S, 0 decimals, up to 4
-  // digits, output-only, input/output or hidden). Same three-part split
-  // SFLSCROLL uses (I-126): the facts live in KeywordSpec (mutex,
-  // parameterWords, definitionRequirements); the selector brings the field
-  // into shape in the same edit when the keyword is turned ON (only the
-  // wrong properties are rewritten - the length and usage are ranges, so a
-  // conforming 2-digit input field is left alone); a later change AWAY from
-  // the shape is blocked (diff-based); and commitEdit's backstop covers
-  // every path that does not (the raw keyword editor).
+  // SFLRCDNBR's own DDS Reference section states three rules nothing
+  // enforced: "You cannot specify both SFLRCDNBR and SFLROLVAL for the same
+  // field", the format SFLRCDNBR[([CURSOR] [*TOP])], and the field's shape
+  // (zoned decimal / signed numeric S, 0 decimals, up to 4 digits,
+  // output-only, input/output or hidden). Same three-part split SFLSCROLL
+  // uses: the facts live in KeywordSpec (mutex, parameterWords,
+  // definitionRequirements); the selector brings the field into shape in
+  // the same edit when the keyword is turned ON (only the wrong properties
+  // are rewritten - the length and usage are ranges, so a conforming
+  // 2-digit input field is left alone); a later change AWAY from the shape
+  // is blocked (diff-based); and commitEdit's backstop covers every path
+  // that does not (the raw keyword editor).
   // -----------------------------------------------------------------------
   var SFLRCDNBR_SHAPE_TEXT = 'SFLRCDNBR requires a signed numeric (data type S), 0-decimal field of at most 4 digits, defined as output-only (O), input/output (B) or hidden (H) (per the DDS Reference)';
 
@@ -11304,12 +11526,13 @@
     return null;
   }
 
-  /** Task I-79 - SFLCHCCTL's own DDS Reference section: "That field must be
-   *  the first field defined in the subfile record. That field must have a
-   *  length of 1, data type of Y, decimal positions of zero, and have a
-   *  usage of H... Only one SFLCHCCTL keyword can be used in one subfile
-   *  record." I-39 added the keyword itself with hint text only - none of
-   *  the three rules were hard-blocked.
+  /**
+   * SFLCHCCTL's own DDS Reference section: "That field must be the first
+   * field defined in the subfile record. That field must have a length of
+   * 1, data type of Y, decimal positions of zero, and have a usage of H...
+   * Only one SFLCHCCTL keyword can be used in one subfile record." I-39
+   * added the keyword itself with hint text only - none of the three rules
+   * were hard-blocked.
    *
    *  Same split I-57/I-62 used for PSHBTNFLD: the field-shape rule (length/
    *  type/decimals/usage) is the field's OWN definition, so it is silently
@@ -11327,11 +11550,11 @@
    *  record (nameType !== 'CONSTANT') - DDS's own terminology throughout
    *  this Reference calls constants out separately from fields, and IBM's
    *  own SFLCHCCTL example places the control field before any other
-   *  field with no constant in between. */
-  //  Task I-121 (SFLCHCCTL slice) - now reads
-  //  KeywordSpec.definitionRequirements('SFLCHCCTL') instead of its own
-  //  hand-written Y/1/0/H literals, mirroring pshbtnfldDefinitionUpdates's
-  //  own I-121 refactor; behavior is unchanged.
+   *  field with no constant in between.
+   */
+  //  Now reads KeywordSpec.definitionRequirements('SFLCHCCTL') instead of
+  //  its own hand-written Y/1/0/H literals, mirroring
+  //  pshbtnfldDefinitionUpdates's own refactor; behavior is unchanged.
   function sflchcctlDefinitionUpdates(field) {
     var f = field || {};
     var req = KeywordSpec.definitionRequirements('SFLCHCCTL');
@@ -11343,8 +11566,8 @@
     return Object.keys(updates).length ? updates : null;
   }
 
-  //  Task I-121 - the first-field, one-per-record and SFLNXTCHG facts
-  //  moved to keywordSpec.js's declarative RECORD_TYPES.SFLCHCCTL entry
+  //  The first-field, one-per-record and SFLNXTCHG facts moved to
+  //  keywordSpec.js's declarative RECORD_TYPES.SFLCHCCTL entry
   //  (mustBeFirstField, onePerRecord, mutex); this function now reads them
   //  through KeywordSpec.mustBeFirstField/isOnePerRecord/isMutex instead of
   //  its own inline literals - behavior and message text unchanged.
@@ -11354,35 +11577,37 @@
       return (fk || []).some(function (kw) { return kw.name === 'SFLCHCCTL'; });
     });
     if (KeywordSpec.isOnePerRecord('SFLCHCCTL') && alreadyElsewhere) return 'Only one SFLCHCCTL keyword is allowed in the subfile record - another field already has it.';
-    // Task I-86 - the reverse direction of sflNxtchgSflchcctlConflictReason
-    // below: the same DDS Reference sentence blocks SFLCHCCTL from being
-    // added when the record already has SFLNXTCHG, just as it blocks
-    // SFLNXTCHG from being added when a field already has SFLCHCCTL.
+    // The reverse direction of sflNxtchgSflchcctlConflictReason below: the
+    // same DDS Reference sentence blocks SFLCHCCTL from being added when
+    // the record already has SFLNXTCHG, just as it blocks SFLNXTCHG from
+    // being added when a field already has SFLCHCCTL.
     var hasNxtchg = (recordKeywords || []).some(function (kw) { return KeywordSpec.isMutex('SFLCHCCTL', kw.name); });
     if (hasNxtchg) return 'SFLCHCCTL cannot be added to a record that already has SFLNXTCHG (per the DDS Reference).';
     return '';
   }
 
-  /** Task I-86 - SFLCHCCTL's own DDS Reference section, right after its
-   *  first-field/shape/one-per-record rules, adds one more: "SFLNXTCHC
-   *  keyword cannot be specified in a record that contains a field with
-   *  the SFLCHCCTL keyword." ("SFLNXTCHC" is read as SFLNXTCHG - the only
-   *  keyword by that name anywhere in the DDS Reference; the same page
-   *  spells it SFLNXTCHG 15 other times, including its own section header
-   *  "SFLNXTCHG (Subfile Next Changed) keyword for display files" a few
-   *  hundred lines later - this one occurrence is a single dropped letter,
-   *  not a second, otherwise-undocumented keyword.)
+  /**
+   * SFLCHCCTL's own DDS Reference section, right after its
+   * first-field/shape/one-per-record rules, adds one more: "SFLNXTCHC keyword
+   * cannot be specified in a record that contains a field with the SFLCHCCTL
+   * keyword." ("SFLNXTCHC" is read as SFLNXTCHG - the only keyword by that
+   * name anywhere in the DDS Reference; the same page spells it SFLNXTCHG 15
+   * other times, including its own section header "SFLNXTCHG (Subfile Next
+   * Changed) keyword for display files" a few hundred lines later - this one
+   * occurrence is a single dropped letter, not a second,
+   * otherwise-undocumented keyword.)
    *
    *  SFLNXTCHG is itself record-level, specified "on the subfile record
-   *  format" (SFLNXTCHG's own section) - the same physical record
-   *  SFLCHCCTL's control field lives in, including the combined SFL+SFLCTL
-   *  case (see wireSflKeywordsPanels/wireSflCtlPanels's own I-86 comments
-   *  for why both call sites need this). Forward direction only (turning
-   *  SFLNXTCHG ON); the reverse direction (turning SFLCHCCTL on when
-   *  SFLNXTCHG is already present) is sflchcctlFieldConflictReason's own
-   *  recordKeywords check above. Returns a reason string, or '' - same
-   *  convention as sflchcctlFieldConflictReason/sflScrollFieldConflictReason. */
-  //  Task I-121 - reads the same RECORD_TYPES.SFLCHCCTL.mutex fact as
+   *  format" (SFLNXTCHG's own section) - the same physical record SFLCHCCTL's
+   *  control field lives in, including the combined SFL+SFLCTL case (see
+   *  wireSflKeywordsPanels/wireSflCtlPanels's own comments for why both call
+   *  sites need this). Forward direction only (turning SFLNXTCHG ON); the
+   *  reverse direction (turning SFLCHCCTL on when SFLNXTCHG is already
+   *  present) is sflchcctlFieldConflictReason's own recordKeywords check
+   *  above. Returns a reason string, or '' - same convention as
+   *  sflchcctlFieldConflictReason/sflScrollFieldConflictReason.
+   */
+  //  Reads the same RECORD_TYPES.SFLCHCCTL.mutex fact as
   //  sflchcctlFieldConflictReason above, from the other side: a field
   //  keyword is a conflict here when THAT keyword's own mutex list names
   //  SFLNXTCHG (SFLCHCCTL is the only one that does today) - same
@@ -11397,14 +11622,15 @@
     return '';
   }
 
-  /** Task I-87 - the REORDER direction of SFLCHCCTL's first-field rule.
-   *  sflchcctlFieldConflictReason only checks it when the SFLCHCCTL checkbox
-   *  is toggled, but the Structure tab's Up/Down buttons (moveField ->
-   *  reorderFields) can move the SFLCHCCTL field out of first place, or move
-   *  another field ahead of it, with no check at all. DDS Reference: SFLCHCCTL
-   *  "must be on the first field defined in the subfile record" - "first
-   *  field" being the first NAMED field, constants not counting (the same
-   *  reading as sflchcctlFieldConflictReason's own isFirstField).
+  /**
+   * The REORDER direction of SFLCHCCTL's first-field rule.
+   * sflchcctlFieldConflictReason only checks it when the SFLCHCCTL checkbox is
+   * toggled, but the Structure tab's Up/Down buttons (moveField ->
+   * reorderFields) can move the SFLCHCCTL field out of first place, or move
+   * another field ahead of it, with no check at all. DDS Reference: SFLCHCCTL
+   * "must be on the first field defined in the subfile record" - "first field"
+   * being the first NAMED field, constants not counting (the same reading as
+   * sflchcctlFieldConflictReason's own isFirstField).
    *
    *  `record` is the parsed record (fields in their current source order, each
    *  with sourceLine, name, nameType and keywords); `orderedSourceLines` is the
@@ -11417,11 +11643,12 @@
    *  stay possible, and a move that puts the SFLCHCCTL field FIRST is always
    *  allowed. Moving a constant past the SFLCHCCTL field, or reordering fields
    *  that carry no SFLCHCCTL, is never blocked. Returns a reason string, or
-   *  null. */
-  //  Task I-121 - gated on KeywordSpec.mustBeFirstField('SFLCHCCTL')
-  //  instead of assuming it unconditionally; behavior unchanged (the flag
-  //  is always true today), but the reorder check now shares its one
-  //  source of truth with sflchcctlFieldConflictReason's own check above.
+   *  null.
+   */
+  //  Gated on KeywordSpec.mustBeFirstField('SFLCHCCTL') instead of
+  //  assuming it unconditionally; behavior unchanged (the flag is always
+  //  true today), but the reorder check now shares its one source of
+  //  truth with sflchcctlFieldConflictReason's own check above.
   function sflchcctlReorderConflictReason(record, orderedSourceLines) {
     if (!KeywordSpec.mustBeFirstField('SFLCHCCTL')) return null;
     var fields = (record && record.fields) || [];
@@ -11443,14 +11670,16 @@
     return 'SFLCHCCTL must be on the first field defined in the subfile record (per the DDS Reference) - this move would put ' + shown(okAfter) + ' ahead of ' + shown(chcctlField) + '.';
   }
 
-  /** Task I-79 - a data type, length, decimals or usage CHANGE (the Basic
-   *  tab's Apply changes) on a field that ALREADY carries SFLCHCCTL.
-   *  Turning the keyword ON brings the field into the required Y/1/0/H
-   *  shape automatically (see sflchcctlDefinitionUpdates); this closes the
-   *  other direction, same shape as I-62's pshbtnfldBasicEditConflictReason.
-   *  Diff-based: only a CHANGE away from the required shape is blocked, so
-   *  an unrelated Apply on an already-invalid hand-written field still goes
-   *  through. Returns a reason string, or null. */
+  /**
+   * A data type, length, decimals or usage CHANGE (the Basic tab's Apply
+   * changes) on a field that ALREADY carries SFLCHCCTL. Turning the keyword
+   * ON brings the field into the required Y/1/0/H shape automatically (see
+   * sflchcctlDefinitionUpdates); this closes the other direction, same shape
+   * as the pshbtnfldBasicEditConflictReason. Diff-based: only a CHANGE away
+   * from the required shape is blocked, so an unrelated Apply on an
+   * already-invalid hand-written field still goes through. Returns a reason
+   * string, or null.
+   */
   function sflchcctlBasicEditConflictReason(fieldKeywords, oldField, updates) {
     var hasChcctl = (fieldKeywords || []).some(function (k) { return k.name === 'SFLCHCCTL'; });
     if (!hasChcctl) return null;
@@ -11486,16 +11715,16 @@
     return 'SFLCHCCTL requires a length-1, data type Y, 0-decimal, usage H field (per the DDS Reference) - cannot set ' + problems.join(', ') + '.';
   }
 
-  /** Task I-88 - Resolve Referenced Field (extension.ts) overwrites a
-   *  reference field's length, data type and decimals with the values from
-   *  the real database file, through applyFieldUpdate. Unlike the Basic tab's
-   *  Apply, nothing checked those against the keywords already on the field,
-   *  so a resolve could leave it in a state the panels themselves refuse:
-   *  WRDWRAP (I-61) with a data type it forbids, PSHBTNFLD (I-62) with
-   *  anything but Y / length 2 / 0 decimals, CHRID (I-70) with decimal
-   *  positions (which make it numeric), DUP (I-72) or BLKFOLD (I-82) on a
-   *  floating-point field, SFLCHCCTL (I-79) with anything but Y / 1 / 0,
-   *  IGCALTTYP (I-94) with a data type outside A / N / X / W / I.
+  /**
+   * Resolve Referenced Field (extension.ts) overwrites a reference field's
+   * length, data type and decimals with the values from the real database
+   * file, through applyFieldUpdate. Unlike the Basic tab's Apply, nothing
+   * checked those against the keywords already on the field, so a resolve
+   * could leave it in a state the panels themselves refuse: WRDWRAP with a
+   * data type it forbids, PSHBTNFLD with anything but Y / length 2 / 0
+   * decimals, CHRID with decimal positions (which make it numeric), DUP or
+   * BLKFOLD on a floating-point field, SFLCHCCTL with anything but Y / 1 / 0,
+   * IGCALTTYP with a data type outside A / N / X / W / I.
    *
    *  This runs, for the definition properties a resolve writes (length,
    *  dataType, decimalPositions - never usage, so CHKMSGID's usage-only rule
@@ -11509,7 +11738,8 @@
    *  hand-written field, and a resolve to a conforming value is never
    *  blocked. The database's own character type comes back as a blank data
    *  type (DDS's default, A), which is not treated as a change from an
-   *  explicit A (see the normalisation below). */
+   *  explicit A (see the normalisation below).
+   */
   function referencedFieldResolveConflictReason(field, updates) {
     var f = field || {};
     var u = updates || {};
@@ -11579,8 +11809,8 @@
   // generic L1 "repeatable conditioned instance" component
   // (repeatableConditionedInstancesHtml/wireRepeatableConditionedInstances
   // in webviewClientHelpers.js) into both, since real DDS lets each appear
-  // multiple times with its own independent up-to-3-indicator condition
-  // set (not an embedded parameter the way INDTXT/SETOF/CHANGE's response
+  // multiple times with its own independent up-to-3-indicator condition set
+  // (not an embedded parameter the way INDTXT/SETOF/CHANGE's response
   // indicator is). parseSflMsgIdParams/formatSflMsgIdParams below are the
   // per-INSTANCE version of what used to be getSflMsgId/setSflMsgId (a
   // single-primary-instance getter/setter over a whole keywords array) -
@@ -11590,16 +11820,16 @@
   // which L1c's per-instance UI bypasses in favor of
   // quoteDdsLiteral/unquoteDdsLiteral directly (each instance's own raw
   // `parameters`, not a single keywords-array lookup). SFLMSGID's trailing
-  // "Ind"/"Name" columns shown on the real screen are modeled as of Task
-  // I-99: IBM's format is SFLMSGID(msgid [library-name/]msg-file
-  // [response-indicator] [&msg-data]) - the library is part of the SECOND
-  // token, slash-qualified, and the two optional trailing tokens are a
-  // bare 2-digit indicator and a &-prefixed field name (same shape as
+  // "Ind"/"Name" columns shown on the real screen are modeled as of IBM's
+  // format is SFLMSGID(msgid [library-name/]msg-file [response-indicator]
+  // [&msg-data]) - the library is part of the SECOND token,
+  // slash-qualified, and the two optional trailing tokens are a bare
+  // 2-digit indicator and a &-prefixed field name (same shape as
   // ERRMSGID's, see getErrorMessageInstances). Before I-99 this pair read
   // and wrote a bare third token as the library, which is a response
   // indicator's position, so a library typed into the panel produced
-  // invalid DDS and a hand-written response indicator/&msg-data was
-  // misread and silently dropped on the next edit.
+  // invalid DDS and a hand-written response indicator/&msg-data was misread
+  // and silently dropped on the next edit.
   // ---------------------------------------------------------------------
 
   /**
@@ -11672,23 +11902,24 @@
     return next;
   }
 
-  /** Task I-22: SFLSIZ's own DDS Reference text - "You cannot use display
-   *  size condition names for this keyword when a program-to-system
-   *  field is used as a parameter for it" - only restricts a SIZE-
-   *  CONDITIONED instance's own value, not the unconditioned (primary)
-   *  one. A DDS field name is alphabetic-first, alphanumeric; the
-   *  "number" form is purely numeric digits - so a non-numeric value
-   *  offered for a size-conditioned SFLSIZ instance is unambiguously the
-   *  forbidden combination, not a judgment call. Returns a reason string
-   *  if `value` (destined for a bySizeName entry) violates this, or null
-   *  if fine. Only applies to SFLSIZ - SFLPAG/SFLLIN have no
-   *  program-to-system field form at all (see this section's own doc
-   *  comment above), so there's nothing to conflict with for either. */
-  //  Task I-121 (SFLSIZ slice) - whether SFLSIZ's size-conditioned values
-  //  must be plain numbers now comes from
-  //  KeywordSpec.sizeConditionedValueMustBeNumber('SFLSIZ') instead of
-  //  being implied by this function's own existence; behavior and message
-  //  wording are unchanged.
+  /**
+   * SFLSIZ's own DDS Reference text - "You cannot use display size
+   * condition names for this keyword when a program-to-system field is
+   * used as a parameter for it" - only restricts a SIZE- CONDITIONED
+   * instance's own value, not the unconditioned (primary) one. A DDS
+   * field name is alphabetic-first, alphanumeric; the "number" form is
+   * purely numeric digits - so a non-numeric value offered for a
+   * size-conditioned SFLSIZ instance is unambiguously the forbidden
+   * combination, not a judgment call. Returns a reason string if `value`
+   * (destined for a bySizeName entry) violates this, or null if fine.
+   * Only applies to SFLSIZ - SFLPAG/SFLLIN have no program-to-system
+   * field form at all (see this section's own doc comment above), so
+   * there's nothing to conflict with for either.
+   */
+  //  Whether SFLSIZ's size-conditioned values must be plain numbers now
+  //  comes from KeywordSpec.sizeConditionedValueMustBeNumber('SFLSIZ')
+  //  instead of being implied by this function's own existence; behavior
+  //  and message wording are unchanged.
   function sflsizConditionedFieldNameConflictReason(value) {
     if (!KeywordSpec.sizeConditionedValueMustBeNumber('SFLSIZ')) return null;
     var v = (value == null ? '' : String(value)).trim();
@@ -11733,19 +11964,19 @@
    * getRepeatableKeywordInstances/setRepeatableKeywordInstances pass
    * around.
    *
-   * Task I-99: IBM's grammar is `msgid [library-name/]msg-file
-   * [response-indicator] [&msg-data]` (DDS Reference, SFLMSGID keyword) -
-   * the library is the slash-qualifier of the SECOND token, and a bare
-   * numeric token after it is the response indicator, a `&`-prefixed one
-   * the message data field (the same reading ERRMSGID's own
-   * getErrorMessageInstances does). `msgDataField` keeps the `&` as typed.
+   * IBM's grammar is `msgid [library-name/]msg-file [response-indicator]
+   * [&msg-data]` (DDS Reference, SFLMSGID keyword) - the library is the
+   * slash-qualifier of the SECOND token, and a bare numeric token after it
+   * is the response indicator, a `&`-prefixed one the message data field
+   * (the same reading ERRMSGID's own getErrorMessageInstances does).
+   * `msgDataField` keeps the `&` as typed.
    *
-   * Repair, not a new form: before I-99 this panel wrote the library as a
-   * bare third token (`MSGID MSGF QGPL`), which is not valid DDS. A file
-   * written that way still opens with its library in the library box
-   * (only when the message file carries no qualifier of its own and the
-   * token is neither numeric nor `&`-prefixed), so the next edit through
-   * the panel rewrites it as `MSGID QGPL/MSGF` instead of dropping it.
+   * Repair, not a new form: before this panel wrote the library as a bare
+   * third token (`MSGID MSGF QGPL`), which is not valid DDS. A file
+   * written that way still opens with its library in the library box (only
+   * when the message file carries no qualifier of its own and the token is
+   * neither numeric nor `&`-prefixed), so the next edit through the panel
+   * rewrites it as `MSGID QGPL/MSGF` instead of dropping it.
    */
   function parseSflMsgIdParams(parameters) {
     var tokens = (parameters || '').trim().split(/\s+/).filter(Boolean);
@@ -11788,12 +12019,13 @@
     return parts.join(' ');
   }
 
-  /** Task I-99 / I-100: null when `value` is blank or a valid response
-   *  indicator (2 digits, 01-99, the range the DDS Reference gives for
-   *  indicators), otherwise the message the panel alerts with, naming
-   *  `keywordName` (SFLMSGID, SFLMSG). A bare non-numeric token here would
-   *  be written into the response-indicator slot verbatim and read back as
-   *  something else. */
+  /**
+   * Null when `value` is blank or a valid response indicator (2 digits,
+   * 01-99, the range the DDS Reference gives for indicators), otherwise
+   * the message the panel alerts with, naming `keywordName` (SFLMSGID,
+   * SFLMSG). A bare non-numeric token here would be written into the
+   * response-indicator slot verbatim and read back as something else.
+   */
   function messageResponseIndicatorProblem(keywordName, value) {
     var v = String(value == null ? '' : value).trim();
     if (!v) return null;
@@ -11801,18 +12033,18 @@
     return String(keywordName) + '\u2019s response indicator must be a two-digit indicator from 01 to 99 (got \u201c' + v + '\u201d).';
   }
 
-  /** SFLMSGID's own name for messageResponseIndicatorProblem (Task I-99). */
+  /* SFLMSGID's own name for messageResponseIndicatorProblem. */
   function sflMsgIdResponseIndicatorProblem(value) {
     return messageResponseIndicatorProblem('SFLMSGID', value);
   }
 
   /**
-   * Task I-100: parses a raw SFLMSG parameter string. IBM's format is
+   * Parses a raw SFLMSG parameter string. IBM's format is
    * `SFLMSG('message-text' [response-indicator])` (DDS Reference, SFLMSG
    * keyword) - the same shape as ERRMSG's, and read the same way
    * getErrorMessageInstances reads ERRMSG. Returns { text, responseIndicator }
-   * with the quoting undone (`''` -> `'`). Anything after the quoted text
-   * that is not a bare number is ignored, as for ERRMSG.
+   * with the quoting undone (`''` -> `'`). Anything after the quoted text that
+   * is not a bare number is ignored, as for ERRMSG.
    */
   function parseSflMsgParams(parameters) {
     var m = /^'((?:[^']|'')*)'(?:\s+(\d+))?/.exec((parameters || '').trim());
@@ -11976,12 +12208,11 @@
   }
 
   // ---------------------------------------------------------------------
-  // S36-3 / Task I-121p: the System/36 environment (S36E) restriction table
-  // now lives in keywordSpec.js (S36E_RESTRICTIONS, with its full IBM
-  // citation trail); this section only consumes it. Of the table's eight
-  // keywords only CHANGE/HELP/PRINT are gated by USRDSPMGT
-  // (response-indicator rules); the rest are unconditional general rules
-  // kept for reference.
+  // S36-3 / the System/36 environment (S36E) restriction table now lives in
+  // keywordSpec.js (S36E_RESTRICTIONS, with its full IBM citation trail);
+  // this section only consumes it. Of the table's eight keywords only
+  // CHANGE/HELP/PRINT are gated by USRDSPMGT (response-indicator rules);
+  // the rest are unconditional general rules kept for reference.
 
   /** Returns the S36-3 rule-table entry for one of the 6 (well, 7 counting
    *  HLPRTN as CHANGE/HELP/PRINT's own paired keyword) S36E-restricted
@@ -12274,7 +12505,7 @@
     passrcdWindowConflictReason: passrcdWindowConflictReason,
     passrcdRecordConflictReason: passrcdRecordConflictReason,
     passrcdRestrictedKeywords: passrcdRestrictedKeywords,
-    // Task I-121b - initialize / retain / return keyword facts, straight off the spec.
+    // Initialize / retain / return keyword facts, straight off the spec.
     initRetainReturnKeywords: function () { return KeywordSpec.initRetainReturnKeywords(); },
     takesNoParameters: function (n) { return KeywordSpec.takesNoParameters(n); },
     optionIndicatorsAllowed: function (n) { return KeywordSpec.optionIndicatorsAllowed(n); },
@@ -12288,7 +12519,7 @@
     commandKeyEntry: function (t) { return KeywordSpec.commandKeyEntry(t); },
     passrcdOwnSectionRestricted: function () { return KeywordSpec.passrcdOwnSectionRestricted(); },
     usrdspmgtForbiddenKeywords: function () { return KeywordSpec.usrdspmgtForbiddenKeywords(); },
-    // Task I-121e - window / menu-bar / help / logging record keyword facts, straight off the spec.
+    // Window / menu-bar / help / logging record keyword facts, straight off the spec.
     windowHelpLogKeywords: function () { return KeywordSpec.windowHelpLogKeywords(); },
     hlpseqLimits: function () { return KeywordSpec.hlpseqLimits(); },
     altKeyNames: function () { return KeywordSpec.altKeyNames(); },
@@ -12296,7 +12527,7 @@
     isSystemValueConstantKeyword: function (name) { return KeywordSpec.isSystemValueConstantKeyword(name); },
     systemValueConstantLabel: function (name) { return KeywordSpec.systemValueConstantLabel(name); },
     msgconLengthRange: function () { return KeywordSpec.msgconLengthRange(); },
-    // Task I-121o - reference-flag and constant-field-only facts, read off the spec.
+    // Reference-flag and constant-field-only facts, read off the spec.
     requiresReferenceFlag: function (name) { return KeywordSpec.requiresReferenceFlag(name); },
     referenceFlagRequiredKeywords: function () { return KeywordSpec.referenceFlagRequiredKeywords(); },
     validOnlyOnConstantField: function (name) { return KeywordSpec.validOnlyOnConstantField(name); },

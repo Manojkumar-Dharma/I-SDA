@@ -7,8 +7,8 @@
  *
  * This is the one place those files are edited by hand. They are generated from it by
  * docs/sda-reference/keyword-index/generate_keyword_index.js (replacing build_index.py and
- * build_lookup_and_md.py, which produced the I-40 baseline this table was taken from, byte for
- * byte). The facts about each keyword (levels, option indicators, System/36 restrictions) live in
+ * build_lookup_and_md.py, which produced the baseline this table was taken from, byte for byte).
+ * The facts about each keyword (levels, option indicators, System/36 restrictions) live in
  * keywordSpec.js; src/test/i121tKeywordIndexGeneration.test.js cross-checks this table against it.
  * Not required by the extension itself; src/** is excluded from the VSIX.
  */

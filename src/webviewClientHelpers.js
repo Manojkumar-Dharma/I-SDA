@@ -12,14 +12,14 @@
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
-    // Task I-119: escapeHtml/isPulldownRecord now delegate to DspfEngine's
-    // own (see those two functions' own comments below), so this module
-    // needs DspfEngine in Node too. DspfWriter (already used as a bare
-    // free variable throughout this file) intentionally keeps its
-    // existing "caller sets global.DspfWriter before require()"
-    // convention unchanged - see e.g. colorAttrPgmField.test.js's own
-    // comment - only the new DspfEngine dependency is wired via require()
-    // here so no existing test file needed touching for it.
+    // escapeHtml/isPulldownRecord now delegate to DspfEngine's own (see
+    // those two functions' own comments below), so this module needs
+    // DspfEngine in Node too. DspfWriter (already used as a bare free
+    // variable throughout this file) intentionally keeps its existing
+    // "caller sets global.DspfWriter before require()" convention
+    // unchanged - see e.g. colorAttrPgmField.test.js's own comment - only
+    // the new DspfEngine dependency is wired via require() here so no
+    // existing test file needed touching for it.
     module.exports = factory(require('./dspfEngine.js'));
   } else {
     root.WebviewClientHelpers = factory(root.DspfEngine);
@@ -574,17 +574,16 @@
       var conditions = k.conditions || [];
       var condSummary = conditions.length > 0 ? ' (' + conditions.length + ')' : '';
       var isExpanded = !!(expandedSet && expandedSet.has(ownerKey + ':' + idx));
-      // Task I-95: a keyword the DDS Reference says takes no option indicators
+      // A keyword the DDS Reference says takes no option indicators
       // (DspfWriter.noOptionIndicatorsReason) gets no Conditioning toggle at
       // all while it carries no condition. One that already carries option
       // indicators (a hand-written file) keeps the toggle so they can be
       // removed, and is flagged; adding one is refused in wireKeywordEditor.
-      // Task I-101: one that carries only a display-size condition (MSGLOC
-      // legitimately takes *DS3/*DS4 ones) keeps the toggle too, so that
-      // condition stays visible and removable - the toggle is only ever
-      // hidden when there is nothing at all to show.
-      // Task I-101 batch 4: the file-level keyword list (owner key "file") also
-      // gets the file-level-only entries (HLPTITLE); a listed keyword that
+      // one that carries only a display-size condition (MSGLOC legitimately
+      // takes *DS3/*DS4 ones) keeps the toggle too, so that condition stays
+      // visible and removable - the toggle is only ever hidden when there is
+      // nothing at all to show. The file-level keyword list (owner key "file")
+      // also gets the file-level-only entries (HLPTITLE); a listed keyword that
       // carries something it may not (an option indicator, or a display-size
       // condition for SFLPGMQ) is warned about.
       var kwLevel = ownerKey === 'file' ? 'file' : undefined;
@@ -612,20 +611,20 @@
     return html;
   }
 
-  // Task I-49: optional trailing `addGuardFn(name, params)` param, checked
-  // only in the "+ Add keyword" handler below, before `onChange` is ever
-  // called. Every existing call site (file/field/help-entry keywords, and
-  // pre-I-49 record keywords) omits it and is completely unaffected - the
-  // guard only fires where a caller opts in. The record-level call site
+  // Optional trailing `addGuardFn(name, params)` param, checked only in
+  // the "+ Add keyword" handler below, before `onChange` is ever called.
+  // Every existing call site (file/field/help-entry keywords, and pre-I-49
+  // record keywords) omits it and is completely unaffected - the guard
+  // only fires where a caller opts in. The record-level call site
   // (renderRecordProps in buildWebviewTemplate.js) is the only one that
   // passes one, wired to DspfWriter.usrdfnWhitelistConflictReason so a
   // USRDFN record's own raw keyword editor can no longer add anything
-  // outside USRDFN's own whitelist (see that function's doc comment) -
-  // the gap I-44's own audit found and logged as this task. Returns a
-  // reason string to block (alerted, same idiom as the guarded flag/
-  // two-field helpers above - remove is NEVER guarded, matching those
-  // helpers' own "only the on-transition" rule), or null/undefined to
-  // allow the add through as before.
+  // outside USRDFN's own whitelist (see that function's doc comment) - the
+  // gap the audit found and logged as this task. Returns a reason string
+  // to block (alerted, same idiom as the guarded flag/ two-field helpers
+  // above - remove is NEVER guarded, matching those helpers' own "only the
+  // on-transition" rule), or null/undefined to allow the add through as
+  // before.
   function wireKeywordEditor(keywords, onChange, ownerKey, expandedSet, rerender, addGuardFn) {
     var list = keywords || [];
 
@@ -648,8 +647,8 @@
       });
       if (expandedSet && expandedSet.has(expandKey) && list[idx]) {
         wireConditionsEditor(ownerKey + '-kw' + idx, list[idx].conditions, function (newConditions) {
-          // Task I-95: diff-based - only an edit that ADDS option indicators to
-          // a keyword that takes none is refused; removing them is always fine.
+          // Diff-based - only an edit that ADDS option indicators to a keyword
+          // that takes none is refused; removing them is always fine.
           var noIndReason = DspfWriter.noOptionIndicatorsNewConflictReason(list[idx].name, list[idx].conditions, newConditions, ownerKey === 'file' ? 'file' : undefined);
           if (noIndReason) {
             window.alert(noIndReason);
@@ -747,9 +746,9 @@
     return html;
   }
 
-  // Task I-136: optional trailing `guardFn(keywordName) -> reason|null`, called
-  // once per "+ Add" with the new CAnn / CFnn's name; a reason is alerted and
-  // the key is not added. Omitted-safe.
+  // Optional trailing `guardFn(keywordName) -> reason|null`, called once per "+
+  // Add" with the new CAnn / CFnn's name; a reason is alerted and the key is
+  // not added. Omitted-safe.
   function wireCommandKeysSection(idPrefix, keywords, onChange, expandedSet, rerender, guardFn) {
     document.querySelectorAll('.cmdkey-remove[data-prefix="' + idPrefix + '"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
@@ -822,19 +821,17 @@
   // (the color <select>) and a class name shared by the attribute checkboxes.
   // -----------------------------------------------------------------------
 
-  // Full DSPATR list, in the same order real SDA's "Select Display
-  // Attributes" screen shows them (docs/sda-reference/screens/field-level/
-  // character/display-attributes/) - CS/PR/OID/SP were missing from the
-  // original 7-attribute set.
-  //  Task I-121r: WHICH values exist is the spec's fact (DspfWriter.dateTimeValidValues
-  //  reads KeywordSpec.validValues for any keyword); the ORDER is this
-  //  screen's own (real SDA's "Select Display Attributes" order, and the
-  //  color order its pick list shows), so specValuesInScreenOrder keeps the
-  //  screen order for what the spec lists and appends any value the spec
-  //  has that the screen order does not name (it can never silently drop one).
-  //  Read lazily, at first use: this module is loaded before a test (or the
-  //  webview) is guaranteed to have DspfWriter in place, and the "caller sets
-  //  global.DspfWriter before require()" convention above must keep working.
+  // Full DSPATR list, in the same order real SDA's "Select Display Attributes" screen
+  // shows them (docs/sda-reference/screens/field-level/ character/display-attributes/)
+  // - CS/PR/OID/SP were missing from the original 7-attribute set. WHICH values exist
+  // is the spec's fact (DspfWriter.dateTimeValidValues reads KeywordSpec.validValues
+  // for any keyword); the ORDER is this screen's own (real SDA's "Select Display
+  // Attributes" order, and the color order its pick list shows), so
+  // specValuesInScreenOrder keeps the screen order for what the spec lists and appends
+  // any value the spec has that the screen order does not name (it can never silently
+  // drop one). Read lazily, at first use: this module is loaded before a test (or the
+  // webview) is guaranteed to have DspfWriter in place, and the "caller sets
+  // global.DspfWriter before require()" convention above must keep working.
   function specValuesInScreenOrder(specValues, screenOrder) {
     var out = screenOrder.filter(function (v) { return specValues.indexOf(v) >= 0; });
     specValues.forEach(function (v) { if (out.indexOf(v) < 0) out.push(v); });
@@ -902,9 +899,9 @@
   // COLOR/DSPATR editor is still wanted.
   // -----------------------------------------------------------------------
 
-  // Task I-30: IBM's own DDS Reference: "Option indicators are valid for
-  // this [DSPATR] keyword, except when the attributes OID or SP are the
-  // only display attributes specified." COLOR's own conditioning is
+  // IBM's own DDS Reference: "Option indicators are valid for this
+  // [DSPATR] keyword, except when the attributes OID or SP are the only
+  // display attributes specified." COLOR's own conditioning is
   // unconditionally valid, always - but this UI writes COLOR and DSPATR
   // from ONE shared state (color + attrs + one conditions array), so a
   // state with a color set AND an OID/SP-only DSPATR portion can't be
@@ -913,7 +910,7 @@
   // clean case (DSPATR-only, no color) where nothing legitimate is lost.
   // A state combining both a color AND OID/SP-only attributes remains
   // conditionable - a known, documented edge case (see keywordFixes.md's
-  // I-30 write-up), not silently declared fixed.
+  // write-up), not silently declared fixed.
   function colorAttrStateIsConditionable(inst) {
     if (inst.color) return true;
     var split = splitAttrsAndPgmField(inst.attrs);
@@ -965,21 +962,23 @@
     return accordionWrapHtml(ownerKey + '::colorattr', 'Color &amp; attributes', dataKwWrap(['COLOR', 'DSPATR'], html), false, openState);
   }
 
-  /** Task I-83 - shared on-transition guard for structured editors that
-   *  commit a whole NEW keywords array (wireColorAttrStatesEditor,
-   *  wireGeneralFieldKeywordsEditor). Returns `onChange` wrapped so that
-   *  any keyword NAME present in the new array but not in `keywords` (the
-   *  array the editor was rendered from) is first run through
-   *  `addGuardFn(name)`; the first non-null reason is alerted, the panel
-   *  re-rendered from the unchanged keywords (which reverts whatever
-   *  checkbox/field was just touched) and the commit dropped. Keywords
-   *  already present are never re-checked and removals are never
-   *  blocked, so a hand-edited field that already violates a rule can
-   *  still be cleaned up. Same alert+revert idiom as the other guards,
-   *  but keyed off the resulting keyword set rather than one specific
-   *  keyword per call site, so every row an editor offers is covered.
-   *  A missing `addGuardFn` returns `onChange` untouched, so callers that
-   *  don't need it (menu designer, multi-select editor) are unaffected. */
+  /**
+   * Shared on-transition guard for structured editors that commit a whole
+   * NEW keywords array (wireColorAttrStatesEditor,
+   * wireGeneralFieldKeywordsEditor). Returns `onChange` wrapped so that
+   * any keyword NAME present in the new array but not in `keywords` (the
+   * array the editor was rendered from) is first run through
+   * `addGuardFn(name)`; the first non-null reason is alerted, the panel
+   * re-rendered from the unchanged keywords (which reverts whatever
+   * checkbox/field was just touched) and the commit dropped. Keywords
+   * already present are never re-checked and removals are never blocked,
+   * so a hand-edited field that already violates a rule can still be
+   * cleaned up. Same alert+revert idiom as the other guards, but keyed
+   * off the resulting keyword set rather than one specific keyword per
+   * call site, so every row an editor offers is covered. A missing
+   * `addGuardFn` returns `onChange` untouched, so callers that don't need
+   * it (menu designer, multi-select editor) are unaffected.
+   */
   function withAddGuard(keywords, onChange, rerender, addGuardFn) {
     if (!addGuardFn) return onChange;
     return function (next) {
@@ -1094,13 +1093,15 @@
     return html;
   }
 
-  /** Validity check (RANGE/COMP/VALUES) panel (Task L5).
-   *  Task I-30: none of the three are ever conditionable - IBM's own DDS
-   *  Reference states "Option indicators are not valid for this keyword"
-   *  for RANGE, COMP, AND VALUES individually (three separate statements,
-   *  not one shared one, but all three say the same thing) - unlike
-   *  CHECK's own AB/VN/VNE/M10/M11 codes just below in the same visual
-   *  panel, which have their own separate (partial) exception. */
+  /**
+   * Validity check (RANGE/COMP/VALUES) panel (Task L5). none of the three
+   * are ever conditionable - IBM's own DDS Reference states "Option
+   * indicators are not valid for this keyword" for RANGE, COMP, AND
+   * VALUES individually (three separate statements, not one shared one,
+   * but all three say the same thing) - unlike CHECK's own
+   * AB/VN/VNE/M10/M11 codes just below in the same visual panel, which
+   * have their own separate (partial) exception.
+   */
   function validityCheckInstancesHtml(keywords, ownerKey, expandedSet) {
     var instances = DspfWriter.getValidityCheckInstances(keywords);
     return dataKwWrap(DspfWriter.validityCheckKinds(), repeatableConditionedInstancesHtml(
@@ -1143,11 +1144,11 @@
   }
 
   // -----------------------------------------------------------------------
-  // Task I-5 - MOUBTN (Mouse Buttons), one of the 5 confirmed-missing
-  // file-level keywords from docs/sda-reference/keywordFixes.md. Format
-  // per IBM's DDS reference: MOUBTN(EVENT [TRAILING-EVENT]
-  // {Command key | EVENT-ID} [*QUEUE | *NOQUEUE]). Built on the same
-  // generic repeatable-instance primitive (getRepeatableKeywordInstances/
+  // MOUBTN (Mouse Buttons), one of the 5 confirmed-missing file-level
+  // keywords from docs/sda-reference/keywordFixes.md. Format per IBM's DDS
+  // reference: MOUBTN(EVENT [TRAILING-EVENT] {Command key | EVENT-ID}
+  // [*QUEUE | *NOQUEUE]). Built on the same generic repeatable-instance
+  // primitive (getRepeatableKeywordInstances/
   // setRepeatableKeywordInstances, repeatableConditionedInstancesHtml/
   // wireRepeatableConditionedInstances) validityCheckInstancesHtml above
   // uses for RANGE/COMP/VALUES - MOUBTN can legitimately repeat (one
@@ -1155,7 +1156,7 @@
   // same shape.
   // -----------------------------------------------------------------------
 
-  // Task I-121: the event and *QUEUE domains come from the spec
+  // The event and *QUEUE domains come from the spec
   // (DspfWriter.moubtnParameterDomain), in IBM's order = the order shown.
   function moubtnEvents() { return DspfWriter.moubtnParameterDomain().events; }
   function moubtnQueueValues() { return DspfWriter.moubtnParameterDomain().queueValues; }
@@ -1235,22 +1236,22 @@
     ));
   }
 
-  // Task I-42 - optional trailing `addGuardFn(freshInstance) -> reason|null`
-  // (same shape/idiom as wireMnubardspPanel's own I-55 guard): checked once
-  // per "+ Add" click. Only the record-level call site passes one; the
-  // file-level call site (ownerKey 'fk') omits it and is unaffected.
-  // Task I-136: every record's own keyword array, tolerant of a model-less or
-  // records-less getModel (callers and tests that pass a stub).
+  // Optional trailing `addGuardFn(freshInstance) -> reason|null` (same
+  // shape/idiom as wireMnubardspPanel's own guard): checked once per "+ Add"
+  // click. Only the record-level call site passes one; the file-level call
+  // site (ownerKey 'fk') omits it and is unaffected. every record's own
+  // keyword array, tolerant of a model-less or records-less getModel (callers
+  // and tests that pass a stub).
   function allRecordKeywordScopes(getModel) {
     var model = getModel ? getModel() : null;
     return model && model.records ? model.records.map(function (r) { return r.keywords || []; }) : [];
   }
-  // Task I-136 - optional trailing `getFileKeywords` / `getRecordScopes`
-  // (same contract as wireMenuBarKeysPanel's): the file-level list and the
-  // record keyword-arrays a MOUBTN Command key can share a record with. With
-  // them, a key edit that would put MOUBTN's CFnn / CAnn on the same number
-  // as the opposite-type ALTHELP / ALTPAGEDWN / ALTPAGEUP / CAnn / CFnn is
-  // refused (alert, then re-render to restore the row); omitted-safe.
+  // Optional trailing `getFileKeywords` / `getRecordScopes` (same contract
+  // as wireMenuBarKeysPanel's): the file-level list and the record
+  // keyword-arrays a MOUBTN Command key can share a record with. With them,
+  // a key edit that would put MOUBTN's CFnn / CAnn on the same number as the
+  // opposite-type ALTHELP / ALTPAGEDWN / ALTPAGEUP / CAnn / CFnn is refused
+  // (alert, then re-render to restore the row); omitted-safe.
   function wireMoubtnPanel(getKeywords, onChange, ownerKey, expandedSet, rerender, addGuardFn, getFileKeywords, getRecordScopes) {
     function keyConflict(parameters) {
       if (!getFileKeywords && !getRecordScopes) return null;
@@ -1287,13 +1288,13 @@
       rerender,
       function makeDefaultInstance() {
         // Non-blank placeholder (Task L1b's own makeDefaultInstance
-        // reasoning: this component commits on every change immediately,
-        // so a genuinely blank MOUBTN() would be invalid DDS and vanish
-        // again on the very next re-render before the user can fill it in).
-        // Task I-136: CF01 is the placeholder unless it would clash with an
-        // ALTHELP written with no parameter (default CA01) or a CA01 - then
-        // an EVENT-ID, which no exclusion row covers, keeps the fresh
-        // instance valid until the user picks a real key.
+        // reasoning: this component commits on every change immediately, so
+        // a genuinely blank MOUBTN() would be invalid DDS and vanish again
+        // on the very next re-render before the user can fill it in). CF01
+        // is the placeholder unless it would clash with an ALTHELP written
+        // with no parameter (default CA01) or a CA01 - then an EVENT-ID,
+        // which no exclusion row covers, keeps the fresh instance valid
+        // until the user picks a real key.
         var placeholder = '*ULP CF01';
         if (keyConflict(placeholder)) placeholder = '*ULP E00';
         return { name: 'MOUBTN', conditions: [], parameters: placeholder };
@@ -1328,17 +1329,16 @@
     ['INDTXT', 'Indicator text'],
   ];
 
-  // Task I-20: of the ten kinds this shared repeatable-row model covers,
+  // Of the ten kinds this shared repeatable-row model covers,
   // VLDCMDKEY/SETOF/CHANGE/INDTXT each state their own "Option indicators
   // are not valid for this keyword" line in the DDS Reference (CLEAR/HOME/
   // PAGEDOWN/PAGEUP/HELP/HLPRTN all instead say "are valid") - I-7 flagged
-  // this shared component as not kind-aware (one uniform Conditioning
-  // toggle for every kind regardless), deferred to this task. See
+  // this shared component as not kind-aware (one uniform Conditioning toggle
+  // for every kind regardless), deferred to this task. See
   // repeatableConditionedInstancesHtml/wireRepeatableConditionedInstances'
   // own `isConditionable` doc comment above for how a mixed list like this
-  // one opts individual rows out.
-  //  Task I-121: which four kinds those are is the spec's noOptionIndicators
-  //  fact (read through DspfWriter), not a list kept here.
+  // one opts individual rows out. which four kinds those are is the spec's
+  // noOptionIndicators fact (read through DspfWriter), not a list kept here.
   function recordIndicatorInstanceIsConditionable(inst) {
     return DspfWriter.recordIndicatorTakesOptionIndicators(inst.kind);
   }
@@ -1348,8 +1348,8 @@
     var html = '<div class="two-col" style="margin-bottom:4px;">';
     html += '<select class="' + p + '-kind">' +
       RECORD_INDICATOR_INSTANCE_KEYWORDS.filter(function (pair) {
-        // Task I-105: only the kinds this record type allows are offered (an
-        // existing instance keeps its own kind so it still renders truthfully).
+        // Only the kinds this record type allows are offered (an existing
+        // instance keeps its own kind so it still renders truthfully).
         return pair[0] === kind || recordRestrictionAllows(restrictTo, pair[0]);
       }).map(function (pair) {
         return '<option value="' + pair[0] + '"' + (kind === pair[0] ? ' selected' : '') + '>' + pair[1] + ' (' + pair[0] + ')</option>';
@@ -1377,28 +1377,27 @@
     ));
   }
 
-  // Task I-55 - same SFL/MNUBAR whitelist gap I-55 found and fixed for
-  // MNUBARDSP, checked here too (flagged as "worth checking in the same
-  // pass" on I-55's own keywordFixes.md row): this shared model's own
-  // per-row "kind" dropdown can change AFTER an instance already exists
-  // (unlike MNUBARDSP, where the instance's identity never changes), so
-  // guarding only the "+ Add" button (as wireRepeatableConditionedInstances'
-  // new addGuardFn does for MNUBARDSP) wouldn't catch someone switching an
-  // existing CHANGE/SETOF row to HOME on an SFL record, or to SETOF on a
-  // MNUBAR record, after the fact. Generalizes I-20's own CLEAR-vs-
-  // PULLDOWN-only check (kept, since PULLDOWN's own forbidden list singles
-  // out CLEAR specifically, not the other nine kinds) to run
-  // sflWhitelistConflictReason/mnubarWhitelistConflictReason for
-  // whichever kind is being set, same safe-no-op-when-record-type-
-  // doesn't-match shape every other whitelist guard here already has.
+  // Same SFL/MNUBAR whitelist gap I-55 found and fixed for MNUBARDSP, checked
+  // here too (flagged as "worth checking in the same pass" on the
+  // keywordFixes.md row): this shared model's own per-row "kind" dropdown can
+  // change AFTER an instance already exists (unlike MNUBARDSP, where the
+  // instance's identity never changes), so guarding only the "+ Add" button
+  // (as wireRepeatableConditionedInstances' new addGuardFn does for MNUBARDSP)
+  // wouldn't catch someone switching an existing CHANGE/SETOF row to HOME on
+  // an SFL record, or to SETOF on a MNUBAR record, after the fact. Generalizes
+  // the CLEAR-vs- PULLDOWN-only check (kept, since PULLDOWN's own forbidden
+  // list singles out CLEAR specifically, not the other nine kinds) to run
+  // sflWhitelistConflictReason/mnubarWhitelistConflictReason for whichever
+  // kind is being set, same safe-no-op-when-record-type- doesn't-match shape
+  // every other whitelist guard here already has.
   //
-  // Task I-109: USRDFN's own closed whitelist is checked too (I-104 finding
-  // D). It was the one record type whose whitelist this function never ran,
-  // so on a USRDFN record "+ Add indicator keyword" (which defaults to CLEAR)
-  // and the kind switch to CLEAR/PAGEDOWN/PAGEUP/HOME/VLDCMDKEY/SETOF/CHANGE/
-  // INDTXT were all accepted - only HELP and HLPRTN are on USRDFN's list. Both
-  // paths go through here (the Add default walks fallbackOrder below), so one
-  // check closes both, and the Add now defaults to HELP on a USRDFN record.
+  // USRDFN's own closed whitelist is checked too (I-104 finding D). It was the
+  // one record type whose whitelist this function never ran, so on a USRDFN
+  // record "+ Add indicator keyword" (which defaults to CLEAR) and the kind
+  // switch to CLEAR/PAGEDOWN/PAGEUP/HOME/VLDCMDKEY/SETOF/CHANGE/ INDTXT were
+  // all accepted - only HELP and HLPRTN are on USRDFN's list. Both paths go
+  // through here (the Add default walks fallbackOrder below), so one check
+  // closes both, and the Add now defaults to HELP on a USRDFN record.
   function recordIndicatorKindConflictReason(kind, keywords) {
     return (kind === 'CLEAR' ? DspfWriter.pulldownConflictReason('CLEAR', keywords) : null) ||
       DspfWriter.usrdfnWhitelistConflictReason(kind, keywords) ||
@@ -1440,25 +1439,23 @@
               return;
             }
           }
-          // Task I-20 finding (b) / I-55: I-13's own PULLDOWN audit found
-          // CLEAR on PULLDOWN's own 27-keyword forbidden list, but
-          // couldn't wire DspfWriter.pulldownConflictReason onto it
-          // because CLEAR lives in this shared, not-kind-aware component
-          // rather than a plain flagRowHtml row - deferred to I-20, then
-          // generalized by I-55 to also cover SFL's/MNUBAR's own
+          // Task I-20 finding (b) / I-55: the PULLDOWN audit found CLEAR on
+          // PULLDOWN's own 27-keyword forbidden list, but couldn't wire
+          // DspfWriter.pulldownConflictReason onto it because CLEAR lives in this
+          // shared, not-kind-aware component rather than a plain flagRowHtml row -
+          // deferred to I-20, then generalized by to also cover SFL's/MNUBAR's own
           // whitelist restrictions for every kind, not just CLEAR (see
-          // recordIndicatorKindConflictReason's own doc comment above).
-          // `keywords` (this function's own outer closure variable, the
-          // record's current keyword array) is exactly what all three
-          // checks need; the reverse direction (turning PULLDOWN/SFL/
-          // MNUBAR on while a conflicting instance already exists) was
-          // already covered for free elsewhere, since each of those own
-          // guards scans this same keywords array for the conflicting
-          // keyword name regardless of which UI wrote it.
-          // Task I-109: only a real change of kind is checked. Editing the response
-          // indicator of a row that already exists (e.g. on a hand-written USRDFN
-          // record that carries CLEAR) is not an addition, and refusing it with
-          // "CLEAR cannot be added ..." would be wrong and would block tidying.
+          // recordIndicatorKindConflictReason's own doc comment above). `keywords`
+          // (this function's own outer closure variable, the record's current
+          // keyword array) is exactly what all three checks need; the reverse
+          // direction (turning PULLDOWN/SFL/ MNUBAR on while a conflicting instance
+          // already exists) was already covered for free elsewhere, since each of
+          // those own guards scans this same keywords array for the conflicting
+          // keyword name regardless of which UI wrote it. only a real change of
+          // kind is checked. Editing the response indicator of a row that already
+          // exists (e.g. on a hand-written USRDFN record that carries CLEAR) is not
+          // an addition, and refusing it with "CLEAR cannot be added..." would be
+          // wrong and would block tidying.
           var kindConflictReason = partial.kind !== undefined ? recordIndicatorKindConflictReason(nextKind, keywords) : null;
           if (kindConflictReason) {
             window.alert(kindConflictReason);
@@ -1474,25 +1471,24 @@
       expandedSet,
       rerender,
       function makeDefaultInstance() {
-        // Task I-20 finding (b) / I-55: the preferred default kind is
-        // CLEAR, but CLEAR is on PULLDOWN's own 27-keyword forbidden
-        // list and not on SFL's own whitelist - unlike a plain on/off
-        // flag row (where "blocked" just means the checkbox reverts and
-        // the person picks something else), silently no-op'ing "+ Add
-        // indicator keyword" here would look broken - the button visibly
-        // does nothing and no row appears. I-20 originally fell back to
-        // HOME (not on PULLDOWN's forbidden list); I-55 generalizes this
-        // into an ordered fallback that also skips SFL's/MNUBAR's own
-        // whitelist restrictions (recordIndicatorKindConflictReason,
-        // same check guardedUpdate above now runs on every kind change),
-        // ending at INDTXT - confirmed on both SFL's whitelist (I-46) and
-        // MNUBAR's whitelist (I-48), and never on PULLDOWN's forbidden
-        // list, so it's always a safe last resort for every record type
-        // this shared component is reachable from. (Task I-109: USRDFN's
-        // whitelist is walked too; only HELP and HLPRTN are on it, so the
-        // walk stops at HELP there - never reaching INDTXT.) The guardedUpdate
-        // check above still blocks anyone who explicitly picks a
-        // conflicting kind from the dropdown afterward.
+        // Task I-20 finding (b) / I-55: the preferred default kind is CLEAR,
+        // but CLEAR is on PULLDOWN's own 27-keyword forbidden list and not on
+        // SFL's own whitelist - unlike a plain on/off flag row (where
+        // "blocked" just means the checkbox reverts and the person picks
+        // something else), silently no-op'ing "+ Add indicator keyword" here
+        // would look broken - the button visibly does nothing and no row
+        // appears. I-20 originally fell back to HOME (not on PULLDOWN's
+        // forbidden list); I-55 generalizes this into an ordered fallback that
+        // also skips SFL's/MNUBAR's own whitelist restrictions
+        // (recordIndicatorKindConflictReason, same check guardedUpdate above
+        // now runs on every kind change), ending at INDTXT - confirmed on both
+        // SFL's whitelist and MNUBAR's whitelist, and never on PULLDOWN's
+        // forbidden list, so it's always a safe last resort for every record
+        // type this shared component is reachable from. (USRDFN's whitelist is
+        // walked too; only HELP and HLPRTN are on it, so the walk stops at
+        // HELP there - never reaching INDTXT.) The guardedUpdate check above
+        // still blocks anyone who explicitly picks a conflicting kind from the
+        // dropdown afterward.
         var fallbackOrder = ['CLEAR', 'HOME', 'HELP', 'HLPRTN', 'VLDCMDKEY', 'PAGEDOWN', 'PAGEUP', 'CHANGE', 'SETOF', 'INDTXT'];
         var kind = 'INDTXT';
         for (var fi = 0; fi < fallbackOrder.length; fi++) {
@@ -1579,10 +1575,10 @@
   function editKeywordSectionHtml(keywords, ownerKey, openState) {
     var ec = DspfWriter.getEditKeyword(keywords);
     var em = DspfWriter.getEditMask(keywords);
-    // Task I-78: an EDTCDE's optional second parameter (asterisk fill /
-    // floating currency symbol) gets its own input, like real SDA's
-    // "Replace leading zeros with" prompt. The main box then holds only
-    // the edit-code letter for EDTCDE (EDTWRD's string is untouched).
+    // An EDTCDE's optional second parameter (asterisk fill / floating
+    // currency symbol) gets its own input, like real SDA's "Replace
+    // leading zeros with" prompt. The main box then holds only the
+    // edit-code letter for EDTCDE (EDTWRD's string is untouched).
     var ecParts = ec.kind === 'EDTCDE' ? DspfWriter.splitEditCode(ec.parameters) : { code: ec.parameters, fill: '' };
     var html = '<div class="two-col">' +
       '<select id="' + ownerKey + '-ec-kind">' +
@@ -1631,16 +1627,16 @@
           var library = document.getElementById(ownerKey + '-cm-library').value;
           var msgDataField = document.getElementById(ownerKey + '-cm-msgdata').value;
           var nextKeywords = DspfWriter.setCheckMsgId(keywords, msgId, library, msgFile, msgDataField);
-          // Task I-69: check here too (not only in commitEdit's own choke
-          // point) so a refusal keeps what the user typed instead of
-          // re-rendering the panel blank - CHKMSGID needs a qualifying
-          // validity-check keyword already on the field.
+          // Check here too (not only in commitEdit's own choke point) so
+          // a refusal keeps what the user typed instead of re-rendering
+          // the panel blank - CHKMSGID needs a qualifying validity-check
+          // keyword already on the field.
           var cmReason = DspfWriter.chkmsgidNewConflictReason(keywords, nextKeywords);
           if (cmReason) { window.alert(cmReason); return; }
-          // Task I-89: a NEW or changed message data field must name a
-          // character (A) field with usage P in this record. Checked here
-          // as well so the typed values survive a refusal. `recordFields`
-          // is optional - absent means not checked.
+          // A NEW or changed message data field must name a character (A)
+          // field with usage P in this record. Checked here as well so
+          // the typed values survive a refusal. `recordFields` is
+          // optional - absent means not checked.
           var cmDataReason = DspfWriter.chkmsgidMsgDataNewConflictReason(keywords, nextKeywords, recordFields);
           if (cmDataReason) { window.alert(cmDataReason); return; }
           onChange(nextKeywords);
@@ -1669,10 +1665,10 @@
         if (fillEl) fillEl.value = prevParts.fill;
         document.getElementById(ownerKey + '-em-mask').value = prevEm.text;
       }
-      // Task I-78: EDTCDE's optional second parameter. A user who types
-      // "J*" into the edit-code box out of habit is understood (the
-      // symbol moves to the widget on re-render); typing it in both
-      // places is refused rather than guessed at.
+      // EDTCDE's optional second parameter. A user who types "J*" into
+      // the edit-code box out of habit is understood (the symbol moves
+      // to the widget on re-render); typing it in both places is
+      // refused rather than guessed at.
       if (ecKind === 'EDTCDE') {
         var typed = DspfWriter.splitEditCode(ecParams);
         if (typed.fill) {
@@ -1699,21 +1695,20 @@
         var reason = DspfWriter.dftGroupConflictReason(ecKind, keywords, dataType);
         if (reason) { window.alert(reason); revert(); return; }
       }
-      // Task I-31 - EDTMSK's own two documented requirements (usage I/B;
-      // an EDTCDE/EDTWRD keyword present), checked against what THIS
-      // apply is about to leave on the field, not just its current
-      // saved state - a same-click "add EDTCDE and EDTMSK together"
-      // must be allowed, so editMaskConflictReason is called against
-      // `pendingKeywords` (post setEditKeyword, pre setEditMask), not
-      // the stale outer `keywords`. Clearing the mask back to blank is
-      // never blocked.
+      // EDTMSK's own two documented requirements (usage I/B; an
+      // EDTCDE/EDTWRD keyword present), checked against what THIS apply
+      // is about to leave on the field, not just its current saved state
+      // - a same-click "add EDTCDE and EDTMSK together" must be allowed,
+      // so editMaskConflictReason is called against `pendingKeywords`
+      // (post setEditKeyword, pre setEditMask), not the stale outer
+      // `keywords`. Clearing the mask back to blank is never blocked.
       var pendingKeywords = DspfWriter.setEditKeyword(keywords, ecKind, ecParams);
       if (emText) {
         var maskReason = DspfWriter.editMaskConflictReason(pendingKeywords, usage);
         if (maskReason) { window.alert(maskReason); revert(); return; }
-        // Task I-130 - EDTMSK's own "cannot be specified with" list, judged
-        // on what the field carries after this apply (the pending EDTCDE/
-        // EDTWRD change never adds a listed keyword, so `keywords` is enough).
+        // EDTMSK's own "cannot be specified with" list, judged on what the
+        // field carries after this apply (the pending EDTCDE/ EDTWRD change
+        // never adds a listed keyword, so `keywords` is enough).
         var maskExclReason = DspfWriter.edtmskConflictReason('EDTMSK', '', pendingKeywords);
         if (maskExclReason) { window.alert(maskExclReason); revert(); return; }
       }
@@ -1722,35 +1717,36 @@
   }
 
   // -----------------------------------------------------------------------
-  // I-32 - DATFMT/DATSEP (date fields, data type L) and TIMFMT/TIMSEP
-  // (time fields, data type T). Gated entirely by dataType, not by usage
-  // or any fieldKeywordCategoryVisibility() category - unlike every other
+  // DATFMT/DATSEP (date fields, data type L) and TIMFMT/TIMSEP (time
+  // fields, data type T). Gated entirely by dataType, not by usage or any
+  // fieldKeywordCategoryVisibility() category - unlike every other
   // field-level section on this panel, these two keyword pairs are each
   // valid for exactly one data type and no others (confirmed against
-  // DATFMT's/TIMFMT's own DDS Reference text - see dspfWriter.js's own
-  // doc comment on this keyword group), so the caller passes `dataType`
+  // DATFMT's/TIMFMT's own DDS Reference text - see dspfWriter.js's own doc
+  // comment on this keyword group), so the caller passes `dataType`
   // directly rather than routing through the shared visibility gate.
   // Timestamp (Z) fields get neither section - there is no DATFMT/TIMFMT/
   // DATSEP/TIMSEP customization for Z at all in the DDS Reference.
   // -----------------------------------------------------------------------
 
-  // Task I-121: the values come from the spec (DspfWriter.dateTimeValidValues); '' is this panel's own "unspecified" choice.
+  // The values come from the spec (DspfWriter.dateTimeValidValues); '' is this panel's own
+  // "unspecified" choice.
   function dateFormatValues() { return [''].concat(DspfWriter.dateTimeValidValues('DATFMT')); }
   var DATE_FORMAT_LABELS = { '': '(unspecified - defaults to *ISO)', '*JOB': '*JOB - job default', '*MDY': '*MDY - mm/dd/yy', '*DMY': '*DMY - dd/mm/yy', '*YMD': '*YMD - yy/mm/dd', '*JUL': '*JUL - yy/ddd (Julian)', '*ISO': '*ISO - yyyy-mm-dd', '*USA': '*USA - mm/dd/yyyy', '*EUR': '*EUR - dd.mm.yyyy', '*JIS': '*JIS - yyyy-mm-dd' };
-  // TIMFMT has no *JOB value at all - confirmed by its own format table in
-  // the DDS Reference, which lists only *HMS/*ISO/*USA/*EUR/*JIS.
-  // Task I-121: the values come from the spec (DspfWriter.dateTimeValidValues); '' is this panel's own "unspecified" choice.
+  // TIMFMT has no *JOB value at all - confirmed by its own format table in the DDS Reference, which
+  // lists only *HMS/*ISO/*USA/*EUR/*JIS. the values come from the spec
+  // (DspfWriter.dateTimeValidValues); '' is this panel's own "unspecified" choice.
   function timeFormatValues() { return [''].concat(DspfWriter.dateTimeValidValues('TIMFMT')); }
   var TIME_FORMAT_LABELS = { '': '(unspecified - defaults to *ISO)', '*HMS': '*HMS - hh:mm:ss', '*ISO': '*ISO - hh.mm.ss', '*USA': '*USA - hh:mm AM/PM', '*EUR': '*EUR - hh.mm.ss', '*JIS': '*JIS - hh:mm:ss' };
-  // DATSEP and TIMSEP share the same *JOB | 'separator-char' grammar and
-  // the same documented valid-character set for the quoted form (a slash,
-  // dash, period, comma, or blank for dates; a colon, period, comma, or
-  // blank for times - DATSEP's own list includes the slash TIMSEP's own
-  // list omits, since a slash has no meaning between hour/minute/second).
-  // Task I-121: the values come from the spec (DspfWriter.dateTimeValidValues); '' is this panel's own "unspecified" choice.
+  // DATSEP and TIMSEP share the same *JOB | 'separator-char' grammar and the same documented
+  // valid-character set for the quoted form (a slash, dash, period, comma, or blank for dates; a
+  // colon, period, comma, or blank for times - DATSEP's own list includes the slash TIMSEP's own
+  // list omits, since a slash has no meaning between hour/minute/second). the values come from the
+  // spec (DspfWriter.dateTimeValidValues); '' is this panel's own "unspecified" choice.
   function dateSepValues() { return [''].concat(DspfWriter.dateTimeValidValues('DATSEP')); }
   var DATE_SEP_LABELS = { '': '(unspecified - *JOB default)', '*JOB': '*JOB', '/': '/ (slash)', '-': '- (dash)', '.': '. (period)', ',': ', (comma)', ' ': '(blank)' };
-  // Task I-121: the values come from the spec (DspfWriter.dateTimeValidValues); '' is this panel's own "unspecified" choice.
+  // The values come from the spec (DspfWriter.dateTimeValidValues); '' is this panel's own
+  // "unspecified" choice.
   function timeSepValues() { return [''].concat(DspfWriter.dateTimeValidValues('TIMSEP')); }
   var TIME_SEP_LABELS = { '': '(unspecified - *JOB default)', '*JOB': '*JOB', ':': ': (colon)', '.': '. (period)', ',': ', (comma)', ' ': '(blank)' };
 
@@ -1908,12 +1904,11 @@
         if (libraryEl) libraryEl.addEventListener('change', function () { updatePayload({ library: libraryEl.value }); });
         var msgDataEl = document.querySelector('.' + instIdPrefix + '-msgdata');
         if (msgDataEl) msgDataEl.addEventListener('change', function () {
-          // Task I-97: ERRMSGID's &msg-data must name a character (A) field
-          // with usage P in this record (same rule as CHKMSGID's, I-89).
-          // Checked here, ahead of the commit, so a refusal puts the box
-          // back and the row is not re-rendered blank. Only a new or
-          // different name is checked, and `recordFields` is optional
-          // (absent = not checked).
+          // ERRMSGID's &msg-data must name a character (A) field with usage
+          // P in this record (same rule as CHKMSGID's, I-89). Checked here,
+          // ahead of the commit, so a refusal puts the box back and the row
+          // is not re-rendered blank. Only a new or different name is
+          // checked, and `recordFields` is optional (absent = not checked).
           var typed = msgDataEl.value;
           var prev = (inst.msgDataField || '').replace(/^&/, '').trim().toUpperCase();
           var next = typed.replace(/^&/, '').trim().toUpperCase();
@@ -1956,13 +1951,12 @@
   function messageIdInstancesHtml(keywords, ownerKey, expandedSet, sflRecordReason) {
     var instances = DspfWriter.getMessageIdInstances(keywords);
     var html = '<div class="section-label">Message ID (MSGID)</div>';
-    // Task I-73 - position-dependent option-indicator rule (see
+    // Position-dependent option-indicator rule (see
     // DspfWriter.msgidConditioningNotes's own doc comment): advisory lines
     // for the required half, and the Conditioning toggle is hidden on the
-    // last/only MSGID for the forbidden half.
-    // Task I-92 - only passed for a field of an SFL record that ALREADY has
-    // MSGID (otherwise the whole accordion is not rendered): says why, so
-    // the person can see it should be removed.
+    // last/only MSGID for the forbidden half. Only passed for a field of an
+    // SFL record that ALREADY has MSGID (otherwise the whole accordion is
+    // not rendered): says why, so the person can see it should be removed.
     if (sflRecordReason) html += '<div class="hint-small warn">' + escapeHtml(sflRecordReason + ' Remove it.') + '</div>';
     DspfWriter.msgidConditioningNotes(keywords).forEach(function (note) {
       html += '<div class="hint-small warn">' + escapeHtml(note) + '</div>';
@@ -2101,21 +2095,20 @@
   //   Database reference         - Hidden, Input, Output, or Both
   //   Error messages             - Input, Output, or Both
   //   Message ID                 - Output or Both
-  // Deliberately gates only VISIBILITY, never deletes a keyword a field
-  // already carries just because its Usage changed - an already-set
-  // keyword from a now-inapplicable category stays intact and editable via
-  // the raw Keywords tab, which is never gated.
-  // Task I-35 - M (Message) and P (Program-to-system) usage USED to fail
-  // open here (show every category), on the reasoning that "SDA's own
-  // table never covers them" (real SDA's own screenshot table only has
-  // columns for O/I/B/H). That reasoning doesn't hold up against IBM's
-  // own DDS Reference, which is far MORE restrictive for M/P than any
-  // other usage, not less: M's own section states "Only the following
-  // keywords are valid for a message field: ALIAS, INDTXT, OVRDTA,
-  // REFFLD, TEXT" and P's own section states "The only keywords allowed
-  // on a program-to-system field are: ALIAS, TEXT, INDTXT, REFFLD" (no
-  // OVRDTA) - five and four keywords respectively, nothing else, not even
-  // DSPATR/COLOR/CHECK/DUP/MSGID/EDTCDE. Failing open for M/P was backwards
+  // Deliberately gates only VISIBILITY, never deletes a keyword a field already
+  // carries just because its Usage changed - an already-set keyword from a
+  // now-inapplicable category stays intact and editable via the raw Keywords
+  // tab, which is never gated. M (Message) and P (Program-to-system) usage USED
+  // to fail open here (show every category), on the reasoning that "SDA's own
+  // table never covers them" (real SDA's own screenshot table only has columns
+  // for O/I/B/H). That reasoning doesn't hold up against IBM's own DDS
+  // Reference, which is far MORE restrictive for M/P than any other usage, not
+  // less: M's own section states "Only the following keywords are valid for a
+  // message field: ALIAS, INDTXT, OVRDTA, REFFLD, TEXT" and P's own section
+  // states "The only keywords allowed on a program-to-system field are: ALIAS,
+  // TEXT, INDTXT, REFFLD" (no OVRDTA) - five and four keywords respectively,
+  // nothing else, not even DSPATR/COLOR/CHECK/DUP/MSGID/EDTCDE. Failing open for
+  // M/P was backwards
   // - every category below EXCEPT General Keywords and Database Reference
   // is now hidden outright for M/P, and those two remaining categories
   // still need keyword-level filtering of their own (neither is a "some of
@@ -2147,8 +2140,8 @@
     if (!isKnownUsage) {
       // Blank (unset) usage - not one of IBM's six defined codes yet (a
       // field still being drafted), so show every category rather than
-      // guessing wrong. M/P are handled above, NOT here, now that I-35
-      // found IBM documents fixed keyword lists for both.
+      // guessing wrong. M/P are handled above, NOT here, now that found
+      // IBM documents fixed keyword lists for both.
       return {
         colorAndAttributes: true,
         keyingOptions: true,
@@ -2232,16 +2225,16 @@
   // in sync, since both read fresh state on every render - not a
   // data-integrity risk.
   // -----------------------------------------------------------------------
-  // Task I-30: "Option indicators are valid only for CHECK(ER) and
-  // CHECK(ME)" per IBM's own DDS Reference - every other code (AB/VN/VNE/
+  // "Option indicators are valid only for CHECK(ER) and CHECK(ME)" per
+  // IBM's own DDS Reference - every other code (AB/VN/VNE/
   // M10/M10F/M11/M11F/MF/FE/RB/RZ/RL/LC) is not conditionable at all. An
   // instance mixing an ER/ME code with any other code doesn't get a pass
   // either - IBM's statement names ONLY CHECK(ER) and CHECK(ME) as valid,
-  // not "CHECK(ER ...)"/"CHECK(ME ...)" combined with something else, so
-  // conditionable requires the instance's code set to be a non-empty
-  // subset of exactly {ER, ME} (M10F/M11F don't apply here - they're
-  // Immed variants of M10/M11, never combinable with ER/ME's own Immed-
-  // less shape in this UI).
+  // not "CHECK(ER...)"/"CHECK(ME...)" combined with something else, so
+  // conditionable requires the instance's code set to be a non-empty subset
+  // of exactly {ER, ME} (M10F/M11F don't apply here - they're Immed
+  // variants of M10/M11, never combinable with ER/ME's own Immed- less
+  // shape in this UI).
   function checkInstanceIsConditionable(inst) {
     var codes = DspfWriter.parseCheckCodes(inst.parameters);
     if (codes.length === 0) return false;
@@ -2319,13 +2312,14 @@
     }, checkInstanceIsConditionable);
   }
 
-  /** Task I-121 (keyboard-shift position-35 slice) - the Data type choices
-   *  the field panels offer (Basic tab, Add field, Add placeholder): a
-   *  subset of the spec's position-35 values - no Katakana (W) and none of
-   *  the DBCS J / O / E / G, which the designer never sets (a hand-written
-   *  file can still carry them). Was three identical literal lists in
-   *  buildWebviewTemplate.js. `withBlank` prepends the blank (default). A
-   *  fresh array. */
+  /**
+   * The Data type choices the field panels offer (Basic tab, Add field,
+   * Add placeholder): a subset of the spec's position-35 values - no
+   * Katakana (W) and none of the DBCS J / O / E / G, which the designer
+   * never sets (a hand-written file can still carry them). Was three
+   * identical literal lists in buildWebviewTemplate.js. `withBlank`
+   * prepends the blank (default). A fresh array.
+   */
   function fieldDataTypeChoices(withBlank) {
     var list = ['A', 'X', 'N', 'S', 'Y', 'I', 'D', 'M', 'F', 'L', 'T', 'Z'];
     return withBlank ? [''].concat(list) : list;
@@ -2386,23 +2380,22 @@
     // unselectable) rather than guessing wrong in the narrower direction.
     //
     // Task I-31 finding: this used to also test dataType === 'B'/'P' -
-    // neither letter is a real position-35 entry (IBM's table above has
-    // no B or P row at all, and the Basic tab's own dropdown - the only
-    // place dataType is ever set - never offers either), so both arms
-    // were dead code that could never actually match. Removed. L/T/Z
+    // neither letter is a real position-35 entry (IBM's table above has no
+    // B or P row at all, and the Basic tab's own dropdown - the only place
+    // dataType is ever set - never offers either), so both arms were dead
+    // code that could never actually match. Removed. L/T/Z
     // (Date/Time/Timestamp) are kept in this "numeric-ish" grouping,
-    // confirmed correct for keyboard-shift purposes specifically: IBM's
-    // own numeric Database Reference screen (image183.png, cited above)
-    // and Keying Options screen (image176.png) are the only two SDA
-    // screens offering a keyboard-shift override at all, and L/T/Z
-    // fields have no screen of their own in real SDA (see
+    // confirmed correct for keyboard-shift purposes specifically: IBM's own
+    // numeric Database Reference screen (image183.png, cited above) and
+    // Keying Options screen (image176.png) are the only two SDA screens
+    // offering a keyboard-shift override at all, and L/T/Z fields have no
+    // screen of their own in real SDA (see
     // docs/sda-reference/screens/field-level's four categories -
     // character/numeric/constant/menu-bar-choice only) - they fall under
     // "numeric" for every field-level UI purpose in real SDA, this one
-    // included.
-    // Task I-121 (keyboard-shift position-35 slice): the two lists and the
-    // numeric test are keywordSpec.js's own facts (IBM's "Valid entries for
-    // display files" table), read via DspfWriter.
+    // included. The two lists and the numeric test are keywordSpec.js's own
+    // facts (IBM's "Valid entries for display files" table), read via
+    // DspfWriter.
     var shiftValues = [''].concat(DspfWriter.keyboardShiftValues(dataType));
     html += '<div class="section-label" style="margin-top:8px;">Keyboard shift attribute</div>';
     html += '<div class="hint-small">Not a keyword - this is the field\u2019s own data type (position 35), the same value the Basic tab\u2019s Data type dropdown edits.</div>';
@@ -2444,17 +2437,17 @@
    *  parsing. */
   function inputKeywordsHtml(keywords, ownerKey, expandedSet, dataType) {
     var html = '<div class="section-label">Input keywords</div>';
-    // Task I-96: DUP cannot be specified on a floating-point field (DDS
-    // Reference; blocked by I-72) - so the row is not offered there, except
-    // on a hand-written float field that already carries it (kept, with a
-    // note, so it can be un-ticked). See DspfWriter.dupCheckboxOffered.
+    // DUP cannot be specified on a floating-point field (DDS Reference;
+    // blocked by I-72) - so the row is not offered there, except on a
+    // hand-written float field that already carries it (kept, with a note,
+    // so it can be un-ticked). See DspfWriter.dupCheckboxOffered.
     var dupNote = DspfWriter.dupFloatFieldNote(dataType, keywords);
     if (dupNote) html += '<div class="hint-small warn">' + escapeHtml(dupNote) + '</div>';
-    // Task I-30: DUP is the only one of these three IBM marks
-    // conditionable ("Option indicators are valid for this keyword") -
-    // BLANKS and CHANGE (field-level) are both "not valid for this
-    // keyword" per their own DDS Reference entries, same restriction
-    // record-level CHANGE already had correctly enforced
+    // DUP is the only one of these three IBM marks conditionable
+    // ("Option indicators are valid for this keyword") - BLANKS and
+    // CHANGE (field-level) are both "not valid for this keyword" per
+    // their own DDS Reference entries, same restriction record-level
+    // CHANGE already had correctly enforced
     // (recordIndicatorInstanceIsConditionable above) before this fix.
     [
       ['dup', 'DUP', 'Dup key duplicates the previous record\u2019s value into this field', true],
@@ -2477,8 +2470,8 @@
   function wireInputKeywordsEditor(keywords, onChange, ownerKey, expandedSet, rerender, dataType) {
     ['dup', 'blanks', 'change'].forEach(function (k, i) {
       var name = ['DUP', 'BLANKS', 'CHANGE'][i];
-      // Task I-96: not rendered (see inputKeywordsHtml), so nothing to wire - and
-      // a stale open-Conditioning key for it must not try to.
+      // Not rendered (see inputKeywordsHtml), so nothing to wire - and a stale
+      // open-Conditioning key for it must not try to.
       if (name === 'DUP' && !DspfWriter.dupCheckboxOffered(dataType, keywords)) return;
       var id = ownerKey + '-inp-' + k;
       wireFlagRow(
@@ -2513,40 +2506,39 @@
    *  switched by state, so one occurrence (now independently
    *  conditionable, same as everything else here) is what real DDS itself
    *  supports. */
-  // Task I-30: sixth element is `conditionable` - whether IBM's own DDS
-  // Reference says "Option indicators are valid for this keyword" for
-  // that row. Checked individually against each keyword's own DDS
-  // Reference entry: only DFTVAL/PUTRETAIN/OVRDTA/OVRATR are - the other
-  // ten (ALIAS/INDTXT/DFT/CNTFLD/TEXT/FLDCSRPRG/HLPID/CHRID/IGCALTTYP/
+  // Sixth element is `conditionable` - whether IBM's own DDS Reference
+  // says "Option indicators are valid for this keyword" for that row.
+  // Checked individually against each keyword's own DDS Reference entry:
+  // only DFTVAL/PUTRETAIN/OVRDTA/OVRATR are - the other ten
+  // (ALIAS/INDTXT/DFT/CNTFLD/TEXT/FLDCSRPRG/HLPID/CHRID/IGCALTTYP/
   // NOCCSID) are each explicitly "not valid for this keyword", but were
-  // all wrongly offering a Conditioning toggle before this fix, since
-  // this row list previously passed every row's own `kw.conditions`
-  // through unconditionally.
+  // all wrongly offering a Conditioning toggle before this fix, since this
+  // row list previously passed every row's own `kw.conditions` through
+  // unconditionally.
   //
-  // I-33 - the 5th element (added after I-30's 5th-element conditionable
-  // flag, so shifted to 6th here) is each row's constant-field
-  // applicability, confirmed against each keyword's own opening/
-  // restriction text in docs/sda-reference/source/DDS_Keyword_V7r6.txt
-  // (not inferred from real SDA's "Select General Keywords" screenshots,
-  // which are scope-only, per this task's own ground-truth caveat -
-  // though the two happen to agree here): 'all' (offered for both
-  // constants and named fields), 'named' (explicitly restricted to
-  // named/input-output-capable fields - DFTVAL: "You can only use this
-  // keyword to initialize named fields. It is not allowed on constant
-  // fields."; CNTFLD: "must be defined as an input-capable field with
-  // the data type A"; FLDCSRPRG: "is defined as an input-capable
-  // field"; CHRID: "is not valid on constant fields..."; IGCALTTYP:
-  // "Specify this keyword only for input- and output-capable fields"),
-  // or 'constant' (HLPID's own text: "You use this CONSTANT field-level
-  // keyword..." - the inverse gap, previously offered to named fields
-  // too even though it's constant-only by definition).
-  // Task I-35 - the 7th element is each row's Usage M(essage)/
-  // P(rogram-to-system) applicability, per IBM's own fixed keyword lists
-  // for those two usages (see fieldKeywordCategoryVisibility's own I-35
-  // doc comment for the exact DDS Reference wording): 'all' (ALIAS/INDTXT/
-  // TEXT - valid for M AND P), 'msg-only' (OVRDTA - valid for M but NOT
-  // P, per M's own list including it and P's own list explicitly not),
-  // or 'none' (every other row here - DFT/DFTVAL/CNTFLD/FLDCSRPRG/HLPID/
+  // The 5th element (added after I-30's 5th-element conditionable flag, so
+  // shifted to 6th here) is each row's constant-field applicability,
+  // confirmed against each keyword's own opening/ restriction text in
+  // docs/sda-reference/source/DDS_Keyword_V7r6.txt (not inferred from real
+  // SDA's "Select General Keywords" screenshots, which are scope-only, per
+  // this task's own ground-truth caveat - though the two happen to agree
+  // here): 'all' (offered for both constants and named fields), 'named'
+  // (explicitly restricted to named/input-output-capable fields - DFTVAL:
+  // "You can only use this keyword to initialize named fields. It is not
+  // allowed on constant fields."; CNTFLD: "must be defined as an
+  // input-capable field with the data type A"; FLDCSRPRG: "is defined as
+  // an input-capable field"; CHRID: "is not valid on constant fields...";
+  // IGCALTTYP: "Specify this keyword only for input- and output-capable
+  // fields"), or 'constant' (HLPID's own text: "You use this CONSTANT
+  // field-level keyword..." - the inverse gap, previously offered to named
+  // fields too even though it's constant-only by definition). The 7th
+  // element is each row's Usage M(essage)/ P(rogram-to-system)
+  // applicability, per IBM's own fixed keyword lists for those two usages
+  // (see fieldKeywordCategoryVisibility's own doc comment for the exact
+  // DDS Reference wording): 'all' (ALIAS/INDTXT/ TEXT - valid for M AND
+  // P), 'msg-only' (OVRDTA - valid for M but NOT P, per M's own list
+  // including it and P's own list explicitly not), or 'none' (every other
+  // row here - DFT/DFTVAL/CNTFLD/FLDCSRPRG/HLPID/
   // PUTRETAIN/OVRATR/CHRID/IGCALTTYP/NOCCSID are on neither usage's fixed
   // list). Only consulted for M/P fields (generalFieldKeywordsHtml/
   // wireGeneralFieldKeywordsEditor's own new `usage` filtering) - this
@@ -2561,23 +2553,23 @@
     // CNTFLD was entirely missing from this row list, so there was no way to
     // ADD or EDIT it from the properties panel at all - it could only exist
     // on a field if it was already in the raw DDS source text, imported
-    // un-editably. Confirmed against real SDA's own "Select General
-    // Keywords" screen (docs/sda-reference/screens/field-level/character/
+    // un-editably. Confirmed against real SDA's own "Select General Keywords"
+    // screen (docs/sda-reference/screens/field-level/character/
     // general/image168.png), which lists CNTFLD right here, between DFTVAL
     // and FLDCSRPRG, taking a bare (unquoted) numeric parameter - the
     // characters-per-line count. dspfEngine.js's cntfldFromKeywords already
-    // READS this keyword correctly for the continued-entry wrap preview
-    // (see its own Task-L17-adjacent doc comment on conditioning), but
+    // READS this keyword correctly for the continued-entry wrap preview (see
+    // its own Task-L17-adjacent doc comment on conditioning), but
     // reading-for-render and offering-for-edit are different concerns; a
-    // stale comment here once had conflated the two,
-    // treating "rendering already handles CNTFLD" as if it meant "CNTFLD
-    // editing is handled elsewhere" - it wasn't handled anywhere. See real
-    // SDA's own CONSTANT general-keywords screen (.../constant/general/
-    // image190.png) for why this row (like the pre-existing DFTVAL/
-    // FLDCSRPRG rows above/below it) is field-semantics-only in real DDS -
-    // this shared row list doesn't yet gate any of the three out for
-    // constants, a pre-existing scope note, not something new here.
-    // Task I-150: input-capable (I/B) character fields only (DDS Reference).
+    // stale comment here once had conflated the two, treating "rendering
+    // already handles CNTFLD" as if it meant "CNTFLD editing is handled
+    // elsewhere" - it wasn't handled anywhere. See real SDA's own CONSTANT
+    // general-keywords screen (.../constant/general/ image190.png) for why
+    // this row (like the pre-existing DFTVAL/ FLDCSRPRG rows above/below it)
+    // is field-semantics-only in real DDS - this shared row list doesn't yet
+    // gate any of the three out for constants, a pre-existing scope note, not
+    // something new here. input-capable (I/B) character fields only (DDS
+    // Reference).
     ['cntfld', 'CNTFLD', 'e.g. 40 (characters per line)', true, 'named', false, 'none', 'char-only', 'input-capable'],
     // Bug fix (L22 keyword-inventory audit): TEXT was entirely missing -
     // a pure documentation keyword (no compiled/runtime effect at all,
@@ -2591,9 +2583,10 @@
     // raw-text for every quoted keyword already in it, so TEXT matches
     // its neighbors instead of introducing a second convention here.
     ['text', 'TEXT', "e.g. 'Customer number' (documentation only)", true, 'all', false, 'all'],
-    // Task I-150: input-capable (I/B) fields only (DDS Reference).
+    // Input-capable (I/B) fields only (DDS Reference).
     ['fldcsrprg', 'FLDCSRPRG', 'Cursor-progression field name', true, 'named', false, 'none', undefined, 'input-capable'],
-    // Task I-121o - constant-field-only now comes from the spec (validOnlyOnConstantField), see generalRowHiddenByScope.
+    // Constant-field-only now comes from the spec (validOnlyOnConstantField), see
+    // generalRowHiddenByScope.
     ['hlpid', 'HLPID', 'e.g. 1 (help identifier, 1-999, unique in the record)', true, 'all', false, 'none'],
     ['putretain', 'PUTRETAIN', 'Retain field on display', false, 'all', true, 'none'],
     ['ovrdta', 'OVRDTA', 'Override data', false, 'all', true, 'msg-only'],
@@ -2601,94 +2594,97 @@
     ['chrid', 'CHRID', 'Translate characters', false, 'named', false, 'none'],
     ['igcalttyp', 'IGCALTTYP', 'Alter IGC type', false, 'named', false, 'none'],
     ['noccsid', 'NOCCSID', 'No coded character set id', false, 'all', false, 'none'],
-    // Task I-39 - BLKFOLD/FLTFIXDEC/FLTPCN/MAPVAL were confirmed entirely
-    // missing from iSDA (no getter/setter, no row, no mention anywhere in
-    // the codebase) by a full-text audit of DDS_Keyword_V7r6.txt against
+    // BLKFOLD/FLTFIXDEC/FLTPCN/MAPVAL were confirmed entirely missing
+    // from iSDA (no getter/setter, no row, no mention anywhere in the
+    // codebase) by a full-text audit of DDS_Keyword_V7r6.txt against
     // actual code, cross-checked against KEYWORD-INDEX.md (which had
-    // simply never been updated to include them). All four are
-    // "Option indicators are not valid for this keyword" per their own
-    // DDS Reference entries, so `conditionable` (6th element) is false
-    // for each, same as most of this row list's other flag-only rows.
-    // The 8th element (`dtScope`, new here - every existing row above
-    // implicitly defaults to 'all' since row[7] is simply undefined for
-    // them) narrows a row to fields of a particular data type, the same
-    // way `mpScope` (7th element) narrows by Usage M/P: 'float-only'
+    // simply never been updated to include them). All four are "Option
+    // indicators are not valid for this keyword" per their own DDS
+    // Reference entries, so `conditionable` (6th element) is false for
+    // each, same as most of this row list's other flag-only rows. The 8th
+    // element (`dtScope`, new here - every existing row above implicitly
+    // defaults to 'all' since row[7] is simply undefined for them)
+    // narrows a row to fields of a particular data type, the same way
+    // `mpScope` (7th element) narrows by Usage M/P: 'float-only'
     // (FLTFIXDEC/FLTPCN - IBM's own text: "floating-point field(s)
-    // only"/"valid for floating-point fields only"), 'non-float'
-    // (BLKFOLD - "You cannot specify the BLKFOLD keyword on a
-    // floating-point field"), or 'datetime-only' (MAPVAL - "only valid
-    // with the date (L), time (T), or timestamp (Z) data types").
-    // FLTPCN's own fixed *SINGLE|*DOUBLE parameter and MAPVAL's own
-    // parenthesized value-pair list are both offered as a raw text box
-    // (hasParam=true) rather than a dedicated select/list editor here -
-    // same "type the DDS text yourself" convention this row list already
-    // uses for DFT/DFTVAL/TEXT above, kept deliberately simple for this
-    // first pass; a follow-up task can add a friendlier editor for either
-    // if it turns out to be worth it.
+    // only"/"valid for floating-point fields only"), 'non-float' (BLKFOLD
+    // - "You cannot specify the BLKFOLD keyword on a floating-point
+    // field"), or 'datetime-only' (MAPVAL - "only valid with the date
+    // (L), time (T), or timestamp (Z) data types"). FLTPCN's own fixed
+    // *SINGLE|*DOUBLE parameter and MAPVAL's own parenthesized value-pair
+    // list are both offered as a raw text box (hasParam=true) rather than
+    // a dedicated select/list editor here - same "type the DDS text
+    // yourself" convention this row list already uses for DFT/DFTVAL/TEXT
+    // above, kept deliberately simple for this first pass; a follow-up
+    // task can add a friendlier editor for either if it turns out to be
+    // worth it.
     ['blkfold', 'BLKFOLD', undefined, false, 'named', false, 'none', 'non-float'],
-    // Task I-150: output-capable (B/O) floating-point fields only (DDS Reference).
+    // Output-capable (B/O) floating-point fields only (DDS Reference).
     ['fltfixdec', 'FLTFIXDEC', undefined, false, 'named', false, 'none', 'float-only', 'output-capable'],
     ['fltpcn', 'FLTPCN', '*SINGLE or *DOUBLE', true, 'named', false, 'none', 'float-only'],
     ['mapval', 'MAPVAL', "e.g. ('01/01/40' *BLANK)", true, 'named', false, 'none', 'datetime-only'],
-    // Task I-42 - VALNUM/WRDWRAP are each documented "file-level,
-    // record-level, or field-level" (audit Finding C) but were only ever
-    // offered at file level. Both are flag-only ("This keyword has no
-    // parameters") and "Option indicators are not valid" for either, so
+    // VALNUM/WRDWRAP are each documented "file-level, record-level, or
+    // field-level" (audit Finding C) but were only ever offered at file
+    // level. Both are flag-only ("This keyword has no parameters") and
+    // "Option indicators are not valid" for either, so
     // hasParam/conditionable are both false. Two new narrowing values on
     // the 8th (dtScope) element and a new 9th element (usageScope) express
     // each keyword's own field-level prerequisites: VALNUM "must be defined
-    // as an input-capable field with the data type Y"; WRDWRAP "can only
-    // be specified on fields that have a usage of input-only (I) or
+    // as an input-capable field with the data type Y"; WRDWRAP "can only be
+    // specified on fields that have a usage of input-only (I) or
     // input/output (B)" and not on the S/Y/D/M/F/J/O/E/G keyboard shifts.
     // WRDWRAP's own mutual-exclusion/subfile rules are enforced on the
-    // on-transition (see wireGeneralFieldKeywordsEditor's own I-42 branch
-    // and DspfWriter.wrdwrapFieldConflictReason).
+    // on-transition (see wireGeneralFieldKeywordsEditor's own branch and
+    // DspfWriter.wrdwrapFieldConflictReason).
     ['valnum', 'VALNUM', undefined, false, 'named', false, 'none', 'numeric-only', 'input-capable'],
     ['wrdwrap', 'WRDWRAP', undefined, false, 'named', false, 'none', 'wrdwrap-shifts', 'input-capable'],
   ];
 
-  /** Task I-39 - resolves GENERAL_FIELD_KEYWORD_ROWS's own 8th element
-   *  (`dtScope`) against a field's actual `dataType`, `undefined` (row
-   *  omits it, defaulting to 'all') included. Shared by
-   *  generalFieldKeywordsHtml/wireGeneralFieldKeywordsEditor so the two
-   *  can never disagree about which rows are visible for a given field. */
+  /**
+   * Resolves GENERAL_FIELD_KEYWORD_ROWS's own 8th element (`dtScope`)
+   * against a field's actual `dataType`, `undefined` (row omits it,
+   * defaulting to 'all') included. Shared by
+   * generalFieldKeywordsHtml/wireGeneralFieldKeywordsEditor so the two
+   * can never disagree about which rows are visible for a given field.
+   */
   function generalFieldKeywordRowMatchesDataType(dtScope, dataType, keywordName) {
     if (!dtScope || dtScope === 'all') return true;
-    // Task I-121n - 'float-only' (FLTFIXDEC, FLTPCN) and 'datetime-only' (MAPVAL)
-    // now read the keyword's own required data types from keywordSpec.js; a
-    // blank data type still hides the row. 'non-float' (BLKFOLD) is the
-    // BLKFOLD slice's own fact and is unchanged.
+    // 'float-only' (FLTFIXDEC, FLTPCN) and 'datetime-only' (MAPVAL) now read the
+    // keyword's own required data types from keywordSpec.js; a blank data type
+    // still hides the row. 'non-float' (BLKFOLD) is the BLKFOLD slice's own fact
+    // and is unchanged.
     if (dtScope === 'float-only' || dtScope === 'datetime-only') return DspfWriter.keywordRequiredDataTypeAllows(keywordName, dataType);
     if (dtScope === 'non-float') return dataType !== 'F';
-    // Task I-150 - CNTFLD needs data type A; a blank data type (character by default) still shows the row.
+    // CNTFLD needs data type A; a blank data type (character by default) still shows the row.
     if (dtScope === 'char-only') return !dataType || DspfWriter.keywordRequiredDataTypeAllows(keywordName, dataType);
-    // Task I-42 - VALNUM: "input-capable field with the data type Y".
-    // Task I-121 (VALNUM slice) - the required Y now comes from keywordSpec.js via
-    // DspfWriter.keywordRequiredDataTypeAllows; a blank data type still hides the row.
+    // VALNUM: "input-capable field with the data type Y". The required Y now comes
+    // from keywordSpec.js via DspfWriter.keywordRequiredDataTypeAllows; a blank data
+    // type still hides the row.
     if (dtScope === 'numeric-only') return DspfWriter.keywordRequiredDataTypeAllows('VALNUM', dataType);
-    // Task I-42 - WRDWRAP: not valid on these nine keyboard shifts. A blank
-    // data type (still being drafted) fails open, like every other row.
-    // Task I-121 - the nine shifts now come from keywordSpec.js via DspfWriter.wrdwrapDataTypeReason
-    // (null = allowed, including a blank data type).
+    // WRDWRAP: not valid on these nine keyboard shifts. A blank data type (still being drafted)
+    // fails open, like every other row. The nine shifts now come from keywordSpec.js via
+    // DspfWriter.wrdwrapDataTypeReason (null = allowed, including a blank data type).
     if (dtScope === 'wrdwrap-shifts') return !DspfWriter.wrdwrapDataTypeReason(dataType);
     return true;
   }
 
-  /** Task I-42 - resolves GENERAL_FIELD_KEYWORD_ROWS's own 9th element
-   *  (`usageScope`, omitted/'all' for every pre-existing row). Only
-   *  'input-capable' exists so far: usage I or B, with blank (unset)
-   *  usage failing open - the same posture fieldKeywordCategoryVisibility
-   *  already takes for a field whose usage hasn't been chosen yet. Shared
-   *  by generalFieldKeywordsHtml/wireGeneralFieldKeywordsEditor for the
-   *  same reason generalFieldKeywordRowMatchesDataType is. */
+  /**
+   * Resolves GENERAL_FIELD_KEYWORD_ROWS's own 9th element (`usageScope`,
+   * omitted/'all' for every pre-existing row). Only 'input-capable'
+   * exists so far: usage I or B, with blank (unset) usage failing open -
+   * the same posture fieldKeywordCategoryVisibility already takes for a
+   * field whose usage hasn't been chosen yet. Shared by
+   * generalFieldKeywordsHtml/wireGeneralFieldKeywordsEditor for the same
+   * reason generalFieldKeywordRowMatchesDataType is.
+   */
   function generalFieldKeywordRowMatchesUsage(usageScope, usage, keywordName) {
     if (!usageScope || usageScope === 'all') return true;
     if (usageScope === 'input-capable') {
-      // Task I-121 (VALNUM slice) - the I/B pair is the keyword's own spec fact
-      // (keywordSpec.js allowedUsage), not a copy here; blank usage fails open.
+      // The I/B pair is the keyword's own spec fact (keywordSpec.js
+      // allowedUsage), not a copy here; blank usage fails open.
       return DspfWriter.keywordUsageAllowed(keywordName, usage);
     }
-    // Task I-150 - FLTFIXDEC: usage B or O (the keyword's own spec fact); blank usage is O.
+    // FLTFIXDEC: usage B or O (the keyword's own spec fact); blank usage is O.
     if (usageScope === 'output-capable') return DspfWriter.keywordUsageAllowed(keywordName, usage);
     return true;
   }
@@ -2700,62 +2696,72 @@
   // text/boolean) rows ever needed before.
   var DFT_GROUP_KEYS = { dft: 'DFT', dftval: 'DFTVAL' };
 
-  /** Task I-70 - CHRID is "not valid on constant fields, numeric fields
-   *  (decimal positions specified), message, hidden or program-to-system
-   *  fields". Constants and M/P are already filtered by the row's own
-   *  scope/mpScope columns; this covers the remaining two (usage H,
-   *  decimal positions specified). The row is hidden only while CHRID is
-   *  NOT already on the field, so a hand-written field that already
-   *  carries it (an invalid state) still shows the checkbox and the user
-   *  can untick it. `decimalPositions` is optional (undefined = not
-   *  specified, i.e. fail-open, for callers that do not pass it). Shared
-   *  by generalFieldKeywordsHtml/wireGeneralFieldKeywordsEditor so the two
-   *  can never disagree about which rows exist. */
+  /**
+   * CHRID is "not valid on constant fields, numeric fields (decimal
+   * positions specified), message, hidden or program-to-system fields".
+   * Constants and M/P are already filtered by the row's own scope/mpScope
+   * columns; this covers the remaining two (usage H, decimal positions
+   * specified). The row is hidden only while CHRID is NOT already on the
+   * field, so a hand-written field that already carries it (an invalid
+   * state) still shows the checkbox and the user can untick it.
+   * `decimalPositions` is optional (undefined = not specified, i.e.
+   * fail-open, for callers that do not pass it). Shared by
+   * generalFieldKeywordsHtml/wireGeneralFieldKeywordsEditor so the two can
+   * never disagree about which rows exist.
+   */
   function chridRowHidden(keywords, usage, decimalPositions, isConstant) {
     if (DspfWriter.getFileFlagKeyword(keywords, 'CHRID').present) return false;
     return !!DspfWriter.chridEligibilityReason(usage, decimalPositions, isConstant);
   }
 
-  /** Task I-94 - IGCALTTYP is only valid on input- and output-capable (usage B)
-   *  fields whose keyboard shift is A/N/X/W/I (DspfWriter.igcalttypEligibilityReason).
-   *  Like CHRID's row (I-70) it is hidden only while IGCALTTYP is NOT already on
-   *  the field, so a hand-written field that already carries it (an invalid
-   *  state) still shows the ticked checkbox and it can be un-ticked. Blank
-   *  usage / data type fail open. Shared by generalFieldKeywordsHtml and
-   *  wireGeneralFieldKeywordsEditor so the two can never disagree. */
+  /**
+   * IGCALTTYP is only valid on input- and output-capable (usage B) fields whose
+   * keyboard shift is A/N/X/W/I (DspfWriter.igcalttypEligibilityReason). Like CHRID's
+   * row it is hidden only while IGCALTTYP is NOT already on the field, so a
+   * hand-written field that already carries it (an invalid state) still shows the
+   * ticked checkbox and it can be un-ticked. Blank usage / data type fail open. Shared
+   * by generalFieldKeywordsHtml and wireGeneralFieldKeywordsEditor so the two can
+   * never disagree.
+   */
   function igcalttypRowHidden(keywords, usage, dataType, isConstant) {
     if (DspfWriter.getFileFlagKeyword(keywords, 'IGCALTTYP').present) return false;
     return !!DspfWriter.igcalttypEligibilityReason(usage, dataType, isConstant);
   }
 
-  /** Task I-165 - OVRATR / OVRDTA / TEXT are hidden on the fields the DDS
-   *  Reference rules them out for (OVRATR on hidden, OVRDTA on input-only /
-   *  hidden / constant, TEXT on SFLMSGKEY / SFLPGMQ fields). Like CHRID's row
-   *  (I-70) the row is hidden only while the keyword is NOT already on the
-   *  field, so a hand-written invalid field still shows the ticked box and it
-   *  can be un-ticked. Shared by generalFieldKeywordsHtml and
-   *  wireGeneralFieldKeywordsEditor so the two can never disagree. */
+  /**
+   * OVRATR / OVRDTA / TEXT are hidden on the fields the DDS Reference rules
+   * them out for (OVRATR on hidden, OVRDTA on input-only / hidden / constant,
+   * TEXT on SFLMSGKEY / SFLPGMQ fields). Like CHRID's row the row is hidden
+   * only while the keyword is NOT already on the field, so a hand-written
+   * invalid field still shows the ticked box and it can be un-ticked. Shared
+   * by generalFieldKeywordsHtml and wireGeneralFieldKeywordsEditor so the two
+   * can never disagree.
+   */
   function multiLevelRowHidden(keywords, name, usage, isConstant) {
     if (name !== 'OVRATR' && name !== 'OVRDTA' && name !== 'TEXT') return false;
     if (DspfWriter.getFileFlagKeyword(keywords, name).present) return false;
     return !!DspfWriter.multiLevelFieldReason(name, usage, isConstant, keywords, '');
   }
 
-  /** Task I-172 - a choice row (the CHCACCEL accelerator input, or one of the CHCAVAIL / CHCUNAVAIL /
-   *  CHCSLT colour-state rows) is hidden while the DDS Reference's companion rules would refuse the
-   *  keyword on this field - asked of the I-171 guard's own reason function, so the panel and the
-   *  guard cannot disagree. As with CHRID (I-70) and I-165 the row stays visible when the keyword is
-   *  ALREADY on the field, so a hand-written invalid field can still be un-ticked.
-   *  `recordKeywords` undefined skips the record-level rules. */
+  /**
+   * A choice row (the CHCACCEL accelerator input, or one of the CHCAVAIL / CHCUNAVAIL / CHCSLT
+   * colour-state rows) is hidden while the DDS Reference's companion rules would refuse the keyword
+   * on this field - asked of the guard's own reason function, so the panel and the guard cannot
+   * disagree. As with CHRID and the row stays visible when the keyword is ALREADY on the field, so
+   * a hand-written invalid field can still be un-ticked. `recordKeywords` undefined skips the
+   * record-level rules.
+   */
   function choiceRowHidden(keywords, kw, recordKeywords) {
     if ((keywords || []).some(function (k) { return k.name === kw; })) return false;
     return !!DspfWriter.choiceFieldCompanionReason(kw, keywords, recordKeywords);
   }
 
-  /** Task I-121o - true when a General keywords row is hidden by its scope: a
-   *  'named' row on a constant, or a constant-only row on a named field. A row
-   *  is constant-only when its scope says so OR the keyword spec says the
-   *  keyword is valid only on a constant field (HLPID). */
+  /**
+   * True when a General keywords row is hidden by its scope: a 'named' row on
+   * a constant, or a constant-only row on a named field. A row is
+   * constant-only when its scope says so OR the keyword spec says the keyword
+   * is valid only on a constant field (HLPID).
+   */
   function generalRowHiddenByScope(name, scope, isConstant) {
     if (scope === 'named' && isConstant) return true;
     if (!isConstant && (scope === 'constant' || DspfWriter.validOnlyOnConstantField(name))) return true;
@@ -2767,19 +2773,19 @@
     GENERAL_FIELD_KEYWORD_ROWS.forEach(function (row) {
       var key = row[0], name = row[1], placeholder = row[2], hasParam = row[3], scope = row[4], conditionable = row[5], mpScope = row[6], dtScope = row[7], usageScope = row[8];
       if (generalRowHiddenByScope(name, scope, isConstant)) return;
-      // Task I-35: Usage M/P each have a fixed, much smaller keyword list
-      // than every other usage (see fieldKeywordCategoryVisibility's own
-      // I-35 doc comment) - mpScope, unlike scope above, only ever
-      // NARROWS what's shown for M/P specifically; every other usage's
-      // own visibility is untouched by this check.
+      // Usage M/P each have a fixed, much smaller keyword list than every
+      // other usage (see fieldKeywordCategoryVisibility's own doc
+      // comment) - mpScope, unlike scope above, only ever NARROWS what's
+      // shown for M/P specifically; every other usage's own visibility is
+      // untouched by this check.
       if (usage === 'M' && mpScope === 'none') return;
       if (usage === 'P' && mpScope !== 'all') return;
-      // Task I-39 - dtScope narrows a row to fields of a particular data
-      // type (see GENERAL_FIELD_KEYWORD_ROWS's own I-39 comment).
+      // dtScope narrows a row to fields of a particular data type (see
+      // GENERAL_FIELD_KEYWORD_ROWS's own comment).
       if (!generalFieldKeywordRowMatchesDataType(dtScope, dataType, name)) return;
-      // Task I-42 - usageScope narrows a row to input-capable fields.
+      // usageScope narrows a row to input-capable fields.
       if (!generalFieldKeywordRowMatchesUsage(usageScope, usage, name)) return;
-      // Task I-70 - CHRID is not valid on hidden or numeric fields.
+      // CHRID is not valid on hidden or numeric fields.
       if (key === 'chrid' && chridRowHidden(keywords, usage, decimalPositions, isConstant)) return;
       if (key === 'igcalttyp' && igcalttypRowHidden(keywords, usage, dataType, isConstant)) return;
       if (multiLevelRowHidden(keywords, name, usage, isConstant)) return;
@@ -2797,38 +2803,38 @@
   }
 
   function wireGeneralFieldKeywordsEditor(keywords, onChange, ownerKey, expandedSet, rerender, dataType, isConstant, usage, recordKeywords, addGuardFn, decimalPositions) {
-    // Task I-83: optional catch-all on-transition guard (see withAddGuard) -
-    // HTML constants reach DFT/HLPID/PUTRETAIN/OVRATR/NOCCSID here, all of
-    // which HTML's own DDS Reference forbids on the same field.
+    // Optional catch-all on-transition guard (see withAddGuard) - HTML
+    // constants reach DFT/HLPID/PUTRETAIN/OVRATR/NOCCSID here, all of which
+    // HTML's own DDS Reference forbids on the same field.
     onChange = withAddGuard(keywords, onChange, rerender, addGuardFn);
     GENERAL_FIELD_KEYWORD_ROWS.forEach(function (row) {
       var key = row[0], name = row[1], scope = row[4], conditionable = row[5], mpScope = row[6], dtScope = row[7], usageScope = row[8];
       if (generalRowHiddenByScope(name, scope, isConstant)) return;
-      // Task I-35 - see generalFieldKeywordsHtml's own I-35 comment above;
-      // must match its own skip logic exactly or a row could render (or
-      // fail to render) without a matching wire-up.
+      // See generalFieldKeywordsHtml's own comment above; must match its
+      // own skip logic exactly or a row could render (or fail to render)
+      // without a matching wire-up.
       if (usage === 'M' && mpScope === 'none') return;
       if (usage === 'P' && mpScope !== 'all') return;
-      // Task I-39 - must match generalFieldKeywordsHtml's own dtScope skip
-      // logic exactly, same reasoning as the mpScope comment just above.
+      // Must match generalFieldKeywordsHtml's own dtScope skip logic
+      // exactly, same reasoning as the mpScope comment just above.
       if (!generalFieldKeywordRowMatchesDataType(dtScope, dataType, name)) return;
-      // Task I-42 - must match generalFieldKeywordsHtml's own usageScope
-      // skip logic exactly, same reasoning as the mpScope/dtScope comments.
+      // Must match generalFieldKeywordsHtml's own usageScope skip logic
+      // exactly, same reasoning as the mpScope/dtScope comments.
       if (!generalFieldKeywordRowMatchesUsage(usageScope, usage, name)) return;
-      // Task I-70 - must match generalFieldKeywordsHtml's own CHRID skip
-      // exactly, same reasoning as the mpScope/dtScope/usageScope comments.
+      // Must match generalFieldKeywordsHtml's own CHRID skip exactly, same
+      // reasoning as the mpScope/dtScope/usageScope comments.
       if (key === 'chrid' && chridRowHidden(keywords, usage, decimalPositions, isConstant)) return;
       if (key === 'igcalttyp' && igcalttypRowHidden(keywords, usage, dataType, isConstant)) return;
       if (multiLevelRowHidden(keywords, name, usage, isConstant)) return;
       var id = ownerKey + '-gen-' + key;
       if (key === 'chrid') {
-        // Task I-70 - guarded wiring (alert + revert, same idiom as the
-        // WRDWRAP branch just below): turning CHRID ON is blocked when the
-        // field already carries DUP, or is not eligible (see
+        // Guarded wiring (alert + revert, same idiom as the WRDWRAP branch
+        // just below): turning CHRID ON is blocked when the field already
+        // carries DUP, or is not eligible (see
         // DspfWriter.chridFieldAddReason - the row is already hidden for
         // hidden/numeric fields, this keeps the branch correct on its own).
-        // Turning it OFF is never blocked. No Conditioning wiring -
-        // "Option indicators are not valid for this keyword" (I-30).
+        // Turning it OFF is never blocked. No Conditioning wiring - "Option
+        // indicators are not valid for this keyword".
         var chOn = document.getElementById(id + '-on');
         if (chOn) chOn.addEventListener('change', function () {
           var present = chOn.checked;
@@ -2845,10 +2851,10 @@
         return;
       }
       if (key === 'wrdwrap') {
-        // Task I-42 - guarded wiring (alert + revert, same idiom as the
-        // DFT/DFTVAL branch just below): turning WRDWRAP ON is blocked on a
-        // subfile record's field or when the field already carries one of
-        // its documented mutually exclusive keywords
+        // Guarded wiring (alert + revert, same idiom as the DFT/DFTVAL
+        // branch just below): turning WRDWRAP ON is blocked on a subfile
+        // record's field or when the field already carries one of its
+        // documented mutually exclusive keywords
         // (DspfWriter.wrdwrapFieldConflictReason). Turning it OFF is never
         // blocked. No Conditioning wiring - "Option indicators are not
         // valid for this keyword".
@@ -2895,10 +2901,10 @@
         };
         if (onEl) onEl.addEventListener('change', commit);
         if (paramsEl) paramsEl.addEventListener('change', commit);
-        // Task I-30: DFT itself is "not valid for this keyword" per IBM's
-        // own DDS Reference, unlike DFTVAL just below it in this same
-        // shared branch - only wire the Conditioning control when this
-        // row's own `conditionable` flag says so.
+        // DFT itself is "not valid for this keyword" per IBM's own DDS
+        // Reference, unlike DFTVAL just below it in this same shared
+        // branch - only wire the Conditioning control when this row's own
+        // `conditionable` flag says so.
         if (conditionable) {
           wireFlagRowConditioning(id, DspfWriter.getFileFlagKeyword(keywords, name).conditions, function (newConditions) {
             onChange(DspfWriter.setFileFlagKeyword(keywords, name, onEl.checked, paramsEl ? paramsEl.value : '', undefined, newConditions));
@@ -2930,9 +2936,9 @@
    *  as the one place DLTCHK/DLTEDT are edited. */
   function referenceOverridesHtml(keywords, ownerKey, expandedSet) {
     var html = '<div class="section-label" style="margin-top:10px;">Ignore previously specified</div>';
-    // Task I-30: both "Option indicators are not valid for this keyword"
-    // per their own DDS Reference entries - conditioning was previously
-    // offered unconditionally.
+    // Both "Option indicators are not valid for this keyword" per their
+    // own DDS Reference entries - conditioning was previously offered
+    // unconditionally.
     [
       ['dltchk', 'DLTCHK', 'Ignore the referenced field\u2019s own validity-check keywords'],
       ['dltedt', 'DLTEDT', 'Ignore the referenced field\u2019s own edit keywords'],
@@ -2944,7 +2950,7 @@
     return html;
   }
 
-  /** Task I-170 - true when DLTCHK or DLTEDT is on the field's keyword list. */
+  /* True when DLTCHK or DLTEDT is on the field's keyword list. */
   function referenceOverridesPresent(keywords) {
     return DspfWriter.requiresReferenceFlag('DLTCHK') && (DspfWriter.getFileFlagKeyword(keywords, 'DLTCHK').present || DspfWriter.getFileFlagKeyword(keywords, 'DLTEDT').present);
   }
@@ -2965,14 +2971,13 @@
   }
 
   /**
-   * Task I-74 - the read-only "Inherited from referenced field" panel of a
-   * reference field ("R" in position 29). Lists the keywords the field inherits
-   * from the resolved database field (TEXT, ALIAS, CCSID, editing, date/time
-   * formats) as non-editable chips - they are applied by the system at compile
-   * time and are NOT written into the source, which is what keeps a "+n"/"-n"
-   * length adjustment intact. `opts`: { field, definition (resolved definition or
-   * null), inherited ({keywords, notes} from DspfEngine.inheritedReferenceKeywords),
-   * effectiveLength }.
+   * The read-only "Inherited from referenced field" panel of a reference field ("R"
+   * in position 29). Lists the keywords the field inherits from the resolved
+   * database field (TEXT, ALIAS, CCSID, editing, date/time formats) as non-editable
+   * chips - they are applied by the system at compile time and are NOT written into
+   * the source, which is what keeps a "+n"/"-n" length adjustment intact. `opts`: {
+   * field, definition (resolved definition or null), inherited ({keywords, notes}
+   * from DspfEngine.inheritedReferenceKeywords), effectiveLength }.
    */
   function referenceInheritedHtml(opts) {
     var field = opts.field || {};
@@ -3002,17 +3007,17 @@
     ((opts.inherited && opts.inherited.notes) || []).forEach(function (n) {
       html += '<div class="hint-small reference-inherited-note">' + escapeHtml(n) + '</div>';
     });
-    // Task I-116: CHECK/COMP/RANGE/VALUES/CHKMSGID and FLTPCN come from a
-    // separate QDBRTVFD fetch (see extension.ts's fetchReferencedFieldValidity),
-    // attempted every time this field is resolved. `def.validityChecked` says
-    // whether that attempt succeeded THIS time - not whether the field has
-    // any of these keywords (it may genuinely have none, same as every other
+    // CHECK/COMP/RANGE/VALUES/CHKMSGID and FLTPCN come from a separate QDBRTVFD
+    // fetch (see extension.ts's fetchReferencedFieldValidity), attempted every
+    // time this field is resolved. `def.validityChecked` says whether that
+    // attempt succeeded THIS time - not whether the field has any of these
+    // keywords (it may genuinely have none, same as every other
     // inherited-keyword category above). When it didn't succeed (no IBM i
-    // connection, or the fetch itself failed), they are always shown as a
-    // hint, never guessed or left silently missing - and, succeeded or not,
-    // they are never editable here, same as every other chip in this panel:
-    // this whole section is a read-only preview of what the system applies
-    // at compile time, not something iSDA writes into the source.
+    // connection, or the fetch itself failed), they are always shown as a hint,
+    // never guessed or left silently missing - and, succeeded or not, they are
+    // never editable here, same as every other chip in this panel: this whole
+    // section is a read-only preview of what the system applies at compile time,
+    // not something iSDA writes into the source.
     if (!def.validityChecked) {
       html += '<div class="hint-small reference-inherited-limit">Not listed here: the validity-checking keywords (CHECK, COMP, RANGE, VALUES, CHKMSGID) and FLTPCN' +
         (def.validityError ? ' - ' + escapeHtml(def.validityError) : ' - requires a connection to the IBM i the referenced field lives on') +
@@ -3061,14 +3066,12 @@
     html += '<div class="field-row"><label>Library</label><input type="text" id="' + ownerKey + '-reffld-library" value="' + escapeHtml(state.library) + '" placeholder="*LIBL" /></div></div>';
     html += '<div class="hint-small">Field name is required whenever any of these is filled in (defaults to this field\u2019s own name if left blank) - or leave everything here blank, with just the checkbox above on, for a bare \u2018same-named field\u2019 reference.</div>';
     html += '</div>';
-    // Task I-35: DLTCHK/DLTEDT are NOT on Usage M/P's own fixed keyword
-    // lists (unlike REFFLD above, which IS - see
-    // fieldKeywordCategoryVisibility's own I-35 doc comment) - skipped
-    // for M/P fields specifically, matching wireDatabaseReferenceEditor's
-    // own matching skip just below.
-    // Task I-170: both are valid only with R in position 29 (the guard refuses them
-    // otherwise), so the rows are offered on a reference field, or while one is
-    // still present so it can be cleared.
+    // DLTCHK/DLTEDT are NOT on Usage M/P's own fixed keyword lists (unlike REFFLD
+    // above, which IS - see fieldKeywordCategoryVisibility's own doc comment) -
+    // skipped for M/P fields specifically, matching wireDatabaseReferenceEditor's
+    // own matching skip just below. both are valid only with R in position 29 (the
+    // guard refuses them otherwise), so the rows are offered on a reference field,
+    // or while one is still present so it can be cleared.
     if (field.usage !== 'M' && field.usage !== 'P' && (state.isReference || referenceOverridesPresent(field.keywords))) {
       html += referenceOverridesHtml(field.keywords, ownerKey, expandedSet);
     }
@@ -3125,7 +3128,7 @@
       if (el) el.addEventListener('change', commit);
     });
 
-    // Task I-35: skip wiring DLTCHK/DLTEDT for M/P fields - matches
+    // Skip wiring DLTCHK/DLTEDT for M/P fields - matches
     // databaseReferenceHtml's own matching skip (neither keyword is on
     // Usage M/P's fixed list, so their rows are never rendered there).
     if (field.usage !== 'M' && field.usage !== 'P') {
@@ -3161,9 +3164,9 @@
     var rcdnbr = DspfWriter.getFileFlagKeyword(keywords, 'SFLRCDNBR');
     var rolval = DspfWriter.getFileFlagKeyword(keywords, 'SFLROLVAL');
     var scroll = DspfWriter.getFileFlagKeyword(keywords, 'SFLSCROLL');
-    // Task I-39 - SFLCHCCTL/SFLCSRPRG were confirmed entirely missing from
-    // iSDA (no getter/setter, no row, no mention anywhere) by a full-text
-    // audit of DDS_Keyword_V7r6.txt against actual code. Both are simple,
+    // SFLCHCCTL/SFLCSRPRG were confirmed entirely missing from iSDA (no
+    // getter/setter, no row, no mention anywhere) by a full-text audit of
+    // DDS_Keyword_V7r6.txt against actual code. Both are simple,
     // no-parameter, non-conditionable field-level flags ("Option
     // indicators are not valid for this keyword" per each's own DDS
     // Reference entry) that only make sense on a field within an SFL/
@@ -3171,10 +3174,10 @@
     // SFLSCROLL just above, so they're added here rather than as a new
     // accordion. SFLCHCCTL has real structural requirements (must be the
     // record's first field, length 1, data type Y, decimal positions 0,
-    // usage H, only one per record) - I-39 only surfaced them as a hint;
-    // I-79 hard-enforces all of them (see wireSubfileFieldKeywords's own
-    // I-79 comment below). The hint text stays, since it's still useful
-    // up front, but it no longer describes an unenforced rule.
+    // usage H, only one per record) - only surfaced them as a hint; I-79
+    // hard-enforces all of them (see wireSubfileFieldKeywords's own
+    // comment below). The hint text stays, since it's still useful up
+    // front, but it no longer describes an unenforced rule.
     var chcctl = DspfWriter.getFileFlagKeyword(keywords, 'SFLCHCCTL');
     var csrprg = DspfWriter.getFileFlagKeyword(keywords, 'SFLCSRPRG');
     var html = '<div class="status" style="margin-bottom:8px;">For a field within a subfile (SFL) or subfile control (SFLCTL) record that lets the operator type a record number or roll value directly.</div>';
@@ -3191,8 +3194,8 @@
     html += '<label class="attr-check" style="margin-top:8px;"><input type="checkbox" id="' + ownerKey + '-sflrolval" ' + (rolval.present ? 'checked' : '') + '/>Operator can specify the number of records to roll (SFLROLVAL)</label>';
     html += '<label class="attr-check" style="margin-top:8px;"><input type="checkbox" id="' + ownerKey + '-sflscroll" ' + (scroll.present ? 'checked' : '') + '/>Return top-of-subfile record number on scroll (SFLSCROLL)</label>';
     html += '<div class="hint-small">SFLROLVAL, SFLSCROLL, and SFLRCDNBR cannot share one field, and only one field in the whole record can carry SFLSCROLL. SFLSCROLL needs a 5-digit signed numeric (S), 0-decimal, hidden (H) field - turning it on sets that shape - and is not allowed when SFLSIZ equals SFLPAG.</div>';
-    // Task I-129: SFLRCDNBR, SFLROLVAL and SFLSCROLL are valid only in the
-    // subfile control record (refused on a field of an SFL detail record).
+    // SFLRCDNBR, SFLROLVAL and SFLSCROLL are valid only in the subfile
+    // control record (refused on a field of an SFL detail record).
     html += '<div class="hint-small">SFLRCDNBR, SFLROLVAL, and SFLSCROLL are valid only on a field of the subfile control (SFLCTL) record - turning one on for a field of a subfile (SFL) record is refused.</div>';
     html += '<label class="attr-check" style="margin-top:8px;"><input type="checkbox" id="' + ownerKey + '-sflchcctl" ' + (chcctl.present ? 'checked' : '') + '/>Choice control field for a selection list (SFLCHCCTL)</label>';
     html += '<div class="hint-small">Must be the first field in the subfile record: length 1, data type Y (zoned numeric), 0 decimal positions, usage H (hidden). Only one field per record can carry this.</div>';
@@ -3207,9 +3210,9 @@
       var rcdnbrBefore = DspfWriter.getFileFlagKeyword(keywords, 'SFLRCDNBR');
       rcdnbrEl.addEventListener('change', function () {
         if (rcdnbrEl.value) {
-          // Task I-177: not beside SFLROLVAL on one field (alert + revert,
-          // no edit posted), and the field is brought into SFLRCDNBR's
-          // required shape in the SAME edit, as SFLSCROLL's checkbox does.
+          // Not beside SFLROLVAL on one field (alert + revert, no edit
+          // posted), and the field is brought into SFLRCDNBR's required
+          // shape in the SAME edit, as SFLSCROLL's checkbox does.
           var rcdReason = DspfWriter.sflrcdnbrFieldConflictReason(keywords, 'SFLRCDNBR');
           if (rcdReason) {
             window.alert(rcdReason);
@@ -3226,7 +3229,7 @@
     if (rolvalEl) {
       rolvalEl.addEventListener('change', function () {
         if (rolvalEl.checked) {
-          // Task I-177: SFLROLVAL cannot share a field with SFLRCDNBR.
+          // SFLROLVAL cannot share a field with SFLRCDNBR.
           var rolReason = DspfWriter.sflrcdnbrFieldConflictReason(keywords, 'SFLROLVAL');
           if (rolReason) {
             window.alert(rolReason);
@@ -3241,16 +3244,16 @@
     if (scrollEl) {
       scrollEl.addEventListener('change', function () {
         if (scrollEl.checked) {
-          // Task I-127: recordKeywords adds the SFLSIZ-equals-SFLPAG check.
+          // recordKeywords adds the SFLSIZ-equals-SFLPAG check.
           var reason = DspfWriter.sflScrollFieldConflictReason(keywords, siblingFieldsKeywords, recordKeywords);
           if (reason) {
             window.alert(reason);
             scrollEl.checked = false;
             return;
           }
-          // Task I-126: the field is brought into SFLSCROLL's required
+          // The field is brought into SFLSCROLL's required
           // signed-numeric / 5 / 0 / hidden shape in the SAME edit
-          // (sflscrollDefinitionUpdates, mirroring SFLCHCCTL's own I-79
+          // (sflscrollDefinitionUpdates, mirroring SFLCHCCTL's own
           // rewrite-on-enable just below).
           onChange(DspfWriter.setFileFlagKeyword(keywords, 'SFLSCROLL', true), DspfWriter.sflscrollDefinitionUpdates(getField ? getField() : null));
           return;
@@ -3258,17 +3261,17 @@
         onChange(DspfWriter.setFileFlagKeyword(keywords, 'SFLSCROLL', false), null);
       });
     }
-    // Task I-39 - SFLCHCCTL/SFLCSRPRG (see subfileFieldKeywordsHtml's own
-    // I-39 comment above). Neither is conditionable per IBM's own DDS
-    // Reference. I-79 closed SFLCHCCTL's own structural gaps: turning it
-    // on is blocked (checkbox reverted, same pattern as SFLSCROLL just
-    // above) when this isn't the record's first field or another field
-    // already carries it (DspfWriter.sflchcctlFieldConflictReason);
-    // otherwise the field's own length/type/decimals/usage are silently
-    // brought into the required 1/Y/0/H shape in the SAME edit
+    // SFLCHCCTL/SFLCSRPRG (see subfileFieldKeywordsHtml's own comment
+    // above). Neither is conditionable per IBM's own DDS Reference. I-79
+    // closed SFLCHCCTL's own structural gaps: turning it on is blocked
+    // (checkbox reverted, same pattern as SFLSCROLL just above) when this
+    // isn't the record's first field or another field already carries it
+    // (DspfWriter.sflchcctlFieldConflictReason); otherwise the field's own
+    // length/type/decimals/usage are silently brought into the required
+    // 1/Y/0/H shape in the SAME edit
     // (DspfWriter.sflchcctlDefinitionUpdates, mirroring PSHBTNFLD's own
-    // I-57 rewrite-on-enable) - `onChange(newKeywords, fieldUpdates)` lets
-    // the caller fold both into one commit, same signature
+    // rewrite-on-enable) - `onChange(newKeywords, fieldUpdates)` lets the
+    // caller fold both into one commit, same signature
     // wirePshbtnfldPanel's `commit` uses.
     var chcctlEl = document.getElementById(ownerKey + '-sflchcctl');
     if (chcctlEl) {
@@ -3362,8 +3365,8 @@
       '</div>';
     row += '<input type="text" class="' + ownerKey + '-mnubarchc-text" placeholder="text, or &field" value="' + escapeHtml(c.text) + '" style="width:100%;margin-top:6px;" />';
     row += '<input type="text" class="' + ownerKey + '-mnubarchc-returnfield" placeholder="return field (opt.)" maxlength="11" value="' + escapeHtml(c.returnField || '') + '" style="width:100%;margin-top:6px;" />';
-    // Task I-34: MNUBARCHC is documented "Option indicators are valid for
-    // this keyword" - a per-choice Conditioning toggle, same kw-cond-
+    // MNUBARCHC is documented "Option indicators are valid for this
+    // keyword" - a per-choice Conditioning toggle, same kw-cond-
     // toggle/kw-cond-body markup entFldAtrHtml's own single-instance
     // toggle uses, keyed by choice-id (not idx) since
     // setMenubarChoiceConditions targets the MNUBARCHC keyword by
@@ -3383,11 +3386,10 @@
     return row;
   }
 
-  // Task I-119: was copy-pasted identically (only the class-name suffix
-  // differed) into wireMenuBarChoicesEditor and wireChoiceKeywordsListEditor
-  // below - both delete the row's own `.choice-row-block` ancestor, so the
-  // shared shape is the class suffix plus the fixed `.choice-row-block`
-  // removal target.
+  // Was copy-pasted identically (only the class-name suffix differed) into
+  // wireMenuBarChoicesEditor and wireChoiceKeywordsListEditor below - both
+  // delete the row's own `.choice-row-block` ancestor, so the shared shape
+  // is the class suffix plus the fixed `.choice-row-block` removal target.
   function wireChoiceRowRemoveButtons(ownerKey, classSuffix) {
     document.querySelectorAll('.' + ownerKey + classSuffix + '-remove').forEach(function (btn) {
       btn.onclick = function () { btn.closest('.choice-row-block').remove(); };
@@ -3419,9 +3421,9 @@
       });
       onChange(DspfWriter.setMenubarChoices(keywords, choices));
     });
-    // Task I-34: per-choice Conditioning toggle, commits immediately via
-    // DspfWriter.setMenubarChoiceConditions (id-keyed), independent of
-    // the batch "Apply menu-bar choices" button above - same "Conditioning
+    // Per-choice Conditioning toggle, commits immediately via
+    // DspfWriter.setMenubarChoiceConditions (id-keyed), independent of the
+    // batch "Apply menu-bar choices" button above - same "Conditioning
     // commits immediately, other fields commit via Apply" split
     // wireEntFldAtrEditor already uses.
     var menuChoices = DspfWriter.getMenubarChoices(keywords);
@@ -3456,8 +3458,8 @@
     }).join('') + '</div>';
     html += '<label style="display:flex;align-items:center;gap:6px;margin:8px 0 6px;font-size:12px;"><input type="checkbox" id="' + ownerKey + '-mnubarsep-char-on" ' + (enabled.chars ? 'checked' : '') + ' /> Separator character</label>';
     html += '<input type="text" maxlength="1" id="' + ownerKey + '-mnubarsep-char" value="' + escapeHtml(sep.char) + '" style="width:40px;" />';
-    // Task I-34: MNUBARSEP is documented "Option indicators are valid for
-    // this keyword" - reverse gap, no toggle existed before. Same single-
+    // MNUBARSEP is documented "Option indicators are valid for this
+    // keyword" - reverse gap, no toggle existed before. Same single-
     // instance kw-cond-toggle/kw-cond-body shape entFldAtrHtml uses.
     var condSummary = sep.conditions.length > 0 ? ' (' + sep.conditions.length + ')' : '';
     var condExpanded = !!(expandedSet && expandedSet.has(ownerKey + '-mnubarsep:cond'));
@@ -3484,9 +3486,9 @@
         }));
       });
     }
-    // Task I-34: Conditioning commits immediately (id-less - MNUBARSEP is
-    // a single instance), independent of the "Apply separator" button
-    // above - same split wireEntFldAtrEditor uses.
+    // Conditioning commits immediately (id-less - MNUBARSEP is a single
+    // instance), independent of the "Apply separator" button above - same
+    // split wireEntFldAtrEditor uses.
     wireFlagRowConditioning(ownerKey + '-mnubarsep', DspfWriter.getMenubarSeparator(keywords).conditions, function (newConditions) {
       var current = DspfWriter.getMenubarSeparator(keywords);
       onChange(DspfWriter.setMenubarSeparator(keywords, {
@@ -3502,10 +3504,10 @@
   // offers (docs/sda-reference/screens/field-level/menu-bar-choice/
   // choice-selection-type/image205.png), grouped into the mutually-
   // exclusive radio pairs the screen itself shows them as (plus a blank
-  // "not specified" option each group defaults to).
-  //  Task I-121: WHICH flags make up each group, and in what order, is
-  //  keywordSpec.js's SNGCHCFLD `selectionParameters` fact (read lazily
-  //  through DspfWriter); only the screen wording below is kept here.
+  // "not specified" option each group defaults to). WHICH flags make up
+  // each group, and in what order, is keywordSpec.js's SNGCHCFLD
+  // `selectionParameters` fact (read lazily through DspfWriter); only
+  // the screen wording below is kept here.
   var CHOICE_SELECTION_GROUP_TEXT = {
     rstcsr: { label: 'Cursor restriction', flags: { '*RSTCSR': 'Restrict cursor to field', '*NORSTCSR': 'No restriction' } },
     sltind: { label: 'Select indicator', flags: { '*SLTIND': 'Display select indicator', '*NOSLTIND': 'No display' } },
@@ -3525,11 +3527,13 @@
     });
   }
 
-  /** Task I-34: IBM's MLTCHCFLD format string has no *AUTOSLT/*AUTOENT
-   *  family at all - those two radio groups exist ONLY on SNGCHCFLD.
-   *  Read from the spec via DspfWriter.sngchcfldOnlyFlagGroups(). */
-  //  Task I-121: which groups those are is keywordSpec.js's SNGCHCFLD /
-  //  MLTCHCFLD `selectionParameters` fact, read lazily through DspfWriter.
+  /**
+   * IBM's MLTCHCFLD format string has no *AUTOSLT/*AUTOENT family at
+   * all - those two radio groups exist ONLY on SNGCHCFLD. Read from the
+   * spec via DspfWriter.sngchcfldOnlyFlagGroups().
+   */
+  //  Which groups those are is keywordSpec.js's SNGCHCFLD / MLTCHCFLD
+  //  `selectionParameters` fact, read lazily through DspfWriter.
   function isSngchcfldOnlyGroup(name) {
     return DspfWriter.sngchcfldOnlyFlagGroups().indexOf(name) >= 0;
   }
@@ -3550,11 +3554,11 @@
         return '<option value="' + k + '"' + (state.kind === k ? ' selected' : '') + '>' + label + '</option>';
       }).join('') + '</select></div>';
     choiceSelectionRadioGroups().forEach(function (group) {
-      // Task I-34: *AUTOSLT/*AUTOENT only exist on SNGCHCFLD's own format
-      // string - don't even render the group when the field is MLTCHCFLD
-      // (or not yet a choice field), so there's nothing stale left in the
-      // DOM for wireChoiceSelectionTypeEditor's own kind-based guard to
-      // have to filter out.
+      // *AUTOSLT/*AUTOENT only exist on SNGCHCFLD's own format string -
+      // don't even render the group when the field is MLTCHCFLD (or not
+      // yet a choice field), so there's nothing stale left in the DOM for
+      // wireChoiceSelectionTypeEditor's own kind-based guard to have to
+      // filter out.
       if (state.kind !== 'SNGCHCFLD' && isSngchcfldOnlyGroup(group.name)) return;
       var current = group.options.map(function (o) { return o[0]; }).find(function (v) { return v !== '' && state.flags.indexOf(v) >= 0; }) || '';
       html += '<div class="field-row"><label>' + escapeHtml(group.label) + '</label><select class="' + ownerKey + '-cst-' + group.name + '">' +
@@ -3571,9 +3575,9 @@
     return html;
   }
 
-  // Task I-57 - optional trailing `addGuardFn(kind) -> reason|null`,
-  // checked when Apply would turn a field INTO a SNGCHCFLD/MLTCHCFLD
-  // (kind non-blank). Used to keep those two selection-field kinds off a
+  // Optional trailing `addGuardFn(kind) -> reason|null`, checked when
+  // Apply would turn a field INTO a SNGCHCFLD/MLTCHCFLD (kind
+  // non-blank). Used to keep those two selection-field kinds off a
   // PSHBTNFLD field, whose own DDS Reference whitelist excludes them.
   function wireChoiceSelectionTypeEditor(keywords, onChange, ownerKey, addGuardFn) {
     var applyBtn = document.querySelector('.' + ownerKey + '-cst-apply');
@@ -3584,8 +3588,8 @@
         var guardReason = addGuardFn(kind);
         if (guardReason) { window.alert(guardReason); return; }
       }
-      // Task I-63: same three layout rules as the PSHBTNFLD editor's own
-      // Apply (per the DDS Reference), checked before anything is written.
+      // Same three layout rules as the PSHBTNFLD editor's own Apply (per
+      // the DDS Reference), checked before anything is written.
       var numColVal = document.getElementById(ownerKey + '-cst-numcol').value;
       var numRowVal = document.getElementById(ownerKey + '-cst-numrow').value;
       var gutterVal = document.getElementById(ownerKey + '-cst-gutter').value;
@@ -3596,9 +3600,9 @@
       }
       var flags = [];
       choiceSelectionRadioGroups().forEach(function (group) {
-        // Task I-34: re-check kind here too, not just by omitting the
-        // <select> from the rendered HTML above - if the Type dropdown
-        // is switched away from SNGCHCFLD client-side without a full
+        // Re-check kind here too, not just by omitting the <select>
+        // from the rendered HTML above - if the Type dropdown is
+        // switched away from SNGCHCFLD client-side without a full
         // rerender in between, a stale autoslt/autoent <select> left
         // over from the PREVIOUS render could otherwise still be read.
         if (kind !== 'SNGCHCFLD' && isSngchcfldOnlyGroup(group.name)) return;
@@ -3616,13 +3620,13 @@
   }
 
   // -----------------------------------------------------------------------
-  // Task I-57 - push-button field (PSHBTNFLD + repeatable PSHBTNCHC). See
-  // the DspfWriter block of the same task for the model and the three ways
-  // it differs from SNGCHCFLD/CHOICE. PSHBTNCHC is an ordinary repeatable,
+  // Push-button field (PSHBTNFLD + repeatable PSHBTNCHC). See the
+  // DspfWriter block of the same task for the model and the three ways it
+  // differs from SNGCHCFLD/CHOICE. PSHBTNCHC is an ordinary repeatable,
   // independently option-indicator-conditioned keyword ("Option indicators
   // are valid for this keyword") - so the choices reuse the generic
-  // repeatable-instance editor MOUBTN uses rather than the batch
-  // "Apply choice keywords" table CHOICE uses. PSHBTNFLD itself takes no
+  // repeatable-instance editor MOUBTN uses rather than the batch "Apply
+  // choice keywords" table CHOICE uses. PSHBTNFLD itself takes no
   // indicators ("Option indicators are not valid for this keyword").
   // -----------------------------------------------------------------------
 
@@ -3673,9 +3677,9 @@
     html += '<div class="section-label" style="margin-top:12px;">Push-button choices (PSHBTNCHC)</div>';
     var instances = DspfWriter.getRepeatableKeywordInstances(keywords, ['PSHBTNCHC']);
     if (instances.length === 0) html += '<div class="hint-small" style="color:var(--warn);">A push-button field needs at least one PSHBTNCHC choice.</div>';
-    // Task I-66: text rules from the DDS Reference. Shown here (not only
-    // enforced when a row is edited) so a hand-written source that already
-    // breaks one is visible; the same checks block a row edit below.
+    // Text rules from the DDS Reference. Shown here (not only enforced
+    // when a row is edited) so a hand-written source that already breaks
+    // one is visible; the same checks block a row edit below.
     var issues = DspfWriter.pshbtnchcFieldIssues(keywords);
     issues.textProblems.forEach(function (tp) {
       html += '<div class="hint-small" style="color:var(--warn);">Choice ' + escapeHtml(tp.id) + ': ' + escapeHtml(tp.message) + '</div>';
@@ -3820,8 +3824,8 @@
       '<input type="text" class="' + ownerKey + '-choicekw-text" placeholder="choice text (CHOICE)" value="' + escapeHtml(c.text) + '" style="flex:1;" />' +
       '<button class="secondary ' + ownerKey + '-choicekw-remove" data-idx="' + idx + '" title="Remove">&times;</button>' +
       '</div>';
-    // Task I-172: the accelerator input is only offered where CHCACCEL is allowed (a single-choice
-    // field in a pull-down record) - see choiceRowHidden.
+    // The accelerator input is only offered where CHCACCEL is allowed (a single-choice field in a
+    // pull-down record) - see choiceRowHidden.
     row += '<div class="' + (hideAccel ? '' : 'two-col') + '" style="margin-top:6px;">' +
       '<input type="text" class="' + ownerKey + '-choicekw-ctrl" placeholder="control field (CHCCTL)" value="' + escapeHtml(c.controlField) + '"' + (hideAccel ? ' style="width:100%;"' : '') + ' />' +
       (hideAccel ? '' : '<input type="text" class="' + ownerKey + '-choicekw-accel" placeholder="accelerator text (CHCACCEL)" value="' + escapeHtml(c.accelText) + '" />') +
@@ -3831,11 +3835,11 @@
       '<input type="text" class="' + ownerKey + '-choicekw-msgfile" placeholder="message file" value="' + escapeHtml(c.messageFile) + '" />' +
       '</div>';
     row += '<input type="text" class="' + ownerKey + '-choicekw-lib" placeholder="library (optional)" value="' + escapeHtml(c.library) + '" style="width:100%;margin-top:6px;" />';
-    // Task I-34: *SPACEB - CHOICE's own optional trailing flag ("insert a
-    // blank space/line before this choice"), previously unmodeled.
+    // *SPACEB - CHOICE's own optional trailing flag ("insert a blank
+    // space/line before this choice"), previously unmodeled.
     row += '<label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12px;"><input type="checkbox" class="' + ownerKey + '-choicekw-spaceb" ' + (c.spaceBefore ? 'checked' : '') + ' /> Insert blank before this choice (*SPACEB)</label>';
-    // Task I-34: CHOICE is documented "Option indicators are valid for
-    // this keyword" - a per-choice Conditioning toggle, same kw-cond-
+    // CHOICE is documented "Option indicators are valid for this keyword"
+    // - a per-choice Conditioning toggle, same kw-cond-
     // toggle/kw-cond-body markup menuBarChoiceRowHtml's own per-instance
     // toggle uses, keyed by choice-id (not idx) since setChoiceConditions
     // targets the CHOICE keyword by choice-number, not ordinal position -
@@ -3889,7 +3893,7 @@
       next = DspfWriter.setChoiceAccelerators(next, accelerators);
       onChange(next);
     });
-    // Task I-34: per-choice Conditioning toggle, commits immediately via
+    // Per-choice Conditioning toggle, commits immediately via
     // DspfWriter.setChoiceConditions (id-keyed), independent of the batch
     // "Apply choice keywords" button above - same split wireEntFldAtrEditor
     // already uses.
@@ -3905,13 +3909,15 @@
     });
   }
 
-  /** Task I-65 - CHCCTL rows for a PUSH-BUTTON field: one row per existing
-   *  CHCCTL (duplicates from a hand-written source stay separate rows so
-   *  nothing is silently merged away), plus an empty row for every
-   *  PSHBTNCHC choice that has no CHCCTL yet. `hasChoice` is false for a
-   *  CHCCTL whose choice number matches no PSHBTNCHC - IBM: "When the
-   *  CHCCTL keyword is specified on a field, a CHOICE or PSHBTNCHC keyword
-   *  with the same choice number must also be specified for the field." */
+  /**
+   * CHCCTL rows for a PUSH-BUTTON field: one row per existing CHCCTL
+   * (duplicates from a hand-written source stay separate rows so nothing
+   * is silently merged away), plus an empty row for every PSHBTNCHC choice
+   * that has no CHCCTL yet. `hasChoice` is false for a CHCCTL whose choice
+   * number matches no PSHBTNCHC - IBM: "When the CHCCTL keyword is
+   * specified on a field, a CHOICE or PSHBTNCHC keyword with the same
+   * choice number must also be specified for the field."
+   */
   function pshbtnChoiceControlRows(keywords) {
     var controls = DspfWriter.getChoiceControls(keywords);
     var choices = {};
@@ -3931,10 +3937,12 @@
     return rows;
   }
 
-  /** Task I-65 - CHCCTL editor for a push-button field. The choice editor
-   *  used for SNGCHCFLD/MLTCHCFLD also edits CHOICE and CHCACCEL, which
-   *  the PSHBTNFLD whitelist forbids, so a push-button field gets this
-   *  CHCCTL-only editor instead, keyed by the field's PSHBTNCHC numbers. */
+  /**
+   * CHCCTL editor for a push-button field. The choice editor used for
+   * SNGCHCFLD/MLTCHCFLD also edits CHOICE and CHCACCEL, which the
+   * PSHBTNFLD whitelist forbids, so a push-button field gets this
+   * CHCCTL-only editor instead, keyed by the field's PSHBTNCHC numbers.
+   */
   function pshbtnChoiceControlHtml(keywords, ownerKey) {
     var rows = pshbtnChoiceControlRows(keywords);
     var html = '<div class="section-label">Push-button choice control (CHCCTL)</div>';
@@ -3999,14 +4007,18 @@
     { key: 'slt', keyword: 'CHCSLT', label: 'Selected' },
   ];
 
-  /** Task I-65 - the subset of CHOICE_COLOR_STATES named by `stateKeys`
-   *  (an array of 'avail' / 'unavail' / 'slt'); every state when omitted.
-   *  A push-button field passes pshbtnChoiceColorStateKeys() - CHCSLT is NOT on
-   *  PSHBTNFLD's list of allowed keywords, so its editor must not offer it
-   *  (and its shared Apply must never touch it). */
-  /** Task I-121 - the state keys ('avail' / 'unavail' / 'slt') a push-button
-   *  field may show: the rows whose keyword PSHBTNFLD's own whitelist allows
-   *  (keywordSpec.js, via DspfWriter), not a literal list kept here. */
+  /**
+   * The subset of CHOICE_COLOR_STATES named by `stateKeys` (an array of 'avail'
+   * / 'unavail' / 'slt'); every state when omitted. A push-button field passes
+   * pshbtnChoiceColorStateKeys() - CHCSLT is NOT on PSHBTNFLD's list of allowed
+   * keywords, so its editor must not offer it (and its shared Apply must never
+   * touch it).
+   */
+  /**
+   * The state keys ('avail' / 'unavail' / 'slt') a push-button field may
+   * show: the rows whose keyword PSHBTNFLD's own whitelist allows
+   * (keywordSpec.js, via DspfWriter), not a literal list kept here.
+   */
   function pshbtnChoiceColorStateKeys() {
     var allowed = DspfWriter.choiceColorStateKeywordsAllowedOn('PSHBTNFLD');
     return CHOICE_COLOR_STATES.filter(function (state) { return allowed.indexOf(state.keyword) >= 0; })
@@ -4018,10 +4030,11 @@
     return CHOICE_COLOR_STATES.filter(function (state) { return stateKeys.indexOf(state.key) >= 0; });
   }
 
-  /** Task I-172 - the colour-state rows actually offered on this field: `choiceColorStatesFor`
-   *  minus the states whose keyword the companion rules would refuse here (no CHOICE / PSHBTNCHC /
-   *  MNUBARCHC on the field, or CHCSLT without PULLDOWN(*NOSLTIND)). A state already in the source
-   *  stays visible. */
+  /**
+   * The colour-state rows actually offered on this field: `choiceColorStatesFor` minus the states
+   * whose keyword the companion rules would refuse here (no CHOICE / PSHBTNCHC / MNUBARCHC on the
+   * field, or CHCSLT without PULLDOWN(*NOSLTIND)). A state already in the source stays visible.
+   */
   function visibleChoiceColorStates(keywords, stateKeys, recordKeywords) {
     return choiceColorStatesFor(stateKeys).filter(function (state) {
       return !choiceRowHidden(keywords, state.keyword, recordKeywords);
@@ -4036,7 +4049,7 @@
     var html = '<div class="section-label">Choice colors &amp; attributes</div>';
     var shown = visibleChoiceColorStates(keywords, stateKeys, recordKeywords);
     if (!shown.length) {
-      // Task I-172: nothing here is allowed yet - say why instead of showing rows Apply would be refused on.
+      // Nothing here is allowed yet - say why instead of showing rows Apply would be refused on.
       html += '<div class="hint" style="font-size:12px;opacity:0.8;">Colour states need a choice keyword (CHOICE, PSHBTNCHC or MNUBARCHC) on the same field first.</div>';
       return html;
     }
@@ -4052,10 +4065,10 @@
         var checked = current.attrs.indexOf(a) >= 0;
         return '<label class="attr-check"><input type="checkbox" class="' + ownerKey + '-ccs-' + state.key + '-attr" value="' + a + '" ' + (checked ? 'checked' : '') + '/>' + a + '</label>';
       }).join('') + '</div>';
-      // Task I-34: CHCAVAIL/CHCUNAVAIL/CHCSLT are each documented "Option
-      // indicators are valid for this keyword" - getChoiceColorState/
+      // CHCAVAIL/CHCUNAVAIL/CHCSLT are each documented "Option indicators
+      // are valid for this keyword" - getChoiceColorState/
       // setChoiceColorState already carry a `conditions` field (added
-      // during I-3's ENTFLDATR fix, since they share the same generic
+      // during the ENTFLDATR fix, since they share the same generic
       // function), but no panel ever rendered a toggle for THESE three
       // callers until now - a reverse gap same shape as ENTFLDATR's own.
       var condId = ownerKey + '-ccs-' + state.key;
@@ -4086,9 +4099,9 @@
         onChange(next);
       });
     }
-    // Task I-34: Conditioning commits immediately per state, independent
-    // of the shared Apply button above - same split wireEntFldAtrEditor
-    // already uses.
+    // Conditioning commits immediately per state, independent of the
+    // shared Apply button above - same split wireEntFldAtrEditor already
+    // uses.
     states.forEach(function (state) {
       var condId = ownerKey + '-ccs-' + state.key;
       wireFlagRowConditioning(condId, DspfWriter.getChoiceColorState(keywords, state.keyword).conditions, function (newConditions) {
@@ -4099,40 +4112,40 @@
   }
 
   // Bug fix (L21's own follow-up note, now resolved via web research rather
-  // than guessed): ENTFLDATR's real DDS syntax is
-  // `ENTFLDATR((*COLOR color) (*DSPATR attr attr...))` - confirmed via a
-  // real-world DDS source example (`ENTFLDATR((*COLOR BLU) (*DSPATR HI
-  // UL))`) plus IBM's own keyword-reference table listing ENTFLDATR as
-  // valid at File, Record, AND Field level - i.e. the EXACT SAME
-  // `(*COLOR c) (*DSPATR a a)` shape CHCAVAIL/CHCUNAVAIL/CHCSLT already
-  // use, which is why this reuses DspfWriter.getChoiceColorState/
-  // setChoiceColorState directly rather than writing a near-duplicate
-  // getEntFldAtr/setEntFldAtr pair - those functions are already generic
-  // over `keywordName` (nothing "choice"-specific inside them despite the
-  // name), so passing 'ENTFLDATR' just works. The *DSPATR checkbox subset
-  // reuses WDWBORDER_ATTRS (HI/RI/CS/BL/ND/UL) - the same restricted
-  // subset this codebase already offers for every OTHER compound
-  // (*COLOR)/(*DSPATR) keyword (WDWBORDER, CHCAVAIL/CHCUNAVAIL/CHCSLT) -
-  // rather than the full 11-value DSPATR_ATTRS list, since none of those
-  // precedents ever offer PC/MDT/PR/OID/SP as a *DSPATR sub-value either.
-  // Task I-3: ENTFLDATR is documented by IBM as "Option indicators are
-  // valid for this keyword" - a reverse gap (unlike I-3's other findings,
-  // this keyword needed a Conditioning toggle ADDED, since entFldAtrHtml's
-  // custom Apply-button shape never had one at all). Reuses flagRowHtml's
-  // own toggle markup/id convention (`ownerKey + '-cond'` etc.) so
-  // wireFlagRowConditioning can wire it unchanged, the same as every
-  // flagRowHtml-based row already does.
-  /** Task I-59 - `dataType` (optional, field-level call site only - see
-   *  this function's own call sites in buildWebviewTemplate.js) drives a
-   *  non-blocking advisory hint only: IBM's own DDS Reference states
-   *  "*NOCURSOR... the specified field must have an I (inhibit keyword
-   *  entry) in position 35. If the field does not have data type I, then
-   *  the default is used" - i.e. the OS silently ignores *NOCURSOR rather
-   *  than rejecting it, so (same "ignored, not blocked" precedent as
-   *  loginpLogoutSflMsgRcdIgnoredNote) this is an informational note, not
-   *  a hard-block guard. File/record-level callers omit `dataType`
-   *  entirely (no single field to check), so the hint never renders
-   *  there. */
+  // than guessed): ENTFLDATR's real DDS syntax is `ENTFLDATR((*COLOR color)
+  // (*DSPATR attr attr...))` - confirmed via a real-world DDS source
+  // example (`ENTFLDATR((*COLOR BLU) (*DSPATR HI UL))`) plus IBM's own
+  // keyword-reference table listing ENTFLDATR as valid at File, Record, AND
+  // Field level - i.e. the EXACT SAME `(*COLOR c) (*DSPATR a a)` shape
+  // CHCAVAIL/CHCUNAVAIL/CHCSLT already use, which is why this reuses
+  // DspfWriter.getChoiceColorState/ setChoiceColorState directly rather
+  // than writing a near-duplicate getEntFldAtr/setEntFldAtr pair - those
+  // functions are already generic over `keywordName` (nothing
+  // "choice"-specific inside them despite the name), so passing 'ENTFLDATR'
+  // just works. The *DSPATR checkbox subset reuses WDWBORDER_ATTRS
+  // (HI/RI/CS/BL/ND/UL) - the same restricted subset this codebase already
+  // offers for every OTHER compound (*COLOR)/(*DSPATR) keyword (WDWBORDER,
+  // CHCAVAIL/CHCUNAVAIL/CHCSLT) - rather than the full 11-value
+  // DSPATR_ATTRS list, since none of those precedents ever offer
+  // PC/MDT/PR/OID/SP as a *DSPATR sub-value either. ENTFLDATR is documented
+  // by IBM as "Option indicators are valid for this keyword" - a reverse
+  // gap (unlike the other findings, this keyword needed a Conditioning
+  // toggle ADDED, since entFldAtrHtml's custom Apply-button shape never had
+  // one at all). Reuses flagRowHtml's own toggle markup/id convention
+  // (`ownerKey + '-cond'` etc.) so wireFlagRowConditioning can wire it
+  // unchanged, the same as every flagRowHtml-based row already does.
+  /**
+   * `dataType` (optional, field-level call site only - see this
+   * function's own call sites in buildWebviewTemplate.js) drives a
+   * non-blocking advisory hint only: IBM's own DDS Reference states
+   * "*NOCURSOR... the specified field must have an I (inhibit keyword
+   * entry) in position 35. If the field does not have data type I, then
+   * the default is used" - i.e. the OS silently ignores *NOCURSOR rather
+   * than rejecting it, so (same "ignored, not blocked" precedent as
+   * loginpLogoutSflMsgRcdIgnoredNote) this is an informational note, not
+   * a hard-block guard. File/record-level callers omit `dataType`
+   * entirely (no single field to check), so the hint never renders there.
+   */
   function entFldAtrHtml(keywords, ownerKey, expandedSet, dataType) {
     var current = DspfWriter.getChoiceColorState(keywords, 'ENTFLDATR');
     var enabled = current.present;
@@ -4161,34 +4174,33 @@
     return html;
   }
 
-  // Task I-53 - optional trailing `addGuardFn(name)` param (same shape as
-  // wireKeywordEditor's own I-49 addition), checked only in the Apply
-  // button's click handler before `onChange`. The file-level call site
+  // Optional trailing `addGuardFn(name)` param (same shape as
+  // wireKeywordEditor's own addition), checked only in the Apply button's
+  // click handler before `onChange`. The file-level call site
   // (fk-entfldatr) omits it and is unaffected; only the record-level call
   // site passes one, wired to DspfWriter.sflWhitelistConflictReason -
   // ENTFLDATR's own bespoke Apply-button commit bypasses
   // wireUsrdfnGuardedFlag/wirePulldownGuardedFlag/wireUsrdfnGuardedTwoField
   // entirely (it's built on setChoiceColorState, not
-  // setFileFlagKeyword/setFileTwoFieldKeyword), so none of those
-  // functions' own I-53 addition ever sees it.
-  // Task I-59: `on` alone (the checkbox) now drives whether ENTFLDATR is
-  // written at all - previously it was really only a UI convenience, since
-  // setChoiceColorState's own old "write only if color or attrs is set"
-  // rule meant checking the box with nothing else selected produced
-  // exactly the same (nothing-written) result as leaving it unchecked.
-  // `forcePresent: on` closes that gap - checked-with-nothing-else-set now
-  // genuinely writes a bare ENTFLDATR, and the *NOCURSOR checkbox's own
-  // state now round-trips instead of being silently dropped on every
-  // Apply (previously true regardless of `on`, since the old
-  // getChoiceColorState never even read it back for the checkbox to
-  // reflect in the first place).
+  // setFileFlagKeyword/setFileTwoFieldKeyword), so none of those functions'
+  // own addition ever sees it. `on` alone (the checkbox) now drives whether
+  // ENTFLDATR is written at all - previously it was really only a UI
+  // convenience, since setChoiceColorState's own old "write only if color
+  // or attrs is set" rule meant checking the box with nothing else selected
+  // produced exactly the same (nothing-written) result as leaving it
+  // unchecked. `forcePresent: on` closes that gap -
+  // checked-with-nothing-else-set now genuinely writes a bare ENTFLDATR,
+  // and the *NOCURSOR checkbox's own state now round-trips instead of being
+  // silently dropped on every Apply (previously true regardless of `on`,
+  // since the old getChoiceColorState never even read it back for the
+  // checkbox to reflect in the first place).
   function wireEntFldAtrEditor(getKeywords, onChange, ownerKey, expandedSet, rerender, addGuardFn) {
     var applyBtn = document.querySelector('.' + ownerKey + '-apply');
     if (!applyBtn) return;
     applyBtn.addEventListener('click', function () {
       var on = document.getElementById(ownerKey + '-on').checked;
-      // Task I-93: the guard is an ADD guard, so it must fire only on the
-      // real transition - the box ticked AND ENTFLDATR not already on the
+      // The guard is an ADD guard, so it must fire only on the real
+      // transition - the box ticked AND ENTFLDATR not already on the
       // record - not on every Apply while the box happens to be ticked.
       // Before this, on an SFL/MNUBAR/USRDFN record that already carried a
       // hand-edited ENTFLDATR, changing its colour and pressing Apply was
@@ -4329,10 +4341,10 @@
     var paramsEl = document.getElementById(id + '-params');
     function commit() {
       var present = onEl.checked;
-      // Task I-103: optional guard (wireChgInpDftFlag's record-level call; since
-      // I-142 also the SFLCSRRRN row) - it alerts and reverts the row itself
-      // when it refuses. The box is read AFTER the guard, because the
-      // SFLCSRRRN guard rewrites it (adds the leading ampersand).
+      // Optional guard (wireChgInpDftFlag's record-level call; since also the
+      // SFLCSRRRN row) - it alerts and reverts the row itself when it refuses.
+      // The box is read AFTER the guard, because the SFLCSRRRN guard rewrites it
+      // (adds the leading ampersand).
       if (guard && !guard(present)) return;
       var params = paramsEl ? paramsEl.value : '';
       onChange(apply(getKeywords(), present, params));
@@ -4348,18 +4360,16 @@
     }, expandedSet, rerender);
   }
 
-  // Bug fix (reported: user's own screenshot of real SDA's "Change Input
-  // Defaults" screen for CHGINPDFT): every wireFlagRow call site for
-  // CHGINPDFT offered only a bare on/off checkbox (or, at File/Record
-  // level, a raw free-text parameter box) - there was no way to pick
-  // CHGINPDFT's own 9 sub-flags (HI/RI/CS/BL/UL/LC/ME/MF/FE) the way real
-  // SDA's dedicated "Select parameters" sub-screen does, confirmed
-  // against the uploaded screenshot ("Field . . . : D1_DESC"). One shared
-  // component here, reused at every CHGINPDFT call site (File-level,
-  // Record General, SFLMSG General, Field Input keywords) per this
-  // codebase's own "build once, wire in many places" convention (see
-  // PICKER-SCREENS-PLAN.md) - CHGINPDFT's shape doesn't vary by level.
-  //  Task I-121r: the nine codes are CHGINPDFT's spec value domain; the order is the screen's.
+  // Bug fix (reported: user's own screenshot of real SDA's "Change Input Defaults" screen for
+  // CHGINPDFT): every wireFlagRow call site for CHGINPDFT offered only a bare on/off checkbox
+  // (or, at File/Record level, a raw free-text parameter box) - there was no way to pick
+  // CHGINPDFT's own 9 sub-flags (HI/RI/CS/BL/UL/LC/ME/MF/FE) the way real SDA's dedicated
+  // "Select parameters" sub-screen does, confirmed against the uploaded screenshot ("Field...:
+  // D1_DESC"). One shared component here, reused at every CHGINPDFT call site (File-level,
+  // Record General, SFLMSG General, Field Input keywords) per this codebase's own "build once,
+  // wire in many places" convention (see PICKER-SCREENS-PLAN.md) - CHGINPDFT's shape doesn't
+  // vary by level. the nine codes are CHGINPDFT's spec value domain; the order is the
+  // screen's.
   var chgInpDftCodes = memoizedOnFirstUse(function () {
     return specValuesInScreenOrder(DspfWriter.dateTimeValidValues('CHGINPDFT'),
       ['HI', 'RI', 'CS', 'BL', 'UL', 'LC', 'ME', 'MF', 'FE']);
@@ -4382,8 +4392,8 @@
   function chgInpDftFlagHtml(keywords, id, label, expandedSet) {
     var kw = DspfWriter.getFileFlagKeyword(keywords, 'CHGINPDFT');
     var codes = (kw.parameters || '').trim().length ? kw.parameters.trim().split(/\s+/) : [];
-    // Task I-3: CHGINPDFT - "Option indicators are not valid for this
-    // keyword" per IBM's own DDS Reference - no Conditioning toggle.
+    // CHGINPDFT - "Option indicators are not valid for this keyword"
+    // per IBM's own DDS Reference - no Conditioning toggle.
     var html = flagRowHtml(id, label, kw.present, undefined, undefined, undefined, undefined);
     html += '<input type="hidden" id="' + id + '-params" value="' + escapeHtml(kw.parameters || '') + '" />';
     html += '<div class="attr-checks" style="margin:2px 0 10px 22px;">';
@@ -4409,12 +4419,12 @@
    *  been committed on this same render - callers with only a captured
    *  array in scope just wrap it as `function () { return keywords; }`. */
   function wireChgInpDftFlag(getKeywords, onChange, id, expandedSet, rerender, guardFn) {
-    // Task I-103: `guardFn(keywords)` (optional, record-level call only - the
-    // row builder is shared with the field, file and SFLMSG levels, which
-    // must not change) returns a refusal reason or null. It is consulted only
-    // on a real turn-on (CHGINPDFT not already present), so a hand-edited
-    // record that already carries CHGINPDFT can still remove it and edit its
-    // parameters (the I-84 lesson: gate on the transition, not the checkbox).
+    // `guardFn(keywords)` (optional, record-level call only - the row builder
+    // is shared with the field, file and SFLMSG levels, which must not
+    // change) returns a refusal reason or null. It is consulted only on a
+    // real turn-on (CHGINPDFT not already present), so a hand-edited record
+    // that already carries CHGINPDFT can still remove it and edit its
+    // parameters (the lesson: gate on the transition, not the checkbox).
     var guard = guardFn ? function (present) {
       if (!present) return true;
       if (DspfWriter.getFileFlagKeyword(getKeywords(), 'CHGINPDFT').present) return true;
@@ -4428,9 +4438,9 @@
       document.querySelectorAll('.' + id + '-code').forEach(function (e) { e.checked = false; });
       return false;
     } : undefined;
-    // Task I-3: CHGINPDFT - "Option indicators are not valid for this
-    // keyword" - no Conditioning toggle wired (matches
-    // chgInpDftFlagHtml's own conditions:undefined for this row).
+    // CHGINPDFT - "Option indicators are not valid for this keyword" -
+    // no Conditioning toggle wired (matches chgInpDftFlagHtml's own
+    // conditions:undefined for this row).
     wireFlagRow(
       id,
       getKeywords,
@@ -4455,7 +4465,7 @@
     });
   }
 
-  //  Task I-121r: WDWBORDER's display-attribute values are the spec's fact; the order is the screen's.
+  //  WDWBORDER's display-attribute values are the spec's fact; the order is the screen's.
   var wdwBorderAttrs = memoizedOnFirstUse(function () {
     return specValuesInScreenOrder(DspfWriter.displayAttributeValues('WDWBORDER'),
       ['HI', 'RI', 'CS', 'BL', 'ND', 'UL']);
@@ -4500,9 +4510,9 @@
     BORDER_POSITIONS.forEach(function (p) {
       win += '<div class="field-row" style="margin-bottom:6px;"><label>' + escapeHtml(p.label) + '</label><input type="text" maxlength="1" id="' + idPrefix + '-char-' + p.key + '" value="' + escapeHtml(wb.chars[p.key] || '') + '" style="width:40px;" /></div>';
     });
-    // Task I-3: WDWBORDER is documented by IBM as "Option indicators are
-    // valid for this keyword" - a reverse gap (this panel never had a
-    // Conditioning toggle at all). Same flagRowHtml-compatible markup as
+    // WDWBORDER is documented by IBM as "Option indicators are valid for
+    // this keyword" - a reverse gap (this panel never had a Conditioning
+    // toggle at all). Same flagRowHtml-compatible markup as
     // entFldAtrHtml's own addition above.
     var condSummary = wb.conditions.length > 0 ? ' (' + wb.conditions.length + ')' : '';
     var isExpanded = !!(expandedSet && expandedSet.has(idPrefix + ':cond'));
@@ -4548,23 +4558,23 @@
    * element id, same reasoning windowBorderPanelHtml above takes an
    * idPrefix.
    *
-   * Task I-4 (keyword parameter/sub-parameter completeness audit): this
-   * used to also render a leading "indicator" input for both keywords and
-   * write it as the FIRST token inside the parens (`MNUBARSW(50 CA03)`,
-   * `MNUCNL(51 CA04 90)`). Confirmed against IBM's own DDS Reference that
-   * this was invalid DDS, not just an incomplete picker - the documented
-   * formats are `MNUBARSW[(CAnn)]` (ONE optional parameter, the CA key
-   * only) and `MNUCNL[(CAnn [response-indicator])]` (CA key, then an
-   * OPTIONAL response indicator - never a leading indicator token at
-   * all). The option/conditioning indicator that DOES apply to these
-   * keywords is a completely different mechanism - positions 7-16,
-   * already correctly modeled by `conditions`/`wireFlagRowConditioning`
-   * below, the same as every other conditionable keyword in this file -
-   * so the stray "indicator" field was a duplicate, WRONG modeling of
-   * that same concept, silently corrupting the keyword's own real
-   * parameter list. Removed entirely; no legacy-format read-compat is
-   * needed since a file carrying the old 2-/3-token form was already
-   * invalid DDS that would never have compiled.
+   * This used to also render a leading "indicator" input for both
+   * keywords and write it as the FIRST token inside the parens
+   * (`MNUBARSW(50 CA03)`, `MNUCNL(51 CA04 90)`). Confirmed against IBM's
+   * own DDS Reference that this was invalid DDS, not just an incomplete
+   * picker - the documented formats are `MNUBARSW[(CAnn)]` (ONE optional
+   * parameter, the CA key only) and `MNUCNL[(CAnn [response-indicator])]`
+   * (CA key, then an OPTIONAL response indicator - never a leading
+   * indicator token at all). The option/conditioning indicator that DOES
+   * apply to these keywords is a completely different mechanism -
+   * positions 7-16, already correctly modeled by
+   * `conditions`/`wireFlagRowConditioning` below, the same as every other
+   * conditionable keyword in this file - so the stray "indicator" field
+   * was a duplicate, WRONG modeling of that same concept, silently
+   * corrupting the keyword's own real parameter list. Removed entirely;
+   * no legacy-format read-compat is needed since a file carrying the old
+   * 2-/3-token form was already invalid DDS that would never have
+   * compiled.
    */
   function menuBarKeysPanelHtml(keywords, idPrefix, expandedSet) {
     var mnubarsw = DspfWriter.getFileFlagKeyword(keywords, 'MNUBARSW');
@@ -4579,21 +4589,23 @@
     return mb;
   }
 
-  /** Wires a menuBarKeysPanelHtml()-produced panel. Same `getKeywords`/
-   *  `onChange` contract every other dedicated picker here uses.
-   *  `getFileKeywords`/`getRecordScopes` are optional (Task I-18's
-   *  mnuBarKeyConflictReason guard, wired below): `getFileKeywords`
-   *  returns the file-level keyword set to check against (for the
-   *  file-level caller, that's the same array `getKeywords` already
-   *  returns; for the record-level MNUBAR caller, a separate accessor
-   *  onto the file's own keywords); `getRecordScopes` returns an array
-   *  of keyword-arrays for the record-level side of the check (the
-   *  file-level caller passes every record's own keywords, since a
-   *  file-level assignment extends to all of them; the record-level
-   *  caller passes an array holding just its own record's keywords).
-   *  Both are omitted-safe (no guard fires if either is absent) so
-   *  existing callers keep working unchanged if this panel is ever
-   *  reused somewhere that can't supply them. */
+  /**
+   * Wires a menuBarKeysPanelHtml()-produced panel. Same `getKeywords`/
+   * `onChange` contract every other dedicated picker here uses.
+   * `getFileKeywords`/`getRecordScopes` are optional (Task the
+   * mnuBarKeyConflictReason guard, wired below): `getFileKeywords`
+   * returns the file-level keyword set to check against (for the
+   * file-level caller, that's the same array `getKeywords` already
+   * returns; for the record-level MNUBAR caller, a separate accessor
+   * onto the file's own keywords); `getRecordScopes` returns an array
+   * of keyword-arrays for the record-level side of the check (the
+   * file-level caller passes every record's own keywords, since a
+   * file-level assignment extends to all of them; the record-level
+   * caller passes an array holding just its own record's keywords).
+   * Both are omitted-safe (no guard fires if either is absent) so
+   * existing callers keep working unchanged if this panel is ever
+   * reused somewhere that can't supply them.
+   */
   function wireMenuBarKeysPanel(idPrefix, getKeywords, onChange, expandedSet, rerender, getFileKeywords, getRecordScopes) {
     var mnubarswOn = document.getElementById(idPrefix + '-mnubarsw-on');
     var mnubarswCakey = document.getElementById(idPrefix + '-mnubarsw-cakey');
@@ -4668,23 +4680,23 @@
     g += flagRowHtml('fk-alwgph', 'Allow graphics', fAlwgph.present, undefined, undefined, fAlwgph.conditions, expandedSet);
     var fMsgalarm = DspfWriter.getFileFlagKeyword(kw, 'MSGALARM');
     g += flagRowHtml('fk-msgalarm', 'Sound alarm on messages', fMsgalarm.present, undefined, undefined, fMsgalarm.conditions, expandedSet);
-    // Task I-3: INDARA - IBM's DDS Reference states "Option indicators are
-    // not valid for this keyword" - no Conditioning toggle offered (see
-    // keywordFixes.md's I-3 section for the full per-keyword audit this
-    // and every other conditions-omitted row below is based on).
+    // INDARA - IBM's DDS Reference states "Option indicators are not valid
+    // for this keyword" - no Conditioning toggle offered (see
+    // keywordFixes.md's section for the full per-keyword audit this and
+    // every other conditions-omitted row below is based on).
     var fIndara = DspfWriter.getFileFlagKeyword(kw, 'INDARA');
     g += flagRowHtml('fk-indara', 'Separate indicators area (INDARA)', fIndara.present, undefined, undefined, DspfWriter.optionIndicatorsAllowed('INDARA') ? fIndara.conditions : undefined, DspfWriter.optionIndicatorsAllowed('INDARA') ? expandedSet : undefined)  /* I-121f */;
-    // Task I-3: USRDSPMGT - "Option indicators are not valid for this keyword."
+    // USRDSPMGT - "Option indicators are not valid for this keyword."
     var fUsrdspmgt = DspfWriter.getFileFlagKeyword(kw, 'USRDSPMGT');
     g += flagRowHtml('fk-usrdspmgt', 'Manage display in S/36 mode', fUsrdspmgt.present, undefined, undefined, DspfWriter.optionIndicatorsAllowed('USRDSPMGT') ? fUsrdspmgt.conditions : undefined, DspfWriter.optionIndicatorsAllowed('USRDSPMGT') ? expandedSet : undefined) /* I-121g */;
-    // Task I-168: the four System/36-list-only names are an advisory, not a refusal.
+    // The four System/36-list-only names are an advisory, not a refusal.
     var usrdspmgtExtrasNote = DspfWriter.usrdspmgtSystem36ExtrasNote(model || { fileKeywords: kw, records: [] });
     if (usrdspmgtExtrasNote) g += '<div class="hint-small warn">' + escapeHtml(usrdspmgtExtrasNote) + '</div>';
-    // Task I-3: CHECK - IBM's own summary line ("Option indicators are valid
-    // only for CHECK(ER) and CHECK(ME)") plus each individual code's own
-    // restated line confirm AB/MF/RL/RLTB are all NOT eligible - only ER and
-    // ME are, and iSDA doesn't currently implement either of those two codes
-    // at all (only AB/RLTB/RL), so none of the 3 rows below should offer
+    // CHECK - IBM's own summary line ("Option indicators are valid only for
+    // CHECK(ER) and CHECK(ME)") plus each individual code's own restated
+    // line confirm AB/MF/RL/RLTB are all NOT eligible - only ER and ME are,
+    // and iSDA doesn't currently implement either of those two codes at all
+    // (only AB/RLTB/RL), so none of the 3 rows below should offer
     // conditioning.
     var fCheckAb = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'AB');
     g += flagRowHtml('fk-check-ab', 'Allow blanks', fCheckAb.present, undefined, undefined, undefined, undefined);
@@ -4692,17 +4704,17 @@
     g += flagRowHtml('fk-check-rltb', 'Move cursor right-left, top-bottom', fCheckRltb.present, undefined, undefined, undefined, undefined);
     var fCheckRl = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'RL');
     g += flagRowHtml('fk-check-rl', 'Move cursor right to left', fCheckRl.present, undefined, undefined, undefined, undefined);
-    // Task I-3: DSPRL - "Option indicators are not valid for this keyword."
+    // DSPRL - "Option indicators are not valid for this keyword."
     var fDsprl = DspfWriter.getFileFlagKeyword(kw, 'DSPRL');
     g += flagRowHtml('fk-dsprl', 'Right to left processing (DSPRL)', fDsprl.present, undefined, undefined, DspfWriter.optionIndicatorsAllowed('DSPRL') ? fDsprl.conditions : undefined, DspfWriter.optionIndicatorsAllowed('DSPRL') ? expandedSet : undefined)  /* I-121f */;
     // Bug fix: dedicated sub-flag checkboxes for CHGINPDFT (see
     // chgInpDftFlagHtml's own comment) instead of a bare free-text box.
     g += chgInpDftFlagHtml(kw, 'fk-chginpdft', 'Change input defaults (CHGINPDFT)', expandedSet);
     g += entFldAtrHtml(kw, 'fk-entfldatr', expandedSet);
-    // Task I-3: ERRSFL - "Option indicators are not valid for this keyword."
+    // ERRSFL - "Option indicators are not valid for this keyword."
     var fErrsfl = DspfWriter.getFileFlagKeyword(kw, 'ERRSFL');
     g += flagRowHtml('fk-errsfl', 'Write error messages to subfile (ERRSFL)', fErrsfl.present, undefined, undefined, DspfWriter.optionIndicatorsAllowed('ERRSFL') ? fErrsfl.conditions : undefined, DspfWriter.optionIndicatorsAllowed('ERRSFL') ? expandedSet : undefined)  /* I-121f */;
-    // Task I-39 - CSRINPONLY was confirmed entirely missing from iSDA (no
+    // CSRINPONLY was confirmed entirely missing from iSDA (no
     // getter/setter, no row, no mention anywhere) by a full-text audit of
     // DDS_Keyword_V7r6.txt against actual code. File- or record-level flag
     // (this is the file-level row; recordKeywordsPanelsHtml below adds the
@@ -4716,36 +4728,32 @@
     g += '<div class="section-label">Reference database file (REF)</div>';
     g += '<div class="two-col"><input type="text" id="fk-ref-library" placeholder="Library (opt)" value="' + escapeHtml(refState.library) + '" />' +
       '<input type="text" id="fk-ref-record" placeholder="Database file name" value="' + escapeHtml(refState.record) + '" /></div>';
-    // Task I-4: REF's own third, optional sub-parameter - which record
-    // format to use when the referenced file has more than one - used to
-    // have no field of its own at all (only reachable by typing an extra
+    // REF's own third, optional sub-parameter - which record format to
+    // use when the referenced file has more than one - used to have no
+    // field of its own at all (only reachable by typing an extra
     // space-separated token into the "record" box above, unlabeled).
     g += '<input type="text" id="fk-ref-format" placeholder="Record format name (opt, if file has several)" value="' + escapeHtml(refState.recordFormat) + '" style="width:100%;margin-top:4px;" />';
     g += '<div class="section-label">Record to pass unformatted data (PASSRCD)</div>';
     g += '<input type="text" id="fk-passrcd" placeholder="Record name" value="' + escapeHtml(DspfWriter.getFileFlagKeyword(kw, 'PASSRCD').parameters) + '" style="width:100%;" />';
-    // Task I-6 (keyword compliance audit): file-level TEXT was REMOVED
-    // here - Task L22 added it believing it was a confirmed-missing
-    // keyword, but IBM's DDS Reference explicitly documents TEXT as
-    // "this record- or field-level keyword" ("valid for any record
-    // format or field, except a SFLMSGKEY or SFLPGMQ field") with no
-    // file-level form mentioned at all - confirmed consistently across
-    // every IBM edition checked (v5r4 through the local v7r6 PDF) and
-    // every real-world DDS example found; nowhere documents or
-    // demonstrates a file-level TEXT keyword. No live IBM i connection
-    // was available to directly test CRTDSPF (the task's own preferred
-    // verification method), so this is the "authoritative alternate
-    // source" the task allows instead - the same evidentiary bar S36-5
-    // used for CRTS36DSPF vs CRTDSPF. Record-level TEXT (recordKeywordsPanelsHtml,
-    // further down) is correct and unaffected - only the file-level row
-    // is removed.
-    // Task I-5: VALNUM/WRDWRAP were confirmed-missing file-level keywords -
-    // both are plain no-parameter flags and IBM's reference explicitly
-    // states "Option indicators are not valid for this keyword" for each,
-    // so `conditions` is passed as `undefined` here (not fValnum.conditions/
-    // fWrdwrap.conditions) - flagRowHtml only renders the Conditioning
-    // toggle when its `conditions` argument is defined, so this simply
-    // never offers it, matching IBM's rule from the start rather than
-    // relying on I-3's still-in-progress systemic eligibility fix.
+    // File-level TEXT was REMOVED here - Task L22 added it believing it was a
+    // confirmed-missing keyword, but IBM's DDS Reference explicitly documents TEXT
+    // as "this record- or field-level keyword" ("valid for any record format or
+    // field, except a SFLMSGKEY or SFLPGMQ field") with no file-level form
+    // mentioned at all - confirmed consistently across every IBM edition checked
+    // (v5r4 through the local v7r6 PDF) and every real-world DDS example found;
+    // nowhere documents or demonstrates a file-level TEXT keyword. No live IBM i
+    // connection was available to directly test CRTDSPF (the task's own preferred
+    // verification method), so this is the "authoritative alternate source" the
+    // task allows instead - the same evidentiary bar S36-5 used for CRTS36DSPF vs
+    // CRTDSPF. Record-level TEXT (recordKeywordsPanelsHtml, further down) is
+    // correct and unaffected - only the file-level row is removed. VALNUM/WRDWRAP
+    // were confirmed-missing file-level keywords - both are plain no-parameter
+    // flags and IBM's reference explicitly states "Option indicators are not valid
+    // for this keyword" for each, so `conditions` is passed as `undefined` here
+    // (not fValnum.conditions/ fWrdwrap.conditions) - flagRowHtml only renders the
+    // Conditioning toggle when its `conditions` argument is defined, so this
+    // simply never offers it, matching IBM's rule from the start rather than
+    // relying on the still-in-progress systemic eligibility fix.
     var fValnum = DspfWriter.getFileFlagKeyword(kw, 'VALNUM');
     g += flagRowHtml('fk-valnum', 'Enhanced numeric error checking (VALNUM)', fValnum.present, undefined, undefined, undefined, expandedSet);
     var fWrdwrap = DspfWriter.getFileFlagKeyword(kw, 'WRDWRAP');
@@ -4768,13 +4776,13 @@
       ['fk-pageup', 'PAGEUP', 'Page up / Roll down', '10-99', DspfWriter.keywordAlternateNames('PAGEUP')],
       ['fk-help', 'HELP', 'Help', '10-99'],
       ['fk-hlprtn', 'HLPRTN', 'Help return', '10-99'],
-      // Task I-3: VLDCMDKEY - "Option indicators are not valid for this
-      // keyword" - marked below so the forEach can skip passing conditions
-      // for this one row while every other row here (all confirmed valid)
-      // keeps its Conditioning toggle.
+      // VLDCMDKEY - "Option indicators are not valid for this keyword" -
+      // marked below so the forEach can skip passing conditions for this
+      // one row while every other row here (all confirmed valid) keeps its
+      // Conditioning toggle.
       ['fk-vldcmdkey', 'VLDCMDKEY', 'Validity command key', '10-99', undefined, true],
     ].forEach(function (row) {
-      // Task I-4: all seven of these keywords are documented as
+      // All seven of these keywords are documented as
       // `KEYWORD[(response-indicator ['text'])]` - the same optional
       // descriptive-text shape INDTXT gets its own dedicated field for
       // right below - but this loop used to render only a single free-
@@ -4782,11 +4790,11 @@
       // Split the same way INDTXT is (indicator + optional quoted text),
       // reusing the identical parsing regex.
       var state = DspfWriter.getFileFlagKeyword(kw, row[1], undefined, row[4]);
-      // Task I-3: some rows (VLDCMDKEY) don't allow option-indicator
-      // conditioning at all - row[5] marks those so Conditioning is
-      // omitted for just that row.
+      // Some rows (VLDCMDKEY) don't allow option-indicator conditioning
+      // at all - row[5] marks those so Conditioning is omitted for just
+      // that row.
       var noConditioning = row[5];
-      // Task I-4: all seven of these keywords are documented as
+      // All seven of these keywords are documented as
       // `KEYWORD[(response-indicator ['text'])]` - the same optional
       // descriptive-text shape INDTXT gets its own dedicated field for
       // right below - but this loop used to render only a single free-
@@ -4798,27 +4806,27 @@
       ind += '<div class="two-col"><input type="text" id="' + row[0] + '-ind" placeholder="indicator (' + row[3] + ')" value="' + escapeHtml(parts[1] || '') + '" />' +
         '<input type="text" id="' + row[0] + '-text" placeholder="text (opt)" value="' + escapeHtml((parts[2] || '').replace(/''/g, "'")) + '" /></div>';
     });
-    // Task I-3: INDTXT - "Option indicators are not valid for this keyword."
+    // INDTXT - "Option indicators are not valid for this keyword."
     var indtxt = DspfWriter.getFileFlagKeyword(kw, 'INDTXT');
     var indtxtParts = /^(\S+)\s*(?:'((?:[^']|'')*)')?/.exec((indtxt.parameters || '').trim()) || [];
     ind += flagRowHtml('fk-indtxt', 'Indicator text (INDTXT)', indtxt.present, undefined, undefined, undefined, undefined);
     ind += '<div class="two-col"><input type="text" id="fk-indtxt-ind" placeholder="indicator" value="' + escapeHtml(indtxtParts[1] || '') + '" />' +
       '<input type="text" id="fk-indtxt-text" placeholder="text" value="' + escapeHtml((indtxtParts[2] || '').replace(/''/g, "'")) + '" /></div>';
-    // Task I-5: MOUBTN was a confirmed-missing file-level keyword -
-    // associates a pointer-device (mouse) event with a Command key or
-    // EVENT-ID. Real DDS allows several MOUBTN instances per file (one per
-    // event), each independently conditioned, so this reuses the generic
+    // MOUBTN was a confirmed-missing file-level keyword - associates a
+    // pointer-device (mouse) event with a Command key or EVENT-ID. Real DDS
+    // allows several MOUBTN instances per file (one per event), each
+    // independently conditioned, so this reuses the generic
     // repeatable-instance primitive (DspfWriter.getRepeatableKeywordInstances/
     // setRepeatableKeywordInstances) the same way validityCheckInstancesHtml
-    // above reuses it for RANGE/COMP/VALUES - no dedicated MOUBTN get/set
-    // pair needed in dspfWriter.js.
+    // above reuses it for RANGE/COMP/VALUES - no dedicated MOUBTN get/set pair
+    // needed in dspfWriter.js.
     ind += '<div class="section-label">Mouse buttons (MOUBTN)</div>';
     ind += moubtnPanelHtml(kw, 'fk', expandedSet);
     panels.indicatorKeywords = ind;
 
     // --- Print ---
-    // Task I-2 (keywordFixes.md): "System handles print" writes PRINT's
-    // own *PGM/[library/]printer-file-name parameter form, not a separate
+    // "System handles print" writes PRINT's own
+    // *PGM/[library/]printer-file-name parameter form, not a separate
     // PRTFILE keyword (never real DDS - see getFilePrintFileForm's own
     // comment in dspfWriter.js). Matches real SDA's "Define Print
     // Keywords" screen, whose "Print file" field also accepts *PGM.
@@ -4828,40 +4836,40 @@
     print += '<div class="section-label">System handles print</div>';
     print += '<div class="two-col"><input type="text" id="fk-print-file" placeholder="Print file (name or *PGM)" value="' + escapeHtml(filePrintFileForm.isPgm ? '*PGM' : filePrintFileForm.printFile) + '" />' +
       '<input type="text" id="fk-print-library" placeholder="Library" value="' + escapeHtml(filePrintFileForm.library) + '" /></div>';
-    // Task I-3: OPENPRT - "Option indicators are not valid for this keyword."
+    // OPENPRT - "Option indicators are not valid for this keyword."
     var fOpenprt = DspfWriter.getFileFlagKeyword(kw, 'OPENPRT');
     print += flagRowHtml('fk-openprt', 'Leave print file open until display file is closed (OPENPRT)', fOpenprt.present, undefined, undefined, DspfWriter.optionIndicatorsAllowed('OPENPRT') ? fOpenprt.conditions : undefined, DspfWriter.optionIndicatorsAllowed('OPENPRT') ? expandedSet : undefined)  /* I-121f */;
     panels.print = print;
 
     // --- Help ---
-    // Task I-4: HLPPNLGRP/HLPSCHIDX used to be single free-text boxes
-    // whose placeholder hints gave the parameter order BACKWARDS relative
-    // to IBM's documented `help-module-name [library-name/]panel-group-
-    // name` and `[library-name/]search-index-object` shapes. Split into
-    // their own labeled Module/Library/Panel-group and Library/Search-
-    // index fields (see getFileHlpPnlGrpKeyword/getFileHlpSchIdxKeyword's
-    // own comments), matching REF's own library/record/format split above.
+    // HLPPNLGRP/HLPSCHIDX used to be single free-text boxes whose
+    // placeholder hints gave the parameter order BACKWARDS relative to
+    // IBM's documented `help-module-name [library-name/]panel-group- name`
+    // and `[library-name/]search-index-object` shapes. Split into their
+    // own labeled Module/Library/Panel-group and Library/Search- index
+    // fields (see getFileHlpPnlGrpKeyword/getFileHlpSchIdxKeyword's own
+    // comments), matching REF's own library/record/format split above.
     var hlppnlgrp = DspfWriter.getFileFlagKeyword(kw, 'HLPPNLGRP');
     var hlppnlgrpState = DspfWriter.getFileHlpPnlGrpKeyword(kw);
     var help = flagRowHtml('fk-hlppnlgrp', 'Help text in UIM panel group (HLPPNLGRP)', hlppnlgrp.present, undefined, undefined, hlppnlgrp.conditions, expandedSet);
     help += '<input type="text" id="fk-hlppnlgrp-module" placeholder="Help module name" value="' + escapeHtml(hlppnlgrpState.moduleName) + '" style="width:100%;" />';
     help += '<div class="two-col" style="margin-top:4px;"><input type="text" id="fk-hlppnlgrp-library" placeholder="Library (opt)" value="' + escapeHtml(hlppnlgrpState.library) + '" />' +
       '<input type="text" id="fk-hlppnlgrp-panelgroup" placeholder="Panel group name" value="' + escapeHtml(hlppnlgrpState.panelGroup) + '" /></div>';
-    // Task I-3: HLPSCHIDX - "Option indicators are not valid for this keyword."
+    // HLPSCHIDX - "Option indicators are not valid for this keyword."
     var hlpschidx = DspfWriter.getFileFlagKeyword(kw, 'HLPSCHIDX');
     var hlpschidxState = DspfWriter.getFileHlpSchIdxKeyword(kw);
     help += flagRowHtml('fk-hlpschidx', 'Enable search index (HLPSCHIDX)', hlpschidx.present, undefined, undefined, DspfWriter.optionIndicatorsAllowed('HLPSCHIDX') ? hlpschidx.conditions : undefined, DspfWriter.optionIndicatorsAllowed('HLPSCHIDX') ? expandedSet : undefined) /* I-121g */;
     help += '<div class="two-col"><input type="text" id="fk-hlpschidx-library" placeholder="Library (opt)" value="' + escapeHtml(hlpschidxState.library) + '" />' +
       '<input type="text" id="fk-hlpschidx-searchindex" placeholder="Search index object" value="' + escapeHtml(hlpschidxState.searchIndex) + '" /></div>';
-    // Task I-3: HLPFULL - "Option indicators are not valid for this keyword."
+    // HLPFULL - "Option indicators are not valid for this keyword."
     var fHlpfull = DspfWriter.getFileFlagKeyword(kw, 'HLPFULL');
     help += flagRowHtml('fk-hlpfull', 'Full screen help text (HLPFULL)', fHlpfull.present, undefined, undefined, DspfWriter.optionIndicatorsAllowed('HLPFULL') ? fHlpfull.conditions : undefined, DspfWriter.optionIndicatorsAllowed('HLPFULL') ? expandedSet : undefined) /* I-121g */;
     help += '<div class="section-label">Help title (HLPTITLE)</div>';
     help += '<input type="text" id="fk-hlptitle" placeholder="Help title text" value="' + escapeHtml(DspfWriter.getFileQuotedText(kw, 'HLPTITLE')) + '" style="width:100%;" />';
-    // Task I-5: HLPRCD was a confirmed-missing file-level keyword (IBM's
-    // reference documents it as file-level or help-specification-level -
-    // record specified here displays when no active H-specification's
-    // HLPARA covers the cursor location). Parsed/composed the same
+    // HLPRCD was a confirmed-missing file-level keyword (IBM's reference
+    // documents it as file-level or help-specification-level - record
+    // specified here displays when no active H-specification's HLPARA
+    // covers the cursor location). Parsed/composed the same
     // checkbox-plus-hand-split-parameters way menuBarKeysPanelHtml already
     // does for MNUBARSW/MNUCNL just above in this same file, rather than
     // adding a dedicated dspfWriter.js getter/setter - HLPRCD is a single-
@@ -4877,14 +4885,14 @@
     help += '<div class="two-col"><input type="text" id="fk-hlprcd-record" placeholder="Record format name" value="' + escapeHtml(hlprcdParts[0] || '') + '" />' +
       '<input type="text" id="fk-hlprcd-library" placeholder="Library (optional)" value="' + escapeHtml(hlprcdLibrary) + '" /></div>';
     help += '<input type="text" id="fk-hlprcd-file" placeholder="File name (optional, defaults to this file)" value="' + escapeHtml(hlprcdFile) + '" style="width:100%;margin-top:4px;" />';
-    // Task I-38: HLPDOC was entirely absent from iSDA (confirmed missing
-    // from I-1's own original file-level baseline, not something I-1/I-5
-    // already found and deferred). IBM's own format,
-    // HLPDOC(label document-name folder-name), has all three parts
-    // required (unlike HLPRCD's own optional library/file) - parsed/
-    // composed the same checkbox-plus-hand-split-parameters way HLPRCD
-    // just above already does, rather than a dedicated getter/setter.
-    // Option indicators ARE valid (unlike HLPFULL/HLPTITLE just above).
+    // HLPDOC was entirely absent from iSDA (confirmed missing from the
+    // original file-level baseline, not something I-1/I-5 already found
+    // and deferred). IBM's own format, HLPDOC(label document-name
+    // folder-name), has all three parts required (unlike HLPRCD's own
+    // optional library/file) - parsed/ composed the same
+    // checkbox-plus-hand-split-parameters way HLPRCD just above already
+    // does, rather than a dedicated getter/setter. Option indicators ARE
+    // valid (unlike HLPFULL/HLPTITLE just above).
     var hlpdoc = DspfWriter.getFileFlagKeyword(kw, 'HLPDOC');
     var hlpdocParts = (hlpdoc.parameters || '').trim().split(/\s+/).filter(Boolean);
     help += flagRowHtml('fk-hlpdoc', 'Help document (HLPDOC)', hlpdoc.present, undefined, undefined, hlpdoc.conditions, expandedSet);
@@ -4927,21 +4935,21 @@
     panels.displaySizes = ds;
 
     // --- DBCS conversion ---
-    // Task I-3: IGCCNV - "Option indicators are not allowed with this
-    // keyword" (IBM phrases this one as "not allowed" rather than the usual
-    // "not valid", but it's the same rule).
+    // IGCCNV - "Option indicators are not allowed with this keyword" (IBM
+    // phrases this one as "not allowed" rather than the usual "not valid",
+    // but it's the same rule).
     var igccnv = DspfWriter.getFileFlagKeyword(kw, 'IGCCNV');
     var igcParts = (igccnv.parameters || '').trim().split(/\s+/);
-    var dbcs = flagRowHtml('fk-igccnv', 'DBCS Conversion (IGCCNV)', igccnv.present, undefined, undefined, DspfWriter.optionIndicatorsAllowed('IGCCNV') ? igccnv.conditions : undefined, DspfWriter.optionIndicatorsAllowed('IGCCNV') ? expandedSet : undefined); // I-121f
+    var dbcs = flagRowHtml('fk-igccnv', 'DBCS Conversion (IGCCNV)', igccnv.present, undefined, undefined, DspfWriter.optionIndicatorsAllowed('IGCCNV') ? igccnv.conditions : undefined, DspfWriter.optionIndicatorsAllowed('IGCCNV') ? expandedSet : undefined);
     dbcs += '<div class="two-col"><input type="text" id="fk-igccnv-key" placeholder="CF01-CF24" value="' + escapeHtml(igcParts[0] || '') + '" />' +
       '<input type="text" id="fk-igccnv-line" placeholder="line 1-24" value="' + escapeHtml(igcParts[1] || '') + '" /></div>';
     panels.dbcsConversion = dbcs;
 
     // --- Alternate keywords ---
-    // Task I-3: ALTHELP - "Option indicators are not valid for this
-    // keyword." ALTPAGEDWN/ALTPAGEUP share one section in IBM's reference
-    // and its own line reads "Option indicators are not valid for these
-    // keywords" (plural, covering both).
+    // ALTHELP - "Option indicators are not valid for this keyword."
+    // ALTPAGEDWN/ALTPAGEUP share one section in IBM's reference and its
+    // own line reads "Option indicators are not valid for these keywords"
+    // (plural, covering both).
     var althelp = DspfWriter.getFileFlagKeyword(kw, 'ALTHELP');
     var alt = flagRowHtml('fk-althelp', 'Alternative help (ALTHELP)', althelp.present, althelp.parameters, 'alternative key, CA01-CA24', undefined, undefined);
     var altpageup = DspfWriter.getFileFlagKeyword(kw, 'ALTPAGEUP');
@@ -4966,12 +4974,12 @@
    *  new array to commit, same contract as every other dedicated picker
    *  here. */
   function wireFileKeywordsPanels(getKeywords, onChange, expandedSet, rerender, getModel) {
-    // Task I-3: `noConditioning` (5th arg) opts a keyword whose row still
-    // uses the generic flagRowHtml/wireFlagRow shape out of the Conditioning
-    // toggle entirely, for keywords IBM's DDS Reference documents as
-    // "Option indicators are not valid for this keyword" - matching
+    // `noConditioning` (5th arg) opts a keyword whose row still uses the
+    // generic flagRowHtml/wireFlagRow shape out of the Conditioning toggle
+    // entirely, for keywords IBM's DDS Reference documents as "Option
+    // indicators are not valid for this keyword" - matching
     // fileKeywordsPanelsHtml's own conditions:undefined for the same row
-    // (see keywordFixes.md's I-3 section for the full per-keyword audit).
+    // (see keywordFixes.md's section for the full per-keyword audit).
     function simple(id, name, placeholderIsParams, altNames, noConditioning) {
       wireFlagRow(id, getKeywords, onChange, function (keywords, present, params, conditions) {
         return DspfWriter.setFileFlagKeyword(keywords, name, present, placeholderIsParams ? params : '', undefined, conditions, altNames);
@@ -4981,7 +4989,7 @@
     simple('fk-invite', 'INVITE');
     simple('fk-alwgph', 'ALWGPH');
     simple('fk-msgalarm', 'MSGALARM');
-    simple('fk-indara', 'INDARA', false, undefined, !DspfWriter.optionIndicatorsAllowed('INDARA')); // I-121f
+    simple('fk-indara', 'INDARA', false, undefined, !DspfWriter.optionIndicatorsAllowed('INDARA'));
     // Task S36-4: turning USRDSPMGT ON is blocked (not just warned) when a
     // keyword value ALREADY set elsewhere in the file would violate a
     // verified S36E rule once USRDSPMGT is active - the symmetric half of
@@ -5003,20 +5011,20 @@
         }
         onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'USRDSPMGT', onEl.checked));
       });
-      // Task I-3: USRDSPMGT - "Option indicators are not valid for this
-      // keyword" - no Conditioning toggle wired (matches
+      // USRDSPMGT - "Option indicators are not valid for this keyword"
+      // - no Conditioning toggle wired (matches
       // fileKeywordsPanelsHtml's conditions:undefined for this row).
     })();
-    // Task I-3: CHECK - option indicators are documented as valid only for
+    // CHECK - option indicators are documented as valid only for
     // CHECK(ER)/CHECK(ME), neither of which iSDA implements yet (only
     // AB/RLTB/RL) - none of these 3 rows should offer conditioning.
     wireFlagRow('fk-check-ab', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'AB', conditions); }, undefined, undefined, undefined);
     wireFlagRow('fk-check-rltb', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RLTB', conditions); }, undefined, undefined, undefined);
     wireFlagRow('fk-check-rl', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RL', conditions); }, undefined, undefined, undefined);
-    simple('fk-dsprl', 'DSPRL', false, undefined, !DspfWriter.optionIndicatorsAllowed('DSPRL')); // I-121f
+    simple('fk-dsprl', 'DSPRL', false, undefined, !DspfWriter.optionIndicatorsAllowed('DSPRL'));
     wireChgInpDftFlag(getKeywords, onChange, 'fk-chginpdft', expandedSet, rerender);
     wireEntFldAtrEditor(getKeywords, onChange, 'fk-entfldatr', expandedSet, rerender);
-    simple('fk-errsfl', 'ERRSFL', false, undefined, !DspfWriter.optionIndicatorsAllowed('ERRSFL')); // I-121f
+    simple('fk-errsfl', 'ERRSFL', false, undefined, !DspfWriter.optionIndicatorsAllowed('ERRSFL'));
     simple('fk-csrinponly', 'CSRINPONLY');
     var refLib = document.getElementById('fk-ref-library');
     var refRec = document.getElementById('fk-ref-record');
@@ -5028,19 +5036,17 @@
     var passrcd = document.getElementById('fk-passrcd');
     if (passrcd) passrcd.addEventListener('change', function () {
       var newVal = passrcd.value.trim();
-      // Task I-24 - WINDOW cannot be specified for the record named by
-      // file-level PASSRCD (per the DDS Reference). This is the reverse
-      // on-transition from the "+ Add record" wizard's own I-24 guard
+      // WINDOW cannot be specified for the record named by file-level
+      // PASSRCD (per the DDS Reference). This is the reverse on-transition
+      // from the "+ Add record" wizard's own guard
       // (buildWebviewTemplate.js's newRecordBtn handler): retyping PASSRCD
       // itself to name a record that already carries WINDOW. getModel
-      // gives access to model.records to find that record, if any.
-      // Task I-36 extended this to ALWROL/CLRL/SLNO too, which share the
-      // identical DDS Reference restriction - checked in this fixed
-      // order (WINDOW first, matching I-24's own original wording) so
-      // the alert names whichever keyword is actually present first,
-      // but a record is only ever expected to carry one of these four
-      // in practice.
-      // Task I-121 (PASSRCD-restricted-keywords slice) - the list of
+      // gives access to model.records to find that record, if any. Task
+      // I-36 extended this to ALWROL/CLRL/SLNO too, which share the
+      // identical DDS Reference restriction - checked in this fixed order
+      // (WINDOW first, matching the original wording) so the alert names
+      // whichever keyword is actually present first, but a record is only
+      // ever expected to carry one of these four in practice. The list of
       // four names below used to be hand-written here, a second copy of
       // the same fact windowConflictReason's own creation-time check and
       // the wireUsrdfnGuardedFlag/wirePulldownGuardedFlag alsoCheckPassrcd
@@ -5070,28 +5076,27 @@
       }
       onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'PASSRCD', !!newVal, newVal));
     });
-    // Task I-6: file-level TEXT wiring removed - see fileKeywordsPanelsHtml's
-    // own I-6 comment for the full finding. getFileQuotedText/
-    // setFileQuotedText themselves are untouched (still used by other
-    // legitimate file-level quoted-text keywords).
+    // File-level TEXT wiring removed - see fileKeywordsPanelsHtml's own
+    // comment for the full finding. getFileQuotedText/ setFileQuotedText
+    // themselves are untouched (still used by other legitimate file-level
+    // quoted-text keywords).
     simple('fk-valnum', 'VALNUM');
     simple('fk-wrdwrap', 'WRDWRAP');
 
-    // Indicator / screen-control
-    // Task I-4: these rows moved from a single "-params" free-text box
-    // (what `simple` above wires) to dedicated "-ind"/
+    // Indicator / screen-control these rows moved from a single "-params"
+    // free-text box (what `simple` above wires) to dedicated "-ind"/
     // "-text" fields exposing the documented optional 'text' sub-
-    // parameter (see fileKeywordsPanelsHtml's own comment) - custom
-    // commit functions here build the combined `indicator ['text']`
-    // parameter string instead.
-    // Task I-68 - optional 6th param `conflictFn() -> reason|''`, checked
-    // ONLY on the off->on transition (never when merely editing the
-    // response indicator/text/conditioning of a keyword that is already
-    // present - a hand-edited file that already carries both HLPRTN and
-    // HLPDOC must stay editable). alert + revert, same idiom as the S36E
-    // `guarded` check below. Only HLPRTN passes one, giving it the reverse
-    // direction of I-38's HLPDOC/HLPRTN mutual exclusion that its forward
-    // direction (HLPDOC turning on while HLPRTN is present) already had.
+    // parameter (see fileKeywordsPanelsHtml's own comment) - custom commit
+    // functions here build the combined `indicator ['text']` parameter
+    // string instead. Optional 6th param `conflictFn() -> reason|''`,
+    // checked ONLY on the off->on transition (never when merely editing
+    // the response indicator/text/conditioning of a keyword that is
+    // already present - a hand-edited file that already carries both
+    // HLPRTN and HLPDOC must stay editable). alert + revert, same idiom as
+    // the S36E `guarded` check below. Only HLPRTN passes one, giving it
+    // the reverse direction of the HLPDOC/HLPRTN mutual exclusion that its
+    // forward direction (HLPDOC turning on while HLPRTN is present)
+    // already had.
     function commitIndicatorTextRow(id, name, altNames, guarded, noConditioning, conflictFn) {
       var onEl = document.getElementById(id + '-on');
       var indEl = document.getElementById(id + '-ind');
@@ -5129,9 +5134,9 @@
       if (onEl) onEl.addEventListener('change', function () { commit(); });
       if (indEl) indEl.addEventListener('change', function () { commit(); });
       if (textEl) textEl.addEventListener('change', function () { commit(); });
-      // Task I-3: VLDCMDKEY (`noConditioning`) doesn't allow option-
-      // indicator conditioning at all - skip wiring the toggle entirely,
-      // same as `simple`'s own noConditioning branch above.
+      // VLDCMDKEY (`noConditioning`) doesn't allow option- indicator
+      // conditioning at all - skip wiring the toggle entirely, same as
+      // `simple`'s own noConditioning branch above.
       if (!noConditioning) {
         wireFlagRowConditioning(id, DspfWriter.getFileFlagKeyword(getKeywords(), name, undefined, altNames).conditions, commit, expandedSet, rerender);
       }
@@ -5141,12 +5146,12 @@
       ['fk-home', 'HOME'],
       ['fk-pagedown', 'PAGEDOWN', DspfWriter.keywordAlternateNames('PAGEDOWN')],
       ['fk-pageup', 'PAGEUP', DspfWriter.keywordAlternateNames('PAGEUP')],
-      // Task I-68 - HLPRTN's own reverse-direction conflict check (see
+      // HLPRTN's own reverse-direction conflict check (see
       // commitIndicatorTextRow's `conflictFn` comment): 5th element
       // (row[4]; row[2] is altNames, row[3] is noConditioning).
       ['fk-hlprtn', 'HLPRTN', undefined, undefined, function () { return DspfWriter.hlpdocConflictReason('HLPRTN', getKeywords()); }],
-      // Task I-3: VLDCMDKEY - "Option indicators are not valid for this
-      // keyword" - `noConditioning` (5th simple() arg) below.
+      // VLDCMDKEY - "Option indicators are not valid for this keyword"
+      // - `noConditioning` (5th simple() arg) below.
       ['fk-vldcmdkey', 'VLDCMDKEY', undefined, true],
     ].forEach(function (row) {
       commitIndicatorTextRow(row[0], row[1], row[2], undefined, row[3], row[4]);
@@ -5167,7 +5172,7 @@
     if (indtxtOn) indtxtOn.addEventListener('change', function () { commitIndtxt(); });
     if (indtxtInd) indtxtInd.addEventListener('change', function () { commitIndtxt(); });
     if (indtxtText) indtxtText.addEventListener('change', function () { commitIndtxt(); });
-    // Task I-3: INDTXT - "Option indicators are not valid for this keyword"
+    // INDTXT - "Option indicators are not valid for this keyword"
     // - no Conditioning toggle wired.
     wireMoubtnPanel(getKeywords, onChange, 'fk', expandedSet, rerender, undefined, getKeywords, function () {
       return allRecordKeywordScopes(getModel);
@@ -5215,13 +5220,12 @@
         onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'PRINT', onEl.checked, assembleParams(), undefined, newConditions));
       }, expandedSet, rerender);
     })();
-    simple('fk-openprt', 'OPENPRT', false, undefined, !DspfWriter.optionIndicatorsAllowed('OPENPRT')); // I-121f
+    simple('fk-openprt', 'OPENPRT', false, undefined, !DspfWriter.optionIndicatorsAllowed('OPENPRT'));
 
-    // Help
-    // Task I-4: HLPPNLGRP/HLPSCHIDX moved from simple()'s single free-text
-    // box to their own Module/Library/Panel-group and Library/Search-
-    // index fields (see fileKeywordsPanelsHtml's own comment) - the
-    // checkbox still independently controls presence, same as INDTXT/
+    // Help HLPPNLGRP/HLPSCHIDX moved from simple()'s single free-text box
+    // to their own Module/Library/Panel-group and Library/Search- index
+    // fields (see fileKeywordsPanelsHtml's own comment) - the checkbox
+    // still independently controls presence, same as INDTXT/
     // MNUBARSW/MNUCNL above, so the entered values aren't lost by
     // unchecking then rechecking.
     var hlppnlgrpOn = document.getElementById('fk-hlppnlgrp-on');
@@ -5234,8 +5238,8 @@
       // and HLPRCD, nor HLPPNLGRP and HLPDOC - hlprcdConflictReason
       // covers the HLPRCD half (new); hlpdocConflictReason already
       // covered the HLPDOC half but was only ever wired for HLPDOC's own
-      // "turning on" direction (I-38) - wired here for HLPPNLGRP's own
-      // side of that same pairing now too.
+      // "turning on" direction - wired here for HLPPNLGRP's own side of
+      // that same pairing now too.
       if (hlppnlgrpOn.checked) {
         var rcdReason = DspfWriter.hlprcdConflictReason('HLPPNLGRP', getKeywords());
         if (rcdReason) {
@@ -5249,8 +5253,8 @@
           hlppnlgrpOn.checked = DspfWriter.getFileFlagKeyword(getKeywords(), 'HLPPNLGRP').present;
           return;
         }
-        // Task I-67: hlpdocConflictReason above only ever checked the
-        // file's OWN keywords for HLPDOC - now that I-67 added HLPDOC's
+        // hlpdocConflictReason above only ever checked the file's OWN
+        // keywords for HLPDOC - now that added HLPDOC's
         // help-specification-level form too, a file-level HLPPNLGRP must
         // also be blocked while ANY H-spec on ANY record already carries
         // HLPDOC (file-wide per HLPPNLGRP's own DDS Reference section -
@@ -5273,8 +5277,8 @@
     if (hlppnlgrpPanelgroup) hlppnlgrpPanelgroup.addEventListener('change', function () { commitHlppnlgrp(); });
     wireFlagRowConditioning('fk-hlppnlgrp', DspfWriter.getFileFlagKeyword(getKeywords(), 'HLPPNLGRP').conditions, commitHlppnlgrp, expandedSet, rerender);
 
-    // Task I-3: HLPSCHIDX - "Option indicators are not valid for this
-    // keyword" - no wireFlagRowConditioning call below (matches
+    // HLPSCHIDX - "Option indicators are not valid for this keyword" -
+    // no wireFlagRowConditioning call below (matches
     // fileKeywordsPanelsHtml's own undefined/undefined render for this
     // row's Conditioning toggle).
     var hlpschidxOn = document.getElementById('fk-hlpschidx-on');
@@ -5289,15 +5293,15 @@
     if (hlpschidxOn) hlpschidxOn.addEventListener('change', commitHlpschidx);
     if (hlpschidxLibrary) hlpschidxLibrary.addEventListener('change', commitHlpschidx);
     if (hlpschidxSearchindex) hlpschidxSearchindex.addEventListener('change', commitHlpschidx);
-    // Task I-3: HLPFULL - "Option indicators are not valid for this keyword."
-    simple('fk-hlpfull', 'HLPFULL', false, undefined, !DspfWriter.optionIndicatorsAllowed('HLPFULL')); // I-121g
+    // HLPFULL - "Option indicators are not valid for this keyword."
+    simple('fk-hlpfull', 'HLPFULL', false, undefined, !DspfWriter.optionIndicatorsAllowed('HLPFULL'));
     var hlptitle = document.getElementById('fk-hlptitle');
     if (hlptitle) hlptitle.addEventListener('change', function () { onChange(DspfWriter.setFileQuotedText(getKeywords(), 'HLPTITLE', hlptitle.value)); });
-    // Task I-5: HLPRCD - same "-on" checkbox drives presence regardless of
-    // whether the sub-fields have anything typed yet" contract INDTXT's
-    // own commitIndtxt above already follows, so a user can type the
-    // record name first and tick the box after (or vice versa) without
-    // either write silently reverting the other's edit.
+    // HLPRCD - same "-on" checkbox drives presence regardless of whether
+    // the sub-fields have anything typed yet" contract INDTXT's own
+    // commitIndtxt above already follows, so a user can type the record
+    // name first and tick the box after (or vice versa) without either
+    // write silently reverting the other's edit.
     //
     // Cross-verified against IBM's own format,
     // HLPRCD(record-format-name [[library-name/]file-name]) - two real
@@ -5347,7 +5351,7 @@
     // Task I-43 fix: a sub-field's own `change` event used to call
     // commitHlprcd() unconditionally, even while the checkbox is off. With
     // hlprcdOn.checked false, that call falls straight through to the
-    // unconditional onChange(...setFileFlagKeyword(..., false, ...)) at the
+    // unconditional onChange(...setFileFlagKeyword(..., false,...)) at the
     // bottom - present:false discards whatever was just typed, and
     // commitSourceChange's own synchronous render() then regenerates this
     // whole panel from the (still-HLPRCD-less) model, wiping the input back
@@ -5364,42 +5368,41 @@
     if (hlprcdFileEl) hlprcdFileEl.addEventListener('change', function () { if (!hlprcdOn.checked) return; commitHlprcd(); });
     wireFlagRowConditioning('fk-hlprcd', DspfWriter.getFileFlagKeyword(getKeywords(), 'HLPRCD').conditions, commitHlprcd, expandedSet, rerender);
 
-    // Task I-38: HLPDOC - same "-on" checkbox drives presence regardless
-    // of whether the sub-fields are filled in yet" contract as HLPRCD's
-    // own commitHlprcd just above. Guarded (per hlpdocConflictReason)
-    // against HLPPNLGRP/HLPRTN already being present, same alertAndRevert
-    // idiom wireUsrdfnGuardedFlag uses elsewhere - only the "turning
-    // HLPDOC on" direction is guarded here; the reverse (blocking
-    // HLPPNLGRP/HLPRTN while HLPDOC is already on) is wired for
-    // HLPPNLGRP just below, and for HLPRTN in commitIndicatorTextRow's
-    // own optional `conflictFn` (Task I-68 - its file-level row goes
-    // through that shared helper rather than a hand-rolled commit).
+    // HLPDOC - same "-on" checkbox drives presence regardless of whether
+    // the sub-fields are filled in yet" contract as HLPRCD's own
+    // commitHlprcd just above. Guarded (per hlpdocConflictReason) against
+    // HLPPNLGRP/HLPRTN already being present, same alertAndRevert idiom
+    // wireUsrdfnGuardedFlag uses elsewhere - only the "turning HLPDOC on"
+    // direction is guarded here; the reverse (blocking HLPPNLGRP/HLPRTN
+    // while HLPDOC is already on) is wired for HLPPNLGRP just below, and
+    // for HLPRTN in commitIndicatorTextRow's own optional `conflictFn`
+    // (Task I-68 - its file-level row goes through that shared helper
+    // rather than a hand-rolled commit).
     //
     // Cross-check follow-up: all three parts (label/document/folder) are
     // required by IBM's own format - unlike HLPRCD's own bracketed,
     // genuinely-optional second parameter above, HLPDOC's format has NO
     // brackets around any of its three parts at all. This used to write
     // whatever was typed so far the moment the checkbox went on -
-    // including nothing at all, producing a bare `HLPDOC` with no
-    // parens (setFileFlagKeyword omits parens entirely when parameters
-    // is blank) or a 1-/2-part fragment, both invalid DDS. Now blocked
-    // with the same alertAndRevert idiom as the conflict check just
-    // above, checked every time the checkbox is (or stays) on - not just
-    // at the moment it's first ticked - so blanking a previously-filled
-    // part back out while still checked is caught too.
-    // Task I-119: commitHlpdoc's own shared body now lives in
-    // wireHlpdocFields (see its own comment, just above wireFilePrint
-    // higher up in this file) - `checkConflict` below is the one real
-    // difference from the help-spec/record-level HLPDOC panel further
-    // down (hlpdocHspecConflictReason there already covers what these
-    // two checks cover here separately).
+    // including nothing at all, producing a bare `HLPDOC` with no parens
+    // (setFileFlagKeyword omits parens entirely when parameters is blank)
+    // or a 1-/2-part fragment, both invalid DDS. Now blocked with the
+    // same alertAndRevert idiom as the conflict check just above, checked
+    // every time the checkbox is (or stays) on - not just at the moment
+    // it's first ticked - so blanking a previously-filled part back out
+    // while still checked is caught too. commitHlpdoc's own shared body
+    // now lives in wireHlpdocFields (see its own comment, just above
+    // wireFilePrint higher up in this file) - `checkConflict` below is
+    // the one real difference from the help-spec/record-level HLPDOC
+    // panel further down (hlpdocHspecConflictReason there already covers
+    // what these two checks cover here separately).
     var hlpdocFields = wireHlpdocFields('fk', getKeywords, onChange, function () {
       var reason = DspfWriter.hlpdocConflictReason('HLPDOC', getKeywords());
       if (reason) return reason;
-      // Task I-67: hlpdocConflictReason above only ever checked the
-      // file's OWN keywords for HLPPNLGRP - now that I-67 added
-      // HLPPNLGRP's (already-modelled) and HLPDOC's help-specification-
-      // level forms, a file-level HLPDOC must also be blocked while ANY
+      // hlpdocConflictReason above only ever checked the file's OWN
+      // keywords for HLPPNLGRP - now that added HLPPNLGRP's
+      // (already-modelled) and HLPDOC's help-specification- level
+      // forms, a file-level HLPDOC must also be blocked while ANY
       // H-spec on ANY record already carries HLPPNLGRP (file-wide - see
       // hlpdocHspecConflictReason's doc comment).
       if (getModel && DspfWriter.anyHelpKeywordPresentInFile(getModel(), 'HLPPNLGRP', null)) {
@@ -5468,13 +5471,12 @@
     if (igccnvOn) igccnvOn.addEventListener('change', function () { commitIgccnv(); });
     if (igccnvKey) igccnvKey.addEventListener('change', function () { commitIgccnv(); });
     if (igccnvLine) igccnvLine.addEventListener('change', function () { commitIgccnv(); });
-    // Task I-3: IGCCNV - "Option indicators are not allowed with this
-    // keyword" - no Conditioning toggle wired.
+    // IGCCNV - "Option indicators are not allowed with this keyword" -
+    // no Conditioning toggle wired.
 
-    // Alternate keywords
-    // Task I-3: ALTHELP - "not valid"; ALTPAGEDWN/ALTPAGEUP's shared
-    // section - "Option indicators are not valid for these keywords."
-    // Task I-136: the three alt keys claim a key number (default included)
+    // Alternate keywords ALTHELP - "not valid"; ALTPAGEDWN/ALTPAGEUP's
+    // shared section - "Option indicators are not valid for these
+    // keywords." the three alt keys claim a key number (default included)
     // that a MOUBTN Command key of the opposite type may not share. Turning
     // one on, or changing its key, is checked against every MOUBTN in the
     // file; on a clash the row alerts and re-renders to its stored state.
@@ -5497,12 +5499,11 @@
     // Window Border
     wireWindowBorderPanel('fk-wdw', getKeywords, onChange, expandedSet, rerender);
 
-    // Menu-bar
-    // Task I-18: file-level MNUBARSW/MNUCNL editing needs to check every
+    // Menu-bar file-level MNUBARSW/MNUCNL editing needs to check every
     // record's own copy too (a file-level assignment extends to all of
-    // them, per each keyword's own DDS Reference section) - getModel
-    // gives access to model.records for that; getKeywords here already IS
-    // the file-level keyword set, so it doubles as its own getFileKeywords.
+    // them, per each keyword's own DDS Reference section) - getModel gives
+    // access to model.records for that; getKeywords here already IS the
+    // file-level keyword set, so it doubles as its own getFileKeywords.
     wireMenuBarKeysPanel('fk', getKeywords, onChange, expandedSet, rerender, getKeywords, function () {
       return getModel ? getModel().records.map(function (r) { return r.keywords; }) : [];
     });
@@ -5522,20 +5523,19 @@
   // -----------------------------------------------------------------------
 
   // -----------------------------------------------------------------------
-  // Task I-17 - MNUBARDSP's own documented repeatability ("Option
-  // indicators are valid for the MNUBARDSP keyword, and more than one
-  // MNUBARDSP keyword can be specified on the record if all are
-  // optioned. If more than one MNUBARDSP keyword is in effect when the
-  // record is written, the first one in effect is used.") wasn't modeled
-  // by Task L76/I-4's own single-instance fix (getFileFlagKeyword/
-  // setFileFlagKeyword + the old getMnubardspFields/setMnubardspFields
-  // pair, removed as dead code by Task I-118 once this repeatable-instance
-  // approach fully replaced it) - this
-  // reuses the same generic DspfWriter.getRepeatableKeywordInstances/
+  // MNUBARDSP's own documented repeatability ("Option indicators are valid
+  // for the MNUBARDSP keyword, and more than one MNUBARDSP keyword can be
+  // specified on the record if all are optioned. If more than one MNUBARDSP
+  // keyword is in effect when the record is written, the first one in
+  // effect is used.") wasn't modeled by Task L76/the single-instance fix
+  // (getFileFlagKeyword/ setFileFlagKeyword + the old
+  // getMnubardspFields/setMnubardspFields pair, removed as dead code by
+  // Task I-118 once this repeatable-instance approach fully replaced it) -
+  // this reuses the same generic DspfWriter.getRepeatableKeywordInstances/
   // setRepeatableKeywordInstances primitive moubtnPanelHtml/
   // wireMoubtnPanel above already use for MOUBTN (a plain repeatable
-  // single-keyword-name list, no pairing with another keyword the way
-  // Color & attributes needs), rather than a bespoke get/set pair.
+  // single-keyword-name list, no pairing with another keyword the way Color
+  // & attributes needs), rather than a bespoke get/set pair.
   //
   // MNUBARDSP keeps its own two mutually-exclusive parameter SHAPES (a
   // single optional pull-down-input name on a record that
@@ -5551,7 +5551,7 @@
 
   /** Splits one MNUBARDSP instance's raw `parameters` text into its
    *  positional fields for whichever of the two shapes applies. */
-  //  Task I-158: the DDS Reference writes the two field parameters with the &
+  //  The DDS Reference writes the two field parameters with the &
   //  (MNUBARDSP(menu-bar-record &choice-field [&pull-down-input])), so the
   //  panel WRITES the & and shows the bare name. A name is accepted typed with
   //  or without it, and a hand-written bare-name MNUBARDSP displays the same;
@@ -5587,9 +5587,11 @@
       '</div>';
   }
 
-  /** MNUBARDSP panel (Task I-17), record-level - shared verbatim across
-   *  every record type via recordKeywordsPanelsHtml's own General tab,
-   *  same as the single-instance version it replaces. */
+  /**
+   * MNUBARDSP panel, record-level - shared verbatim across every record
+   * type via recordKeywordsPanelsHtml's own General tab, same as the
+   * single-instance version it replaces.
+   */
   function mnubardspPanelHtml(keywords, ownerKey, expandedSet) {
     var kw = keywords || [];
     var isMnuBarRec = kw.some(function (k) { return k.name === 'MNUBAR'; });
@@ -5653,19 +5655,18 @@
         return { name: 'MNUBARDSP', conditions: [], parameters: '' };
       },
       undefined,
-      // Task I-55: MNUBARDSP has no per-row "kind" to fall back to like
-      // recordIndicatorKindConflictReason's own model does below - the
-      // instance IS always MNUBARDSP - so an invalid "+ Add" here can
-      // only be blocked outright, same alert-and-no-op idiom as every
-      // other whitelist guard in this file. sflWhitelistConflictReason
-      // fires for a plain SFL record (MNUBARDSP is not on SFL's own
-      // whitelist - I-46).
-      // Task I-110: USRDFN is checked too. I-55 left it out because I-8's
-      // per-keyword audit found no incompatibility statement for MNUBARDSP -
-      // but that predated I-49, which found that a USRDFN record's section is a
-      // CLOSED list ("No file- or record-level keywords apply to this record
-      // except INVITE, KEEP, PASSRCD, HLPRTN, HELP, HLPCLR, PRINT, OPENPRT, and
-      // TEXT"), so the missing statement is exactly why it is not allowed.
+      // MNUBARDSP has no per-row "kind" to fall back to like
+      // recordIndicatorKindConflictReason's own model does below - the instance
+      // IS always MNUBARDSP - so an invalid "+ Add" here can only be blocked
+      // outright, same alert-and-no-op idiom as every other whitelist guard in
+      // this file. sflWhitelistConflictReason fires for a plain SFL record
+      // (MNUBARDSP is not on SFL's own whitelist - I-46). USRDFN is checked
+      // too. I-55 left it out because the per-keyword audit found no
+      // incompatibility statement for MNUBARDSP - but that predated I-49, which
+      // found that a USRDFN record's section is a CLOSED list ("No file- or
+      // record-level keywords apply to this record except INVITE, KEEP,
+      // PASSRCD, HLPRTN, HELP, HLPCLR, PRINT, OPENPRT, and TEXT"), so the
+      // missing statement is exactly why it is not allowed.
       // mnubarWhitelistConflictReason is still NOT checked - MNUBARDSP IS on
       // MNUBAR's own whitelist (the keyword that record type exists to carry).
       function addGuardFn() {
@@ -5676,40 +5677,41 @@
   }
 
   // -----------------------------------------------------------------------
-  // Task I-27 - record-level HLPTITLE's own documented repeatability
-  // ("Option indicators are allowed on record-level HLPTITLE keywords and
-  // must be specified on each HLPTITLE keyword if the record contains
-  // multiple HLPTITLE keywords. You can specify a maximum of 15 HLPTITLE
-  // keywords on a record if all have option indicators.") wasn't modeled
-  // by I-21's own single-instance fix (getFileQuotedText/setFileQuotedText
-  // gaining a `conditions` parameter, which correctly lets ONE record-level
-  // HLPTITLE be conditioned but can't represent a second one at all). This
-  // reuses the same generic DspfWriter.getRepeatableKeywordInstances/
+  // Record-level HLPTITLE's own documented repeatability ("Option
+  // indicators are allowed on record-level HLPTITLE keywords and must be
+  // specified on each HLPTITLE keyword if the record contains multiple
+  // HLPTITLE keywords. You can specify a maximum of 15 HLPTITLE keywords on
+  // a record if all have option indicators.") wasn't modeled by the
+  // single-instance fix (getFileQuotedText/setFileQuotedText gaining a
+  // `conditions` parameter, which correctly lets ONE record-level HLPTITLE
+  // be conditioned but can't represent a second one at all). This reuses
+  // the same generic DspfWriter.getRepeatableKeywordInstances/
   // setRepeatableKeywordInstances primitive mnubardspPanelHtml/
   // wireMnubardspPanel above already use for MNUBARDSP, rather than a
-  // bespoke get/set pair - HLPTITLE is simpler than MNUBARDSP in one way
-  // (a single plain quoted-text parameter, no per-record-type shape
-  // variation to thread through) and reuses quoteDdsLiteral/
-  // unquoteDdsLiteral (the same quoting getFileQuotedText/setFileQuotedText
-  // already use) to keep each instance's `parameters` as plain edited text
-  // rather than raw DDS quote-escaping.
+  // bespoke get/set pair - HLPTITLE is simpler than MNUBARDSP in one way (a
+  // single plain quoted-text parameter, no per-record-type shape variation
+  // to thread through) and reuses quoteDdsLiteral/ unquoteDdsLiteral (the
+  // same quoting getFileQuotedText/setFileQuotedText already use) to keep
+  // each instance's `parameters` as plain edited text rather than raw DDS
+  // quote-escaping.
   //
-  // Like I-17's own MNUBARDSP panel, this only models the repeatable LIST
+  // Like the MNUBARDSP panel, this only models the repeatable LIST
   // mechanically - it does NOT enforce "all instances must carry option
   // indicators once there's more than one" or "an unconditioned instance
-  // must be the record's only one" (surfaced instead as a non-blocking
-  // hint below the list, same posture MNUBARDSP's own repeatable panel
-  // already takes for its own analogous "all optioned if more than one"
-  // rule).
+  // must be the record's only one" (surfaced instead as a non-blocking hint
+  // below the list, same posture MNUBARDSP's own repeatable panel already
+  // takes for its own analogous "all optioned if more than one" rule).
   // -----------------------------------------------------------------------
 
   function hlptitleInstanceRowHtml(inst, p) {
     return '<input type="text" class="' + p + '-text" placeholder="Help title text" value="' + escapeHtml(DspfWriter.unquoteDdsLiteral(inst.parameters)) + '" style="width:100%;" />';
   }
 
-  /** Record-level Print panel (PRINT row + "System handles print" file/
-   *  library form). Shared by recordKeywordsPanelsHtml and the USRDFN view
-   *  (Task I-105) so the two cannot drift. */
+  /**
+   * Record-level Print panel (PRINT row + "System handles print" file/
+   * library form). Shared by recordKeywordsPanelsHtml and the USRDFN view
+   * so the two cannot drift.
+   */
   function recordPrintPanelHtml(kw, p, expandedSet) {
     var print = DspfWriter.getFileFlagKeyword(kw, 'PRINT');
     var printFileForm = DspfWriter.getFilePrintFileForm(kw);
@@ -5720,9 +5722,11 @@
     return pr;
   }
 
-  /** Record-level HLPTITLE panel (Task I-27) - shared verbatim across
-   *  every record type via recordKeywordsPanelsHtml's own Help tab, same
-   *  as the single-instance version it replaces. */
+  /**
+   * Record-level HLPTITLE panel - shared verbatim across every record
+   * type via recordKeywordsPanelsHtml's own Help tab, same as the
+   * single-instance version it replaces.
+   */
   function hlptitlePanelHtml(keywords, ownerKey, expandedSet) {
     var kw = keywords || [];
     var instances = DspfWriter.getRepeatableKeywordInstances(kw, ['HLPTITLE']);
@@ -5737,8 +5741,8 @@
     return html;
   }
 
-  // Task I-110: optional trailing `addGuardFn() -> reason|null`, checked once per "+ Add"
-  // click (MOUBTN's I-42 idiom). Only the record-level call site passes one.
+  // Optional trailing `addGuardFn() -> reason|null`, checked once per "+ Add" click
+  // (MOUBTN's idiom). Only the record-level call site passes one.
   function wireHlptitlePanel(getKeywords, onChange, ownerKey, expandedSet, rerender, addGuardFn) {
     var kw = getKeywords();
     var instances = DspfWriter.getRepeatableKeywordInstances(kw, ['HLPTITLE']);
@@ -5775,22 +5779,21 @@
     var p = idPrefix;
     var panels = {};
 
-    // Task I-105: `restrictTo` ('USRDFN' | 'SFL' | 'MNUBAR', or true for
-    // USRDFN; Task I-115 adds 'SFLMSG', which leaves every panel empty) renders ONLY the rows on that record type's closed whitelist
+    // `restrictTo` ('USRDFN' | 'SFL' | 'MNUBAR', or true for USRDFN; Task I-115 adds 'SFLMSG',
+    // which leaves every panel empty) renders ONLY the rows on that record type's closed whitelist
     // (DspfWriter.usrdfnWhitelistConflictReason / sflWhitelistConflictReason /
-    // mnubarWhitelistConflictReason); every other row is not built at all -
-    // hidden, not shown-and-refused. Omitted (every other record type, and
-    // every guard test that mounts the full row set against a USRDFN/SFL/
-    // MNUBAR keyword array) the output is unchanged. A panel with no
-    // applicable row comes back as '' so the caller can drop its subtab.
-    // Element ids are identical in both views, so wireRecordKeywordsPanels
-    // wires either unchanged (its lookups already tolerate absent elements).
+    // mnubarWhitelistConflictReason); every other row is not built at all - hidden, not
+    // shown-and-refused. Omitted (every other record type, and every guard test that mounts the
+    // full row set against a USRDFN/SFL/ MNUBAR keyword array) the output is unchanged. A panel
+    // with no applicable row comes back as '' so the caller can drop its subtab. Element ids are
+    // identical in both views, so wireRecordKeywordsPanels wires either unchanged (its lookups
+    // already tolerate absent elements).
     if (restrictTo === true) restrictTo = 'USRDFN';
     function ok(keywordName) { return recordRestrictionAllows(restrictTo, keywordName); }
     // Row-id stem -> the DDS keyword the row writes (only used to gate).
     var ROW_KEYWORD = { 'check-ab': 'CHECK', 'check-rl': 'CHECK' };
-    // Tasks I-121b / I-121e: whether a row shows a Conditioning toggle for these
-    // keywords is the spec's optionIndicators fact, not a per-call literal.
+    // Whether a row shows a Conditioning toggle for these keywords is the spec's
+    // optionIndicators fact, not a per-call literal.
     function i121bConds(name, conditions) {
       return DspfWriter.optionIndicatorsAllowed(name) ? conditions : undefined;
     }
@@ -5805,19 +5808,19 @@
     var fInzrcd = DspfWriter.getFileFlagKeyword(kw, 'INZRCD');
     g += gatedFlagRow(p + '-inzrcd', 'If this record is not on display, write it to the display before issuing read (INZRCD)', fInzrcd.present, undefined, undefined, i121bConds('INZRCD', fInzrcd.conditions), expandedSet);
     var fKeep = DspfWriter.getFileFlagKeyword(kw, 'KEEP');
-    g += gatedFlagRow(p + '-keep', 'Keep record on display (KEEP)', fKeep.present, undefined, undefined, undefined, undefined); // I-28: option and response indicators not valid
+    g += gatedFlagRow(p + '-keep', 'Keep record on display (KEEP)', fKeep.present, undefined, undefined, undefined, undefined); // Option and response indicators not valid
     var fAssume = DspfWriter.getFileFlagKeyword(kw, 'ASSUME');
-    g += gatedFlagRow(p + '-assume', 'Assume record is on display (ASSUME)', fAssume.present, undefined, undefined, undefined, undefined); // I-7: option indicators not valid
+    g += gatedFlagRow(p + '-assume', 'Assume record is on display (ASSUME)', fAssume.present, undefined, undefined, undefined, undefined); // Option indicators not valid
     var fAlwrol = DspfWriter.getFileFlagKeyword(kw, 'ALWROL');
-    g += gatedFlagRow(p + '-alwrol', 'Allow rolling of lines (ALWROL)', fAlwrol.present, undefined, undefined, undefined, undefined); // I-7: option indicators not valid
+    g += gatedFlagRow(p + '-alwrol', 'Allow rolling of lines (ALWROL)', fAlwrol.present, undefined, undefined, undefined, undefined); // Option indicators not valid
     var fRetkey = DspfWriter.getFileFlagKeyword(kw, 'RETKEY');
     g += gatedFlagRow(p + '-retkey', 'Retain CLEAR HELP HOME and ROLL keys (RETKEY)', fRetkey.present, undefined, undefined, i121bConds('RETKEY', fRetkey.conditions), expandedSet);
     var fRetcmdkey = DspfWriter.getFileFlagKeyword(kw, 'RETCMDKEY');
     g += gatedFlagRow(p + '-retcmdkey', 'Retain command function (CFnn and CAnn) keys (RETCMDKEY)', fRetcmdkey.present, undefined, undefined, i121bConds('RETCMDKEY', fRetcmdkey.conditions), expandedSet);
-    // Task I-39 - CSRINPONLY was confirmed entirely missing from iSDA (no
+    // CSRINPONLY was confirmed entirely missing from iSDA (no
     // getter/setter, no row, no mention anywhere) by a full-text audit of
     // DDS_Keyword_V7r6.txt against actual code. This is the record-level
-    // row (see fileKeywordsPanelsHtml's own I-39 comment for the matching
+    // row (see fileKeywordsPanelsHtml's own comment for the matching
     // file-level row); IBM's own DDS Reference documents CSRINPONLY as a
     // "file-level or record-level keyword", both independently valid, and
     // states "Option indicators are valid for this keyword", so this row
@@ -5825,8 +5828,8 @@
     var fCsrinponly = DspfWriter.getFileFlagKeyword(kw, 'CSRINPONLY');
     g += gatedFlagRow(p + '-csrinponly', 'Restrict cursor to input-capable positions (CSRINPONLY)', fCsrinponly.present, undefined, undefined, fCsrinponly.conditions, expandedSet);
     if (ok('CHGINPDFT')) g += chgInpDftFlagHtml(kw, p + '-chginpdft', 'Change input defaults (CHGINPDFT)', expandedSet);
-    // Task I-42 - VALNUM/WRDWRAP are each documented "file-level, record-
-    // level, or field-level"; these are the record-level rows (see
+    // VALNUM/WRDWRAP are each documented "file-level, record- level, or
+    // field-level"; these are the record-level rows (see
     // fileKeywordsPanelsHtml's own fk-valnum/fk-wrdwrap rows for the
     // file-level ones). Both "have no parameters" and "Option indicators
     // are not valid", so no params box and no Conditioning toggle.
@@ -5834,20 +5837,18 @@
     g += gatedFlagRow(p + '-valnum', 'Enhanced numeric error checking (VALNUM)', fRecValnum.present, undefined, undefined, undefined, undefined);
     var fRecWrdwrap = DspfWriter.getFileFlagKeyword(kw, 'WRDWRAP');
     g += gatedFlagRow(p + '-wrdwrap', 'Word wrap for continued-entry fields (WRDWRAP)', fRecWrdwrap.present, undefined, undefined, undefined, undefined);
-    // Bug fix (Task L76 - real SDA's "Define Menu-Bar Display Keywords"
-    // screenshot, docs/sda-reference/screens/record-level/menu-bar-record-
-    // mnubar/menu-bar-display-keywords/image151.png) superseded by
-    // Task I-17 below - real DDS gives MNUBARDSP
-    // two different parameter shapes depending on whether the record
-    // itself carries MNUBAR (per IBM's own DDS Reference), AND (per Task I-17's own
-    // audit) allows more than one MNUBARDSP on the same record if all
-    // are optioned - mnubardspPanelHtml/wireMnubardspPanel below cover
-    // both: shape selection is still the same isMnuBarRec check L76
-    // introduced, now threaded through a repeatable-instance list built
-    // on the same generic primitive moubtnPanelHtml already uses for
-    // MOUBTN, rather than the old single getFileFlagKeyword/
-    // getMnubardspFields pair (removed as dead code by Task I-118) this
-    // replaces.
+    // Bug fix (Task L76 - real SDA's "Define Menu-Bar Display Keywords" screenshot,
+    // docs/sda-reference/screens/record-level/menu-bar-record-
+    // mnubar/menu-bar-display-keywords/image151.png) superseded by Task I-17 below
+    // - real DDS gives MNUBARDSP two different parameter shapes depending on
+    // whether the record itself carries MNUBAR (per IBM's own DDS Reference), AND
+    // (per Task the audit) allows more than one MNUBARDSP on the same record if all
+    // are optioned - mnubardspPanelHtml/wireMnubardspPanel below cover both: shape
+    // selection is still the same isMnuBarRec check L76 introduced, now threaded
+    // through a repeatable-instance list built on the same generic primitive
+    // moubtnPanelHtml already uses for MOUBTN, rather than the old single
+    // getFileFlagKeyword/ getMnubardspFields pair (removed as dead code by Task
+    // I-118) this replaces.
     if (ok('MNUBARDSP')) {
       g += '<div class="section-label">Menu-Bar display (MNUBARDSP)</div>';
       g += mnubardspPanelHtml(kw, p, expandedSet);
@@ -5927,19 +5928,19 @@
     // this replaced the old one-flagRowHtml-per-keyword treatment) ---
     var ind = '';
     var indStatus = '<div class="status" style="margin-bottom:10px;">CA/CF command keys have their own dedicated panel above (Command keys) - this covers the remaining screen-control keywords. Each row below is independently conditioned and repeatable - add as many as needed, e.g. two CLEAR rows under different indicators.</div>';
-    // Task I-105: the kind selector lists only the kinds the record type allows.
+    // The kind selector lists only the kinds the record type allows.
     var indKindsAllowed = RECORD_INDICATOR_INSTANCE_KEYWORDS.some(function (pair) { return ok(pair[0]); });
-    // Task I-114: a USRDFN record shows this panel too, but only HELP / HLPRTN
-    // apply to it, so the generic wording (CLEAR rows, CA/CF keys panel) would mislead.
+    // A USRDFN record shows this panel too, but only HELP / HLPRTN apply to it, so the
+    // generic wording (CLEAR rows, CA/CF keys panel) would mislead.
     if (restrictTo === 'USRDFN') {
       indStatus = '<div class="status" style="margin-bottom:10px;">A user-defined record accepts only HELP (the Help key) and HLPRTN (return from help) here. Each row below is independently conditioned and repeatable.</div>';
     }
     if (indKindsAllowed) ind += indStatus + recordIndicatorInstancesHtml(kw, p + '-recind', expandedSet, restrictTo);
-    // Task I-42 - MOUBTN is documented "file-level or record-level"; the
-    // record-level form reuses the file-level panel verbatim (same
-    // repeatable, independently-conditioned instances - "Option indicators
-    // are valid for this keyword"). Lives on this Indicator tab, matching
-    // its file-level placement in fileKeywordsPanelsHtml's own
+    // MOUBTN is documented "file-level or record-level"; the record-level
+    // form reuses the file-level panel verbatim (same repeatable,
+    // independently-conditioned instances - "Option indicators are valid
+    // for this keyword"). Lives on this Indicator tab, matching its
+    // file-level placement in fileKeywordsPanelsHtml's own
     // indicatorKeywords panel.
     if (ok('MOUBTN')) {
       ind += '<div class="section-label">Mouse buttons (MOUBTN)</div>';
@@ -5950,9 +5951,9 @@
     // closed whitelist allows - HELP and HLPRTN - which were otherwise reachable
     // only through the raw editor (the same gap INVITE had, fixed by I-105's
     // "show every applicable row"). The kind selector already lists only those
-    // two (I-105) and the kind guard already refuses the rest (I-109); nothing
-    // else on this panel passes USRDFN's whitelist, so the panel is just the
-    // repeatable HELP / HLPRTN rows.
+    // two and the kind guard already refuses the rest; nothing else on this
+    // panel passes USRDFN's whitelist, so the panel is just the repeatable HELP
+    // / HLPRTN rows.
     panels.indicatorKeywords = ind;
 
     // --- Application help ---
@@ -5994,13 +5995,13 @@
     help += gatedFlagRow(p + '-hlpcmdkey', 'Return command key from help (HLPCMDKEY)', fHlpcmdkey.present, undefined, undefined, i121bConds('HLPCMDKEY', fHlpcmdkey.conditions), expandedSet);
     if (ok('HLPTITLE')) {
       help += '<div class="section-label">Define help title (HLPTITLE)</div>';
-      // Task I-27: record-level HLPTITLE rebuilt as a genuine repeatable,
+      // Record-level HLPTITLE rebuilt as a genuine repeatable,
       // independently-conditioned instance list (see hlptitlePanelHtml's
       // own doc comment above for the full IBM citation and why) -
-      // replaces I-21's own single-instance row (a plain text input plus
-      // one shared Conditioning toggle), which correctly let ONE
-      // record-level HLPTITLE be conditioned but couldn't represent a
-      // second one at all.
+      // replaces the single-instance row (a plain text input plus one
+      // shared Conditioning toggle), which correctly let ONE record-level
+      // HLPTITLE be conditioned but couldn't represent a second one at
+      // all.
       help += hlptitlePanelHtml(kw, p, expandedSet);
     }
     panels.help = help;
@@ -6029,15 +6030,15 @@
       out += '<div class="section-label">Hidden fields with cursor position for output (CSRLOC)</div>';
       out += '<div class="two-col"><input type="text" id="' + p + '-csrloc-row" placeholder="Row field name" value="' + escapeHtml(csrloc.a) + '" />' +
         '<input type="text" id="' + p + '-csrloc-col" placeholder="Column field name" value="' + escapeHtml(csrloc.b) + '" /></div>';
-      // Task I-21: CSRLOC is individually documented by IBM as "Option
-      // indicators are valid for this keyword" (display size condition
-      // names are NOT valid) - getFileTwoFieldKeyword/setFileTwoFieldKeyword
-      // didn't carry a conditions parameter at all until this task, so no
-      // Conditioning UI was ever offered here even though real DDS allows
-      // it. Reuses flagRowHtml's own toggle markup/id convention
-      // (ownerKey + '-cond' etc.) so wireFlagRowConditioning can wire it
-      // unchanged - the same hand-rolled-row shape entFldAtrHtml already
-      // established for ENTFLDATR above.
+      // CSRLOC is individually documented by IBM as "Option indicators are
+      // valid for this keyword" (display size condition names are NOT valid)
+      // - getFileTwoFieldKeyword/setFileTwoFieldKeyword didn't carry a
+      // conditions parameter at all until this task, so no Conditioning UI
+      // was ever offered here even though real DDS allows it. Reuses
+      // flagRowHtml's own toggle markup/id convention (ownerKey + '-cond'
+      // etc.) so wireFlagRowConditioning can wire it unchanged - the same
+      // hand-rolled-row shape entFldAtrHtml already established for
+      // ENTFLDATR above.
       var csrlocCondSummary = csrloc.conditions.length > 0 ? ' (' + csrloc.conditions.length + ')' : '';
       var csrlocExpanded = !!(expandedSet && expandedSet.has(p + '-csrloc:cond'));
       out += '<span class="kw-cond-toggle" data-flag-id="' + p + '-csrloc" style="margin-top:4px;">Conditioning' + csrlocCondSummary + (csrlocExpanded ? ' \u25b4' : ' \u25be') + '</span>';
@@ -6046,16 +6047,16 @@
       }
     }
     var slno = DspfWriter.getFileFlagKeyword(kw, 'SLNO');
-    out += gatedFlagRow(p + '-slno', 'Start line number (SLNO)', slno.present, slno.parameters, '*VAR or line number', undefined, undefined); // I-7: option indicators not valid
+    out += gatedFlagRow(p + '-slno', 'Start line number (SLNO)', slno.present, slno.parameters, '*VAR or line number', undefined, undefined); // Option indicators not valid
     var clrl = DspfWriter.getFileFlagKeyword(kw, 'CLRL');
-    out += gatedFlagRow(p + '-clrl', 'Clear previous display (CLRL)', clrl.present, clrl.parameters, 'line number, or nn ...', undefined, undefined); // I-7: option indicators not valid
+    out += gatedFlagRow(p + '-clrl', 'Clear previous display (CLRL)', clrl.present, clrl.parameters, 'line number, or nn ...', undefined, undefined); // Option indicators not valid
     panels.output = out;
 
     // --- Input ---
     var fLoginp = DspfWriter.getFileFlagKeyword(kw, 'LOGINP');
     var inp = gatedFlagRow(p + '-loginp', 'Write record to job log (LOGINP)', fLoginp.present, undefined, undefined, i121bConds('LOGINP', fLoginp.conditions), expandedSet);
     var unlock = DspfWriter.getUnlockKeyword(kw);
-    inp += gatedFlagRow(p + '-unlock', 'Unlock keyboard after input operation (UNLOCK)', unlock.present, undefined, undefined, undefined, undefined); // I-7: option indicators not valid
+    inp += gatedFlagRow(p + '-unlock', 'Unlock keyboard after input operation (UNLOCK)', unlock.present, undefined, undefined, undefined, undefined); // Option indicators not valid
     if (ok('UNLOCK')) {
       inp += '<div style="display:flex;gap:14px;margin-bottom:10px;">' +
         '<label class="attr-check"><input type="checkbox" id="' + p + '-unlock-erase" ' + (unlock.erase ? 'checked' : '') + '/>Erase input capable fields (*ERASE)</label>' +
@@ -6064,17 +6065,17 @@
     var fGetretain = DspfWriter.getFileFlagKeyword(kw, 'GETRETAIN');
     inp += gatedFlagRow(p + '-getretain', 'If UNLOCK, retain data on display (GETRETAIN)', fGetretain.present, undefined, undefined, i121bConds('GETRETAIN', fGetretain.conditions), expandedSet);
     var retlcksts = DspfWriter.getFileFlagKeyword(kw, 'RETLCKSTS');
-    // Task I-50: RETLCKSTS's own DDS Reference text states "This keyword
-    // has no parameters" - the params box (previously rendered here
+    // RETLCKSTS's own DDS Reference text states "This keyword has no
+    // parameters" - the params box (previously rendered here
     // unconditionally, matching the pre-fix hasParams=true wiring below)
     // was a pre-existing bug, not real DDS syntax. Dropped both
     // paramsValue and paramsPlaceholder so flagRowHtml renders this as a
     // plain flag+conditioning row, same shape as LOGOUT/BLINK/etc. above.
     inp += gatedFlagRow(p + '-retlcksts', 'Retain LOCK status on next read (RETLCKSTS)', retlcksts.present, undefined, undefined, i121bConds('RETLCKSTS', retlcksts.conditions), expandedSet);
     var fCheckAb = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'AB');
-    inp += gatedFlagRow(p + '-check-ab', 'Allow blanks in input fields', fCheckAb.present, undefined, undefined, undefined, undefined); // I-7: option indicators valid only for CHECK(ER)/CHECK(ME)
+    inp += gatedFlagRow(p + '-check-ab', 'Allow blanks in input fields', fCheckAb.present, undefined, undefined, undefined, undefined); // Option indicators valid only for CHECK(ER)/CHECK(ME)
     var fCheckRl = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'RL');
-    inp += gatedFlagRow(p + '-check-rl', 'Move cursor right to left', fCheckRl.present, undefined, undefined, undefined, undefined); // I-7: option indicators valid only for CHECK(ER)/CHECK(ME)
+    inp += gatedFlagRow(p + '-check-rl', 'Move cursor right to left', fCheckRl.present, undefined, undefined, undefined, undefined); // Option indicators valid only for CHECK(ER)/CHECK(ME)
     var fRtndta = DspfWriter.getFileFlagKeyword(kw, 'RTNDTA');
     inp += gatedFlagRow(p + '-rtndta', 'Return same input data on next read (RTNDTA)', fRtndta.present, undefined, undefined, i121bConds('RTNDTA', fRtndta.conditions), expandedSet);
     panels.input = inp;
@@ -6084,7 +6085,8 @@
     var ov = gatedFlagRow(p + '-overlay', 'Overlay without erasing (OVERLAY)', fOverlay.present, undefined, undefined, fOverlay.conditions, expandedSet);
     var fPutretain = DspfWriter.getFileFlagKeyword(kw, 'PUTRETAIN');
     ov += gatedFlagRow(p + '-putretain', 'Retain data on re-display (PUTRETAIN)', fPutretain.present, undefined, undefined, fPutretain.conditions, expandedSet);
-    // Task I-165 - advisory only: the DDS Reference says a warning is issued at file creation when PUTRETAIN and DSPMOD share a record.
+    // Advisory only: the DDS Reference says a warning is issued at file creation when PUTRETAIN and
+    // DSPMOD share a record.
     var putretainNote = DspfWriter.putretainDspmodAdvisory(kw, []);
     if (putretainNote) ov += '<div class="hint-small kw-cond-warning">' + escapeHtml(putretainNote) + '</div>';
     var fProtect = DspfWriter.getFileFlagKeyword(kw, 'PROTECT');
@@ -6106,9 +6108,9 @@
     panels.overlay = ov;
 
     // --- Print ---
-    // Task I-2 (keywordFixes.md): see file-level Print's own comment -
-    // "System handles print" writes PRINT's own parameter form, not a
-    // separate (non-existent) PRTFILE keyword.
+    // See file-level Print's own comment - "System handles print"
+    // writes PRINT's own parameter form, not a separate (non-existent)
+    // PRTFILE keyword.
     panels.print = ok('PRINT') ? recordPrintPanelHtml(kw, p, expandedSet) : '';
 
     // A USRDFN record has no Output subtab (Task R2); its one applicable
@@ -6170,20 +6172,19 @@
   // empty). So R2 is pure wiring - renderRecordProps narrows
   // recordKeywordsPanelsHtml's subtabs to the matching subset when the
   // record is USRDFN - not a new getX/setX pair or a new panel. (Task
-  // L5d-ii later moved Application help off THIS record-level set
-  // entirely, for every record type including USRDFN - see
+  // L5d-ii later moved Application help off THIS record-level set entirely,
+  // for every record type including USRDFN - see
   // applicationHelpFieldsHtml's own doc comment - so today's narrowed
   // USRDFN subset is General/Help/Print, 3 of R1's remaining 7; that's a
   // side effect of L5d-ii's correctness fix, not a re-litigation of this
-  // task's own finding about what real SDA's menu shows. Task I-114 later
-  // added a fourth, Indicator, limited to HELP/HLPRTN - the two whitelisted
-  // kinds that had no other row - so the subset is now General/Indicator/
+  // task's own finding about what real SDA's menu shows. Task later added a
+  // fourth, Indicator, limited to HELP/HLPRTN - the two whitelisted kinds
+  // that had no other row - so the subset is now General/Indicator/
   // Help/Print, a deliberate departure from real SDA's menu.) The USRDFN
-  // keyword's own parameter (which field carries the formatted data -
-  // see buildTypedRecordPlan) isn't part of any of these screens either;
-  // it stays reachable through the Advanced/raw keywords accordion, same
-  // "no screen of its own"
-  // reasoning.
+  // keyword's own parameter (which field carries the formatted data - see
+  // buildTypedRecordPlan) isn't part of any of these screens either; it
+  // stays reachable through the Advanced/raw keywords accordion, same "no
+  // screen of its own" reasoning.
   // ---------------------------------------------------------------------
 
   /** Whether `rec` is a user-defined-format (USRDFN) record - defined by
@@ -6197,14 +6198,15 @@
     return (rec.keywords || []).some(function (k) { return k.name === 'USRDFN'; });
   }
 
-  /** Task I-105 - whether the closed whitelist of `restrictTo` ('USRDFN' |
-   *  'SFL' | 'MNUBAR', or a falsy value for "no restriction") allows
-   *  `keywordName` on a record of that type. Delegates to the same
-   *  DspfWriter whitelist functions the guards use, so the rows shown and
-   *  the rows accepted can never disagree. Task I-115 adds 'SFLMSG': a
-   *  message subfile (SFL + SFLMSGRCD) - the same sflWhitelistConflictReason,
-   *  whose message-subfile branch allows SFL and SFLMSGRCD only, so no
-   *  Keywords-tab row passes. */
+  /**
+   * Whether the closed whitelist of `restrictTo` ('USRDFN' | 'SFL' |
+   * 'MNUBAR', or a falsy value for "no restriction") allows `keywordName` on
+   * a record of that type. Delegates to the same DspfWriter whitelist
+   * functions the guards use, so the rows shown and the rows accepted can
+   * never disagree. Task I-115 adds 'SFLMSG': a message subfile (SFL +
+   * SFLMSGRCD) - the same sflWhitelistConflictReason, whose message-subfile
+   * branch allows SFL and SFLMSGRCD only, so no Keywords-tab row passes.
+   */
   function recordRestrictionAllows(restrictTo, keywordName) {
     if (!restrictTo) return true;
     var marker = restrictTo === 'SFLMSG' ? [{ name: 'SFL' }, { name: 'SFLMSGRCD' }] : [{ name: restrictTo }];
@@ -6215,11 +6217,13 @@
     return !reason;
   }
 
-  /** Task I-105 - which closed whitelist governs `rec`'s Keywords tab, or
-   *  null when none does. USRDFN first, then a message subfile (SFLMSG -
-   *  Task I-115: its whitelist is SFLMSGRCD only, so every row is hidden and
-   *  only the raw editor and Conditioning remain on the tab), then plain SFL,
-   *  then MNUBAR. Passed as recordKeywordsPanelsHtml's `restrictTo`. */
+  /**
+   * Which closed whitelist governs `rec`'s Keywords tab, or null when none
+   * does. USRDFN first, then a message subfile (SFLMSG - its whitelist is
+   * SFLMSGRCD only, so every row is hidden and only the raw editor and
+   * Conditioning remain on the tab), then plain SFL, then MNUBAR. Passed as
+   * recordKeywordsPanelsHtml's `restrictTo`.
+   */
   function recordKeywordsRestriction(rec) {
     if (isUsrDfnRecord(rec)) return 'USRDFN';
     if (isSflMsgRecord(rec)) return 'SFLMSG';
@@ -6388,50 +6392,50 @@
     g += flagRowHtml('sm-sflnxtchg', 'Return this record on read next changed (SFLNXTCHG)', fSflnxtchg.present, undefined, undefined, fSflnxtchg.conditions, expandedSet);
     var fLogout = DspfWriter.getFileFlagKeyword(kw, 'LOGOUT');
     g += flagRowHtml('sm-logout', 'Write this record to the job log on output (LOGOUT)', fLogout.present, undefined, undefined, fLogout.conditions, expandedSet);
-    // Task I-23: this record already has SFLMSGRCD (it's a message
-    // subfile), and IBM's own DDS Reference documents LOGOUT as ignored
-    // in that case - advisory only, see
+    // This record already has SFLMSGRCD (it's a message subfile), and
+    // IBM's own DDS Reference documents LOGOUT as ignored in that case
+    // - advisory only, see
     // DspfWriter.loginpLogoutSflMsgRcdIgnoredNote's own doc comment.
     if (fLogout.present) {
       var logoutNote = DspfWriter.loginpLogoutSflMsgRcdIgnoredNote('LOGOUT', kw);
       if (logoutNote) g += '<div class="hint-small">' + escapeHtml(logoutNote) + '</div>';
     }
-    // Task I-98: LOGINP - "Option indicators are not valid for this
-    // keyword." Same as the SFL panel since I-9 (sflKeywordsPanelsHtml):
-    // no Conditioning toggle. I-11 checked this panel's keyword set against
-    // I-9's but never its conditioning, so the toggle was left in here.
+    // LOGINP - "Option indicators are not valid for this keyword." Same as
+    // the SFL panel since I-9 (sflKeywordsPanelsHtml): no Conditioning
+    // toggle. I-11 checked this panel's keyword set against the but never
+    // its conditioning, so the toggle was left in here.
     var fLoginp = DspfWriter.getFileFlagKeyword(kw, 'LOGINP');
     g += flagRowHtml('sm-loginp', 'Write this record to the job log on input (LOGINP)', fLoginp.present, undefined, undefined, undefined, undefined);
     if (fLoginp.present) {
       var loginpNote = DspfWriter.loginpLogoutSflMsgRcdIgnoredNote('LOGINP', kw);
       if (loginpNote) g += '<div class="hint-small">' + escapeHtml(loginpNote) + '</div>';
     }
-    // Task I-25: KEEP (shown on real SDA's own "Select Subfile Message
-    // Keywords" screen) is deliberately NOT repeated here anymore - it's
-    // already on Task R1's base Record Keywords -> General tab, shown for
-    // every record type including this one, so a second live copy here was
-    // just two controls fighting over the same keyword (same rationale
-    // I-25 applied to the SFL/SFLCTL tabs' own KEEP copies below).
-    // Task I-117: CHECK(AB)/CHECK(RL)/CHGINPDFT rows used to live here too,
-    // and offered/committed with no alert even though the DDS Reference's
-    // SFL section puts all three ONLY on its "for all other subfiles" list,
+    // KEEP (shown on real SDA's own "Select Subfile Message Keywords"
+    // screen) is deliberately NOT repeated here anymore - it's already on
+    // Task R1's base Record Keywords -> General tab, shown for every record
+    // type including this one, so a second live copy here was just two
+    // controls fighting over the same keyword (same rationale I-25 applied
+    // to the SFL/SFLCTL tabs' own KEEP copies below).
+    // CHECK(AB)/CHECK(RL)/CHGINPDFT rows used to live here too, and
+    // offered/committed with no alert even though the DDS Reference's SFL
+    // section puts all three ONLY on its "for all other subfiles" list,
     // never on the "for message subfiles" list (SFLMSGRCD/SFLMSGKEY/
     // SFLPGMQ) - the exact same closed-list text sflWhitelistConflictReason
-    // already enforces for the raw editor and the base Keywords tab (I-46,
-    // I-115). Unlike LOGINP/LOGOUT just below, neither CHECK's own section
-    // nor CHGINPDFT's own section restates any message-subfile-specific
-    // behavior at all (I-23's audit), so there is no "ignored, but
-    // harmless" finding to justify an advisory-only row the way LOGINP/
-    // LOGOUT get one - they are simply not part of this record type's
-    // keyword set, so the rows are dropped rather than kept with a note.
+    // already enforces for the raw editor and the base Keywords tab. Unlike
+    // LOGINP/LOGOUT just below, neither CHECK's own section nor CHGINPDFT's
+    // own section restates any message-subfile-specific behavior at all
+    // (the audit), so there is no "ignored, but harmless" finding to
+    // justify an advisory-only row the way LOGINP/ LOGOUT get one - they
+    // are simply not part of this record type's keyword set, so the rows
+    // are dropped rather than kept with a note.
     g += '<div class="hint-small">Besides SFL, a message-subfile record accepts only SFLMSGRCD, so the base Record Keywords rows (KEEP, CHECK(AB)/CHECK(RL), CHGINPDFT, and the rest) are not offered here \u2013 the Keywords tab keeps only the raw editor and Conditioning.</div>';
     panels.general = g;
 
     // --- Indicator ---
-    // Task I-117: INDTXT/SETOF/CHANGE used to render here as a repeatable
-    // row list (indicatorTextRowsHtml) and committed with no alert, but -
-    // same finding as the General panel's CHECK(AB)/CHECK(RL)/CHGINPDFT
-    // rows just above - all three are on the SFL section's "for all other
+    // INDTXT/SETOF/CHANGE used to render here as a repeatable row list
+    // (indicatorTextRowsHtml) and committed with no alert, but - same
+    // finding as the General panel's CHECK(AB)/CHECK(RL)/CHGINPDFT rows
+    // just above - all three are on the SFL section's "for all other
     // subfiles" list only, never the message-subfile one, and none of the
     // three has an individual "ignored on a message subfile" statement the
     // way LOGINP/LOGOUT do. Dropped for the same reason; a hand-written
@@ -6447,131 +6451,94 @@
    *  passed to recordKeywordsPanelsHtml(). */
   function wireRecordKeywordsPanels(idPrefix, getKeywords, onChange, expandedSet, rerender, getFileKeywords) {
     var p = idPrefix;
-    // Task I-7: several keywords below were noConditioning=true under the
-    // old plain simple() wiring - IBM's own DDS Reference states "Option
-    // indicators are not valid for this keyword" for each (INZRCD/ASSUME/
-    // ALWROL/HLPCMDKEY/SLNO/CLRL/LOGINP/GETRETAIN/RTNDTA), same pattern
-    // I-3 already established at file level for CHGINPDFT/OPENPRT/etc.
-    // Task I-44: this panel's own local simple() helper (a thin wrapper
-    // around wireFlagRow with no USRDFN check) has been removed - every
-    // row that used it now goes through wireUsrdfnGuardedFlag/
-    // wireUsrdfnGuardedTwoField/wirePulldownGuardedFlag instead (see each
-    // row's own I-44 comment below for why), so nothing in this function
-    // calls plain wireFlagRow directly anymore except the two
-    // CHECK(AB)/CHECK(RL) rows and the Print row below, neither of which
-    // this task's 33-keyword list names.
-    // Task I-8/I-13: ALWROL/ASSUME/HLPCMDKEY are each individually
-    // documented by the DDS Reference as incompatible with a USRDFN
-    // record (usrdfnConflictReason), and ALWROL/ASSUME (but not
-    // HLPCMDKEY) are separately individually documented as incompatible
-    // with a PULLDOWN record too (pulldownConflictReason) - see each
-    // function's own doc comment for citations. Checking both here is
-    // harmless for HLPCMDKEY (pulldownConflictReason returns null for it,
-    // it's not on PULLDOWN's own forbidden list). Same alert+revert idiom
-    // as I-11's SFLNXTCHG guard; plain simple()/wireFlagRow has no hook to
-    // intercept the on-transition, so these are hand-wired here instead.
-    // Task I-12: ALWROL/ASSUME are ALSO individually documented as
-    // incompatible with a WINDOW record (see DspfWriter.
-    // windowConflictReason's own doc comment) - `alsoCheckWindow` lets
-    // those two call sites layer that third check on top of the
-    // existing USRDFN/PULLDOWN ones, without dragging WINDOW into
-    // HLPCMDKEY's own guard below (WINDOW's own DDS Reference text
-    // doesn't name HLPCMDKEY at all).
-    // Task I-28: ALWROL is ALSO individually documented as incompatible
-    // with KEEP (see DspfWriter.keepMutexConflictReason's own doc
-    // comment) - `alsoCheckKeep` layers that fourth check on top of the
-    // existing USRDFN/PULLDOWN/WINDOW ones, without dragging KEEP into
-    // ASSUME's or HLPCMDKEY's own guards below (neither is on KEEP's own
-    // exclusion list).
-    // Task I-36: ALWROL is ALSO individually documented as incompatible
-    // with the record named by file-level PASSRCD (see DspfWriter.
-    // passrcdRecordConflictReason's own doc comment, and I-24's own
-    // WINDOW-vs-PASSRCD guard this reuses the same primitive for) -
-    // `alsoCheckPassrcd` layers a fifth check on top, using `p`/
-    // `getFileKeywords` already in this outer function's own closure to
-    // get this record's own name and the file's current PASSRCD value.
-    // Task I-37: ALWROL/CLRL/SLNO's own DDS Reference sections also list
-    // ASSUME/SFL/SFLCTL/USRDFN as mutually exclusive with themselves,
-    // and ASSUME's own section confirms the reverse for ALWROL/CLRL/
-    // SLNO - see DspfWriter.alwrolClrlSlnoConflictReason's own doc
-    // comment. Deliberately unconditional (not behind a 6th alsoCheckX
-    // param): it returns null for every keywordName other than ALWROL/
-    // CLRL/SLNO/ASSUME, so it's a safe no-op for this function's other
-    // caller (HLPCMDKEY).
-    // Task I-44: two new trailing params, both defaulting to the exact
-    // prior behavior (no params box, no Conditioning toggle) so ASSUME/
-    // ALWROL/HLPCMDKEY above are completely unaffected. `hasParams` mirrors
-    // simple()'s/wirePulldownGuardedFlag's own flag for the I-44 call
-    // site that needs it (DSPMOD; RETLCKSTS's own hasParams=true was fixed
-    // to false by I-50, since RETLCKSTS's own DDS Reference text says
-    // "This keyword has no parameters"). `withConditioning` wires the same live Conditioning toggle
-    // simple()'s own noConditioning=false default provides, for the I-44
-    // call sites whose keyword is individually documented "Option
-    // indicators are valid for this keyword" (unlike ASSUME/ALWROL/
-    // HLPCMDKEY, none of which offered a toggle here before either).
-    // Task I-45 (split off from the same I-44 finding): DSPMOD's own DDS
-    // Reference text has a SEPARATE, unrelated-to-USRDFN prerequisite -
-    // "valid only when both the 24 x 80 and 27 x 132 display sizes are
-    // specified on the DSPSIZ keyword" (see DspfWriter.
-    // dspmodDspsizPrerequisiteReason's own doc comment). `alsoCheckDspsiz`
-    // layers that sixth check on top, using `getFileKeywords` already in
-    // this outer function's own closure (same as `alsoCheckPassrcd`
-    // above) - unlike PASSRCD's check, this one doesn't need this
-    // record's own name (`p`), since DSPSIZ is purely a file-level
-    // condition with no per-record targeting. Defaults falsy for every
-    // other caller (ASSUME/ALWROL/HLPCMDKEY/BLINK/MSGALARM/LOCK/LOGOUT),
-    // none of which has any DSPSIZ-related rule of their own.
-    // Task I-52 (gap found while implementing I-45): DSPMOD's own DDS
-    // Reference text has a SECOND, independent prerequisite - it cannot
-    // be specified on a plain SFL (subfile detail) record at all, since
-    // that record's display mode already follows its own SFLCTL record's
-    // DSPMOD - see DspfWriter.dspmodSflConflictReason's own doc comment
-    // for why SFLCTL itself is deliberately exempt. Wired unconditionally
-    // (same "safe no-op for every other caller" shape as
-    // alwrolClrlSlnoConflictReason just below it), no new trailing param
-    // needed since the check function itself is scoped to keywordName
-    // === 'DSPMOD'.
-    // Task I-53 - sweeps the structured record-level checkboxes for the
-    // gap I-46 found and left open in its own doc comment: I-46 only
-    // closed the raw keyword editor's own bypass of SFL's whitelist
-    // (DspfWriter.sflWhitelistConflictReason's own doc comment has the
-    // full SFL-vs-SFLCTL citation). Every keyword wired through this
-    // function - the 4 originally-reachable-on-USRDFN ones I-44 found
-    // plus the 25 defense-in-depth ones - is now ALSO checked against
-    // SFL's own closed whitelist, unconditionally (like
-    // alwrolClrlSlnoConflictReason/dspmodSflConflictReason just above):
-    // the function itself returns null for anything already on SFL's
-    // whitelist (e.g. LOGINP/LOGOUT, both wired through this same
-    // function) or when the record isn't SFL at all, so this is a safe,
-    // no-behavior-change addition for every non-SFL caller and every
-    // already-whitelisted keyword.
-    // Task I-54 - sweeps these same structured record-level checkboxes for
-    // the identical gap I-48 found and left open in its own doc comment
-    // (mirroring I-53's own sweep for SFL's whitelist, just above/below):
-    // I-48 only closed the raw keyword editor's own bypass of MNUBAR's
-    // whitelist (DspfWriter.mnubarWhitelistConflictReason's own doc
-    // comment has the full citation and keyword list). Every keyword
-    // wired through this function is now ALSO checked against MNUBAR's
-    // own closed whitelist, unconditionally - the function itself returns
-    // null for anything already on MNUBAR's whitelist (e.g. LOGINP,
-    // wired through this same function but not on MNUBAR's own list -
-    // actually IS blocked, matching I-54's own enumerated 25) or when the
-    // record isn't MNUBAR at all, so this is a safe, no-behavior-change
-    // addition for every non-MNUBAR caller and every already-whitelisted
-    // keyword (CSRLOC/DSPMOD/HLPCMDKEY/etc., each wired through this same
-    // function, are all on MNUBAR's own whitelist and so see no change).
+    // Several keywords below were noConditioning=true under the old plain simple() wiring - IBM's
+    // own DDS Reference states "Option indicators are not valid for this keyword" for each
+    // (INZRCD/ASSUME/ ALWROL/HLPCMDKEY/SLNO/CLRL/LOGINP/GETRETAIN/RTNDTA), same pattern already
+    // established at file level for CHGINPDFT/OPENPRT/etc. this panel's own local simple() helper
+    // (a thin wrapper around wireFlagRow with no USRDFN check) has been removed - every row that
+    // used it now goes through wireUsrdfnGuardedFlag/
+    // wireUsrdfnGuardedTwoField/wirePulldownGuardedFlag instead (see each row's own comment below
+    // for why), so nothing in this function calls plain wireFlagRow directly anymore except the two
+    // CHECK(AB)/CHECK(RL) rows and the Print row below, neither of which this task's 33-keyword
+    // list names. ALWROL/ASSUME/HLPCMDKEY are each individually documented by the DDS Reference as
+    // incompatible with a USRDFN record (usrdfnConflictReason), and ALWROL/ASSUME (but not
+    // HLPCMDKEY) are separately individually documented as incompatible with a PULLDOWN record too
+    // (pulldownConflictReason) - see each function's own doc comment for citations. Checking both
+    // here is harmless for HLPCMDKEY (pulldownConflictReason returns null for it, it's not on
+    // PULLDOWN's own forbidden list). Same alert+revert idiom as the SFLNXTCHG guard; plain
+    // simple()/wireFlagRow has no hook to intercept the on-transition, so these are hand-wired here
+    // instead. ALWROL/ASSUME are ALSO individually documented as incompatible with a WINDOW record
+    // (see DspfWriter. windowConflictReason's own doc comment) - `alsoCheckWindow` lets those two
+    // call sites layer that third check on top of the existing USRDFN/PULLDOWN ones, without
+    // dragging WINDOW into HLPCMDKEY's own guard below (WINDOW's own DDS Reference text doesn't
+    // name HLPCMDKEY at all). ALWROL is ALSO individually documented as incompatible with KEEP (see
+    // DspfWriter.keepMutexConflictReason's own doc comment) - `alsoCheckKeep` layers that fourth
+    // check on top of the existing USRDFN/PULLDOWN/WINDOW ones, without dragging KEEP into ASSUME's
+    // or HLPCMDKEY's own guards below (neither is on KEEP's own exclusion list). ALWROL is ALSO
+    // individually documented as incompatible with the record named by file-level PASSRCD (see
+    // DspfWriter. passrcdRecordConflictReason's own doc comment, and the WINDOW-vs-PASSRCD guard
+    // this reuses the same primitive for) - `alsoCheckPassrcd` layers a fifth check on top, using
+    // `p`/ `getFileKeywords` already in this outer function's own closure to get this record's own
+    // name and the file's current PASSRCD value. ALWROL/CLRL/SLNO's own DDS Reference sections also
+    // list ASSUME/SFL/SFLCTL/USRDFN as mutually exclusive with themselves, and ASSUME's own section
+    // confirms the reverse for ALWROL/CLRL/ SLNO - see DspfWriter.alwrolClrlSlnoConflictReason's
+    // own doc comment. Deliberately unconditional (not behind a 6th alsoCheckX param): it returns
+    // null for every keywordName other than ALWROL/ CLRL/SLNO/ASSUME, so it's a safe no-op for this
+    // function's other caller (HLPCMDKEY). two new trailing params, both defaulting to the exact
+    // prior behavior (no params box, no Conditioning toggle) so ASSUME/ ALWROL/HLPCMDKEY above are
+    // completely unaffected. `hasParams` mirrors simple()'s/wirePulldownGuardedFlag's own flag for
+    // the call site that needs it (DSPMOD; RETLCKSTS's own hasParams=true was fixed to false by
+    // I-50, since RETLCKSTS's own DDS Reference text says "This keyword has no parameters").
+    // `withConditioning` wires the same live Conditioning toggle simple()'s own
+    // noConditioning=false default provides, for the call sites whose keyword is individually
+    // documented "Option indicators are valid for this keyword" (unlike ASSUME/ALWROL/ HLPCMDKEY,
+    // none of which offered a toggle here before either). DSPMOD's own DDS Reference text has a
+    // SEPARATE, unrelated-to-USRDFN prerequisite - "valid only when both the 24 x 80 and 27 x 132
+    // display sizes are specified on the DSPSIZ keyword" (see DspfWriter.
+    // dspmodDspsizPrerequisiteReason's own doc comment). `alsoCheckDspsiz` layers that sixth check
+    // on top, using `getFileKeywords` already in this outer function's own closure (same as
+    // `alsoCheckPassrcd` above) - unlike PASSRCD's check, this one doesn't need this record's own
+    // name (`p`), since DSPSIZ is purely a file-level condition with no per-record targeting.
+    // Defaults falsy for every other caller (ASSUME/ALWROL/HLPCMDKEY/BLINK/MSGALARM/LOCK/LOGOUT),
+    // none of which has any DSPSIZ-related rule of their own. DSPMOD's own DDS Reference text has a
+    // SECOND, independent prerequisite - it cannot be specified on a plain SFL (subfile detail)
+    // record at all, since that record's display mode already follows its own SFLCTL record's
+    // DSPMOD - see DspfWriter.dspmodSflConflictReason's own doc comment for why SFLCTL itself is
+    // deliberately exempt. Wired unconditionally (same "safe no-op for every other caller" shape as
+    // alwrolClrlSlnoConflictReason just below it), no new trailing param needed since the check
+    // function itself is scoped to keywordName === 'DSPMOD'. Sweeps the structured record-level
+    // checkboxes for the gap I-46 found and left open in its own doc comment: only closed the raw
+    // keyword editor's own bypass of SFL's whitelist (DspfWriter.sflWhitelistConflictReason's own
+    // doc comment has the full SFL-vs-SFLCTL citation). Every keyword wired through this function -
+    // the 4 originally-reachable-on-USRDFN ones I-44 found plus the 25 defense-in-depth ones - is
+    // now ALSO checked against SFL's own closed whitelist, unconditionally (like
+    // alwrolClrlSlnoConflictReason/dspmodSflConflictReason just above): the function itself returns
+    // null for anything already on SFL's whitelist (e.g. LOGINP/LOGOUT, both wired through this
+    // same function) or when the record isn't SFL at all, so this is a safe, no-behavior-change
+    // addition for every non-SFL caller and every already-whitelisted keyword. Sweeps these same
+    // structured record-level checkboxes for the identical gap I-48 found and left open in its own
+    // doc comment (mirroring the sweep for SFL's whitelist, just above/below): only closed the raw
+    // keyword editor's own bypass of MNUBAR's whitelist (DspfWriter.mnubarWhitelistConflictReason's
+    // own doc comment has the full citation and keyword list). Every keyword wired through this
+    // function is now ALSO checked against MNUBAR's own closed whitelist, unconditionally - the
+    // function itself returns null for anything already on MNUBAR's whitelist (e.g. LOGINP, wired
+    // through this same function but not on MNUBAR's own list - actually IS blocked, matching the
+    // enumerated 25) or when the record isn't MNUBAR at all, so this is a safe, no-behavior-change
+    // addition for every non-MNUBAR caller and every already-whitelisted keyword
+    // (CSRLOC/DSPMOD/HLPCMDKEY/etc., each wired through this same function, are all on MNUBAR's own
+    // whitelist and so see no change).
     function wireUsrdfnGuardedFlag(id, name, alsoCheckWindow, alsoCheckKeep, alsoCheckPassrcd, hasParams, withConditioning, alsoCheckDspsiz) {
       var onEl = document.getElementById(id + '-on');
       var paramsEl = hasParams ? document.getElementById(id + '-params') : null;
       function commit(conditions) {
         var present = onEl.checked;
         var params = paramsEl ? paramsEl.value : '';
-        // Task I-111: the checks below are ADDITION checks, so they run on a real
-        // turn-on only - the box is ticked AND the keyword was not already there
-        // (I-84's "transition" definition, which fixed the same flaw for
-        // RTNCSRLOC). Editing the parameter text or the Conditioning of a keyword
-        // a hand-written record already carries is not an addition, and refusing it
-        // with "... cannot be added" was wrong and blocked tidying an invalid record.
+        // The checks below are ADDITION checks, so they run on a real turn-on only -
+        // the box is ticked AND the keyword was not already there (I-84's
+        // "transition" definition, which fixed the same flaw for RTNCSRLOC). Editing
+        // the parameter text or the Conditioning of a keyword a hand-written record
+        // already carries is not an addition, and refusing it with "... cannot be
+        // added" was wrong and blocked tidying an invalid record.
         var turningOn = present && !DspfWriter.getFileFlagKeyword(getKeywords(), name).present;
         if (turningOn) {
           var reason = DspfWriter.usrdfnConflictReason(name, getKeywords()) ||
@@ -6598,32 +6565,30 @@
         wireFlagRowConditioning(id, DspfWriter.getFileFlagKeyword(getKeywords(), name).conditions, commit, expandedSet, rerender);
       }
     }
-    // Task I-8/I-13: HLPSEQ's own guard - same rule (and, per I-13, HLPSEQ
-    // is ALSO individually on PULLDOWN's own forbidden list, unlike
-    // HLPCMDKEY above), but HLPSEQ has no on/off checkbox of its own
-    // (getFileTwoFieldKeyword/setFileTwoFieldKeyword's "present" is
-    // implied by either text box being non-blank, per their own doc
-    // comments), so the on-transition here is "either box just became
-    // non-blank" rather than a checkbox flipping true.
-    // Task I-44: three new trailing params (ownerKey/condExpandedSet/
-    // condRerender) so this can replace CSRLOC's own plain wireFlagRow-style
-    // two-field wiring without dropping its existing
-    // live Conditioning toggle - CSRLOC is individually documented "Option
-    // indicators are valid for this keyword" (unlike HLPSEQ below, whose
-    // own call site omits all three and keeps its pre-existing
-    // noConditioning behavior unchanged).
-    // Task I-54 - same unconditional MNUBAR-whitelist addition as
-    // wireUsrdfnGuardedFlag's own I-54 comment above (HLPSEQ/CSRLOC, the
-    // two keywords wired through this function, are each covered by
-    // I-54's own enumerated sweep/MNUBAR's own whitelist respectively).
+    // HLPSEQ's own guard - same rule (and, per I-13, HLPSEQ is ALSO
+    // individually on PULLDOWN's own forbidden list, unlike HLPCMDKEY
+    // above), but HLPSEQ has no on/off checkbox of its own
+    // (getFileTwoFieldKeyword/setFileTwoFieldKeyword's "present" is implied
+    // by either text box being non-blank, per their own doc comments), so
+    // the on-transition here is "either box just became non-blank" rather
+    // than a checkbox flipping true. three new trailing params
+    // (ownerKey/condExpandedSet/ condRerender) so this can replace CSRLOC's
+    // own plain wireFlagRow-style two-field wiring without dropping its
+    // existing live Conditioning toggle - CSRLOC is individually documented
+    // "Option indicators are valid for this keyword" (unlike HLPSEQ below,
+    // whose own call site omits all three and keeps its pre-existing
+    // noConditioning behavior unchanged). Same unconditional
+    // MNUBAR-whitelist addition as wireUsrdfnGuardedFlag's own comment above
+    // (HLPSEQ/CSRLOC, the two keywords wired through this function, are each
+    // covered by the enumerated sweep/MNUBAR's own whitelist respectively).
     function wireUsrdfnGuardedTwoField(elIdA, elIdB, name, ownerKey, condExpandedSet, condRerender) {
       var elA = document.getElementById(elIdA);
       var elB = document.getElementById(elIdB);
       function commit(conditions) {
         var aVal = elA ? elA.value : '';
         var bVal = elB ? elB.value : '';
-        // Task I-111: real turn-on only - either box just became non-blank AND the
-        // keyword was not already on the record (see wireUsrdfnGuardedFlag's comment).
+        // Real turn-on only - either box just became non-blank AND the keyword was not
+        // already on the record (see wireUsrdfnGuardedFlag's comment).
         var alreadyThere = getKeywords().some(function (k) { return k.name === name; });
         if (((aVal || '').trim() || (bVal || '').trim()) && !alreadyThere) {
           var reason = DspfWriter.usrdfnConflictReason(name, getKeywords()) || DspfWriter.pulldownConflictReason(name, getKeywords()) || DspfWriter.sflWhitelistConflictReason(name, getKeywords()) || DspfWriter.mnubarWhitelistConflictReason(name, getKeywords());
@@ -6643,84 +6608,77 @@
         wireFlagRowConditioning(ownerKey, DspfWriter.getFileTwoFieldKeyword(getKeywords(), name).conditions, commit, condExpandedSet, condRerender);
       }
     }
-    // Task I-13 - PULLDOWN record-level keyword audit. The remaining
-    // keywords on this shared RECORD panel that IBM's own DDS Reference
-    // individually lists, in the PULLDOWN keyword's own section, as
-    // unable to be specified on a record that carries PULLDOWN (and none
-    // of which have any OTHER project already guarding them, unlike
-    // ALWROL/ASSUME/HLPSEQ above) - see
+    // PULLDOWN record-level keyword audit. The remaining keywords on this
+    // shared RECORD panel that IBM's own DDS Reference individually lists, in
+    // the PULLDOWN keyword's own section, as unable to be specified on a
+    // record that carries PULLDOWN (and none of which have any OTHER project
+    // already guarding them, unlike ALWROL/ASSUME/HLPSEQ above) - see
     // DspfWriter.pulldownConflictReason's own doc comment for the full
     // citation and keyword list. Same alert+revert idiom, hand-wired here
     // instead of simple()/wireFlagRow for the same reason as above.
     // `hasParams` mirrors simple()'s own flag for the handful of these
-    // (SLNO/CLRL/MDTOFF/ERASEINP) that carry a free-text parameter box.
-    // Task I-28: SLNO and CLRL are ALSO individually documented as
-    // incompatible with KEEP (see DspfWriter.keepMutexConflictReason's
-    // own doc comment) - `alsoCheckKeep` layers that check on top of the
-    // existing PULLDOWN one for just those two call sites below, without
-    // dragging KEEP into every other keyword this same function wires
-    // (none of the rest is on KEEP's own exclusion list).
-    // Task I-36: SLNO and CLRL are ALSO individually documented as
+    // (SLNO/CLRL/MDTOFF/ERASEINP) that carry a free-text parameter box. SLNO
+    // and CLRL are ALSO individually documented as incompatible with KEEP
+    // (see DspfWriter.keepMutexConflictReason's own doc comment) -
+    // `alsoCheckKeep` layers that check on top of the existing PULLDOWN one
+    // for just those two call sites below, without dragging KEEP into every
+    // other keyword this same function wires (none of the rest is on KEEP's
+    // own exclusion list). SLNO and CLRL are ALSO individually documented as
     // incompatible with the record named by file-level PASSRCD - same
-    // `alsoCheckPassrcd` pattern as wireUsrdfnGuardedFlag's own I-36
-    // addition just above, reusing `p`/`getFileKeywords` from this outer
-    // function's own closure.
-    // Task I-37: CLRL/SLNO's own DDS Reference sections also list
-    // ASSUME/SFL/SFLCTL/USRDFN as mutually exclusive with themselves -
-    // see wireUsrdfnGuardedFlag's own I-37 comment above and
-    // DspfWriter.alwrolClrlSlnoConflictReason's own doc comment.
-    // Deliberately unconditional here too, same reasoning.
-    // Task I-44: usrdfnConflictReason is ALSO deliberately unconditional
-    // here (not behind a 7th alsoCheckX param) for the exact same reason -
-    // USRDFN's own DDS Reference section is a blanket whitelist ("No
-    // file- or record-level keywords apply to this record except
-    // INVITE, KEEP, PASSRCD, HLPRTN, HELP, HLPCLR, PRINT, OPENPRT, and
+    // `alsoCheckPassrcd` pattern as wireUsrdfnGuardedFlag's own addition just
+    // above, reusing `p`/`getFileKeywords` from this outer function's own
+    // closure. CLRL/SLNO's own DDS Reference sections also list
+    // ASSUME/SFL/SFLCTL/USRDFN as mutually exclusive with themselves - see
+    // wireUsrdfnGuardedFlag's own comment above and
+    // DspfWriter.alwrolClrlSlnoConflictReason's own doc comment. Deliberately
+    // unconditional here too, same reasoning. usrdfnConflictReason is ALSO
+    // deliberately unconditional here (not behind a 7th alsoCheckX param) for
+    // the exact same reason - USRDFN's own DDS Reference section is a blanket
+    // whitelist ("No file- or record-level keywords apply to this record
+    // except INVITE, KEEP, PASSRCD, HLPRTN, HELP, HLPCLR, PRINT, OPENPRT, and
     // TEXT"), not a short per-keyword exclusion list, so usrdfnConflictReason
     // correctly returns a reason for every one of this function's 15 I-44
-    // call sites regardless (none is on that whitelist), making this a
-    // safe, uniform addition rather than something needing per-caller
-    // opt-in like alsoCheckKeep/alsoCheckPassrcd above.
-    // Task I-102: that premise stopped being true once HLPCLR and INVITE
-    // (both ON the whitelist) were routed through this function too, and
-    // they were refused on a USRDFN record. usrdfnConflictReason itself now
-    // returns null for a whitelisted keyword, so the unconditional call is
-    // safe for ANY caller again, including a whitelisted one added later.
-    // Task I-51: `withConditioning` (new trailing param, defaulting to the
-    // exact prior behavior - no toggle wired - so every EXISTING caller
-    // that doesn't pass it is unaffected) wires the same live Conditioning
-    // toggle wireUsrdfnGuardedFlag's own I-44 addition provides, for
-    // callers whose keyword is individually documented "Option indicators
-    // are valid/allowed for this keyword": ALARM, ALWGPH, FRCDTA, HLPCLR,
-    // INVITE, OVERLAY, PUTRETAIN, PUTOVR, OVRDTA, OVRATR, MDTOFF,
-    // ERASEINP, ERASE. Before I-51, this function never wired a
-    // Conditioning toggle at all - for those 13, several of whose own
-    // rows already pass a real `conditions` value into `flagRowHtml`
+    // call sites regardless (none is on that whitelist), making this a safe,
+    // uniform addition rather than something needing per-caller opt-in like
+    // alsoCheckKeep/alsoCheckPassrcd above. that premise stopped being true
+    // once HLPCLR and INVITE (both ON the whitelist) were routed through this
+    // function too, and they were refused on a USRDFN record.
+    // usrdfnConflictReason itself now returns null for a whitelisted keyword,
+    // so the unconditional call is safe for ANY caller again, including a
+    // whitelisted one added later. `withConditioning` (new trailing param,
+    // defaulting to the exact prior behavior - no toggle wired - so every
+    // EXISTING caller that doesn't pass it is unaffected) wires the same live
+    // Conditioning toggle wireUsrdfnGuardedFlag's own addition provides, for
+    // callers whose keyword is individually documented "Option indicators are
+    // valid/allowed for this keyword": ALARM, ALWGPH, FRCDTA, HLPCLR, INVITE,
+    // OVERLAY, PUTRETAIN, PUTOVR, OVRDTA, OVRATR, MDTOFF, ERASEINP, ERASE.
+    // Before I-51, this function never wired a Conditioning toggle at all -
+    // for those 13, several of whose own rows already pass a real
+    // `conditions` value into `flagRowHtml`
     // (HLPCLR/INVITE/ALARM/ALWGPH/FRCDTA/OVERLAY/PUTRETAIN/PUTOVR/OVRDTA/
     // OVRATR/MDTOFF/ERASEINP/ERASE all do), the toggle button rendered but
     // silently did nothing when clicked. INZRCD/SLNO/CLRL/RTNDTA are
-    // deliberately NOT in that list even though I-51's own original
-    // finding (keywordFixes.md) also named RTNDTA - re-verified against
-    // RTNDTA's own DDS Reference text while implementing this and found
-    // "Option indicators are not valid for this keyword" (matching its
-    // own row's pre-existing `flagRowHtml(..., undefined, undefined)` -
-    // no toggle ever rendered for it, so there was no dead-control bug to
-    // fix there; I-51's own list was corrected, not followed blindly).
-    // HLPCLR and INVITE, conversely, were NOT in I-51's original list
-    // despite being individually documented "valid"/"allowed" and having
-    // the identical dead-toggle symptom on their own rows - added here
-    // after independently re-checking every wirePulldownGuardedFlag
-    // caller against the DDS Reference rather than trusting that list as
-    // exhaustive.
-    // Task I-53 - see wireUsrdfnGuardedFlag's own I-53 comment above; same
-    // unconditional, safe-for-non-SFL-callers addition here.
-    // Task I-54 - see wireUsrdfnGuardedFlag's own I-54 comment above; same
+    // deliberately NOT in that list even though the original finding
+    // (keywordFixes.md) also named RTNDTA - re-verified against RTNDTA's own
+    // DDS Reference text while implementing this and found "Option indicators
+    // are not valid for this keyword" (matching its own row's pre-existing
+    // `flagRowHtml(..., undefined, undefined)` - no toggle ever rendered for
+    // it, so there was no dead-control bug to fix there; the list was
+    // corrected, not followed blindly). HLPCLR and INVITE, conversely, were
+    // NOT in the original list despite being individually documented
+    // "valid"/"allowed" and having the identical dead-toggle symptom on their
+    // own rows - added here after independently re-checking every
+    // wirePulldownGuardedFlag caller against the DDS Reference rather than
+    // trusting that list as exhaustive. See wireUsrdfnGuardedFlag's own
+    // comment above; same unconditional, safe-for-non-SFL-callers addition
+    // here. See wireUsrdfnGuardedFlag's own comment above; same
     // unconditional, safe-for-non-MNUBAR-callers addition here.
     function wirePulldownGuardedFlag(id, name, hasParams, alsoCheckKeep, alsoCheckPassrcd, withConditioning) {
       var onEl = document.getElementById(id + '-on');
       var paramsEl = hasParams ? document.getElementById(id + '-params') : null;
       function commit(conditions) {
         var present = onEl.checked;
-        // Task I-111: real turn-on only - see wireUsrdfnGuardedFlag's own comment.
+        // Real turn-on only - see wireUsrdfnGuardedFlag's own comment.
         var turningOn = present && !DspfWriter.getFileFlagKeyword(getKeywords(), name).present;
         if (turningOn) {
           var reason = DspfWriter.usrdfnConflictReason(name, getKeywords()) ||
@@ -6744,7 +6702,7 @@
         wireFlagRowConditioning(id, DspfWriter.getFileFlagKeyword(getKeywords(), name).conditions, commit, expandedSet, rerender);
       }
     }
-    // Task I-28: KEEP's own guard - same alert+revert idiom as
+    // KEEP's own guard - same alert+revert idiom as
     // wireUsrdfnGuardedFlag/wirePulldownGuardedFlag above, hand-wired
     // separately (rather than adding a 5th param to one of those) since
     // KEEP itself isn't on USRDFN's or PULLDOWN's own forbidden lists -
@@ -6766,52 +6724,51 @@
       if (onEl) onEl.addEventListener('change', commit);
     }
 
-    // General
-    // Task I-13: INZRCD is on PULLDOWN's own forbidden-keyword list -
+    // General INZRCD is on PULLDOWN's own forbidden-keyword list -
     // wirePulldownGuardedFlag replaces the plain simple() this used to
     // go through (was already noConditioning=true per I-7, unaffected).
-    wirePulldownGuardedFlag(p + '-inzrcd', 'INZRCD', !DspfWriter.takesNoParameters('INZRCD'), false, false, DspfWriter.optionIndicatorsAllowed('INZRCD')); // I-121b
-    // Task I-28: KEEP's own row no longer goes through plain simple() -
-    // see wireKeepGuardedFlag's own doc comment above, and
+    wirePulldownGuardedFlag(p + '-inzrcd', 'INZRCD', !DspfWriter.takesNoParameters('INZRCD'), false, false, DspfWriter.optionIndicatorsAllowed('INZRCD'));
+    // KEEP's own row no longer goes through plain simple() - see
+    // wireKeepGuardedFlag's own doc comment above, and
     // recordKeywordsPanelsHtml's matching I-28 comment on the build side
     // for the Conditioning-toggle half of this same fix.
     wireKeepGuardedFlag(p + '-keep', 'KEEP');
     wireUsrdfnGuardedFlag(p + '-assume', 'ASSUME', true);
     wireUsrdfnGuardedFlag(p + '-alwrol', 'ALWROL', true, true, true);
-    // Task I-44: RETKEY/RETCMDKEY/CSRINPONLY are each individually
-    // record-level keywords with no exclusion list of their own naming
-    // any OTHER specific keyword - the gap was purely USRDFN's own
-    // unenforced whitelist (see wireUsrdfnGuardedFlag's own I-44 comment
-    // above), so plain simple() is replaced here with no other
-    // alsoCheckX flags needed. All three keep their existing Conditioning
-    // toggle (each individually documented "Option indicators are valid
-    // for this keyword" - CSRINPONLY's own DDS Reference section says so
+    // RETKEY/RETCMDKEY/CSRINPONLY are each individually record-level
+    // keywords with no exclusion list of their own naming any OTHER
+    // specific keyword - the gap was purely USRDFN's own unenforced
+    // whitelist (see wireUsrdfnGuardedFlag's own comment above), so plain
+    // simple() is replaced here with no other alsoCheckX flags needed.
+    // All three keep their existing Conditioning toggle (each
+    // individually documented "Option indicators are valid for this
+    // keyword" - CSRINPONLY's own DDS Reference section says so
     // explicitly; RETKEY/RETCMDKEY's shared section doesn't say either
     // way, so their pre-existing toggle is left exactly as it was).
-    wireUsrdfnGuardedFlag(p + '-retkey', 'RETKEY', false, false, false, !DspfWriter.takesNoParameters('RETKEY'), DspfWriter.optionIndicatorsAllowed('RETKEY')); // I-121b
-    wireUsrdfnGuardedFlag(p + '-retcmdkey', 'RETCMDKEY', false, false, false, !DspfWriter.takesNoParameters('RETCMDKEY'), DspfWriter.optionIndicatorsAllowed('RETCMDKEY')); // I-121b
+    wireUsrdfnGuardedFlag(p + '-retkey', 'RETKEY', false, false, false, !DspfWriter.takesNoParameters('RETKEY'), DspfWriter.optionIndicatorsAllowed('RETKEY'));
+    wireUsrdfnGuardedFlag(p + '-retcmdkey', 'RETCMDKEY', false, false, false, !DspfWriter.takesNoParameters('RETCMDKEY'), DspfWriter.optionIndicatorsAllowed('RETCMDKEY'));
     wireUsrdfnGuardedFlag(p + '-csrinponly', 'CSRINPONLY', false, false, false, false, true);
-    // Task I-42 - record-level VALNUM/WRDWRAP go through the same guarded
-    // wire as every other record-level flag, so USRDFN's/SFL's/MNUBAR's own
-    // whitelists (none of the three list either keyword) and PULLDOWN's own
-    // exclusion list are all enforced with no new logic - WRDWRAP on an SFL
-    // record is blocked by sflWhitelistConflictReason, which also covers
-    // WRDWRAP's own "Subfiles do not support WRDWRAP" note. No params, no
+    // Record-level VALNUM/WRDWRAP go through the same guarded wire as every
+    // other record-level flag, so USRDFN's/SFL's/MNUBAR's own whitelists
+    // (none of the three list either keyword) and PULLDOWN's own exclusion
+    // list are all enforced with no new logic - WRDWRAP on an SFL record is
+    // blocked by sflWhitelistConflictReason, which also covers WRDWRAP's
+    // own "Subfiles do not support WRDWRAP" note. No params, no
     // Conditioning ("Option indicators are not valid").
     wireUsrdfnGuardedFlag(p + '-valnum', 'VALNUM', false, false, false, false, false);
     wireUsrdfnGuardedFlag(p + '-wrdwrap', 'WRDWRAP', false, false, false, false, false);
-    // Task I-42 - record-level MOUBTN "+ Add": MOUBTN is on none of the
+    // Record-level MOUBTN "+ Add": MOUBTN is on none of the
     // USRDFN/SFL/MNUBAR whitelists (each a closed list - see I-49/I-46/
     // I-48), so all three are checked, unlike MNUBARDSP's own SFL-only
-    // guard above (I-55). Unconditionally safe, same as the sweep
-    // functions: each check is a no-op unless the record is that type.
+    // guard above. Unconditionally safe, same as the sweep functions:
+    // each check is a no-op unless the record is that type.
     wireMoubtnPanel(getKeywords, onChange, p, expandedSet, rerender, function () {
       return DspfWriter.usrdfnWhitelistConflictReason('MOUBTN', getKeywords()) ||
         DspfWriter.sflWhitelistConflictReason('MOUBTN', getKeywords()) ||
         DspfWriter.mnubarWhitelistConflictReason('MOUBTN', getKeywords());
     }, getFileKeywords, function () { return [getKeywords()]; });
-    // Task I-103: record-level CHGINPDFT is refused on USRDFN and MNUBAR records
-    // (not on either closed whitelist); SFL's list allows it, so that stays accepted.
+    // Record-level CHGINPDFT is refused on USRDFN and MNUBAR records (not on either
+    // closed whitelist); SFL's list allows it, so that stays accepted.
     wireChgInpDftFlag(getKeywords, onChange, p + '-chginpdft', expandedSet, rerender, function (kws) {
       return DspfWriter.usrdfnConflictReason('CHGINPDFT', kws) ||
         DspfWriter.pulldownConflictReason('CHGINPDFT', kws) ||
@@ -6824,56 +6781,53 @@
     // repeatable-instance shell (see recordKeywordsPanelsHtml's matching
     // comment on the build side).
     wireMnubardspPanel(getKeywords, onChange, p, expandedSet, rerender);
-    // Task I-53/I-54: ENTFLDATR is on neither SFL's nor MNUBAR's own
-    // whitelist, and (like PRINT below) bypasses wireUsrdfnGuardedFlag/
+    // ENTFLDATR is on neither SFL's nor MNUBAR's own whitelist, and (like
+    // PRINT below) bypasses wireUsrdfnGuardedFlag/
     // wirePulldownGuardedFlag/wireUsrdfnGuardedTwoField entirely via its
-    // own bespoke Apply-button commit - checked directly here.
-    // Task I-60: USRDFN's own whitelist (INVITE/KEEP/PASSRCD/HLPRTN/HELP/
+    // own bespoke Apply-button commit - checked directly here. USRDFN's
+    // own whitelist (INVITE/KEEP/PASSRCD/HLPRTN/HELP/
     // HLPCLR/PRINT/OPENPRT/TEXT) doesn't include ENTFLDATR either, and
     // I-53/I-54 only ORed the SFL and MNUBAR checks here - so ENTFLDATR
     // could still be applied to a USRDFN record via the General tab (R2's
     // USRDFN tab-narrowing only hides the Indicator/Output/Input/Overlay
-    // categories, not General). Same three-way OR I-42 already uses for
+    // categories, not General). Same three-way OR already uses for
     // MOUBTN's own record-level Add button above; each check is a no-op
     // unless the record is that type.
     wireEntFldAtrEditor(getKeywords, onChange, p + '-entfldatr', expandedSet, rerender, function (name) { return DspfWriter.usrdfnWhitelistConflictReason(name, getKeywords()) || DspfWriter.sflWhitelistConflictReason(name, getKeywords()) || DspfWriter.mnubarWhitelistConflictReason(name, getKeywords()); });
     // Task L77 - hand-wired (like MNUBARDSP above) since RTNCSRLOC's two
     // independent variants each need their own "present" checkbox + name
-    // fields, not a single wireTwoField pair. The two IIFEs are
-    // independent commits - editing one variant's fields never touches
-    // the other's keyword instance (see setRtncsrlocRecNameFields/
+    // fields, not a single wireTwoField pair. The two IIFEs are independent
+    // commits - editing one variant's fields never touches the other's
+    // keyword instance (see setRtncsrlocRecNameFields/
     // setRtncsrlocWindowMouseFields's own "left untouched" comments).
-    // Task I-56: neither IIFE had any guard at all - RTNCSRLOC is not on
-    // SFL's own whitelist (I-46) or MNUBAR's own whitelist (I-48), and
-    // (like ENTFLDATR/PRINT before I-53/I-54) bypasses all three shared
-    // guarded-wiring functions via its own bespoke commit. Same
-    // alert-and-no-op idiom, checked once per commit before either
-    // setRtncsrloc*Fields call.
-    // Task I-77: I-56 deliberately left USRDFN out, citing I-8's audit
-    // ("no incompatibility statement found"). That reasoning did not
-    // survive I-44/I-49: USRDFN's own DDS Reference text is a closed
-    // WHITELIST ("No file- or record-level keywords apply to this record
-    // except INVITE, KEEP, PASSRCD, HLPRTN, HELP, HLPCLR, PRINT, OPENPRT,
-    // and TEXT") and RTNCSRLOC is not on it - an explicit prohibition is
-    // not needed. It is also structurally meaningless there: RTNCSRLOC's
-    // parameters must be hidden (usage H) fields of the same record, and
-    // "No fields are valid for this record" (USRDFN's own text). So the
-    // USRDFN check (I-49's usrdfnWhitelistConflictReason, same one I-60
+    // neither IIFE had any guard at all - RTNCSRLOC is not on SFL's own
+    // whitelist or MNUBAR's own whitelist, and (like ENTFLDATR/PRINT before
+    // I-53/I-54) bypasses all three shared guarded-wiring functions via its
+    // own bespoke commit. Same alert-and-no-op idiom, checked once per
+    // commit before either setRtncsrloc*Fields call. I-56 deliberately left
+    // USRDFN out, citing the audit ("no incompatibility statement found").
+    // That reasoning did not survive I-44/I-49: USRDFN's own DDS Reference
+    // text is a closed WHITELIST ("No file- or record-level keywords apply
+    // to this record except INVITE, KEEP, PASSRCD, HLPRTN, HELP, HLPCLR,
+    // PRINT, OPENPRT, and TEXT") and RTNCSRLOC is not on it - an explicit
+    // prohibition is not needed. It is also structurally meaningless there:
+    // RTNCSRLOC's parameters must be hidden (usage H) fields of the same
+    // record, and "No fields are valid for this record" (USRDFN's own text).
+    // So the USRDFN check (the usrdfnWhitelistConflictReason, same one I-60
     // ORed into ENTFLDATR) is now included - but ONLY on the on-transition
     // (turningOn), unlike the SFL/MNUBAR checks I-56 left as-is: a
-    // hand-edited USRDFN record that already carries RTNCSRLOC must still
-    // be able to have it removed.
-    // Task I-84: that left the SFL/MNUBAR checks running on EVERY commit, so
-    // on an SFL or MNUBAR record with a hand-edited RTNCSRLOC, un-ticking
-    // the box (or just editing its parameters) was refused with a
-    // misleading "cannot be added" alert. All three checks are now gated on
-    // turningOn, and turningOn is the real TRANSITION for the variant being
-    // edited (its box is now ticked AND that variant was not already
-    // present), computed in each commit() below - the same diff-based
-    // posture as I-58/I-61/I-62/I-81: only an edit that INTRODUCES the
-    // conflict is blocked, a record that was already invalid is never
-    // re-reported, and removing the keyword is always allowed. The two
-    // variants are independent, so turning the OTHER one on is still an
+    // hand-edited USRDFN record that already carries RTNCSRLOC must still be
+    // able to have it removed. that left the SFL/MNUBAR checks running on
+    // EVERY commit, so on an SFL or MNUBAR record with a hand-edited
+    // RTNCSRLOC, un-ticking the box (or just editing its parameters) was
+    // refused with a misleading "cannot be added" alert. All three checks
+    // are now gated on turningOn, and turningOn is the real TRANSITION for
+    // the variant being edited (its box is now ticked AND that variant was
+    // not already present), computed in each commit() below - the same
+    // diff-based posture as I-58/I-61/I-62/I-81: only an edit that
+    // INTRODUCES the conflict is blocked, a record that was already invalid
+    // is never re-reported, and removing the keyword is always allowed. The
+    // two variants are independent, so turning the OTHER one on is still an
     // addition and is still blocked.
     function rtncsrlocConflictReason(turningOn) {
       if (!turningOn) return null;
@@ -6935,23 +6889,22 @@
     })();
     var pText = document.getElementById(p + '-text');
     if (pText) pText.addEventListener('change', function () { onChange(DspfWriter.setFileQuotedText(getKeywords(), 'TEXT', pText.value)); });
-    // Task I-13: ALTNAME is on PULLDOWN's own forbidden-keyword list -
-    // same alert+revert guard as wirePulldownGuardedFlag above, but
-    // ALTNAME is a plain text keyword (setFileQuotedText), not a
-    // checkbox, so "present" here means the box just became non-blank.
-    // Task I-108 (raised by I-104 finding C): this row was also missing
-    // the USRDFN/SFL/MNUBAR whitelist checks entirely - IBM's own DDS
-    // Reference lists ALTNAME on none of the three ("ALTNAME is not
-    // allowed on subfile records (SFL keyword)" is explicit; it's simply
-    // absent from USRDFN's and MNUBAR's own closed keyword lists), but
-    // this commit only ever checked PULLDOWN. Same
+    // ALTNAME is on PULLDOWN's own forbidden-keyword list - same
+    // alert+revert guard as wirePulldownGuardedFlag above, but ALTNAME
+    // is a plain text keyword (setFileQuotedText), not a checkbox, so
+    // "present" here means the box just became non-blank. This row was
+    // also missing the USRDFN/SFL/MNUBAR whitelist checks entirely -
+    // IBM's own DDS Reference lists ALTNAME on none of the three
+    // ("ALTNAME is not allowed on subfile records (SFL keyword)" is
+    // explicit; it's simply absent from USRDFN's and MNUBAR's own closed
+    // keyword lists), but this commit only ever checked PULLDOWN. Same
     // usrdfnConflictReason/sflWhitelistConflictReason/
     // mnubarWhitelistConflictReason chain wireUsrdfnGuardedTwoField uses
     // for HLPSEQ/CSRLOC just above - and, per I-111 (landed after this
     // guard was first written), gated on a real turn-on only: the box
     // just became non-blank AND ALTNAME was not already on the record,
     // same "editing an already-present keyword is not an addition"
-    // reasoning as wireUsrdfnGuardedTwoField's own I-111 fix.
+    // reasoning as wireUsrdfnGuardedTwoField's own fix.
     var pAltname = document.getElementById(p + '-altname');
     if (pAltname) pAltname.addEventListener('change', function () {
       var val = pAltname.value;
@@ -6974,90 +6927,85 @@
     // properties (see wireApplicationHelpFields below); nothing to wire
     // here anymore.
 
-    // Help
-    // Task I-13: HLPCLR is on PULLDOWN's own forbidden-keyword list (I-8
+    // Help HLPCLR is on PULLDOWN's own forbidden-keyword list (I-8
     // confirmed it has no USRDFN-side restriction, but PULLDOWN is a
     // separate, unrelated conflict).
-    wirePulldownGuardedFlag(p + '-hlpclr', 'HLPCLR', !DspfWriter.takesNoParameters('HLPCLR'), false, false, DspfWriter.optionIndicatorsAllowed('HLPCLR')); // I-121e
+    wirePulldownGuardedFlag(p + '-hlpclr', 'HLPCLR', !DspfWriter.takesNoParameters('HLPCLR'), false, false, DspfWriter.optionIndicatorsAllowed('HLPCLR'));
     wireUsrdfnGuardedTwoField(p + '-hlpseq-group', p + '-hlpseq-num', 'HLPSEQ');
-    wireUsrdfnGuardedFlag(p + '-hlpcmdkey', 'HLPCMDKEY', false, false, false, !DspfWriter.takesNoParameters('HLPCMDKEY'), DspfWriter.optionIndicatorsAllowed('HLPCMDKEY')); // I-121e
-    // Task I-27: record-level HLPTITLE rebuilt as a repeatable instance
-    // list - see hlptitlePanelHtml's own doc comment above. (This
-    // replaces the old single `#p-hlptitle` input/listener pair I-21 had
-    // wired here; wireFileKeywordsPanel's own file-level HLPTITLE row - a
-    // different, correctly single-instance, unconditioned keyword per
-    // IBM - is untouched and still uses that same id pattern.)
-    // Task I-110: HLPTITLE is on neither USRDFN's nor SFL's closed whitelist (both lists
-    // are exclusive - I-49 / I-46), so "+ Add" is refused there, same as MOUBTN's. MNUBAR's
-    // list allows it (the check is a no-op there), and a plain record is unrestricted.
+    wireUsrdfnGuardedFlag(p + '-hlpcmdkey', 'HLPCMDKEY', false, false, false, !DspfWriter.takesNoParameters('HLPCMDKEY'), DspfWriter.optionIndicatorsAllowed('HLPCMDKEY'));
+    // Record-level HLPTITLE rebuilt as a repeatable instance list - see hlptitlePanelHtml's
+    // own doc comment above. (This replaces the old single `#p-hlptitle` input/listener
+    // pair I-21 had wired here; wireFileKeywordsPanel's own file-level HLPTITLE row - a
+    // different, correctly single-instance, unconditioned keyword per IBM - is untouched
+    // and still uses that same id pattern.) HLPTITLE is on neither USRDFN's nor SFL's
+    // closed whitelist (both lists are exclusive - I-49 / I-46), so "+ Add" is refused
+    // there, same as MOUBTN's. MNUBAR's list allows it (the check is a no-op there), and a
+    // plain record is unrestricted.
     wireHlptitlePanel(getKeywords, onChange, p, expandedSet, rerender, function () {
       return DspfWriter.usrdfnWhitelistConflictReason('HLPTITLE', getKeywords()) ||
         DspfWriter.sflWhitelistConflictReason('HLPTITLE', getKeywords()) ||
         DspfWriter.mnubarWhitelistConflictReason('HLPTITLE', getKeywords());
     });
 
-    // Output
-    // Task I-13: ALARM/INVITE/ALWGPH/FRCDTA/SLNO/CLRL are each on
-    // PULLDOWN's own forbidden-keyword list - wirePulldownGuardedFlag
-    // replaces the plain simple() these used to go through (noConditioning
-    // status per I-3/I-7 is unaffected: SLNO/CLRL still pass no
+    // Output ALARM/INVITE/ALWGPH/FRCDTA/SLNO/CLRL are each on PULLDOWN's
+    // own forbidden-keyword list - wirePulldownGuardedFlag replaces the
+    // plain simple() these used to go through (noConditioning status per
+    // I-3/I-7 is unaffected: SLNO/CLRL still pass no
     // conditions/expandedSet/rerender, matching simple()'s own
-    // noConditioning=true behavior).
-    // Task I-44: BLINK/MSGALARM/LOCK/LOGOUT are each individually
-    // record-level keywords with their own DDS Reference section
-    // confirming "Option indicators are valid for this keyword" and no
-    // OTHER specific-keyword exclusion list - same USRDFN-whitelist-only
-    // gap as RETKEY/RETCMDKEY/CSRINPONLY above, so their existing
-    // Conditioning toggle is preserved via wireUsrdfnGuardedFlag's own
-    // withConditioning flag.
+    // noConditioning=true behavior). BLINK/MSGALARM/LOCK/LOGOUT are each
+    // individually record-level keywords with their own DDS Reference
+    // section confirming "Option indicators are valid for this keyword"
+    // and no OTHER specific-keyword exclusion list - same
+    // USRDFN-whitelist-only gap as RETKEY/RETCMDKEY/CSRINPONLY above, so
+    // their existing Conditioning toggle is preserved via
+    // wireUsrdfnGuardedFlag's own withConditioning flag.
     wireUsrdfnGuardedFlag(p + '-blink', 'BLINK', false, false, false, false, true);
     wirePulldownGuardedFlag(p + '-alarm', 'ALARM', false, false, false, true);
     wireUsrdfnGuardedFlag(p + '-msgalarm', 'MSGALARM', false, false, false, false, true);
     wireUsrdfnGuardedFlag(p + '-lock', 'LOCK', false, false, false, false, true);
-    wireUsrdfnGuardedFlag(p + '-logout', 'LOGOUT', false, false, false, !DspfWriter.takesNoParameters('LOGOUT'), DspfWriter.optionIndicatorsAllowed('LOGOUT')); // I-121e
+    wireUsrdfnGuardedFlag(p + '-logout', 'LOGOUT', false, false, false, !DspfWriter.takesNoParameters('LOGOUT'), DspfWriter.optionIndicatorsAllowed('LOGOUT'));
     wirePulldownGuardedFlag(p + '-invite', 'INVITE', false, false, false, true);
     wirePulldownGuardedFlag(p + '-alwgph', 'ALWGPH', false, false, false, true);
     wirePulldownGuardedFlag(p + '-frcdta', 'FRCDTA', false, false, false, true);
-    // Task I-45: DSPMOD's own separate DSPSIZ(*DS3 *DS4) prerequisite is
-    // now enforced via wireUsrdfnGuardedFlag's `alsoCheckDspsiz` param
-    // (see that function's own doc comment) - hasParams=true and the
-    // existing Conditioning toggle are both preserved unchanged.
-    // Task I-52: DSPMOD's own SECOND prerequisite (blocked on a plain SFL
-    // record) is now ALSO enforced, unconditionally, via
-    // DspfWriter.dspmodSflConflictReason inside wireUsrdfnGuardedFlag
-    // itself - no new param needed at this call site.
+    // DSPMOD's own separate DSPSIZ(*DS3 *DS4) prerequisite is now
+    // enforced via wireUsrdfnGuardedFlag's `alsoCheckDspsiz` param (see
+    // that function's own doc comment) - hasParams=true and the existing
+    // Conditioning toggle are both preserved unchanged. DSPMOD's own
+    // SECOND prerequisite (blocked on a plain SFL record) is now ALSO
+    // enforced, unconditionally, via DspfWriter.dspmodSflConflictReason
+    // inside wireUsrdfnGuardedFlag itself - no new param needed at this
+    // call site.
     wireUsrdfnGuardedFlag(p + '-dspmod', 'DSPMOD', false, false, false, true, true, true);
-    // Task I-44: CSRLOC's own DDS Reference section explicitly lists
-    // "User-defined record formats (identified by the USRDFN keyword)"
-    // as invalid for this keyword, and separately confirms "Option
-    // indicators are valid for this keyword" - wireUsrdfnGuardedTwoField
-    // (extended this task to also accept the ownerKey/conditioning trio,
-    // see its own doc comment above) replaces the plain wireTwoField this
-    // used to go through, preserving the existing Conditioning toggle.
+    // CSRLOC's own DDS Reference section explicitly lists "User-defined
+    // record formats (identified by the USRDFN keyword)" as invalid for
+    // this keyword, and separately confirms "Option indicators are valid
+    // for this keyword" - wireUsrdfnGuardedTwoField (extended this task
+    // to also accept the ownerKey/conditioning trio, see its own doc
+    // comment above) replaces the plain wireTwoField this used to go
+    // through, preserving the existing Conditioning toggle.
     wireUsrdfnGuardedTwoField(p + '-csrloc-row', p + '-csrloc-col', 'CSRLOC', p + '-csrloc', expandedSet, rerender);
-    // Task I-28: SLNO/CLRL are ALSO individually documented as
-    // incompatible with KEEP - see wirePulldownGuardedFlag's own I-28
-    // comment above. Task I-36: also PASSRCD - see its own I-36 comment.
+    // SLNO/CLRL are ALSO individually documented as incompatible with
+    // KEEP - see wirePulldownGuardedFlag's own comment above. also
+    // PASSRCD - see its own comment.
     wirePulldownGuardedFlag(p + '-slno', 'SLNO', true, true, true);
     wirePulldownGuardedFlag(p + '-clrl', 'CLRL', true, true, true);
 
-    // Input
-    // Task I-44: LOGINP is individually record-level with no per-keyword
+    // Input LOGINP is individually record-level with no per-keyword
     // exclusion list of its own (only the USRDFN-whitelist gap applies) -
     // this row was already noConditioning=true per I-7/I-9 (LOGINP's own
     // DDS Reference text: "Option indicators are not valid for this
     // keyword"), so no hasParams/withConditioning flags are needed -
     // wireUsrdfnGuardedFlag's own defaults already match simple()'s prior
     // noConditioning behavior exactly.
-    wireUsrdfnGuardedFlag(p + '-loginp', 'LOGINP', false, false, false, !DspfWriter.takesNoParameters('LOGINP'), DspfWriter.optionIndicatorsAllowed('LOGINP')); // I-121e
+    wireUsrdfnGuardedFlag(p + '-loginp', 'LOGINP', false, false, false, !DspfWriter.takesNoParameters('LOGINP'), DspfWriter.optionIndicatorsAllowed('LOGINP'));
     var unlockOn = document.getElementById(p + '-unlock-on');
     var unlockErase = document.getElementById(p + '-unlock-erase');
     var unlockMdtoff = document.getElementById(p + '-unlock-mdtoff');
-    // Task I-106: UNLOCK is on neither SFL's nor USRDFN's whitelist (MNUBAR's list
-    // does include it), but this hand-wired row had no guard at all. Refused only on a
-    // real turn-on (UNLOCK not already present - the I-84 lesson), so a hand-edited
-    // record that already carries UNLOCK can still remove it or edit its *ERASE /
-    // *MDTOFF values. Same chain as the sibling record-level guards.
+    // UNLOCK is on neither SFL's nor USRDFN's whitelist (MNUBAR's list does include
+    // it), but this hand-wired row had no guard at all. Refused only on a real turn-on
+    // (UNLOCK not already present - the lesson), so a hand-edited record that already
+    // carries UNLOCK can still remove it or edit its *ERASE / *MDTOFF values. Same
+    // chain as the sibling record-level guards.
     function commitUnlock(conditions) {
       if (unlockOn.checked && !DspfWriter.getUnlockKeyword(getKeywords()).present) {
         var unlockReason = DspfWriter.usrdfnConflictReason('UNLOCK', getKeywords()) ||
@@ -7077,29 +7025,27 @@
     if (unlockOn) unlockOn.addEventListener('change', function () { commitUnlock(); });
     if (unlockErase) unlockErase.addEventListener('change', function () { commitUnlock(); });
     if (unlockMdtoff) unlockMdtoff.addEventListener('change', function () { commitUnlock(); });
-    // Task I-7: UNLOCK - "Option indicators are not valid for this
-    // keyword" - no Conditioning toggle wired (was previously wired here,
-    // a bug).
-    // Task I-44: GETRETAIN - same shape as LOGINP just above (individually
+    // UNLOCK - "Option indicators are not valid for this keyword" - no
+    // Conditioning toggle wired (was previously wired here, a bug).
+    // GETRETAIN - same shape as LOGINP just above (individually
     // record-level, no other exclusion list, was already noConditioning=
     // true per I-7 - "Option indicators are not valid for this keyword").
-    wireUsrdfnGuardedFlag(p + '-getretain', 'GETRETAIN', false, false, false, !DspfWriter.takesNoParameters('GETRETAIN'), DspfWriter.optionIndicatorsAllowed('GETRETAIN')); // I-121b
-    // Task I-44: RETLCKSTS - individually record-level, "Option
-    // indicators are valid for this keyword" per its own DDS Reference
-    // text, so withConditioning=true preserves the existing toggle.
-    // Task I-50: hasParams flipped to false (was true) - that same DDS
-    // Reference text also says "This keyword has no parameters", and the
-    // params box was a pre-existing bug (logged separately, not
-    // introduced or fixed by I-44). Any parameter text an old DSPF might
-    // already carry on this keyword is dropped the next time this row is
-    // edited, matching the fact it was never valid DDS syntax to begin
-    // with.
-    wireUsrdfnGuardedFlag(p + '-retlcksts', 'RETLCKSTS', false, false, false, !DspfWriter.takesNoParameters('RETLCKSTS'), DspfWriter.optionIndicatorsAllowed('RETLCKSTS')); // I-121b
-    // Task I-107 (I-104 finding B): CHECK is on SFL's whitelist but on neither
-    // MNUBAR's nor USRDFN's, and these two hand-wired rows had no guard. Refused only
-    // when that variant (AB / RL) is not already on the record - the I-84 lesson, so a
-    // hand-edited record that already carries it can still remove it - while turning
-    // the OTHER variant on is still an addition and still refused.
+    wireUsrdfnGuardedFlag(p + '-getretain', 'GETRETAIN', false, false, false, !DspfWriter.takesNoParameters('GETRETAIN'), DspfWriter.optionIndicatorsAllowed('GETRETAIN'));
+    // RETLCKSTS - individually record-level, "Option indicators are
+    // valid for this keyword" per its own DDS Reference text, so
+    // withConditioning=true preserves the existing toggle. hasParams
+    // flipped to false (was true) - that same DDS Reference text also
+    // says "This keyword has no parameters", and the params box was a
+    // pre-existing bug (logged separately, not introduced or fixed by
+    // I-44). Any parameter text an old DSPF might already carry on this
+    // keyword is dropped the next time this row is edited, matching the
+    // fact it was never valid DDS syntax to begin with.
+    wireUsrdfnGuardedFlag(p + '-retlcksts', 'RETLCKSTS', false, false, false, !DspfWriter.takesNoParameters('RETLCKSTS'), DspfWriter.optionIndicatorsAllowed('RETLCKSTS'));
+    // CHECK is on SFL's whitelist but on neither MNUBAR's nor USRDFN's, and these two
+    // hand-wired rows had no guard. Refused only when that variant (AB / RL) is not
+    // already on the record - the lesson, so a hand-edited record that already carries
+    // it can still remove it - while turning the OTHER variant on is still an addition
+    // and still refused.
     function recordCheckGuard(id, variant) {
       return function (present) {
         if (!present) return true;
@@ -7115,43 +7061,41 @@
         return false;
       };
     }
-    // Task I-7: CHECK's AB/RL sub-flags - "Option indicators are valid
-    // only for CHECK(ER) and CHECK(ME)" per IBM's own DDS Reference,
-    // neither of which iSDA implements (same finding I-3 already made for
-    // file-level CHECK) - no Conditioning toggle for these two rows.
+    // CHECK's AB/RL sub-flags - "Option indicators are valid only for
+    // CHECK(ER) and CHECK(ME)" per IBM's own DDS Reference, neither of
+    // which iSDA implements (same finding already made for file-level
+    // CHECK) - no Conditioning toggle for these two rows.
     wireFlagRow(p + '-check-ab', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'AB', conditions); }, undefined, undefined, undefined, recordCheckGuard(p + '-check-ab', 'AB'));
     wireFlagRow(p + '-check-rl', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RL', conditions); }, undefined, undefined, undefined, recordCheckGuard(p + '-check-rl', 'RL'));
-    // Task I-13: RTNDTA is on PULLDOWN's own forbidden-keyword list.
-    wirePulldownGuardedFlag(p + '-rtndta', 'RTNDTA', !DspfWriter.takesNoParameters('RTNDTA'), false, false, DspfWriter.optionIndicatorsAllowed('RTNDTA')); // I-121b
+    // RTNDTA is on PULLDOWN's own forbidden-keyword list.
+    wirePulldownGuardedFlag(p + '-rtndta', 'RTNDTA', !DspfWriter.takesNoParameters('RTNDTA'), false, false, DspfWriter.optionIndicatorsAllowed('RTNDTA'));
 
-    // Overlay
-    // Task I-13: OVERLAY/PUTRETAIN/PUTOVR/OVRDTA/OVRATR/MDTOFF/ERASEINP/
+    // Overlay OVERLAY/PUTRETAIN/PUTOVR/OVRDTA/OVRATR/MDTOFF/ERASEINP/
     // ERASE are each on PULLDOWN's own forbidden-keyword list - PROTECT
     // and INZINP are NOT on that list (checked individually against their
     // own DDS Reference sections), left on plain simple().
     wirePulldownGuardedFlag(p + '-overlay', 'OVERLAY', false, false, false, true);
     wirePulldownGuardedFlag(p + '-putretain', 'PUTRETAIN', false, false, false, true);
-    // Task I-44: PROTECT/INZINP are each individually record-level with
-    // "Option indicators are valid for this keyword" per their own DDS
-    // Reference sections and no other specific-keyword exclusion list
-    // (confirmed not on PULLDOWN's own forbidden list either, matching
-    // this same panel's pre-existing I-13 comment above) - same
-    // USRDFN-whitelist-only gap, existing Conditioning toggle preserved.
+    // PROTECT/INZINP are each individually record-level with "Option
+    // indicators are valid for this keyword" per their own DDS Reference
+    // sections and no other specific-keyword exclusion list (confirmed
+    // not on PULLDOWN's own forbidden list either, matching this same
+    // panel's pre-existing comment above) - same USRDFN-whitelist-only
+    // gap, existing Conditioning toggle preserved.
     wireUsrdfnGuardedFlag(p + '-protect', 'PROTECT', false, false, false, false, true);
     wirePulldownGuardedFlag(p + '-putovr', 'PUTOVR', false, false, false, true);
     wirePulldownGuardedFlag(p + '-ovrdta', 'OVRDTA', false, false, false, true);
     wirePulldownGuardedFlag(p + '-ovratr', 'OVRATR', false, false, false, true);
-    wireUsrdfnGuardedFlag(p + '-inzinp', 'INZINP', false, false, false, !DspfWriter.takesNoParameters('INZINP'), DspfWriter.optionIndicatorsAllowed('INZINP')); // I-121b
+    wireUsrdfnGuardedFlag(p + '-inzinp', 'INZINP', false, false, false, !DspfWriter.takesNoParameters('INZINP'), DspfWriter.optionIndicatorsAllowed('INZINP'));
     wirePulldownGuardedFlag(p + '-mdtoff', 'MDTOFF', true, false, false, true);
     wirePulldownGuardedFlag(p + '-eraseinp', 'ERASEINP', true, false, false, true);
     wirePulldownGuardedFlag(p + '-erase', 'ERASE', false, false, false, true);
 
-    // Print
-    // Task S36-4: PRINT's response indicator (including the literal
-    // '*PGM' text) is a verified S36E rule, hard-blocked here the same
-    // hand-rolled (not wireFlagRow) way as the file-level PRINT row.
-    // Task I-2 (keywordFixes.md): "Print file"/"Library" write PRINT's
-    // own *PGM/[library/]printer-file-name parameter form (mutually
+    // Print Task S36-4: PRINT's response indicator (including the
+    // literal '*PGM' text) is a verified S36E rule, hard-blocked here
+    // the same hand-rolled (not wireFlagRow) way as the file-level
+    // PRINT row. "Print file"/"Library" write PRINT's own
+    // *PGM/[library/]printer-file-name parameter form (mutually
     // exclusive with the response indicator field), not a separate
     // (non-existent) PRTFILE keyword - see the file-level wireFilePrint
     // this mirrors for the full rationale.
@@ -7167,8 +7111,8 @@
         var present = onEl.checked;
         var params = assembleParams();
         var violation = present ? DspfWriter.checkS36EResponseIndicatorViolation(getFileKeywords ? getFileKeywords() : [], 'PRINT', params) : null;
-        // Task I-53 - PRINT's own record-level commit is hand-rolled
-        // (bypasses wireUsrdfnGuardedFlag/wirePulldownGuardedFlag/
+        // PRINT's own record-level commit is hand-rolled (bypasses
+        // wireUsrdfnGuardedFlag/wirePulldownGuardedFlag/
         // wireUsrdfnGuardedTwoField entirely, so none of those functions'
         // I-53 addition ever sees it), and PRINT is NOT on SFL's own
         // whitelist (it IS on USRDFN's, which is why usrdfnConflictReason
@@ -7227,19 +7171,19 @@
     var fHlpbdy = DspfWriter.getFileFlagKeyword(kw, 'HLPBDY');
     html += flagRowHtml(p + '-hlpbdy', 'Help boundary (HLPBDY)', fHlpbdy.present, undefined, undefined, fHlpbdy.conditions, expandedSet);
     var fHlpara = DspfWriter.getFileFlagKeyword(kw, 'HLPARA');
-    // Task I-101 batch 4: HLPARA's own section says option indicators are NOT valid
-    // (unlike the other three keywords in this panel, which say they are), so this row
-    // takes no conditions argument - no Conditioning toggle. An existing hand-written
-    // condition is preserved on commit (see wireApplicationHelpFields) and is visible,
-    // with a warning, in the help entry's raw keyword editor.
-    // Task I-161: the five documented forms (four numbers, *RCD, *NONE, *FLD field [choice],
-    // *CNST help-id) were reachable only in the raw keyword editor; the row now carries the
-    // parameter box. It edits the first HLPARA; a second one (a different display size) is
-    // still added in the raw editor, where its display size condition lives.
+    // HLPARA's own section says option indicators are NOT valid (unlike the other three
+    // keywords in this panel, which say they are), so this row takes no conditions argument
+    // - no Conditioning toggle. An existing hand-written condition is preserved on commit
+    // (see wireApplicationHelpFields) and is visible, with a warning, in the help entry's
+    // raw keyword editor. the five documented forms (four numbers, *RCD, *NONE, *FLD field
+    // [choice], *CNST help-id) were reachable only in the raw keyword editor; the row now
+    // carries the parameter box. It edits the first HLPARA; a second one (a different
+    // display size) is still added in the raw editor, where its display size condition
+    // lives.
     html += flagRowHtml(p + '-hlpara', 'Define help area (HLPARA)', fHlpara.present, fHlpara.parameters, 'top left bottom right | *RCD | *NONE | *FLD field [choice] | *CNST help-id', undefined, expandedSet);
-    // Task I-67: HLPDOC's help-specification-level form - I-38 only ever
-    // added the file-level one, deferring this one (same "file-level only,
-    // H-spec deferred" precedent I-5's own HLPRCD entry set). Same
+    // HLPDOC's help-specification-level form - only ever added the
+    // file-level one, deferring this one (same "file-level only, H-spec
+    // deferred" precedent the HLPRCD entry set). Same
     // checkbox-plus-hand-split-3-part-parameters shape as the file-level
     // panel's own HLPDOC row (fileKeywordsPanelsHtml), all three parts
     // required per IBM's format (no brackets around any of them).
@@ -7253,13 +7197,13 @@
   }
 
   /**
-   * getModel/ownSourceLine (both optional) back I-67's HLPDOC/HLPPNLGRP
-   * file-wide conflict guard (DspfWriter.hlpdocHspecConflictReason) - see
-   * that function's own doc comment for why a same-array presence check
-   * isn't enough once HLPDOC/HLPPNLGRP can each live at either the file or
-   * the help-specification level. Callers that can't supply a model (there
-   * are none today; kept optional defensively, same as wireFileKeywordsPanels'
-   * own getModel) simply skip the file-wide half and still get the
+   * getModel/ownSourceLine (both optional) back the HLPDOC/HLPPNLGRP file-wide
+   * conflict guard (DspfWriter.hlpdocHspecConflictReason) - see that
+   * function's own doc comment for why a same-array presence check isn't
+   * enough once HLPDOC/HLPPNLGRP can each live at either the file or the
+   * help-specification level. Callers that can't supply a model (there are
+   * none today; kept optional defensively, same as wireFileKeywordsPanels' own
+   * getModel) simply skip the file-wide half and still get the
    * same-specification HLPBDY guard.
    */
   function wireApplicationHelpFields(idPrefix, getKeywords, onChange, expandedSet, rerender, getModel, ownSourceLine) {
@@ -7269,9 +7213,9 @@
         return DspfWriter.setFileFlagKeyword(keywords, name, present, hasParams ? params : '', undefined, conditions);
       }, DspfWriter.getFileFlagKeyword(getKeywords(), name).conditions, expandedSet, rerender);
     }
-    // Task I-67: HLPPNLGRP's own reverse-direction guard against HLPDOC
-    // existing anywhere in the file (file-wide per HLPPNLGRP's own DDS
-    // Reference section - see hlpdocHspecConflictReason's doc comment) -
+    // HLPPNLGRP's own reverse-direction guard against HLPDOC existing
+    // anywhere in the file (file-wide per HLPPNLGRP's own DDS Reference
+    // section - see hlpdocHspecConflictReason's doc comment) -
     // hand-rolled like HLPBDY just below, since wireFlagRow has no
     // per-keyword conflict hook and this row also carries a parameter box
     // (module/library/panel-group), unlike HLPBDY's bare checkbox.
@@ -7296,11 +7240,11 @@
       wireFlagRowConditioning(p + '-hlppnlgrp', DspfWriter.getFileFlagKeyword(getKeywords(), 'HLPPNLGRP').conditions, commit, expandedSet, rerender);
     })();
     simple(p + '-hlpexcld', 'HLPEXCLD');
-    // Task I-67: HLPBDY's own reverse-direction guard against HLPDOC
-    // already sharing this help specification - wireFlagRow has no
-    // per-keyword conflict hook (unlike commitIndicatorTextRow's optional
-    // conflictFn - I-68), so this is hand-rolled the same alertAndRevert
-    // way the file-level HLPDOC/HLPPNLGRP checkboxes below already are.
+    // HLPBDY's own reverse-direction guard against HLPDOC already sharing
+    // this help specification - wireFlagRow has no per-keyword conflict
+    // hook (unlike commitIndicatorTextRow's optional conflictFn - I-68),
+    // so this is hand-rolled the same alertAndRevert way the file-level
+    // HLPDOC/HLPPNLGRP checkboxes below already are.
     (function () {
       var hlpbdyOn = document.getElementById(p + '-hlpbdy-on');
       if (!hlpbdyOn) return;
@@ -7319,18 +7263,18 @@
         onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'HLPBDY', hlpbdyOn.checked, '', undefined, newConditions));
       }, expandedSet, rerender);
     })();
-    simple(p + '-hlpara', 'HLPARA', true); // I-161: carries its parameter box
+    simple(p + '-hlpara', 'HLPARA', true); // Carries its parameter box
 
-    // Task I-67: HLPDOC's help-specification-level form. Same "-on"
-    // checkbox drives presence regardless of whether the sub-fields are
-    // filled in yet, and same all-three-parts-required validation, as the
-    // file-level HLPDOC panel (fileKeywordsPanelsHtml's own commitHlpdoc) -
-    // see that function's own comment for the full rationale. Guarded by
+    // HLPDOC's help-specification-level form. Same "-on" checkbox drives
+    // presence regardless of whether the sub-fields are filled in yet, and
+    // same all-three-parts-required validation, as the file-level HLPDOC
+    // panel (fileKeywordsPanelsHtml's own commitHlpdoc) - see that
+    // function's own comment for the full rationale. Guarded by
     // hlpdocHspecConflictReason (HLPBDY same-spec, HLPPNLGRP file-wide) on
     // every commit, not just the moment the checkbox is first ticked, so
     // blanking a required part back out while still checked is caught too.
-    // Task I-119: shared with the file-level HLPDOC panel above via
-    // wireHlpdocFields - see that call site's own comment.
+    // shared with the file-level HLPDOC panel above via wireHlpdocFields -
+    // see that call site's own comment.
     var hlpdocFields = wireHlpdocFields(p, getKeywords, onChange, function () {
       return DspfWriter.hlpdocHspecConflictReason('HLPDOC', getKeywords(), getModel ? getModel() : null, ownSourceLine);
     });
@@ -7339,7 +7283,7 @@
     var hlpdocDocument = hlpdocFields.document;
     var hlpdocFolder = hlpdocFields.folder;
     var commitHlpdoc = hlpdocFields.commit;
-    // Task I-43's catch-22 fix applies here too - only the checkbox's own
+    // Task the catch-22 fix applies here too - only the checkbox's own
     // listener commits unconditionally; the three sub-field listeners
     // no-op while the checkbox is off (see the file-level HLPDOC/HLPRCD
     // rows' own comment for the full mechanism).
@@ -7473,25 +7417,25 @@
   // flips, since that's pure UI state, not a document edit.
   // -----------------------------------------------------------------------
 
-  // Task I-20: `isConditionable(inst)` is an OPTIONAL per-instance predicate
-  // (defaults to "always true" when omitted, so every other caller of this
-  // shared component - Color & attributes, Validity check, MOUBTN, etc,
-  // none of which mix conditionable and non-conditionable kinds in one
-  // list - is unaffected). It lets a single repeatable-instance list mix
-  // kinds that DO allow option-indicator conditioning with kinds that
-  // don't (e.g. the record Indicator-keywords panel's CLEAR, which does,
-  // alongside VLDCMDKEY/SETOF/CHANGE/INDTXT, none of which do per their
-  // own "Option indicators are not valid for this keyword" DDS Reference
-  // lines) without a second parallel component. An instance this predicate
-  // rejects gets no Conditioning toggle at all - same "pass undefined
-  // instead of the real conditions" idiom flagRowHtml callers already use
-  // for a flatly-non-conditionable keyword (see e.g. I-7/I-9's own fixes),
-  // just expressed per-row instead of per-keyword. Existing conditions
-  // already present on such an instance (e.g. read from a pre-existing
-  // file that carries invalid conditioning) are left completely alone -
-  // this only prevents ADDING new conditioning through this UI, matching
-  // the same "omitted conditions preserves whatever already existed"
-  // convention I-14's own MNUBAR fix already established.
+  // `isConditionable(inst)` is an OPTIONAL per-instance predicate (defaults
+  // to "always true" when omitted, so every other caller of this shared
+  // component - Color & attributes, Validity check, MOUBTN, etc, none of
+  // which mix conditionable and non-conditionable kinds in one list - is
+  // unaffected). It lets a single repeatable-instance list mix kinds that DO
+  // allow option-indicator conditioning with kinds that don't (e.g. the
+  // record Indicator-keywords panel's CLEAR, which does, alongside
+  // VLDCMDKEY/SETOF/CHANGE/INDTXT, none of which do per their own "Option
+  // indicators are not valid for this keyword" DDS Reference lines) without
+  // a second parallel component. An instance this predicate rejects gets no
+  // Conditioning toggle at all - same "pass undefined instead of the real
+  // conditions" idiom flagRowHtml callers already use for a
+  // flatly-non-conditionable keyword (see e.g. I-7/the fixes), just
+  // expressed per-row instead of per-keyword. Existing conditions already
+  // present on such an instance (e.g. read from a pre-existing file that
+  // carries invalid conditioning) are left completely alone - this only
+  // prevents ADDING new conditioning through this UI, matching the same
+  // "omitted conditions preserves whatever already existed" convention the
+  // MNUBAR fix already established.
   function repeatableConditionedInstancesHtml(instances, idPrefix, renderPayload, expandedSet, addLabel, renderStaging, isConditionable, notConditionableHint) {
     var list = instances || [];
     var html = '<div id="' + idPrefix + '-instances">';
@@ -7525,29 +7469,29 @@
     return html;
   }
 
-  // Task I-55 - the generic repeatable-instance editor (used by MNUBARDSP,
-  // MOUBTN, the record Indicator-keywords model, Color & attributes,
-  // Error messages, Message ID, SFLMSG/SFLMSGID, CHECK, HLPTITLE) was
-  // never wired through any of the USRDFN/SFL/MNUBAR whitelist guards
+  // The generic repeatable-instance editor (used by MNUBARDSP, MOUBTN, the
+  // record Indicator-keywords model, Color & attributes, Error messages,
+  // Message ID, SFLMSG/SFLMSGID, CHECK, HLPTITLE) was never wired through
+  // any of the USRDFN/SFL/MNUBAR whitelist guards
   // I-44/I-46/I-48/I-49/I-53/I-54 already built for the plain flag-row
   // primitives (wireUsrdfnGuardedFlag/wireUsrdfnGuardedTwoField/
   // wirePulldownGuardedFlag) and the record-level raw keyword editor
   // (wireKeywordEditor's own addGuardFn) - a record whose own DDS
   // Reference whitelist excludes a repeatable keyword entirely (e.g.
   // MNUBARDSP on a plain SFL record) could still gain one through this
-  // editor's own "+ Add instance" button with zero check of any kind.
-  // New optional trailing `addGuardFn(freshInstance) -> reason|null`,
-  // checked once per "+ Add" click (not per keystroke/per-field, since -
-  // unlike a plain flag row's on/off checkbox - a brand-new repeatable
-  // instance is the only "on transition" this generic component itself
-  // ever performs; a caller whose own per-row "kind" can change after
-  // creation, like the record Indicator-keywords model just below, needs
-  // its own additional guard on that transition - see
-  // recordIndicatorKindConflictReason's own call site for that case).
-  // Same alert-and-no-op idiom every other guard in this codebase already
-  // uses; existing callers that omit this new trailing param are
-  // completely unaffected (backward compatible, same shape every other
-  // optional trailing guard param in this file already follows).
+  // editor's own "+ Add instance" button with zero check of any kind. New
+  // optional trailing `addGuardFn(freshInstance) -> reason|null`, checked
+  // once per "+ Add" click (not per keystroke/per-field, since - unlike a
+  // plain flag row's on/off checkbox - a brand-new repeatable instance is
+  // the only "on transition" this generic component itself ever performs;
+  // a caller whose own per-row "kind" can change after creation, like the
+  // record Indicator-keywords model just below, needs its own additional
+  // guard on that transition - see recordIndicatorKindConflictReason's own
+  // call site for that case). Same alert-and-no-op idiom every other guard
+  // in this codebase already uses; existing callers that omit this new
+  // trailing param are completely unaffected (backward compatible, same
+  // shape every other optional trailing guard param in this file already
+  // follows).
   function wireRepeatableConditionedInstances(idPrefix, instances, onChange, wirePayload, expandedSet, rerender, readNewInstance, isConditionable, addGuardFn) {
     var list = instances || [];
 
@@ -7565,11 +7509,11 @@
       });
     });
 
-    // Task I-20: a non-conditionable instance (see isConditionable above)
-    // never rendered a `.repeat-inst-cond-toggle` element in the first
-    // place, so this querySelectorAll naturally skips it - no extra guard
-    // needed here beyond what repeatableConditionedInstancesHtml already
-    // decided at render time.
+    // A non-conditionable instance (see isConditionable above) never
+    // rendered a `.repeat-inst-cond-toggle` element in the first place,
+    // so this querySelectorAll naturally skips it - no extra guard needed
+    // here beyond what repeatableConditionedInstancesHtml already decided
+    // at render time.
     document.querySelectorAll('.repeat-inst-cond-toggle[data-prefix="' + idPrefix + '"]').forEach(function (btn) {
       var idx = parseInt(btn.getAttribute('data-idx'), 10);
       var expandKey = idPrefix + ':' + idx;
@@ -7647,17 +7591,16 @@
     g += flagRowHtml(p + '-sflnxtchg', 'Return this record on read next changed (SFLNXTCHG)', fSflnxtchg.present, undefined, undefined, fSflnxtchg.conditions, expandedSet);
     var fLogout = DspfWriter.getFileFlagKeyword(kw, 'LOGOUT');
     g += flagRowHtml(p + '-logout', 'Write this record to the job log on output (LOGOUT)', fLogout.present, undefined, undefined, fLogout.conditions, expandedSet);
-    // Task I-9: LOGINP - "Option indicators are not valid for this keyword."
+    // LOGINP - "Option indicators are not valid for this keyword."
     var fLoginp = DspfWriter.getFileFlagKeyword(kw, 'LOGINP');
     g += flagRowHtml(p + '-loginp', 'Write this record to the job log on input (LOGINP)', fLoginp.present, undefined, undefined, undefined, undefined);
-    // Task I-25: KEEP (shown on real SDA's own "Select Subfile Keywords ->
-    // General" screen) is deliberately NOT repeated here anymore - it's
-    // already on Task R1's base Record Keywords -> General tab, shown for
-    // every record type including SFL, so a second live copy here was just
-    // two controls fighting over the same keyword (same rationale
-    // sflKeywordsPanelsHtml's own top comment already applied to
-    // CHGINPDFT below).
-    // Task I-9: CHECK - same rule as I-3's file-level finding ("Option
+    // KEEP (shown on real SDA's own "Select Subfile Keywords -> General"
+    // screen) is deliberately NOT repeated here anymore - it's already on
+    // Task R1's base Record Keywords -> General tab, shown for every
+    // record type including SFL, so a second live copy here was just two
+    // controls fighting over the same keyword (same rationale
+    // sflKeywordsPanelsHtml's own top comment already applied to CHGINPDFT
+    // below). CHECK - same rule as the file-level finding ("Option
     // indicators are valid only for CHECK(ER) and CHECK(ME)") - AB/RL
     // aren't either of those, so neither offers conditioning here either.
     var fCheckAb = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'AB');
@@ -7680,12 +7623,11 @@
         return DspfWriter.setFileFlagKeyword(keywords, name, present, hasParams ? params : '', undefined, conditions);
       }, noConditioning ? undefined : DspfWriter.getFileFlagKeyword(getKeywords(), name).conditions, noConditioning ? undefined : expandedSet, noConditioning ? undefined : rerender);
     }
-    // Task I-86 - SFLCHCCTL's own DDS Reference section states outright
-    // that SFLNXTCHG cannot be specified in a record that contains a field
-    // with SFLCHCCTL (see DspfWriter.sflNxtchgSflchcctlConflictReason's own
-    // doc comment). Same alert+revert idiom as I-11's own SFLNXTCHG guard
-    // (that one against SFLMSGRCD, in sflMsgPanelsHtml) - turning it OFF is
-    // never blocked.
+    // SFLCHCCTL's own DDS Reference section states outright that SFLNXTCHG
+    // cannot be specified in a record that contains a field with SFLCHCCTL
+    // (see DspfWriter.sflNxtchgSflchcctlConflictReason's own doc comment).
+    // Same alert+revert idiom as the SFLNXTCHG guard (that one against
+    // SFLMSGRCD, in sflMsgPanelsHtml) - turning it OFF is never blocked.
     (function () {
       var onEl = document.getElementById(p + '-sflnxtchg-on');
       var commit = function () {
@@ -7707,12 +7649,12 @@
       }, expandedSet, rerender);
     })();
     simple(p + '-logout', 'LOGOUT');
-    // Task I-9: LOGINP - "Option indicators are not valid for this keyword."
+    // LOGINP - "Option indicators are not valid for this keyword."
     simple(p + '-loginp', 'LOGINP', false, true);
-    // Task I-25: KEEP no longer has a live row on this panel - see
-    // sflKeywordsPanelsHtml's own comment.
-    // Task I-9: CHECK(AB)/CHECK(RL) - not eligible (see sflKeywordsPanelsHtml's
-    // own comment - same rule I-3 already established for file-level CHECK).
+    // KEEP no longer has a live row on this panel - see sflKeywordsPanelsHtml's
+    // own comment. CHECK(AB)/CHECK(RL) - not eligible (see
+    // sflKeywordsPanelsHtml's own comment - same rule already established for
+    // file-level CHECK).
     wireFlagRow(p + '-check-ab', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, '', 'AB', conditions); }, undefined, undefined, undefined);
     wireFlagRow(p + '-check-rl', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, '', 'RL', conditions); }, undefined, undefined, undefined);
     wireIndicatorTextRows(p + '-ind', ['INDTXT', 'SETOF', 'CHANGE'], 6, getKeywords, onChange);
@@ -7762,14 +7704,13 @@
       }
     }
 
-    // Task I-11: SFLNXTCHG is hard-blocked from being turned ON here -
-    // this panel only ever renders for a record where SFLMSGRCD is
-    // already present (isSflMsgRecord's own definition), and the DDS
-    // Reference states outright "You cannot specify SFLNXTCHG with the
-    // SFLMSGRCD keyword." Same alert+revert idiom as L81's own
-    // DFT_GROUP_KEYS guard - turning it OFF (if it somehow got set some
-    // other way, e.g. hand-edited DDS) is never blocked, only the
-    // on-transition.
+    // SFLNXTCHG is hard-blocked from being turned ON here - this panel
+    // only ever renders for a record where SFLMSGRCD is already present
+    // (isSflMsgRecord's own definition), and the DDS Reference states
+    // outright "You cannot specify SFLNXTCHG with the SFLMSGRCD
+    // keyword." Same alert+revert idiom as L81's own DFT_GROUP_KEYS
+    // guard - turning it OFF (if it somehow got set some other way,
+    // e.g. hand-edited DDS) is never blocked, only the on-transition.
     (function () {
       var onEl = document.getElementById('sm-sflnxtchg-on');
       var commit = function () {
@@ -7790,13 +7731,13 @@
       }, expandedSet, rerender);
     })();
     simple('sm-logout', 'LOGOUT');
-    // Task I-98: LOGINP takes no option indicators (see sflMsgPanelsHtml).
+    // LOGINP takes no option indicators (see sflMsgPanelsHtml).
     simple('sm-loginp', 'LOGINP', false, true);
-    // Task I-25: KEEP no longer has a live row on this panel - see
+    // KEEP no longer has a live row on this panel - see
     // sflMsgPanelsHtml's own comment.
-    // Task I-117: CHECK(AB)/CHECK(RL)/CHGINPDFT/INDTXT/SETOF/CHANGE no
-    // longer have live rows on this panel either - see sflMsgPanelsHtml's
-    // own comment. Nothing to wire for them here now.
+    // CHECK(AB)/CHECK(RL)/CHGINPDFT/INDTXT/SETOF/CHANGE no longer have
+    // live rows on this panel either - see sflMsgPanelsHtml's own
+    // comment. Nothing to wire for them here now.
   }
 
   /** Wires the Message Record panel's Task L73 additions - renaming the
@@ -7923,9 +7864,9 @@
     // parameters" toggle.
     wp += '<div class="section-label" style="margin-top:10px;">Window control</div>';
     var fRmvwdw = DspfWriter.getFileFlagKeyword(keywords, 'RMVWDW');
-    wp += flagRowHtml(idPrefix + '-rmvwdw', 'Remove existing windows before this record is displayed (RMVWDW)', fRmvwdw.present, undefined, undefined, DspfWriter.optionIndicatorsAllowed('RMVWDW') ? fRmvwdw.conditions : undefined, DspfWriter.optionIndicatorsAllowed('RMVWDW') ? expandedSet : undefined); // I-121e
+    wp += flagRowHtml(idPrefix + '-rmvwdw', 'Remove existing windows before this record is displayed (RMVWDW)', fRmvwdw.present, undefined, undefined, DspfWriter.optionIndicatorsAllowed('RMVWDW') ? fRmvwdw.conditions : undefined, DspfWriter.optionIndicatorsAllowed('RMVWDW') ? expandedSet : undefined);
     var fUsrrstdsp = DspfWriter.getFileFlagKeyword(keywords, 'USRRSTDSP');
-    wp += flagRowHtml(idPrefix + '-usrrstdsp', 'Program handles display restore around this window (USRRSTDSP)', fUsrrstdsp.present, undefined, undefined, DspfWriter.optionIndicatorsAllowed('USRRSTDSP') ? fUsrrstdsp.conditions : undefined, DspfWriter.optionIndicatorsAllowed('USRRSTDSP') ? expandedSet : undefined); // I-121e
+    wp += flagRowHtml(idPrefix + '-usrrstdsp', 'Program handles display restore around this window (USRRSTDSP)', fUsrrstdsp.present, undefined, undefined, DspfWriter.optionIndicatorsAllowed('USRRSTDSP') ? fUsrrstdsp.conditions : undefined, DspfWriter.optionIndicatorsAllowed('USRRSTDSP') ? expandedSet : undefined);
     panels.windowParameters = wp;
 
     // --- Border Parameters (shared with F1's file-level Window Border) ---
@@ -8008,12 +7949,14 @@
   // type except USRDFN, so a PULLDOWN record gets it automatically.
   // -----------------------------------------------------------------------
 
-  /** Whether `rec` carries a PULLDOWN keyword - drives whether
-   *  renderRecordProps shows the "Pull-down" tab at all (parallel to
-   *  isWindowRecord above for the Window tab).
-   *  Task I-119: delegates to DspfEngine's canonical isPulldownRecord
-   *  (bare free variable, same `DspfEngine`/`DspfWriter` idiom as
-   *  escapeHtml above) instead of keeping a second copy. */
+  /**
+   * Whether `rec` carries a PULLDOWN keyword - drives whether
+   * renderRecordProps shows the "Pull-down" tab at all (parallel to
+   * isWindowRecord above for the Window tab). delegates to DspfEngine's
+   * canonical isPulldownRecord (bare free variable, same
+   * `DspfEngine`/`DspfWriter` idiom as escapeHtml above) instead of
+   * keeping a second copy.
+   */
   function isPulldownRecord(rec) {
     return DspfEngine.isPulldownRecord(rec);
   }
@@ -8044,12 +7987,12 @@
   /** Wires both pulldownPanelsHtml() panels. Same `getKeywords`/`onChange`
    *  contract every other dedicated picker here uses. */
   function wirePulldownPanels(idPrefix, getKeywords, onChange, expandedSet, rerender) {
-    // Task I-13: turning PULLDOWN itself on is blocked if the record
-    // already carries any of the 27 keywords IBM's own DDS Reference
-    // documents as incompatible with it (see
-    // DspfWriter.pulldownConflictReason's own doc comment) - same
-    // alert+revert idiom as the individual keyword-side guards in
-    // wireRecordKeywordsPanels. Turning PULLDOWN off is never blocked.
+    // Turning PULLDOWN itself on is blocked if the record already
+    // carries any of the 27 keywords IBM's own DDS Reference documents
+    // as incompatible with it (see DspfWriter.pulldownConflictReason's
+    // own doc comment) - same alert+revert idiom as the individual
+    // keyword-side guards in wireRecordKeywordsPanels. Turning PULLDOWN
+    // off is never blocked.
     function commitGeneral() {
       var on = document.getElementById(idPrefix + '-on');
       var sltind = document.getElementById(idPrefix + '-sltind');
@@ -8096,25 +8039,27 @@
 
   /**
    * Builds the 4 SFLCTL sub-panels' inner HTML at once - { general,
-   * indicator, displayLayout, subfileMessages } - for the record
-   * properties panel's SFLCTL tab (see isSflCtlRecord above for when that
-   * tab appears). Takes the whole `rec` (not just rec.keywords), since
-   * Task L74's SFLPGMQ row needs `rec.fields` the same way sflMsgPanelsHtml
+   * indicator, displayLayout, subfileMessages } - for the record properties
+   * panel's SFLCTL tab (see isSflCtlRecord above for when that tab
+   * appears). Takes the whole `rec` (not just rec.keywords), since Task
+   * L74's SFLPGMQ row needs `rec.fields` the same way sflMsgPanelsHtml
    * already does (see sflPgmqFieldHtml's own comment for why). `idPrefix`
-   * namespaces every element id. `fileKeywords` (Task I-22) is the whole
-   * file's own keywords array, needed only to read the file's declared
-   * DSPSIZ sizes for the Display Layout panel's own per-size SFLSIZ/
-   * SFLPAG/SFLLIN rows - same optional-parameter convention
-   * sflMsgPanelsHtml already uses for its own SFLMSGRCD per-size rows.
+   * namespaces every element id. `fileKeywords` is the whole file's own
+   * keywords array, needed only to read the file's declared DSPSIZ sizes
+   * for the Display Layout panel's own per-size SFLSIZ/ SFLPAG/SFLLIN rows
+   * - same optional-parameter convention sflMsgPanelsHtml already uses for
+   * its own SFLMSGRCD per-size rows.
    */
-  /** Task I-26 - SFLSNGCHC/SFLMLTCHC section within the SFLCTL General
-   *  tab: a type selector (none/single/multiple) plus each type's own
-   *  sub-controls, shown/hidden via plain CSS rather than separate
-   *  accordions since only one type can ever be active at a time (see
-   *  DspfWriter.sflChoiceListConflictReason). `rec` (not just its
-   *  keywords) is needed only to compute isPulldownRecord's own effective-
-   *  default hint text. No Conditioning toggle anywhere here - neither
-   *  keyword documents option indicators as valid. */
+  /**
+   * SFLSNGCHC/SFLMLTCHC section within the SFLCTL General tab: a type
+   * selector (none/single/multiple) plus each type's own sub-controls,
+   * shown/hidden via plain CSS rather than separate accordions since only
+   * one type can ever be active at a time (see
+   * DspfWriter.sflChoiceListConflictReason). `rec` (not just its keywords)
+   * is needed only to compute isPulldownRecord's own effective- default
+   * hint text. No Conditioning toggle anywhere here - neither keyword
+   * documents option indicators as valid.
+   */
   function sflChoiceListPanelHtml(rec, p) {
     var kw = rec.keywords || [];
     var sngchc = DspfWriter.getSflSngChcKeyword(kw);
@@ -8135,8 +8080,8 @@
       '</select>';
     html += '<div class="hint-small" style="margin:4px 0 8px;">Mutually exclusive with SFLDROP/SFLFOLD and with each other - selecting one here blocks turning the other on above.</div>';
 
-    // Task I-39 - SFLRTNSEL was confirmed entirely missing from iSDA (no
-    // getter/setter, no row, no mention anywhere) by a full-text audit of
+    // SFLRTNSEL was confirmed entirely missing from iSDA (no getter/setter,
+    // no row, no mention anywhere) by a full-text audit of
     // DDS_Keyword_V7r6.txt against actual code. Record-level flag on the
     // SFLCTL record, no parameters, not conditionable ("Option indicators
     // are not valid for this keyword"). IBM's own DDS Reference: "If this
@@ -8196,16 +8141,17 @@
     return html;
   }
 
-  /** Wires sflChoiceListPanelHtml. Turning the type selector to SFLSNGCHC
-   *  or SFLMLTCHC is blocked (alert + revert) by
-   *  DspfWriter.sflChoiceListConflictReason, same alertAndRevert idiom
-   *  I-13's own PULLDOWN guard uses; turning it back to "(none)" is never
-   *  blocked. */
+  /**
+   * Wires sflChoiceListPanelHtml. Turning the type selector to SFLSNGCHC
+   * or SFLMLTCHC is blocked (alert + revert) by
+   * DspfWriter.sflChoiceListConflictReason, same alertAndRevert idiom the
+   * PULLDOWN guard uses; turning it back to "(none)" is never blocked.
+   */
   function wireSflChoiceListPanel(p, getKeywords, onChange) {
-    // Task I-39 - SFLRTNSEL (see sflChoiceListPanelHtml's own I-39 comment
-    // above). Plain present/absent toggle, wired independently of
-    // commit()/the type selector since it never itself changes SFLSNGCHC/
-    // SFLMLTCHC's own state.
+    // SFLRTNSEL (see sflChoiceListPanelHtml's own comment above). Plain
+    // present/absent toggle, wired independently of commit()/the type
+    // selector since it never itself changes SFLSNGCHC/ SFLMLTCHC's own
+    // state.
     var sflrtnselEl = document.getElementById(p + '-sflrtnsel');
     if (sflrtnselEl) {
       sflrtnselEl.addEventListener('change', function () {
@@ -8272,8 +8218,8 @@
     // --- General (SFLCTL's own keywords + R3's Subfile Keywords, reused) ---
     var g = '<div class="section-label">Subfile control</div>';
     var fSflctl = DspfWriter.getFileFlagKeyword(kw, 'SFLCTL');
-    g += flagRowHtml(p + '-sflctl', 'Related subfile record (SFLCTL)', fSflctl.present, fSflctl.parameters, 'subfile record name', undefined, undefined); // I-10: option indicators not valid
-    // Task I-147: SFLPAG and SFLDSP are required on the subfile-control record
+    g += flagRowHtml(p + '-sflctl', 'Related subfile record (SFLCTL)', fSflctl.present, fSflctl.parameters, 'subfile record name', undefined, undefined); // Option indicators not valid
+    // SFLPAG and SFLDSP are required on the subfile-control record
     // (KeywordSpec.subfileControlRequiredKeywords). A note, not a refusal - the
     // record is built up one keyword at a time.
     var ctlMissing = DspfWriter.subfileControlNotes(kw).missingRequired;
@@ -8281,9 +8227,9 @@
       g += '<div id=\"' + p + '-needs-required\" class=\"kw-warning\" style=\"margin:-4px 0 10px 22px;font-size:11px;color:var(--warn, #b45309);\">' + ctlMissing.join(' and ') + (ctlMissing.length > 1 ? ' are' : ' is') + ' required on the subfile-control record format (IBM).</div>';
     }
     var fSflcsrrrn = DspfWriter.getFileFlagKeyword(kw, 'SFLCSRRRN');
-    g += flagRowHtml(p + '-sflcsrrrn', 'Subfile cursor relative record number field (SFLCSRRRN)', fSflcsrrrn.present, fSflcsrrrn.parameters, 'field name', fSflcsrrrn.conditions, expandedSet); // I-10: no explicit option-indicator statement found either way in the DDS Reference - left as-is rather than guessing, same as I-7's RETKEY/RETCMDKEY/KEEP precedent
+    g += flagRowHtml(p + '-sflcsrrrn', 'Subfile cursor relative record number field (SFLCSRRRN)', fSflcsrrrn.present, fSflcsrrrn.parameters, 'field name', fSflcsrrrn.conditions, expandedSet); // No explicit option-indicator statement found either way in the DDS Reference - left as-is rather than guessing, same as the RETKEY/RETCMDKEY/KEEP precedent
     var fSflmode = DspfWriter.getFileFlagKeyword(kw, 'SFLMODE');
-    g += flagRowHtml(p + '-sflmode', 'Subfile mode field (SFLMODE)', fSflmode.present, fSflmode.parameters, 'field name', undefined, undefined); // I-10: option indicators not valid
+    g += flagRowHtml(p + '-sflmode', 'Subfile mode field (SFLMODE)', fSflmode.present, fSflmode.parameters, 'field name', undefined, undefined); // Option indicators not valid
     // Task L74: SFLPGMQ is documented by IBM as a FIELD-level keyword even
     // when it's coded on the SFLCTL record ("SFLPGMQ can be specified on
     // the subfile-control record format when SFLINZ is specified...it can
@@ -8303,8 +8249,8 @@
     g += flagRowHtml(p + '-sflinz', 'Initialize subfile fields (SFLINZ)', fSflinz.present, undefined, undefined, fSflinz.conditions, expandedSet);
     var fSfldlt = DspfWriter.getFileFlagKeyword(kw, 'SFLDLT');
     g += flagRowHtml(p + '-sfldlt', 'Delete subfile area (SFLDLT)', fSfldlt.present, undefined, undefined, fSfldlt.conditions, expandedSet);
-    // Task I-141 / I-147: IBM requires an option indicator on SFLDLT, SFLCLR and
-    // SFLEND (KeywordSpec.optionIndicatorRequiredKeywords), but the row has to be
+    // IBM requires an option indicator on SFLDLT, SFLCLR and SFLEND
+    // (KeywordSpec.optionIndicatorRequiredKeywords), but the row has to be
     // switchable on before its Conditioning editor is reachable - so this is a
     // visible note on the row rather than a refusal of the checkbox.
     var ctlNotes = DspfWriter.subfileControlNotes(kw);
@@ -8317,7 +8263,7 @@
     g += flagRowHtml(p + '-sflclr', 'Clear subfile records (SFLCLR)', fSflclr.present, undefined, undefined, fSflclr.conditions, expandedSet);
     g += needsIndicatorNote('SFLCLR');
     var fSflrna = DspfWriter.getFileFlagKeyword(kw, 'SFLRNA');
-    g += flagRowHtml(p + '-sflrna', 'Record not active (SFLRNA)', fSflrna.present, undefined, undefined, undefined, undefined); // I-10: option indicators not valid
+    g += flagRowHtml(p + '-sflrna', 'Record not active (SFLRNA)', fSflrna.present, undefined, undefined, undefined, undefined); // Option indicators not valid
     var fSflend = DspfWriter.getFileFlagKeyword(kw, 'SFLEND');
     g += flagRowHtml(p + '-sflend', 'Indicate more records (SFLEND)', fSflend.present, fSflend.parameters, '*MORE, *SCRBAR, or blank', fSflend.conditions, expandedSet);
     g += needsIndicatorNote('SFLEND');
@@ -8327,7 +8273,7 @@
     var fSflfold = DspfWriter.getFileFlagKeyword(kw, 'SFLFOLD');
     g += flagRowHtml(p + '-sflfold', 'Subfile initially folded (SFLFOLD)', fSflfold.present, fSflfold.parameters, 'CFnn or CAnn', fSflfold.conditions, expandedSet);
     var fSflenter = DspfWriter.getFileFlagKeyword(kw, 'SFLENTER');
-    g += flagRowHtml(p + '-sflenter', 'Use instead of Enter key (SFLENTER)', fSflenter.present, fSflenter.parameters, 'CFnn or CAnn', undefined, undefined); // I-10: option indicators not valid
+    g += flagRowHtml(p + '-sflenter', 'Use instead of Enter key (SFLENTER)', fSflenter.present, fSflenter.parameters, 'CFnn or CAnn', undefined, undefined); // Option indicators not valid
     g += '<div class="section-label">Selection List (SFLSNGCHC / SFLMLTCHC)</div>' + sflChoiceListPanelHtml(rec, p);
     g += '<div class="section-label">Subfile Keywords (shared with plain SFL records)</div>';
     var fSflnxtchg = DspfWriter.getFileFlagKeyword(kw, 'SFLNXTCHG');
@@ -8335,14 +8281,14 @@
     var fLogout = DspfWriter.getFileFlagKeyword(kw, 'LOGOUT');
     g += flagRowHtml(p + '-logout', 'Write this record to the job log on output (LOGOUT)', fLogout.present, undefined, undefined, fLogout.conditions, expandedSet);
     var fLoginp = DspfWriter.getFileFlagKeyword(kw, 'LOGINP');
-    g += flagRowHtml(p + '-loginp', 'Write this record to the job log on input (LOGINP)', fLoginp.present, undefined, undefined, undefined, undefined); // I-10: propagates I-9's own finding (not eligible) - this SFLCTL copy never got it
-    // Task I-25: KEEP is no longer repeated on this panel - see
-    // sflCtlPanelsHtml's own comment below (same rationale as the SFL and
-    // SFLMSG tabs' own I-25 removals).
+    g += flagRowHtml(p + '-loginp', 'Write this record to the job log on input (LOGINP)', fLoginp.present, undefined, undefined, undefined, undefined); // Propagates the finding (not eligible) - this SFLCTL copy never got it
+    // KEEP is no longer repeated on this panel - see sflCtlPanelsHtml's
+    // own comment below (same rationale as the SFL and SFLMSG tabs' own
+    // removals).
     var fCheckAb = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'AB');
-    g += flagRowHtml(p + '-check-ab', 'Allow blanks (CHECK AB)', fCheckAb.present, undefined, undefined, undefined, undefined); // I-10: propagates I-9's own finding (not eligible) - this SFLCTL copy never got it
+    g += flagRowHtml(p + '-check-ab', 'Allow blanks (CHECK AB)', fCheckAb.present, undefined, undefined, undefined, undefined); // Propagates the finding (not eligible) - this SFLCTL copy never got it
     var fCheckRl = DspfWriter.getFileFlagKeyword(kw, 'CHECK', 'RL');
-    g += flagRowHtml(p + '-check-rl', 'Move cursor right to left (CHECK RL)', fCheckRl.present, undefined, undefined, undefined, undefined); // I-10: propagates I-9's own finding (not eligible) - this SFLCTL copy never got it
+    g += flagRowHtml(p + '-check-rl', 'Move cursor right to left (CHECK RL)', fCheckRl.present, undefined, undefined, undefined, undefined); // Propagates the finding (not eligible) - this SFLCTL copy never got it
     g += '<div class="hint-small">Keep records on display when closing the file (KEEP) and change input defaults (CHGINPDFT) are on the base Record Keywords \u2192 General tab above - shared across every record type.</div>';
     panels.general = g;
 
@@ -8360,10 +8306,10 @@
     panels.indicator = '<div class="status" style="margin-bottom:10px;">Each row below is independently conditioned and repeatable - add as many as needed, e.g. two CLEAR rows under different indicators.</div>' +
       recordIndicatorInstancesHtml(kw, p + '-recind', expandedSet);
 
-    // --- Display Layout (Task I-22: SFLSIZ/SFLPAG/SFLLIN each also
-    // accept a display-size (*DSx) condition name for a second value that
-    // applies only to the file's secondary DSPSIZ size - required if the
-    // value actually differs between the two. See
+    // --- Display Layout (SFLSIZ/SFLPAG/SFLLIN each also accept a
+    // display-size (*DSx) condition name for a second value that applies
+    // only to the file's secondary DSPSIZ size - required if the value
+    // actually differs between the two. See
     // getDisplaySizeConditionedValue's own doc comment in dspfWriter.js
     // for the full citation. Same "extra row(s) only when 2+ sizes are
     // declared" shape sflMsgPanelsHtml's own SFLMSGRCD rows already use.
@@ -8409,9 +8355,9 @@
     var sflMsgIdInstances = DspfWriter.getRepeatableKeywordInstances(kw, ['SFLMSGID']);
     var sm = '<div class="section-label">Message text (SFLMSG)</div>';
     sm += repeatableConditionedInstancesHtml(sflMsgInstances, p + '-sflmsg-rep', function (inst, instIdPrefix) {
-      // Task I-100: SFLMSG('message-text' [response-indicator]) - the
-      // optional indicator now has its own box (it used to be dropped the
-      // moment the text was edited).
+      // SFLMSG('message-text' [response-indicator]) - the optional
+      // indicator now has its own box (it used to be dropped the moment
+      // the text was edited).
       var parsedMsg = DspfWriter.parseSflMsgParams(inst.parameters);
       return '<input type="text" id="' + instIdPrefix + '-text" placeholder="message text" value="' + escapeHtml(parsedMsg.text) + '" style="width:100%;" />'
         + '<input type="text" id="' + instIdPrefix + '-resp" placeholder="response indicator 01-99 (optional)" value="' + escapeHtml(parsedMsg.responseIndicator) + '" style="width:100%;margin-top:4px;" />';
@@ -8424,8 +8370,8 @@
       html += '<input type="text" id="' + instIdPrefix + '-file" placeholder="message file" value="' + escapeHtml(parsed.msgFile) + '" />';
       html += '</div>';
       html += '<input type="text" id="' + instIdPrefix + '-lib" placeholder="library (optional)" value="' + escapeHtml(parsed.library) + '" style="width:100%;margin-top:4px;" />';
-      // Task I-99: the two optional trailing parameters of IBM's
-      // SFLMSGID(msgid [library/]msg-file [response-indicator] [&msg-data]).
+      // The two optional trailing parameters of IBM's SFLMSGID(msgid
+      // [library/]msg-file [response-indicator] [&msg-data]).
       html += '<div class="two-col" style="margin-top:4px;">';
       html += '<input type="text" id="' + instIdPrefix + '-resp" placeholder="response indicator 01-99 (optional)" value="' + escapeHtml(parsed.responseIndicator) + '" />';
       html += '<input type="text" id="' + instIdPrefix + '-data" placeholder="&amp;message data field (optional)" value="' + escapeHtml(parsed.msgDataField) + '" />';
@@ -8438,27 +8384,28 @@
     return panels;
   }
 
-  /** Wires every row across all 4 sflCtlPanelsHtml() panels. Same
-   *  `getKeywords`/`onChange` contract every other dedicated picker here
-   *  uses. getRecords is Task I-86's own addition - see this function's
-   *  SFLNXTCHG guard below for why it needs the full record list rather
-   *  than just this record's own fields. */
+  /**
+   * Wires every row across all 4 sflCtlPanelsHtml() panels. Same
+   * `getKeywords`/`onChange` contract every other dedicated picker here
+   * uses. getRecords is Task the addition - see this function's
+   * SFLNXTCHG guard below for why it needs the full record list rather
+   * than just this record's own fields.
+   */
   function wireSflCtlPanels(idPrefix, getKeywords, onChange, expandedSet, rerender, getFileKeywords, getRecords, relRecField) {
     var p = idPrefix;
 
     // General
     // I-10: SFLCTL - "Option indicators are not valid for this keyword."
     wireFlagRow(p + '-sflctl', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLCTL', present, params, undefined, conditions); }, undefined, undefined, undefined);
-    // I-10: SFLCSRRRN - no explicit option-indicator statement found either way in the DDS Reference; left as-is rather than guessing (I-7's RETKEY/RETCMDKEY/KEEP precedent).
-    // Task I-142 follow-up: two conveniences on top of the strict rule. (1) A
-    // bare field name typed in the box gets its leading ampersand added for
-    // you (the box is rewritten so what you see is what is written). (2) A
-    // well-formed name that is not a field of this record offers to create it
-    // as the hidden field IBM requires (S, length 5, 0 decimals, usage H) and
-    // then writes the keyword - one confirmation, two edits. Anything else
-    // (empty, several tokens, an existing field with the wrong attributes)
-    // falls through to the writer's own refusal message. Turning the row off
-    // is never intercepted.
+    // SFLCSRRRN - no explicit option-indicator statement found either way in the DDS Reference;
+    // left as-is rather than guessing (the RETKEY/RETCMDKEY/KEEP precedent). Task I-142 follow-up:
+    // two conveniences on top of the strict rule. (1) A bare field name typed in the box gets its
+    // leading ampersand added for you (the box is rewritten so what you see is what is written).
+    // (2) A well-formed name that is not a field of this record offers to create it as the hidden
+    // field IBM requires (S, length 5, 0 decimals, usage H) and then writes the keyword - one
+    // confirmation, two edits. Anything else (empty, several tokens, an existing field with the
+    // wrong attributes) falls through to the writer's own refusal message. Turning the row off is
+    // never intercepted.
     function sflcsrrrnGuard(present) {
       if (!present) return true;
       var box = document.getElementById(p + '-sflcsrrrn-params');
@@ -8481,10 +8428,10 @@
       return false;
     }
     wireFlagRow(p + '-sflcsrrrn', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLCSRRRN', present, params, undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLCSRRRN').conditions, expandedSet, rerender, sflcsrrrnGuard);
-    // I-10: SFLMODE - "Option indicators are not valid for this keyword."
-    // Task I-145: SFLMODE(&mode) is written with the leading ampersand the
-    // DDS Reference format shows (SFLCSRRRN's guard does the same); the
-    // writer-level check then says whether the field exists and is A / 1 / H.
+    // SFLMODE - "Option indicators are not valid for this keyword."
+    // SFLMODE(&mode) is written with the leading ampersand the DDS Reference
+    // format shows (SFLCSRRRN's guard does the same); the writer-level check
+    // then says whether the field exists and is A / 1 / H.
     function sflmodeGuard(present) {
       if (!present) return true;
       var box = document.getElementById(p + '-sflmode-params');
@@ -8499,19 +8446,19 @@
     wireFlagRow(p + '-sflinz', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLINZ', present, '', undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLINZ').conditions, expandedSet, rerender);
     wireFlagRow(p + '-sfldlt', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLDLT', present, '', undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLDLT').conditions, expandedSet, rerender);
     wireFlagRow(p + '-sflclr', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLCLR', present, '', undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLCLR').conditions, expandedSet, rerender);
-    // I-10: SFLRNA - "Option indicators are not valid for this keyword."
+    // SFLRNA - "Option indicators are not valid for this keyword."
     wireFlagRow(p + '-sflrna', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLRNA', present, '', undefined, conditions); }, undefined, undefined, undefined);
     wireFlagRow(p + '-sflend', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLEND', present, params, undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLEND').conditions, expandedSet, rerender);
     wireFlagRow(p + '-sfldrop', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLDROP', present, params, undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLDROP').conditions, expandedSet, rerender);
     wireFlagRow(p + '-sflfold', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLFOLD', present, params, undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'SFLFOLD').conditions, expandedSet, rerender);
-    // I-10: SFLENTER - "Option indicators are not valid for this keyword."
+    // SFLENTER - "Option indicators are not valid for this keyword."
     wireFlagRow(p + '-sflenter', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'SFLENTER', present, params, undefined, conditions); }, undefined, undefined, undefined);
-    // Task I-26: SFLSNGCHC/SFLMLTCHC selection list
+    // SFLSNGCHC/SFLMLTCHC selection list
     wireSflChoiceListPanel(p, getKeywords, onChange);
-    // Task I-86 - unlike wireSflKeywordsPanels's own SFLNXTCHG row (guarded
-    // against ITS OWN record's fields), this panel's SFLNXTCHG lives on
-    // the SFLCTL record, so the field with SFLCHCCTL to check for is on
-    // the LINKED subfile record instead - see
+    // Unlike wireSflKeywordsPanels's own SFLNXTCHG row (guarded against ITS
+    // OWN record's fields), this panel's SFLNXTCHG lives on the SFLCTL
+    // record, so the field with SFLCHCCTL to check for is on the LINKED
+    // subfile record instead - see
     // DspfWriter.sflctlNxtchgSflchcctlConflictReason's own doc comment for
     // why (and how it still degrades correctly to a combined record).
     (function () {
@@ -8534,12 +8481,12 @@
       }, expandedSet, rerender);
     })();
     wireFlagRow(p + '-logout', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'LOGOUT', present, '', undefined, conditions); }, DspfWriter.getFileFlagKeyword(getKeywords(), 'LOGOUT').conditions, expandedSet, rerender);
-    // I-10: LOGINP/CHECK(AB,RL) - propagates I-9's own finding (not
-    // eligible for option indicators) to this SFLCTL panel's own copy of
-    // these shared keywords, which never got the fix when I-9 landed it on
-    // the plain SFL panel's copy.
+    // LOGINP/CHECK(AB,RL) - propagates the finding (not eligible for
+    // option indicators) to this SFLCTL panel's own copy of these shared
+    // keywords, which never got the fix when I-9 landed it on the plain
+    // SFL panel's copy.
     wireFlagRow(p + '-loginp', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'LOGINP', present, '', undefined, conditions); }, undefined, undefined, undefined);
-    // Task I-25: KEEP no longer has a live row on this panel - see
+    // KEEP no longer has a live row on this panel - see
     // sflCtlPanelsHtml's own comment.
     wireFlagRow(p + '-check-ab', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'AB', conditions); }, undefined, undefined, undefined);
     wireFlagRow(p + '-check-rl', getKeywords, onChange, function (keywords, present, params, conditions) { return DspfWriter.setFileFlagKeyword(keywords, 'CHECK', present, null, 'RL', conditions); }, undefined, undefined, undefined);
@@ -8562,10 +8509,10 @@
     // SFLPAG must not silently drop an already-edited, not-yet-committed
     // SFLSIZ/SFLLIN value sitting in a sibling input.
     //
-    // Task I-22: extended (not replaced) for the new per-size (`-ds0`/
-    // `-ds1`) inputs sflCtlPanelsHtml only renders once the file declares
-    // 2+ DSPSIZ sizes - same shared-commit function now also reads
-    // whichever of those are present. A size-conditioned SFLSIZ input is
+    // Extended (not replaced) for the new per-size (`-ds0`/ `-ds1`)
+    // inputs sflCtlPanelsHtml only renders once the file declares 2+
+    // DSPSIZ sizes - same shared-commit function now also reads whichever
+    // of those are present. A size-conditioned SFLSIZ input is
     // hard-blocked (alert + revert just that one value, same idiom as
     // I-8/I-11/I-12/I-13) if given a non-numeric value - see
     // sflsizConditionedFieldNameConflictReason's own doc comment in
@@ -8624,9 +8571,9 @@
       var input = document.getElementById(instIdPrefix + '-text');
       var respInput = document.getElementById(instIdPrefix + '-resp');
       if (!input || !respInput) return;
-      // Task I-100: text and response indicator commit together, so editing
-      // either one keeps the other. An indicator that is not two digits
-      // 01-99 is refused (alert, box put back, no edit posted).
+      // Text and response indicator commit together, so editing either one
+      // keeps the other. An indicator that is not two digits 01-99 is
+      // refused (alert, box put back, no edit posted).
       function commitSflMsg() {
         var respProblem = DspfWriter.messageResponseIndicatorProblem('SFLMSG', respInput.value);
         if (respProblem) {
@@ -8659,10 +8606,9 @@
       var dataInput = document.getElementById(instIdPrefix + '-data');
       if (!idInput || !fileInput || !libInput || !respInput || !dataInput) return;
       function commit() {
-        // Task I-99: a response indicator is a two-digit indicator 01-99 -
-        // anything else would be written into that slot verbatim and read
-        // back as a library or a message data field. Alert + revert, no
-        // edit posted.
+        // A response indicator is a two-digit indicator 01-99 - anything
+        // else would be written into that slot verbatim and read back as a
+        // library or a message data field. Alert + revert, no edit posted.
         var respProblem = DspfWriter.sflMsgIdResponseIndicatorProblem(respInput.value);
         if (respProblem) {
           window.alert(respProblem);
@@ -8745,25 +8691,25 @@
     var p = idPrefix;
     var panels = {};
 
-    // Task I-14: confirmed against IBM's own DDS Reference ("MNUBAR (Menu
-    // Bar) keyword for display files") that the parameter is
-    // `[*SEPARATOR | *NOSEPARATOR]` (optional, default *SEPARATOR - a
-    // separator line placed below the last menu-bar choice line unless
-    // *NOSEPARATOR is given), and that "Option indicators are not valid
-    // for this keyword" - so unlike MNUBARSW/MNUCNL/MNUBARDSP just below
-    // (all three explicitly documented as conditionable), MNUBAR itself
-    // must NOT get a Conditioning toggle. The row used to pass
-    // `mnubar.conditions` through to flagRowHtml, wrongly offering one;
-    // passing `undefined` (the same "not eligible" idiom I-7/I-8/I-9/I-10
-    // use elsewhere in this file) removes it. The previous placeholder's
-    // own hint text calling the parameter "not confidently verified" is
-    // replaced with the now-confirmed values.
+    // Confirmed against IBM's own DDS Reference ("MNUBAR (Menu Bar)
+    // keyword for display files") that the parameter is `[*SEPARATOR |
+    // *NOSEPARATOR]` (optional, default *SEPARATOR - a separator line
+    // placed below the last menu-bar choice line unless *NOSEPARATOR is
+    // given), and that "Option indicators are not valid for this keyword"
+    // - so unlike MNUBARSW/MNUCNL/MNUBARDSP just below (all three
+    // explicitly documented as conditionable), MNUBAR itself must NOT get
+    // a Conditioning toggle. The row used to pass `mnubar.conditions`
+    // through to flagRowHtml, wrongly offering one; passing `undefined`
+    // (the same "not eligible" idiom I-7/I-8/I-9/I-10 use elsewhere in
+    // this file) removes it. The previous placeholder's own hint text
+    // calling the parameter "not confidently verified" is replaced with
+    // the now-confirmed values.
     var mnubar = DspfWriter.getFileFlagKeyword(kw, 'MNUBAR');
     var g = flagRowHtml(p + '-mnubar', 'Menu-bar (MNUBAR)', mnubar.present, mnubar.parameters, '*SEPARATOR or *NOSEPARATOR (optional, default *SEPARATOR)', undefined, expandedSet);
     g += '<div class="section-label" style="margin-top:14px;"></div>';
     g += menuBarKeysPanelHtml(kw, p, expandedSet);
     g += '<div class="hint-small">Menu-Bar display (MNUBARDSP) is on the base Record Keywords \u2192 General tab above - shared across every record type.</div>';
-    // Task I-19: advisory-only field-shape note (see
+    // Advisory-only field-shape note (see
     // DspfWriter.mnubarFieldShapeNote's own doc comment for why this is a
     // note rather than a hard block) - recomputed from the record's
     // current field list on every render, so it stays in sync as fields
@@ -8787,43 +8733,43 @@
    *  record-level edit only ever needs to check its OWN record, not
    *  every other one. */
   function wireMnuBarPanels(idPrefix, getKeywords, onChange, expandedSet, rerender, getFileKeywords) {
-    // Task I-14: MNUBAR takes no Conditioning toggle (see mnuBarPanelsHtml's
-    // own comment) - `conditions` passed as `undefined` here matches that,
-    // and setFileFlagKeyword's own "conditions omitted preserves whatever
+    // MNUBAR takes no Conditioning toggle (see mnuBarPanelsHtml's own
+    // comment) - `conditions` passed as `undefined` here matches that, and
+    // setFileFlagKeyword's own "conditions omitted preserves whatever
     // conditioning already existed" contract means an existing DSPF that
-    // (invalidly) already carried option-indicator conditioning on MNUBAR
-    // is left untouched rather than silently stripped by this fix.
+    // (invalidly) already carried option-indicator conditioning on MNUBAR is
+    // left untouched rather than silently stripped by this fix.
     wireFlagRow(idPrefix + '-mnubar', getKeywords, onChange, function (keywords, present, params) { return DspfWriter.setFileFlagKeyword(keywords, 'MNUBAR', present, params); }, undefined, expandedSet, rerender);
     wireMenuBarKeysPanel(idPrefix, getKeywords, onChange, expandedSet, rerender, getFileKeywords, function () { return [getKeywords()]; });
   }
 
-  // Task I-119: was a second, slightly different (no `'` escaping)
-  // implementation - now delegates to DspfEngine's canonical one (see its
-  // own comment for which behaviour was picked and why). `DspfEngine` is a
-  // bare free variable here the same way `DspfWriter` already is
-  // throughout this file - it's the global set by dspfEngine.js's own
-  // `root.DspfEngine = factory()` when loaded as a <script> tag, in the
-  // same load order (parser, engine, writer, THEN this file) the real
-  // webview already uses. Node tests that require this module must set
-  // `global.DspfEngine = require('../dspfEngine.js')` first, the same way
-  // existing tests already do for `global.DspfWriter`.
+  // Was a second, slightly different (no `'` escaping) implementation -
+  // now delegates to DspfEngine's canonical one (see its own comment for
+  // which behaviour was picked and why). `DspfEngine` is a bare free
+  // variable here the same way `DspfWriter` already is throughout this
+  // file - it's the global set by dspfEngine.js's own `root.DspfEngine =
+  // factory()` when loaded as a <script> tag, in the same load order
+  // (parser, engine, writer, THEN this file) the real webview already
+  // uses. Node tests that require this module must set `global.DspfEngine
+  // = require('../dspfEngine.js')` first, the same way existing tests
+  // already do for `global.DspfWriter`.
   function escapeHtml(s) {
     return DspfEngine.escapeHtml(s);
   }
 
-  // Task I-119: was copy-pasted (byte-for-byte) into both the file-level
-  // and record-level PRINT panels' own local `assembleParams()` closures -
+  // Was copy-pasted (byte-for-byte) into both the file-level and
+  // record-level PRINT panels' own local `assembleParams()` closures -
   // extracted here since both read the same three DOM elements (response
   // indicator / print file / library) and PRINT's own *PGM/[library/]file
   // parameter shape (see I-2 in keywordFixes.md) doesn't differ between
-  // file and record level.
-  // Task I-119: HLPDOC's checkbox/label/document/folder commit logic (the
-  // "all three parts required" validation and the setFileFlagKeyword call)
-  // was copy-pasted between the file-level and help-spec/record-level
-  // HLPDOC panels, differing only in the DOM id prefix and in which
-  // conflict-reason check runs first while the checkbox is on -
-  // `checkConflict` (a thunk returning a reason string or null/undefined)
-  // carries that one real difference; everything else is shared.
+  // file and record level. HLPDOC's checkbox/label/document/folder commit
+  // logic (the "all three parts required" validation and the
+  // setFileFlagKeyword call) was copy-pasted between the file-level and
+  // help-spec/record-level HLPDOC panels, differing only in the DOM id
+  // prefix and in which conflict-reason check runs first while the
+  // checkbox is on - `checkConflict` (a thunk returning a reason string or
+  // null/undefined) carries that one real difference; everything else is
+  // shared.
   function wireHlpdocFields(idPrefix, getKeywords, onChange, checkConflict) {
     var hlpdocOn = document.getElementById(idPrefix + '-hlpdoc-on');
     var hlpdocLabel = document.getElementById(idPrefix + '-hlpdoc-label');
@@ -8852,15 +8798,15 @@
     return { on: hlpdocOn, label: hlpdocLabel, document: hlpdocDocument, folder: hlpdocFolder, commit: commitHlpdoc };
   }
 
-  // Task I-119: showConfirmDialog was copy-pasted verbatim between
+  // showConfirmDialog was copy-pasted verbatim between
   // buildWebviewTemplate.js and buildMenuWebviewTemplate.js's own inline
   // scripts (the menu designer's own comment on its copy already said so:
   // "ported verbatim from the DSPF designer's own commitDelete/
   // showConfirmDialog"). Moved here as the one shared implementation;
   // each template's own showConfirmDialog is now a thin wrapper that
   // delegates to `WebviewClientHelpers.showConfirmDialog` (bare global,
-  // same load-order idiom as `DspfEngine`/`DspfWriter` elsewhere) so
-  // none of their several call sites needed touching.
+  // same load-order idiom as `DspfEngine`/`DspfWriter` elsewhere) so none
+  // of their several call sites needed touching.
   //
   // Generic blocking confirmation dialog: a small modal overlay appended
   // to <body>, used before an action whose effects the DDS model can't
@@ -8930,13 +8876,13 @@
   }
 
   /**
-   * Task I-195 - how wide a comment line is, and whether that is a problem. A comment line is the seven
-   * prefix columns (sequence area, form type, the '*') plus the text, so its width is 7 + text length.
-   * `hardMax` is the source file's own maximum line length (the SRCDTA width of an IBM i source member),
-   * or null when there is none (a local file). Past column 80 is only a warning, since DDS lines are 80
-   * columns wide and the reference does not say what happens to more; past `hardMax` is an error, since
-   * the member physically cannot hold it. `short` is the label shown beside the input, `message` its
-   * tooltip; both are empty when the line is within 80 columns.
+   * How wide a comment line is, and whether that is a problem. A comment line is the seven prefix
+   * columns (sequence area, form type, the '*') plus the text, so its width is 7 + text length.
+   * `hardMax` is the source file's own maximum line length (the SRCDTA width of an IBM i source
+   * member), or null when there is none (a local file). Past column 80 is only a warning, since DDS
+   * lines are 80 columns wide and the reference does not say what happens to more; past `hardMax`
+   * is an error, since the member physically cannot hold it. `short` is the label shown beside the
+   * input, `message` its tooltip; both are empty when the line is within 80 columns.
    */
   function commentWidthInfo(text, hardMax) {
     var width = 7 + String(text == null ? '' : text).length;
@@ -9008,7 +8954,7 @@
     wireInputKeywordsEditor: wireInputKeywordsEditor,
     generalFieldKeywordsHtml: generalFieldKeywordsHtml,
     wireGeneralFieldKeywordsEditor: wireGeneralFieldKeywordsEditor,
-    // Task I-42 - exported so the field-level ENTFLDATR accordion (built in
+    // Exported so the field-level ENTFLDATR accordion (built in
     // buildWebviewTemplate.js's renderFieldProps, outside this module) can
     // reuse the exact same markup/wiring the file- and record-level tabs use.
     entFldAtrHtml: entFldAtrHtml,
