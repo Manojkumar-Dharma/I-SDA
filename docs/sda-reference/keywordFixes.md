@@ -265,7 +265,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-193](#i-193) | Tooling | Matrix cells for the writer paths and UI paths it does not call (`setFileFlagKeyword`, webview Apply round trip), then retire the hand-written duplicates | I-122j | Not started | — |
 | [I-194](#i-194) | Field | Command-key values that no guard reads: `MOUBTN` / `PSHBTNCHC` / `IGCCNV` keys outside 01-24 or of the wrong type, and a key written in a shape that is not `CAnn` / `CFnn` (`MNUBARSW(CA5)`, `ALTHELP(XYZ)`) | I-186 | Done (MOUBTN, PSHBTNCHC, malformed key shapes) | v0.10.362 |
 | [I-195](#i-195) | Cross-level | Comment lines are captured and written only up to column 80: text past it is dropped from the panel, and editing the comment cuts the line to 80 columns. Read the source file's real record length and keep, show and store the whole line | — | Done (52 checks in `i195CommentLineWidth`) | v0.10.364 |
-| [I-196](#i-196) | File | `MNUBARSW` / `MNUCNL` are allowed only in a file containing a menu-bar record (their own sections); no guard reads the spec's `requiresMenuBarRecordInFile` fact | I-189 | Not started | — |
+| [I-196](#i-196) | File | `MNUBARSW` / `MNUCNL` are allowed only in a file containing a menu-bar record (their own sections); no guard reads the spec's `requiresMenuBarRecordInFile` fact | I-189 | In progress | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -279,7 +279,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-196](#i-196) | Not started | `MNUBARSW` / `MNUCNL` allowed only in a file containing a menu-bar record; the spec fact exists, no guard reads it. Size (estimate): Small. |
+| 1 | [I-196](#i-196) | In progress | `MNUBARSW` / `MNUCNL` allowed only in a file containing a menu-bar record; the spec fact exists, no guard reads it. Size (estimate): Small. |
 | 2 | [I-191](#i-191) | Not started | Twelve spec entries state no level, so the generated matrix skips them; re-run the matrix skip list first, I-180 and I-189 shorten it. Size (estimate): Small. |
 | 3 | [I-193](#i-193) | Not started | Matrix cells for the writer paths and UI paths the generated matrix does not call (`setFileFlagKeyword`, webview Apply round trip), so more overlapping hand-written checks can be retired. Size (estimate): Medium. |
 | 4 | [I-123](#i-123) | Not started | Task-history comments out of source. I-121 has landed, so each citation can now live in the spec. Size (estimate): Medium (mechanical). |
@@ -8388,7 +8388,7 @@ Do: read `MOUBTN`'s `commandKeyRanges` and `PSHBTNCHC` / `IGCCNV`'s key from the
 
 ### I-196 — `MNUBARSW` / `MNUCNL` accepted in a file with no menu-bar record
 
-> **Area:** File · **Status:** Not started · **Depends on:** I-189 · **Size (estimate):** Small
+> **Area:** File · **Status:** In progress · **Depends on:** I-189 · **Size (estimate):** Small
 
 Opened from I-189. Both sections end "The MNUBARSW keyword is allowed only in a file containing a menu-bar record" (and the same for `MNUCNL`); I-189 recorded it as `requiresMenuBarRecordInFile: true` in both spec entries, but no guard reads it (searched the writer and the webview for a menu-bar-record-in-file check: none). Probe first which paths accept the keyword in a file with no `MNUBAR` record, and when the last menu-bar record is removed from a file that has either keyword.
 
