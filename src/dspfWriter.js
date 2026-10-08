@@ -6888,6 +6888,34 @@
     return firstNewViolation(retKeyViolations(oldModel), after);
   }
 
+  /** Task I-196 - MNUBARSW / MNUCNL are "allowed only in a file containing a menu-bar record" (their own sections,
+   *  recorded by I-189 as requiresMenuBarRecordInFile). A menu-bar record is a record format with MNUBAR. Each
+   *  violation is keyed by the keyword and where it sits (file level, or the record), so the diff-based check reports
+   *  what an edit adds from either side: adding the keyword to a file with no menu-bar record, or removing / retyping
+   *  the last menu-bar record while either keyword is still there. A half-built file is not allowed: the menu-bar
+   *  record has to exist before the keyword is added (an edit that adds both together passes). */
+  function menuBarRecordRequiredViolations(model) {
+    var out = {};
+    var records = (model && model.records) || [];
+    if (records.some(function (r) { return hasKeywordNamed(r.keywords, 'MNUBAR'); })) return out;
+    KeywordSpec.requiresMenuBarRecordInFile().forEach(function (n) {
+      if (hasKeywordNamed((model && model.fileKeywords) || [], n)) {
+        out[n + '|FILE'] = n + ' is allowed only in a file containing a menu-bar record (a record format with MNUBAR); this file has none (per the DDS Reference).';
+      }
+      records.forEach(function (r) {
+        if (hasKeywordNamed(r.keywords, n)) {
+          out[n + '|REC|' + r.name] = n + ' on record format ' + r.name + ' is allowed only in a file containing a menu-bar record (a record format with MNUBAR); this file has none (per the DDS Reference).';
+        }
+      });
+    });
+    return out;
+  }
+  function menuBarRecordRequiredNewConflictReason(oldModel, newModel) {
+    var after = menuBarRecordRequiredViolations(newModel);
+    if (!Object.keys(after).length) return null;
+    return firstNewViolation(menuBarRecordRequiredViolations(oldModel), after);
+  }
+
   // -----------------------------------------------------------------------
   // Task I-159 - the file-level display and I/O rules the I-121f slice found
   // unenforced. Each below is a sentence of the keyword's own DDS Reference
@@ -12316,6 +12344,7 @@
     sflendNewConflictReason: sflendNewConflictReason,
     subfileControlNotes: subfileControlNotes,
     retKeyNewConflictReason: retKeyNewConflictReason,
+    menuBarRecordRequiredNewConflictReason: menuBarRecordRequiredNewConflictReason,
     fileHelpNewConflictReason: fileHelpNewConflictReason,
     helpSpecNewConflictReason: helpSpecNewConflictReason,
     helpSpecViolations: helpSpecViolations,

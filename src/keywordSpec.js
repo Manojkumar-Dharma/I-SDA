@@ -6372,6 +6372,11 @@
   function fileRequires(name) { return i121bList(name, 'requiresInFile'); }
   /** Record types (SFL / USRDFN) `name` is refused on (copy). */
   function notOnRecordTypes(name) { return i121bList(name, 'notOnRecordTypes'); }
+  /** Task I-196: the keywords whose own section says they are "allowed only in a file containing a menu-bar
+   *  record" (MNUBARSW, MNUCNL), read from each entry's requiresMenuBarRecordInFile fact. */
+  function requiresMenuBarRecordInFile() {
+    return Object.keys(RECORD_TYPES).filter(function (k) { return RECORD_TYPES[k] && RECORD_TYPES[k].requiresMenuBarRecordInFile === true; });
+  }
   // ---- I-121e: accessors ----
   /** The eleven window / menu-bar / help / logging record keywords, in the slice's order. */
   function windowHelpLogKeywords() { return I121E_KEYWORDS.slice(); }
@@ -6965,6 +6970,7 @@
     fileExcludes: fileExcludes,
     fileRequires: fileRequires,
     notOnRecordTypes: notOnRecordTypes,
+    requiresMenuBarRecordInFile: requiresMenuBarRecordInFile,
     // ---- I-121e ----
     windowHelpLogKeywords: windowHelpLogKeywords,
     requiresWindowOnRecord: requiresWindowOnRecord,

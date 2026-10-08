@@ -84,7 +84,7 @@ check('a second, new clash is still reported', say(/CA12 and CF12/, guard(src(R(
 check('fail-safe: null / empty keyword lists give null', [{ records: [{ name: 'R', keywords: [{ name: 'MNUBARSW' }] }] }, { fileKeywords: [{ name: 'MNUCNL', parameters: null }], records: null }].every((m) => DspfWriter.commandKeyNumberNewConflictReason(null, m) === null));
 
 console.log('\n=== 3. the committed-edit hook (jsdom) ===');
-const SOURCE = src(K('MNUBARSW'), R('REC1'), R('REC2', 'CF12'));
+const SOURCE = src(K('MNUBARSW'), R('REC1'), R('REC2', 'CF12'), R('BAR', 'MNUBAR')); // I-196: MNUBARSW / MNUCNL need a menu-bar record in the file
 const html = webviewHtml('vscode-webview://fake', 'testnonce', SOURCE, 'MYSCR.DSPF');
 const posted = [];
 const dom = newWebviewDom(html, {

@@ -94,7 +94,7 @@ check('an already-malformed MNUBARSW(CA5) stays editable, a second one is new', 
 check('the I-186 forms still behave (CA25 name, MNUBARSW(CF05))', say(/^CA25 is not/, guard(rb, src(R('R1', 'CA25')))) && say(/^MNUBARSW takes a CA key, not CF05/, guard(rb, src(K('MNUBARSW(CF05)'), R('R1')))));
 
 console.log('\n=== 6. the committed-edit hook (jsdom) ===');
-const html = webviewHtml('vscode-webview://fake', 'testnonce', src(R('REC1'), R('REC2')), 'MYSCR.DSPF');
+const html = webviewHtml('vscode-webview://fake', 'testnonce', src(R('REC1'), R('REC2'), R('BAR', 'MNUBAR')), 'MYSCR.DSPF'); // I-196: MNUBARSW needs a menu-bar record in the file
 const posted = [];
 const dom = newWebviewDom(html, {
   beforeParse(window) {

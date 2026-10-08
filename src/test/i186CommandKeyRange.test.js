@@ -121,7 +121,7 @@ check('the collision rule still fires for in-range keys (unchanged)', say(/^MNUC
 check('the range / type problem is reported before a collision (a bad key is never a collision)', say(/^CA25 is not a valid/, mn('MNUBARSW', 'CA25', [kw('MNUCNL', 'CA25')], [])));
 
 console.log('\n=== 6. the committed-edit hook (jsdom) ===');
-const SOURCE = src(R('REC1'), R('REC2'));
+const SOURCE = src(R('REC1'), R('REC2'), R('BAR', 'MNUBAR')); // I-196: MNUBARSW / MNUCNL need a menu-bar record in the file
 const html = webviewHtml('vscode-webview://fake', 'testnonce', SOURCE, 'MYSCR.DSPF');
 const posted = [];
 const dom = newWebviewDom(html, {

@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-219 of 223 tasks done; 4 open (see [Open work](#open-work)). Current version: **v0.10.365**.
+220 of 223 tasks done; 3 open (see [Open work](#open-work)). Current version: **v0.10.366**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -265,7 +265,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-193](#i-193) | Tooling | Matrix cells for the writer paths and UI paths it does not call (`setFileFlagKeyword`, webview Apply round trip), then retire the hand-written duplicates | I-122j | Not started | — |
 | [I-194](#i-194) | Field | Command-key values that no guard reads: `MOUBTN` / `PSHBTNCHC` / `IGCCNV` keys outside 01-24 or of the wrong type, and a key written in a shape that is not `CAnn` / `CFnn` (`MNUBARSW(CA5)`, `ALTHELP(XYZ)`) | I-186 | Done (MOUBTN, PSHBTNCHC, malformed key shapes) | v0.10.362 |
 | [I-195](#i-195) | Cross-level | Comment lines are captured and written only up to column 80: text past it is dropped from the panel, and editing the comment cuts the line to 80 columns. Read the source file's real record length and keep, show and store the whole line | — | Done (52 checks in `i195CommentLineWidth`) | v0.10.364 |
-| [I-196](#i-196) | File | `MNUBARSW` / `MNUCNL` are allowed only in a file containing a menu-bar record (their own sections); no guard reads the spec's `requiresMenuBarRecordInFile` fact | I-189 | In progress | — |
+| [I-196](#i-196) | File | `MNUBARSW` / `MNUCNL` are allowed only in a file containing a menu-bar record (their own sections); no guard reads the spec's `requiresMenuBarRecordInFile` fact | I-189 | Done v0.10.366 | v0.10.366 |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -279,10 +279,9 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-196](#i-196) | In progress | `MNUBARSW` / `MNUCNL` allowed only in a file containing a menu-bar record; the spec fact exists, no guard reads it. Size (estimate): Small. |
-| 2 | [I-191](#i-191) | Not started | Twelve spec entries state no level, so the generated matrix skips them; re-run the matrix skip list first, I-180 and I-189 shorten it. Size (estimate): Small. |
-| 3 | [I-193](#i-193) | Not started | Matrix cells for the writer paths and UI paths the generated matrix does not call (`setFileFlagKeyword`, webview Apply round trip), so more overlapping hand-written checks can be retired. Size (estimate): Medium. |
-| 4 | [I-123](#i-123) | Not started | Task-history comments out of source. I-121 has landed, so each citation can now live in the spec. Size (estimate): Medium (mechanical). |
+| 1 | [I-191](#i-191) | Not started | Twelve spec entries state no level, so the generated matrix skips them; re-run the matrix skip list first, I-180 and I-189 shorten it. Size (estimate): Small. |
+| 2 | [I-193](#i-193) | Not started | Matrix cells for the writer paths and UI paths the generated matrix does not call (`setFileFlagKeyword`, webview Apply round trip), so more overlapping hand-written checks can be retired. Size (estimate): Medium. |
+| 3 | [I-123](#i-123) | Not started | Task-history comments out of source. I-121 has landed, so each citation can now live in the spec. Size (estimate): Medium (mechanical). |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The headline there counts the same tasks, so when a task lands or opens, update this table, the headline count and the version together.
 
@@ -6637,6 +6636,7 @@ Audit table (a new `*ConflictReason` function must be added here; `i121qConflict
 | `layoutParametersNewConflictReason` | spec-backed | Iterates SNGCHCFLD/MLTCHCFLD/PSHBTNFLD (the three layout-parameter keywords); problems come from `layoutParameterProblems`. |
 | `messageIdMsgDataNewConflictReason` | spec-backed | Via `messageDataFieldProblem`. |
 | `mnuBarKeyConflictReason` | spec-backed | `caKeyPartner` / `defaultCakey` come from the spec. File-vs-record scoping stays procedural: a file-level partner with the same CA key refuses (it extends to every record); a record-level partner refuses only within the `recordScopes` the caller passes. Not a per-keyword fact. |
+| `menuBarRecordRequiredNewConflictReason` | spec-backed | Via `menuBarRecordRequiredViolations`. |
 | `mnubarWhitelistConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
 | `moubtnCommandKeyConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
 | `msgconConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
@@ -8388,11 +8388,17 @@ Do: read `MOUBTN`'s `commandKeyRanges` and `PSHBTNCHC` / `IGCCNV`'s key from the
 
 ### I-196 — `MNUBARSW` / `MNUCNL` accepted in a file with no menu-bar record
 
-> **Area:** File · **Status:** In progress · **Depends on:** I-189 · **Size (estimate):** Small
+> **Area:** File · **Status:** Done (v0.10.366) · **Depends on:** I-189 · **Size (estimate):** Small
 
 Opened from I-189. Both sections end "The MNUBARSW keyword is allowed only in a file containing a menu-bar record" (and the same for `MNUCNL`); I-189 recorded it as `requiresMenuBarRecordInFile: true` in both spec entries, but no guard reads it (searched the writer and the webview for a menu-bar-record-in-file check: none). Probe first which paths accept the keyword in a file with no `MNUBAR` record, and when the last menu-bar record is removed from a file that has either keyword.
 
 Do: add a model-diff guard in the same chain as the other file-level relation guards, reading the spec fact, with tests in both directions (adding the keyword to a file with no menu-bar record; removing or retyping the last menu-bar record). Decide and record whether a half-built file is allowed while the menu-bar record is still being added.
+
+**Done (v0.10.366).** Probed first: the keyword was accepted on every path (record raw editor, file-level editor, source edit) in a file with no `MNUBAR` record, and removing or retyping the last menu-bar record while either keyword remained was accepted too; every UI edit goes through `commitSourceChange`, so one hook covers them all. `KeywordSpec.requiresMenuBarRecordInFile()` lists the keywords whose entry carries the fact (`MNUBARSW`, `MNUCNL`), and one diff-based guard, `DspfWriter.menuBarRecordRequiredNewConflictReason` (via `menuBarRecordRequiredViolations`, the I-149 / I-188 shape), is wired into the webview's `windowDependencyGuardBlocks` chain. A menu-bar record is a record format with `MNUBAR`. A violation is keyed by keyword and place (file level, or the record), so it is reported from either side and an existing hand-written violation never blocks an unrelated edit; removing the keyword is never blocked.
+
+**Decision (half-built files).** A half-built file is not allowed: the menu-bar record has to exist before `MNUBARSW` / `MNUCNL` is added, and the last menu-bar record cannot be removed or retyped while either keyword is in the file. An edit that adds the keyword and the `MNUBAR` record together passes. This follows the Reference sentence literally; the designer's order of work (add the menu-bar record first) costs nothing, and the refusal says what is missing.
+
+**Tests.** `src/test/i196MenuBarRecordRequired.test.js` (32 checks): the two Reference sentences and the spec accessor, both keywords at file and record level, with a parameter, in both directions (adding the keyword; removing or retyping the last `MNUBAR` record), one of two menu-bar records removed, both added in one edit, diff semantics, fail-safe on empty models, and the raw keyword editor in jsdom. Four mutations checked (guard disabled, file level not judged, record level not judged, hook removed from the chain), each failing the test.
 
 *Raised by I-189. Size (estimate): Small.*
 

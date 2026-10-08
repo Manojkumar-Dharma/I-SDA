@@ -6401,6 +6401,7 @@ const htmlTemplate = `<!DOCTYPE html>
       DspfWriter.fileLevelDisplayNewConflictReason(model, candidate) ||
       DspfWriter.commandFunctionParameterNewConflictReason(model, candidate) ||
       DspfWriter.retKeyNewConflictReason(model, candidate) ||
+      DspfWriter.menuBarRecordRequiredNewConflictReason(model, candidate) ||
       DspfWriter.fileHelpNewConflictReason(model, candidate) ||
       DspfWriter.helpSpecNewConflictReason(model, candidate) ||
       DspfWriter.helpKeywordRelationNewConflictReason(model, candidate) ||
