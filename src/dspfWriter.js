@@ -8704,6 +8704,27 @@
   }
 
   /**
+   * HLPRCD's help-specification-level form (I-199: the per-H-specification panel's HLPRCD row).
+   * HLPPNLGRP's Reference section says "a display file cannot contain both HLPPNLGRP and HLPRCD
+   * keywords", not "the same specification", so the exclusion is judged across the help
+   * specification's own keywords and the whole file (file level plus every other help entry), the
+   * way hlpdocHspecConflictReason judges HLPPNLGRP against HLPDOC. `keywordName` is the keyword
+   * being turned on (HLPRCD or HLPPNLGRP); HLPRCD beside HLPDOC or HLPRTN is deliberately not
+   * refused (see hlprcdConflictReason). The partner pair comes from the spec's mutex list.
+   */
+  function hlprcdHspecConflictReason(keywordName, ownKeywords, model, ownSourceLine) {
+    var presentOwn = function (n) { return (ownKeywords || []).some(function (kw) { return kw.name === n; }); };
+    var anywhere = function (n) { return presentOwn(n) || anyHelpKeywordPresentInFile(model, n, ownSourceLine); };
+    if (keywordName === 'HLPRCD' && anywhere('HLPPNLGRP') && KeywordSpec.isMutex('HLPPNLGRP', 'HLPRCD')) {
+      return 'HLPRCD cannot be specified in the same display file as HLPPNLGRP, wherever either appears (mutually exclusive per the DDS Reference).';
+    }
+    if (keywordName === 'HLPPNLGRP' && anywhere('HLPRCD') && KeywordSpec.isMutex('HLPPNLGRP', 'HLPRCD')) {
+      return 'HLPPNLGRP cannot be specified in the same display file as HLPRCD, wherever either appears (mutually exclusive per the DDS Reference).';
+    }
+    return '';
+  }
+
+  /**
    * Bug fix: there is no standalone PRTFILE keyword in real DDS. IBM's
    * DDS Reference documents the printer-file name as PRINT's OWN third
    * parameter form - `PRINT[(response-indicator ['text']) | (*PGM) |
@@ -12731,6 +12752,7 @@
     hlpdocConflictReason: hlpdocConflictReason,
     anyHelpKeywordPresentInFile: anyHelpKeywordPresentInFile,
     hlpdocHspecConflictReason: hlpdocHspecConflictReason,
+    hlprcdHspecConflictReason: hlprcdHspecConflictReason,
     hlprcdConflictReason: hlprcdConflictReason,
     getWdwBorder: getWdwBorder,
     setWdwBorder: setWdwBorder,

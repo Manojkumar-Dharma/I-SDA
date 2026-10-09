@@ -7187,6 +7187,18 @@
     // checkbox-plus-hand-split-3-part-parameters shape as the file-level
     // panel's own HLPDOC row (fileKeywordsPanelsHtml), all three parts
     // required per IBM's format (no brackets around any of them).
+    // I-199: HLPRCD's help-specification-level form (the Reference opens HLPRCD with "file-level or
+    // help-specification-level keyword"; I-190 added the level, this is the panel row). Same
+    // checkbox plus record / library / file parts as the file-level panel's HLPRCD row.
+    var hlprcd = DspfWriter.getFileFlagKeyword(kw, 'HLPRCD');
+    var hlprcdParts = (hlprcd.parameters || '').trim().split(/\s+/).filter(Boolean);
+    var hlprcdSecond = (hlprcdParts[1] || '').split('/');
+    var hlprcdLibrary = hlprcdSecond.length > 1 ? hlprcdSecond[0] : '';
+    var hlprcdFile = hlprcdSecond.length > 1 ? hlprcdSecond.slice(1).join('/') : (hlprcdSecond[0] || '');
+    html += flagRowHtml(p + '-hlprcd', 'Help record (HLPRCD)', hlprcd.present, undefined, undefined, hlprcd.conditions, expandedSet);
+    html += '<div class="two-col"><input type="text" id="' + p + '-hlprcd-record" placeholder="Record format name" value="' + escapeHtml(hlprcdParts[0] || '') + '" />' +
+      '<input type="text" id="' + p + '-hlprcd-library" placeholder="Library (optional)" value="' + escapeHtml(hlprcdLibrary) + '" /></div>';
+    html += '<input type="text" id="' + p + '-hlprcd-file" placeholder="File name (optional, defaults to this file)" value="' + escapeHtml(hlprcdFile) + '" style="width:100%;margin-top:4px;" />';
     var hlpdoc = DspfWriter.getFileFlagKeyword(kw, 'HLPDOC');
     var hlpdocParts = (hlpdoc.parameters || '').trim().split(/\s+/).filter(Boolean);
     html += flagRowHtml(p + '-hlpdoc', 'Help document (HLPDOC)', hlpdoc.present, undefined, undefined, hlpdoc.conditions, expandedSet);
@@ -7225,7 +7237,8 @@
       if (!hlppnlgrpOn) return;
       function commit(conditions) {
         if (hlppnlgrpOn.checked) {
-          var reason = DspfWriter.hlpdocHspecConflictReason('HLPPNLGRP', getKeywords(), getModel ? getModel() : null, ownSourceLine);
+          var reason = DspfWriter.hlpdocHspecConflictReason('HLPPNLGRP', getKeywords(), getModel ? getModel() : null, ownSourceLine) ||
+            DspfWriter.hlprcdHspecConflictReason('HLPPNLGRP', getKeywords(), getModel ? getModel() : null, ownSourceLine);
           if (reason) {
             window.alert(reason);
             hlppnlgrpOn.checked = DspfWriter.getFileFlagKeyword(getKeywords(), 'HLPPNLGRP').present;
@@ -7264,6 +7277,39 @@
       }, expandedSet, rerender);
     })();
     simple(p + '-hlpara', 'HLPARA', true); // Carries its parameter box
+
+    // I-199: HLPRCD's help-specification-level row. Same contract as the file-level row (commitHlprcd
+    // in wireFileKeywordsPanels): the checkbox alone drives presence and always commits; the three
+    // part boxes commit only while it is checked (the I-43 catch-22 fix), so typing beforehand is a
+    // no-op. Turning it on is refused beside HLPPNLGRP anywhere in the file (hlprcdHspecConflictReason),
+    // without a record format name, or with a library but no file name.
+    (function () {
+      var on = document.getElementById(p + '-hlprcd-on');
+      var recordEl = document.getElementById(p + '-hlprcd-record');
+      var libraryEl = document.getElementById(p + '-hlprcd-library');
+      var fileEl = document.getElementById(p + '-hlprcd-file');
+      if (!on || !recordEl || !libraryEl || !fileEl) return;
+      function revert() { on.checked = DspfWriter.getFileFlagKeyword(getKeywords(), 'HLPRCD').present; }
+      function commit(conditions) {
+        var record = (recordEl.value || '').trim();
+        var library = (libraryEl.value || '').trim();
+        var file = (fileEl.value || '').trim();
+        if (on.checked) {
+          var reason = DspfWriter.hlprcdHspecConflictReason('HLPRCD', getKeywords(), getModel ? getModel() : null, ownSourceLine);
+          if (reason) { window.alert(reason); revert(); return; }
+          if (!record) { window.alert('HLPRCD requires a record format name (per the DDS Reference).'); revert(); return; }
+          if (library && !file) {
+            window.alert("HLPRCD's library name only applies together with a file name - enter a file name too, or clear the library (per the DDS Reference's [[library-name/]file-name] form).");
+            return;
+          }
+        }
+        var second = file ? (library ? library + '/' + file : file) : '';
+        onChange(DspfWriter.setFileFlagKeyword(getKeywords(), 'HLPRCD', on.checked, second ? record + ' ' + second : record, undefined, conditions));
+      }
+      on.addEventListener('change', function () { commit(); });
+      [recordEl, libraryEl, fileEl].forEach(function (el) { el.addEventListener('change', function () { if (!on.checked) return; commit(); }); });
+      wireFlagRowConditioning(p + '-hlprcd', DspfWriter.getFileFlagKeyword(getKeywords(), 'HLPRCD').conditions, commit, expandedSet, rerender);
+    })();
 
     // HLPDOC's help-specification-level form. Same "-on" checkbox drives
     // presence regardless of whether the sub-fields are filled in yet, and

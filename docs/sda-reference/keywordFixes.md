@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-229 of 231 tasks done; 2 open (see [Open work](#open-work)). Current version: **v0.10.373**.
+230 of 231 tasks done; 1 open (see [Open work](#open-work)). Current version: **v0.10.374**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -268,7 +268,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-196](#i-196) | File | `MNUBARSW` / `MNUCNL` are allowed only in a file containing a menu-bar record (their own sections); no guard reads the spec's `requiresMenuBarRecordInFile` fact | I-189 | Done v0.10.366 | v0.10.366 |
 | [I-197](#i-197) | Tooling | `KEYBRD` still listed as a DDS keyword in the generated keyword index although its spec entry says it is not one (decision first) | I-121t | Done v0.10.372 | v0.10.372 |
 | [I-198](#i-198) | Tooling | `check_spec_coverage.py` prints "mark the slice Done" for slices the ledger already marks Done | I-121 | Done | v0.10.371 |
-| [I-199](#i-199) | Field | Help-specification panel has no `HLPRCD` row | I-190 | In progress | — |
+| [I-199](#i-199) | Field | Help-specification panel has no `HLPRCD` row | I-190 | Done | v0.10.374 |
 | [I-200](#i-200) | Subfile | Two `SFLPAG` / `SFLSIZ` rules left unchecked by I-146 | I-146 | Open | — |
 | [I-201](#i-201) | Field | `MNUBARCHC` 12-line count never probed with a literal split over continuation lines | I-173 | Done (v0.10.370) | — |
 | [I-202](#i-202) | Writer | Comment and blank lines inside an edited record or field were deleted, and sequence numbers moved to the wrong lines | I-195 | Done (v0.10.373) | — |
@@ -287,8 +287,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-199](#i-199) | In progress | Small, one panel row. |
-| 2 | [I-200](#i-200) | Open | Medium, two spec facts. |
+| 1 | [I-200](#i-200) | Open | Medium, two spec facts. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The headline there counts the same tasks, so when a task lands or opens, update this table, the headline count and the version together.
 
@@ -6637,6 +6636,7 @@ Audit table (a new `*ConflictReason` function must be added here; `i121qConflict
 | `helpSpecNewConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
 | `hlpdocConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
 | `hlpdocHspecConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
+| `hlprcdHspecConflictReason` | spec-backed | Calls `KeywordSpec` directly (I-199). |
 | `hlprcdConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
 | `htmlConflictReason` | spec-backed | Calls `KeywordSpec` directly. |
 | `igcalttypBasicEditConflictReason` | spec-backed | Via `igcalttypDataTypeReason`. |
@@ -8331,7 +8331,7 @@ Opened from I-122i. The matrix's L1 level cell compares `levels` with the first 
 
 **Done (v0.10.365).** The entry's `levels` now reads `['file', 'help']` (the same names `HLPDOC` uses); the file-level-only `alsoValidAtHelpSpecification` flag it carried is gone, because the `levels` fact says it. Checking the writer and panel paths showed the H-specification form already worked in the parser and in the I-161 H-specification guard (`exactlyOneOf` counts `HLPRCD`), and the Reference's own example (file-level `HLPRCD` plus `A 99 HLPRCD(ERRHELP)` on an H specification) is accepted. What was missing was the file-wide exclusion: HLPPNLGRP's section says "a display file cannot contain both HLPPNLGRP and HLPRCD keywords, nor HLPPNLGRP and HLPDOC keywords", but `hlprcdConflictReason` only looked inside one keyword array and `hlpdocHspecConflictReason` is a panel-only check, so a file-level `HLPPNLGRP` beside an H-specification `HLPRCD` or `HLPDOC` (or the reverse, or on two different records) was accepted by the raw editor and the source guard. `helpSpecViolations` now collects the help keywords of the file level and of every H specification and refuses each pair from the spec's own mutex lists (`mutexKeywords('HLPPNLGRP')` plus `HLPDOC` through `isMutex('HLPDOC', 'HLPPNLGRP')`); it runs in the model-diff chain, so only a violation an edit adds is reported. `HLPRCD` beside `HLPDOC` is deliberately not refused (neither section excludes that pair). `HLPRCD:levels` is removed from the generated matrix's `KNOWN_GAPS`.
 
-**Not done:** the help-specification panel has no `HLPRCD` row (only `HLPPNLGRP`, `HLPEXCLD`, `HLPBDY`, `HLPARA`, `HLPDOC`); an H-specification `HLPRCD` is entered in the help entry's raw keyword editor, as before.
+**Not done:** the help-specification panel had no `HLPRCD` row; an H-specification `HLPRCD` was entered in the help entry's raw keyword editor. Done as I-199 (v0.10.374).
 
 **Tests.** New `i190HlprcdHelpSpecLevel.test.js`; `i121gHelpCommandKeySpec.test.js` and `i122iGeneratedKeywordMatrix.test.js` updated. Mutation-checked: disabling the new pair check fails 8 checks.
 
@@ -8480,11 +8480,15 @@ Do: skip slices whose ledger status is already Done, or retire the script's ledg
 
 ### I-199 — Help-specification panel has no `HLPRCD` row
 
-> **Area:** Field · **Status:** In progress · **Depends on:** I-190 · **Size (estimate):** Small
+> **Area:** Field · **Status:** Done (v0.10.374) · **Depends on:** I-190 · **Size (estimate):** Small
 
 Opened from I-190. The panel offers `HLPPNLGRP`, `HLPEXCLD`, `HLPBDY`, `HLPARA` and `HLPDOC`; an H-specification `HLPRCD` can only be typed into the raw keyword editor, although the spec now says `HLPRCD` is valid at help-specification level and the I-190 guard judges it there.
 
 Do: add the row (record-format-name parameter) to the help-specification panel, enforcing the same guard reasons as the raw editor, with panel tests in both directions. Check the Reference's wording for the parameter before choosing the input shape.
+
+**Done (v0.10.374).** The Reference gives `HLPRCD(record-format-name [[library-name/]file-name])`, so the row copies the file-level panel's shape: a checkbox, a record format name box, optional library and file boxes, and the Conditioning toggle (option indicators are valid for `HLPRCD`). Rules, all as the file-level row has them: a record format name is required; a library is accepted only with a file name; the three boxes commit only while the checkbox is on (the I-43 fix). The file-wide exclusion is a new `hlprcdHspecConflictReason` in `dspfWriter.js`, which judges `HLPRCD` and `HLPPNLGRP` across the help specification's own keywords, the file level and every other help entry (HLPPNLGRP's section says "a display file cannot contain both", not "the same specification"); the pair comes from the spec's own mutex list. The new row uses it, and the existing `HLPPNLGRP` row of the same panel now calls it as well as `hlpdocHspecConflictReason`, so both directions are refused with the alert-and-revert idiom. `HLPRCD` beside `HLPDOC` or `HLPRTN` is still not refused (as I-190 decided). The raw editor and source guard are unchanged (I-190 already covered them).
+
+**Tests.** New `i199HlprcdHelpSpecRow.test.js` (writer-level conflict cases, then the real generated webview: pre-fill, edits land on the help entry, blank record / library-without-file refusals, off, a second record's help entry, and both `HLPPNLGRP` directions across file level and records). Mutation-checked: disabling the new conflict function fails 6 checks.
 
 *Raised by I-190. Size (estimate): Small.*
 
