@@ -142,6 +142,7 @@ Work is tracked in `docs/sda-reference/`, and every task is small enough to clai
 | [`CHANGELOG.md`](CHANGELOG.md) | One line per released version, latest first. |
 | [`keywordFixes.md`](docs/sda-reference/keywordFixes.md) | The keyword-compliance audit (`I-` tasks): status table, open work, one section per task. **Start at its Open work table.** |
 | [`LIMITATIONS-PLAN.md`](docs/sda-reference/LIMITATIONS-PLAN.md) | Accepted constraints and every `L`/`M`/`P`/`S36-` task. |
+| [`FEATURE-ROADMAP.md`](docs/sda-reference/FEATURE-ROADMAP.md) | The next body of work: ten feature epics (`E` tasks), each with claimable sub-tasks and its own release. |
 | [`PICKER-SCREENS-PLAN.md`](docs/sda-reference/PICKER-SCREENS-PLAN.md) | Build history of the SDA-style pickers. |
 | [`MAINTAINABILITY-AUDIT.md`](docs/sda-reference/MAINTAINABILITY-AUDIT.md) | Code and test-structure audit behind tasks I-118 – I-123. |
 | [`docs/sda-reference/README.md`](docs/sda-reference/README.md) | Real SDA screenshots, IBM's DDS Reference text, and the keyword index. |

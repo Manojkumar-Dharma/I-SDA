@@ -7,7 +7,8 @@ citations and tests live in the task's section of
 (`L`/`M`/`P`/`S36-` tasks), and every version has a matching commit in `git log`.
 
 **Prefixes:** **I** keyword-compliance audit · **L**/**M** designer fixes and features ·
-**P** New UI · **R**/**D** picker foundation · **S36** DSPF36 / S/36E.
+**P** New UI · **R**/**D** picker foundation · **S36** DSPF36 / S/36E · **E** feature epics
+([`FEATURE-ROADMAP.md`](docs/sda-reference/FEATURE-ROADMAP.md)).
 *(refactor)*, *(tests)* and *(docs)* mark entries with no user-visible behaviour change.
 
 ## 0.11.0 and later
