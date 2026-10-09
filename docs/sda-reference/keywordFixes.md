@@ -269,7 +269,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-197](#i-197) | Tooling | `KEYBRD` still listed as a DDS keyword in the generated keyword index although its spec entry says it is not one (decision first) | I-121t | Done v0.10.372 | v0.10.372 |
 | [I-198](#i-198) | Tooling | `check_spec_coverage.py` prints "mark the slice Done" for slices the ledger already marks Done | I-121 | Done | v0.10.371 |
 | [I-199](#i-199) | Field | Help-specification panel has no `HLPRCD` row | I-190 | Done | v0.10.374 |
-| [I-200](#i-200) | Subfile | Two `SFLPAG` / `SFLSIZ` rules left unchecked by I-146 | I-146 | Open | — |
+| [I-200](#i-200) | Subfile | Two `SFLPAG` / `SFLSIZ` rules left unchecked by I-146 | I-146 | In progress | — |
 | [I-201](#i-201) | Field | `MNUBARCHC` 12-line count never probed with a literal split over continuation lines | I-173 | Done (v0.10.370) | — |
 | [I-202](#i-202) | Writer | Comment and blank lines inside an edited record or field were deleted, and sequence numbers moved to the wrong lines | I-195 | Done (v0.10.373) | — |
 | [I-203](#i-203) | Tracking | Commenting out an OR line overwrote the `O` in column 7 | I-202 | Done (v0.10.373) | — |
@@ -287,7 +287,7 @@ Suggested pickup order - roughly smallest and safest first (a real bug with a pr
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1 | [I-200](#i-200) | Open | Medium, two spec facts. |
+| 1 | [I-200](#i-200) | In progress | Medium, two spec facts. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The headline there counts the same tasks, so when a task lands or opens, update this table, the headline count and the version together.
 
@@ -8498,7 +8498,7 @@ Do: add the row (record-format-name parameter) to the help-specification panel, 
 
 ### I-200 — Two `SFLPAG` / `SFLSIZ` rules left unchecked by I-146
 
-> **Area:** Subfile · **Status:** Open · **Depends on:** I-146 · **Size (estimate):** Medium
+> **Area:** Subfile · **Status:** In progress · **Depends on:** I-146 · **Size (estimate):** Medium
 
 Opened from I-146. (1) No warning that an *ignored* `SFLDROP` / `SFLROLVAL` has no effect at a display size where `SFLSIZ` equals `SFLPAG` (the preview and the audit do not say so; the Reference says "ignored", not an error, so this is a note, not a refusal). (2) `SFLPAG`'s section requires it to be at least the number of display lines a field-selection record occupies; nothing checks it.
 
