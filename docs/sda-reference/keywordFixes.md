@@ -64,7 +64,7 @@ Nothing else goes in the cell. What a task checked, how many tests it added and 
 
 ## Status at a glance
 
-232 of 232 tasks done; 0 open (see [Open work](#open-work)). Current version: **v0.10.376**.
+234 of 234 tasks done; 0 open (see [Open work](#open-work)). Current version: **v0.10.377**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -300,6 +300,8 @@ Nothing else goes in the cell. What a task checked, how many tests it added and 
 | [I-203](#i-203) | Tracking | Commenting out an OR line overwrote the `O` in column 7 | I-202 | Done | v0.10.373 |
 | [I-204](#i-204) | Tracking | Modification tag can go in columns 1-5 (5 characters) instead of columns 81-90, in both designers | I-203 | Done | v0.10.373 |
 | [I-205](#i-205) | Tooling | Status table not formalised: free-text Status cells, Done rows with no Version, section status lines in many shapes, and nothing that checks them | I-198 | Done | v0.10.376 |
+| [I-206](#i-206) | Writer | Lines an edit leaves alone were rewritten: tags past column 80 and an `O` on a first condition were dropped | I-202 | Done | v0.10.377 |
+| [I-207](#i-207) | Writer | Lines an edit removes (keyword dropped, field or record deleted) vanished; new `isda.keepRemovedLines` keeps them as comments | I-206 | Done | v0.10.377 |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -8616,3 +8618,31 @@ The Status and Version columns of [Status at a glance](#status-at-a-glance) and 
 Tests: new `src/test/keywordFixesFormat.test.js` - well-formed rows, closed vocabulary, version rules, headline counts and version against the table and `package.json`, every table version a released `CHANGELOG.md` entry, one section per row in order with a status line that matches, and Open work equal to the tasks that are not Done.
 
 *Raised by a request to formalise this file. Size (estimate): Small.*
+
+---
+
+<a id="i-206"></a>
+
+### I-206 — Lines an edit leaves alone come back exactly as they were
+
+> **Area:** Writer · **Status:** Done (v0.10.377) · **Depends on:** I-202 · **Size (estimate):** Medium
+
+Found while checking the loss of data in columns 1-7: an edit rewrote every line of the entry from the model, so a line the edit did not mean to touch came back changed. Reproduced: a tag past column 80 on an untouched keyword line (`COLOR(RED) ... MK1026`) was dropped by an unrelated column edit, and an `O` in column 7 on the first condition of a group (`AO 22 COLOR(GRN)` straight after `A 21 COLOR(RED)`) was dropped. For the second, the DDS Reference says an `O` on a first condition produces a warning and is assumed blank, so the compiler already ignores it and the parser is right to read two separate instances; the author's `O` is still theirs to keep.
+
+**Done (v0.10.377).** `restampSequenceNumbers` now returns the original line verbatim whenever the regenerated line is the same in columns 7-79 (blanks collapsed): number, spacing, anything past column 80. An orphan `O` (original column 7 is `O`, regenerated is blank, columns 8-79 match, and the line before it already carried a keyword) also keeps the original line. Because more lines are now identical to the source, modification tracking no longer sees untouched lines as changed, so it stops re-tagging them and commenting out their old copies. Changed lines still take the original prefix (cols 1-6) as in I-202. Tests: `i206UntouchedAndRemovedLines.test.js`.
+
+*Raised by the two open points left after I-202 - I-204. Size (estimate): Medium.*
+
+---
+
+<a id="i-207"></a>
+
+### I-207 — Lines an edit removes stay as comments (`isda.keepRemovedLines`)
+
+> **Area:** Writer · **Status:** Done (v0.10.377) · **Depends on:** I-206 · **Size (estimate):** Medium
+
+The second open point after I-202 - I-204: where an edit removes lines (a keyword taken off a field or record, a field or record deleted) with tracking off, the removed lines and their numbers were simply gone.
+
+**Done (v0.10.377).** New setting `isda.keepRemovedLines` (default on) pushed to both designers with the tracking config (`keepRemoved` on the `modTrackingConfig` message, resent on a live change). With it on, `DspfWriter.setKeepRemovedLines(true)` makes a removed line stay as a comment, with its number and any tag: a keyword dropped by `applyFieldUpdate` / `applyRecordUpdate` (placed where it was, not when its text simply moved onto another line, such as a keyword folded onto the field line), and every line of a field, fields or record removed by `deleteField` / `deleteFields` / `deleteRecord`. An `O` in column 7 is kept by the I-203 rule (`A*O 22 ...`); comment and blank lines stay as they were. While tracking is on with a tag the designers switch it off, because tracking already comments out what it replaces and would otherwise comment the same line twice. The writer's own default is off so existing callers are unchanged. Tests: `i206UntouchedAndRemovedLines.test.js` (writer, and the display designer through a real delete with the setting, with tracking, and without), `extension.test.js` for the setting and its resend. Decision to know about: the default is on, so a delete in the designer now leaves commented lines to clean up by hand; set `isda.keepRemovedLines` to false to restore dropping them.
+
+*Raised by the two open points left after I-202 - I-204. Size (estimate): Medium.*

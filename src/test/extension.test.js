@@ -628,6 +628,18 @@ async function run() {
     modMsg = modPosted.find((m) => m.type === 'modTrackingConfig');
     check('an unknown position value falls back to end', !!modMsg && modMsg.position === 'end');
 
+    console.log('  isda.keepRemovedLines defaults to on and is pushed with the rest');
+    modPosted.length = 0;
+    await modMessageHandler({ type: 'ready' });
+    modMsg = modPosted.find((m) => m.type === 'modTrackingConfig');
+    check('keepRemoved defaults to true', !!modMsg && modMsg.keepRemoved === true);
+    vscodeMock.__setMockConfig('isda.keepRemovedLines', false);
+    modPosted.length = 0;
+    vscodeMock.__fireConfigChange('isda.keepRemovedLines');
+    modMsg = modPosted.find((m) => m.type === 'modTrackingConfig');
+    check('turning it off re-sends keepRemoved false', !!modMsg && modMsg.keepRemoved === false);
+    vscodeMock.__setMockConfig('isda.keepRemovedLines', true);
+
     console.log('  an unrelated config change does not trigger a resend');
     modPosted.length = 0;
     vscodeMock.__fireConfigChange('isda.designerOpenColumn');

@@ -1349,6 +1349,12 @@ const htmlTemplate = `<!DOCTYPE html>
   const modTrackingSeqToggle = document.getElementById('modTrackingSeqToggle');
   // The tag box's own limit follows the position: 10 characters at the end of the line, 5 in the
   // sequence-number columns. Switching to columns 1-5 shortens a longer tag to fit.
+  // The isda.keepRemovedLines setting (host-pushed): lines an edit removes stay as comments. Off
+  // while tracking with a tag is on, because tracking already comments out what it replaces.
+  let keepRemovedLinesSetting = false;
+  function syncKeepRemovedLines() {
+    DspfWriter.setKeepRemovedLines(keepRemovedLinesSetting && !(modTrackingEnabled && modTrackingTag));
+  }
   function applyModTrackingPositionUi() {
     const max = DspfWriter.modTagMaxLength(modTrackingPosition);
     modTrackingTag = DspfWriter.buildModTag(modTrackingTag, modTrackingPosition);
@@ -2173,10 +2179,12 @@ const htmlTemplate = `<!DOCTYPE html>
   modTrackingToggle.addEventListener('change', () => {
     modTrackingEnabled = modTrackingToggle.checked;
     modTrackingSessionTouched = true;
+    syncKeepRemovedLines();
   });
   modTrackingTagInput.addEventListener('input', () => {
     modTrackingTag = DspfWriter.buildModTag(modTrackingTagInput.value, modTrackingPosition);
     modTrackingSessionTouched = true;
+    syncKeepRemovedLines();
   });
   modTrackingSeqToggle.addEventListener('change', () => {
     modTrackingPosition = modTrackingSeqToggle.checked ? 'sequence' : 'end';
@@ -7546,6 +7554,7 @@ const htmlTemplate = `<!DOCTYPE html>
       // has already toggled either control this session, a live
       // settings.json change while the panel is open is deliberately NOT
       // clobbering that in-progress override.
+      keepRemovedLinesSetting = msg.keepRemoved === true;
       if (!modTrackingSessionTouched) {
         modTrackingEnabled = !!msg.enabled;
         modTrackingPosition = msg.position === 'sequence' ? 'sequence' : 'end';
@@ -7554,6 +7563,7 @@ const htmlTemplate = `<!DOCTYPE html>
         modTrackingSeqToggle.checked = modTrackingPosition === 'sequence';
         applyModTrackingPositionUi();
       }
+      syncKeepRemovedLines();
     } else if (msg.type === 'dirtyState') {
       updateSaveButtonDirtyState(msg.isDirty);
     } else if (msg.type === 'compileResult' || msg.type === 'saveResult') {

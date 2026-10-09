@@ -44,6 +44,7 @@ an installable package: `npx vsce package --no-dependencies`.
 | `isda.trackSourceModifications` | `false` | Comment out an edited source line and tag the new one in columns 81–90, so a line's history stays visible. |
 | `isda.modificationTag` | *(empty)* | Default 10-character tag for the option above. |
 | `isda.modificationTagPosition` | `end` | Where the tag goes: `end` (columns 81–90, up to 10 characters) or `sequence` (columns 1–5, up to 5). Also a per-session toggle in both designers. |
+| `isda.keepRemovedLines` | `true` | When an edit removes source lines (a keyword dropped, a field or record deleted), keep them as comment lines instead of dropping them. Ignored while tracking with a tag is on. |
 
 ## Features
 

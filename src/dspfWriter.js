@@ -9591,6 +9591,21 @@
    * reference a record by name and wouldn't be updated, so name is treated
    * as read-only to avoid silently breaking those cross-references.
    */
+  /** When true, a line an edit removes (a keyword taken off, a field or record deleted) is kept
+   *  in the source as a comment instead of disappearing. Off by default in the writer; the
+   *  designers switch it on from the isda.keepRemovedLines setting, and off again while
+   *  modification tracking is on, because tracking already comments out what it replaces. */
+  var keepRemovedLines = false;
+  function setKeepRemovedLines(on) { keepRemovedLines = !!on; }
+  function getKeepRemovedLines() { return keepRemovedLines; }
+
+  /** What stands in the source for lines an edit removes: nothing, or - with keepRemovedLines -
+   *  the same lines as comments (lines that already are comments or blank stay as they are). */
+  function retiredLines(lines) {
+    if (!keepRemovedLines) return [];
+    return lines.map(function (l) { return isRangeFillerLine(l) ? l : commentOutLine(l); });
+  }
+
   /** A line inside an edited range that the regenerated entry has no equivalent for: a
    *  comment ('*' in column 7) or a blank line. */
   function isRangeFillerLine(line) {
@@ -9610,22 +9625,38 @@
     return c === '+' || c === '-';
   }
 
+  /** Columns a..b (1-based, inclusive) of a line with runs of blanks collapsed and the ends trimmed. */
+  function collapsedColumns(line, from, to) {
+    return padTo(line == null ? '' : String(line), LINE_WIDTH).slice(from - 1, to).replace(/\s+/g, ' ').trim();
+  }
+
+  /** An 'O' in column 7 on the first condition of a group (the line before it already carried a
+   *  keyword). The compiler warns and treats the position as blank, so the regenerated line has a
+   *  blank there; the author's 'O' is still theirs, so the original line is kept. */
+  function isOrphanOrMarker(content, j, regenerated) {
+    var orig = content[j];
+    if (padTo(orig, LINE_WIDTH).charAt(6) !== 'O' || padTo(regenerated, LINE_WIDTH).charAt(6) !== ' ') return false;
+    if (collapsedColumns(orig, 8, 79) !== collapsedColumns(regenerated, 8, 79)) return false;
+    return j > 0 && collapsedColumns(content[j - 1], 45, 79) !== '';
+  }
+
   /** Carries an edited range's own history over to the regenerated lines:
-   *  1. every comment and blank line that sat INSIDE the original range is put back, verbatim
-   *     (sequence number, '*' and text), after the same number of content lines as before, or at
-   *     the end of the range if the entry got shorter. It never lands between a line and its
-   *     own '+' / '-' continuation.
-   *  2. each regenerated line takes the sequence-number/form prefix (cols 1-6) of the original
-   *     line it IS: the entry's first line takes the original first line's; any other line that
-   *     reads the same as an original line takes that line's (so an untouched keyword keeps its
-   *     number when its neighbours merge or move); lines that changed take the remaining
-   *     original prefixes in order; lines beyond those keep their default prefix. */
+   *  1. a line the edit leaves as it was comes back exactly as it was (its number, spacing,
+   *     anything past column 80 such as an earlier modification tag, an orphan 'O');
+   *  2. every comment and blank line that sat INSIDE the original range is put back, verbatim,
+   *     next to the line it followed, and never between a line and its own '+' / '-' continuation;
+   *  3. each regenerated line that changed takes the sequence-number/form prefix (cols 1-6) of the
+   *     original line it is: the entry's first line keeps the original first line's; a later line
+   *     that reads the same as an original keeps that line's; lines that changed take the
+   *     remaining original prefixes in order; lines beyond those keep their default prefix;
+   *  4. with keepRemovedLines, an original line no regenerated line stands for (and whose text
+   *     is not now on another line) stays as a comment instead of disappearing. */
   function restampSequenceNumbers(newLines, originalRangeLines) {
+    var entries = [];
     var content = [];
-    var fillers = [];
     originalRangeLines.forEach(function (orig) {
-      if (isRangeFillerLine(orig)) fillers.push({ line: orig, anchor: content.length });
-      else content.push(orig);
+      if (isRangeFillerLine(orig)) entries.push({ line: orig, filler: true, anchor: content.length });
+      else { entries.push({ line: orig, filler: false, ci: content.length }); content.push(orig); }
     });
 
     var assigned = new Array(newLines.length);
@@ -9647,28 +9678,42 @@
 
     var stamped = newLines.map(function (line, i) {
       if (assigned[i] === undefined) return line;
-      var origPrefix = padTo(content[assigned[i]].slice(0, 6), 6);
+      var orig = content[assigned[i]];
+      if (collapsedColumns(orig, 7, 79) === collapsedColumns(line, 7, 79)) return orig;
+      if (isOrphanOrMarker(content, assigned[i], line)) return orig;
+      var origPrefix = padTo(orig.slice(0, 6), 6);
       var rest = padTo(line, LINE_WIDTH).slice(6);
       return (origPrefix + rest).replace(/\s+$/, '');
     });
 
-    if (!fillers.length) return stamped;
+    var regeneratedText = stamped.map(function (s) { return collapsedColumns(s, 8, 79); }).join(' ');
+    var items = [];
+    entries.forEach(function (e, seq) {
+      if (e.filler) {
+        items.push({ line: e.line, anchor: e.anchor, seq: seq });
+      } else if (keepRemovedLines && !used[e.ci]) {
+        var text = collapsedColumns(e.line, 8, 79);
+        if (text && regeneratedText.indexOf(text) < 0) items.push({ line: commentOutLine(e.line), anchor: e.ci + 1, seq: seq });
+      }
+    });
+    if (!items.length) return stamped;
+
     var contentToNew = {};
     assigned.forEach(function (j, i) { if (j !== undefined) contentToNew[j] = i; });
-    var placed = fillers.map(function (fl, order) {
-      var pos;
-      if (fl.anchor < content.length && contentToNew[fl.anchor] !== undefined) pos = contentToNew[fl.anchor];
-      else if (fl.anchor > 0 && contentToNew[fl.anchor - 1] !== undefined) pos = contentToNew[fl.anchor - 1] + 1;
-      else pos = Math.min(fl.anchor, stamped.length);
+    items.forEach(function (it) {
+      var pos = null;
+      for (var f = it.anchor; f < content.length && pos === null; f++) if (contentToNew[f] !== undefined) pos = contentToNew[f];
+      for (var p = it.anchor - 1; p >= 0 && pos === null; p--) if (contentToNew[p] !== undefined) pos = contentToNew[p] + 1;
+      if (pos === null) pos = Math.min(it.anchor, stamped.length);
       while (pos > 0 && pos < stamped.length && continuesOntoNextLine(stamped[pos - 1])) pos++;
-      return { line: fl.line, pos: pos, order: order };
+      it.pos = pos;
     });
-    placed.sort(function (x, y) { return x.pos - y.pos || x.order - y.order; });
+    items.sort(function (x, y) { return x.pos - y.pos || x.seq - y.seq; });
     var out = [];
-    var p = 0;
-    for (var pos2 = 0; pos2 <= stamped.length; pos2++) {
-      while (p < placed.length && placed[p].pos <= pos2) { out.push(placed[p].line); p++; }
-      if (pos2 < stamped.length) out.push(stamped[pos2]);
+    var q = 0;
+    for (var at = 0; at <= stamped.length; at++) {
+      while (q < items.length && items[q].pos <= at) { out.push(items[q].line); q++; }
+      if (at < stamped.length) out.push(stamped[at]);
     }
     return out;
   }
@@ -10009,7 +10054,9 @@
    */
   function deleteField(field, sourceLines) {
     var range = getFieldLineRange(field);
-    return sourceLines.slice(0, range[0] - 1).concat(sourceLines.slice(range[1]));
+    return sourceLines.slice(0, range[0] - 1)
+      .concat(retiredLines(sourceLines.slice(range[0] - 1, range[1])))
+      .concat(sourceLines.slice(range[1]));
   }
 
   /**
@@ -10029,7 +10076,9 @@
     ranges.sort(function (a, b) { return b[0] - a[0]; });
     var result = sourceLines.slice();
     ranges.forEach(function (range) {
-      result = result.slice(0, range[0] - 1).concat(result.slice(range[1]));
+      result = result.slice(0, range[0] - 1)
+        .concat(retiredLines(result.slice(range[0] - 1, range[1])))
+        .concat(result.slice(range[1]));
     });
     return result;
   }
@@ -10652,7 +10701,9 @@
    */
   function deleteRecord(record, sourceLines) {
     var range = getFullRecordLineRange(record);
-    return sourceLines.slice(0, range[0] - 1).concat(sourceLines.slice(range[1]));
+    return sourceLines.slice(0, range[0] - 1)
+      .concat(retiredLines(sourceLines.slice(range[0] - 1, range[1])))
+      .concat(sourceLines.slice(range[1]));
   }
 
   // ---------------------------------------------------------------------
@@ -12539,6 +12590,8 @@
     appendModTag: appendModTag,
     modTagMaxLength: modTagMaxLength,
     restampSequenceNumbers: restampSequenceNumbers,
+    setKeepRemovedLines: setKeepRemovedLines,
+    getKeepRemovedLines: getKeepRemovedLines,
     applyModificationTracking: applyModificationTracking,
     getColorAttrStates: getColorAttrStates,
     setColorAttrStates: setColorAttrStates,

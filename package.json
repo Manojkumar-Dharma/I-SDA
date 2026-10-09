@@ -2,7 +2,7 @@
   "name": "i-sda",
   "displayName": "iSDA",
   "description": "Interactive visual designer for IBM i DDS display files (DSPF) \u2014 preview, click, drag, and edit fields with changes written straight back into the DDS source.",
-  "version": "0.10.376",
+  "version": "0.10.377",
   "publisher": "Manojkumar-IBMi",
   "icon": "images/icon.png",
   "engines": {
@@ -42,6 +42,11 @@
           "type": "boolean",
           "default": false,
           "description": "Screen Designer: when a keyword/field/record edit changes an existing source line, comment out the original line instead of overwriting it (so its history stays in the file), and tag the new/changed line with the Modification tag (columns 81-90, past what the DDS compiler reads). This is the DEFAULT for newly opened designer sessions - it can also be toggled per-session from the Properties panel without changing this setting."
+        },
+        "isda.keepRemovedLines": {
+          "type": "boolean",
+          "default": true,
+          "description": "Screen and Menu Designer: when an edit removes source lines (a keyword taken off, a field or record deleted), keep them in the source as comment lines instead of dropping them, so no sequence number, OR marker or tag is lost. Ignored while Track source modifications is on with a tag, which already comments out what it replaces."
         },
         "isda.modificationTagPosition": {
           "type": "string",
