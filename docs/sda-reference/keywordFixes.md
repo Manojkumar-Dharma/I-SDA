@@ -64,7 +64,7 @@ Nothing else goes in the cell. What a task checked, how many tests it added and 
 
 ## Status at a glance
 
-234 of 234 tasks done; 0 open (see [Open work](#open-work)). Current version: **v0.10.377**.
+234 of 234 tasks done; 0 open (see [Open work](#open-work)). Current version: **v0.11.0**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|

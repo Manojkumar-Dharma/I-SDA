@@ -10,6 +10,10 @@ citations and tests live in the task's section of
 **P** New UI · **R**/**D** picker foundation · **S36** DSPF36 / S/36E.
 *(refactor)*, *(tests)* and *(docs)* mark entries with no user-visible behaviour change.
 
+## 0.11.0 and later
+
+- **0.11.0** — Release milestone, no code change: rolls up the keyword-compliance audit (I-1 – I-207) and the source-fidelity fixes of I-202 – I-207 (comments and sequence numbers kept, tag in columns 1-5, removed lines kept as comments).
+
 ## 0.10.79 and later — Keyword-compliance audit (I-series) and follow-ups
 
 - Docs (no version): README rewritten; changelog condensed to one line per version; I-121 split into slices I-121a – I-121t.
