@@ -1055,7 +1055,8 @@ const htmlTemplate = `<!DOCTYPE html>
   </div>
   <div class="mod-tracking-row">
     <label class="compare-toggle"><input type="checkbox" id="modTrackingToggle" /> Track modifications</label>
-    <input type="text" id="modTrackingTagInput" placeholder="Tag (10 chars)" maxlength="10" autocomplete="off" title="Written to columns 81-90 of every new/changed source line while tracking is on - past what the DDS compiler reads. Session-only; doesn't change the isda.modificationTag setting." />
+    <input type="text" id="modTrackingTagInput" placeholder="Tag (10 chars)" maxlength="10" autocomplete="off" title="Written to columns 81-90 of every new/changed source line while tracking is on - past what the DDS compiler reads (or to columns 1-5, max 5 characters, when the columns 1-5 toggle is on). Session-only; doesn't change the isda.modificationTag setting." />
+    <label class="compare-toggle"><input type="checkbox" id="modTrackingSeqToggle" /> Tag in columns 1-5</label>
   </div>
   <div class="props-accordion-zone" id="propsAccordionZone">
     <details class="props-accordion" id="viewAccordion">
@@ -1241,6 +1242,8 @@ const htmlTemplate = `<!DOCTYPE html>
   // message (sent on 'ready') supplies the real starting values.
   let modTrackingEnabled = false;
   let modTrackingTag = '';
+  // 'end' = columns 81-90 (up to 10 characters); 'sequence' = columns 1-5 (up to 5).
+  let modTrackingPosition = 'end';
   // True once the person has touched either control directly - after that,
   // a later 'modTrackingConfig' push (e.g. a live settings.json edit) no
   // longer overwrites their in-session choice.
@@ -1343,6 +1346,16 @@ const htmlTemplate = `<!DOCTYPE html>
   const toolbarCrosshairToggle = document.getElementById('toolbarCrosshairToggle');
   const modTrackingToggle = document.getElementById('modTrackingToggle');
   const modTrackingTagInput = document.getElementById('modTrackingTagInput');
+  const modTrackingSeqToggle = document.getElementById('modTrackingSeqToggle');
+  // The tag box's own limit follows the position: 10 characters at the end of the line, 5 in the
+  // sequence-number columns. Switching to columns 1-5 shortens a longer tag to fit.
+  function applyModTrackingPositionUi() {
+    const max = DspfWriter.modTagMaxLength(modTrackingPosition);
+    modTrackingTag = DspfWriter.buildModTag(modTrackingTag, modTrackingPosition);
+    modTrackingTagInput.maxLength = max;
+    modTrackingTagInput.placeholder = 'Tag (' + max + ' chars)';
+    modTrackingTagInput.value = modTrackingTag;
+  }
   const crosshairV = document.getElementById('crosshairV');
   const crosshairH = document.getElementById('crosshairH');
   const crosshairReadout = document.getElementById('crosshairReadout');
@@ -2162,7 +2175,12 @@ const htmlTemplate = `<!DOCTYPE html>
     modTrackingSessionTouched = true;
   });
   modTrackingTagInput.addEventListener('input', () => {
-    modTrackingTag = DspfWriter.buildModTag(modTrackingTagInput.value);
+    modTrackingTag = DspfWriter.buildModTag(modTrackingTagInput.value, modTrackingPosition);
+    modTrackingSessionTouched = true;
+  });
+  modTrackingSeqToggle.addEventListener('change', () => {
+    modTrackingPosition = modTrackingSeqToggle.checked ? 'sequence' : 'end';
+    applyModTrackingPositionUi();
     modTrackingSessionTouched = true;
   });
 
@@ -6427,7 +6445,7 @@ const htmlTemplate = `<!DOCTYPE html>
       // options through each individual DspfWriter call above - see
       // applyModificationTracking's own doc comment in dspfWriter.js for
       // why a plain prefix/suffix trim is enough here.
-      newLines = DspfWriter.applyModificationTracking(lines, newLines, { enabled: modTrackingEnabled, tag: modTrackingTag });
+      newLines = DspfWriter.applyModificationTracking(lines, newLines, { enabled: modTrackingEnabled, tag: modTrackingTag, position: modTrackingPosition });
       sourceText = newLines.join('\\n');
       model = DspfParser.parseDspf(sourceText);
       activePulldown = null;
@@ -7530,9 +7548,11 @@ const htmlTemplate = `<!DOCTYPE html>
       // clobbering that in-progress override.
       if (!modTrackingSessionTouched) {
         modTrackingEnabled = !!msg.enabled;
-        modTrackingTag = DspfWriter.buildModTag(msg.tag);
+        modTrackingPosition = msg.position === 'sequence' ? 'sequence' : 'end';
+        modTrackingTag = DspfWriter.buildModTag(msg.tag, modTrackingPosition);
         modTrackingToggle.checked = modTrackingEnabled;
-        modTrackingTagInput.value = modTrackingTag;
+        modTrackingSeqToggle.checked = modTrackingPosition === 'sequence';
+        applyModTrackingPositionUi();
       }
     } else if (msg.type === 'dirtyState') {
       updateSaveButtonDirtyState(msg.isDirty);

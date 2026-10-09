@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-226 of 228 tasks done; 2 open (see [Open work](#open-work)). Current version: **v0.10.372**.
+229 of 231 tasks done; 2 open (see [Open work](#open-work)). Current version: **v0.10.373**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -271,6 +271,9 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-199](#i-199) | Field | Help-specification panel has no `HLPRCD` row | I-190 | In progress | — |
 | [I-200](#i-200) | Subfile | Two `SFLPAG` / `SFLSIZ` rules left unchecked by I-146 | I-146 | Open | — |
 | [I-201](#i-201) | Field | `MNUBARCHC` 12-line count never probed with a literal split over continuation lines | I-173 | Done (v0.10.370) | — |
+| [I-202](#i-202) | Writer | Comment and blank lines inside an edited record or field were deleted, and sequence numbers moved to the wrong lines | I-195 | Done (v0.10.373) | — |
+| [I-203](#i-203) | Tracking | Commenting out an OR line overwrote the `O` in column 7 | I-202 | Done (v0.10.373) | — |
+| [I-204](#i-204) | Tracking | Modification tag can go in columns 1-5 (5 characters) instead of columns 81-90, in both designers | I-203 | Done (v0.10.373) | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -8518,3 +8521,49 @@ Decision to know about: the earlier `+` behaviour ("insert one blank") was infer
 New `src/test/i201MenuBarContinuedLiteral.test.js` (18 checks): the join rules for both signs (blanks before the sign, leading blanks after, between parameters, three-line mix), the counter on continued literals against the same choices written as 36-position `&field` text, the boundary at 22 / 23 choices and 11 to 12 in the model guard, and the raw keyword editor in jsdom. Two mutations (a blank added after `+` again; `+` keeping the next line's leading blanks) fail 14 and 11 of its checks. `continuationJoiner.test.js` had pinned the old `+` reading; its `+` check now states IBM's rule (four checks). The full suite passes (310 files, 21,016 checks).
 
 *Raised by I-173. Size (estimate): Small.*
+
+---
+
+<a id="i-202"></a>
+
+### I-202 — Comment and blank lines inside an edited entry, and sequence numbers by line identity
+
+> **Area:** Writer · **Status:** Done (v0.10.373) · **Depends on:** I-195 · **Size (estimate):** Medium
+
+Reported: data in columns 1-7 is lost when a record or field is edited. Reproduced against the writer: (1) a comment line (`*` in column 7) or a blank line sitting *inside* an entry's own lines (between a field line and its keyword lines, or inside a record header) was deleted whenever that entry was rewritten, even by a column-only edit, taking its sequence number and text with it; comments between entries were never affected. (2) `restampSequenceNumbers` copied the original prefixes onto the regenerated lines by position, so once the keyword lines were compacted the surviving lines took the wrong numbers (`COLOR(RED)` `00500` became `00300`) and the rest vanished.
+
+**Done (v0.10.373).** `restampSequenceNumbers` (shared by the field, record, rename, file-keyword and `DSPSIZ` writers) now does both jobs. Comment and blank lines inside the range are put back verbatim, with their own number and text, in the position they held relative to the neighbouring kept line (before the line that followed them, else after the one that preceded them, else by count), and never between a line and its own `+` / `-` continuation. Each regenerated line takes the prefix of the original line it is: the first line keeps the first original's, a later line that reads the same as an original keeps that line's number, lines that changed take the remaining original numbers in order, and extra lines keep the default prefix. Text in columns 1-5 and a form-type letter other than `A` are kept as before.
+
+New `src/test/i202RangeHistory.test.js` covers comment / blank lines in fields and record headers, numbers on AND / OR lines, a kept comment never landing after a `+` line, and the odd-prefix case.
+
+*Raised by a reported loss of data in columns 1-7 on edit. Size (estimate): Medium.*
+
+---
+
+<a id="i-203"></a>
+
+### I-203 — Commenting out an OR line keeps its `O`
+
+> **Area:** Tracking · **Status:** Done (v0.10.373) · **Depends on:** I-202 · **Size (estimate):** Small
+
+The tracking mode comments out the old line by setting column 7 to `*`; on an OR line that overwrote the `O` (`00400AO 22` became `00400A* 22`), so the commented copy could no longer be read as an OR line.
+
+**Done (v0.10.373).** `commentOutLine` keeps column 7: when it is blank the `*` replaces it, as before; when it is used (`O`) the `*` is inserted in front of it, so the line reads `00400A*O 22 ...` with the rest shifted one column right (trailing blanks trimmed). Decision to know about: this reads "insert `*` in between" as inserting before the `O`, shifting the line's text one column; the alternative of keeping the `O` in column 7 and putting the `*` elsewhere would leave a line that is not a comment. Tests in `i202RangeHistory.test.js` (the helper and a tracked edit that drops an OR line).
+
+*Raised by a reported loss of data in columns 1-7 on edit. Size (estimate): Small.*
+
+---
+
+<a id="i-204"></a>
+
+### I-204 — Modification tag in columns 1-5
+
+> **Area:** Tracking · **Status:** Done (v0.10.373) · **Depends on:** I-203 · **Size (estimate):** Medium
+
+Tracking wrote its tag only at columns 81-90. A second position is now available: the sequence-number area, columns 1-5, with the tag limited to 5 characters.
+
+**Done (v0.10.373).** New setting `isda.modificationTagPosition` (`end`, the default, or `sequence`) and a "Tag in columns 1-5" toggle beside the tag box in both the display and the menu designer; the toggle is session-only like the other two controls and overrides the host value once touched, and the host pushes the position with the rest of the tracking config (resent on a live settings change). With it on the tag box takes 5 characters (a longer tag is cut when the toggle is switched on) and `applyModificationTracking` writes the tag over columns 1-5 of every new or changed line, left-aligned and padded; the old line is commented out and keeps its own number, nothing is written past column 80. The end-of-line behaviour is unchanged. `DspfWriter.buildModTag` / `appendModTag` take a position and `modTagMaxLength` returns the limit.
+
+Tests: writer checks in `i202RangeHistory.test.js`; new `i204ModTagPositionWebview.test.js` drives the toggle, the limit, the host start value and a real edit in both designers; `extension.test.js` covers the setting and its resend.
+
+*Raised by a reported loss of data in columns 1-7 on edit. Size (estimate): Medium.*

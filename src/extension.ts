@@ -1695,10 +1695,10 @@ class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
     // getModTrackingConfig's own doc comment.
     const sendModTrackingConfig = () => {
       const cfg = getModTrackingConfig();
-      webviewPanel.webview.postMessage({ type: 'modTrackingConfig', enabled: cfg.enabled, tag: cfg.tag });
+      webviewPanel.webview.postMessage({ type: 'modTrackingConfig', enabled: cfg.enabled, tag: cfg.tag, position: cfg.position });
     };
     const modTrackingConfigSub = vscode.workspace.onDidChangeConfiguration((e) => {
-      if (e.affectsConfiguration('isda.trackSourceModifications') || e.affectsConfiguration('isda.modificationTag')) {
+      if (e.affectsConfiguration('isda.trackSourceModifications') || e.affectsConfiguration('isda.modificationTag') || e.affectsConfiguration('isda.modificationTagPosition')) {
         sendModTrackingConfig();
       }
     });
@@ -1866,10 +1866,10 @@ class MenuDesignerEditorProvider implements vscode.CustomTextEditorProvider {
     // change while this panel is open.
     const sendModTrackingConfig = () => {
       const cfg = getModTrackingConfig();
-      webviewPanel.webview.postMessage({ type: 'modTrackingConfig', enabled: cfg.enabled, tag: cfg.tag });
+      webviewPanel.webview.postMessage({ type: 'modTrackingConfig', enabled: cfg.enabled, tag: cfg.tag, position: cfg.position });
     };
     const modTrackingConfigSub = vscode.workspace.onDidChangeConfiguration((e) => {
-      if (e.affectsConfiguration('isda.trackSourceModifications') || e.affectsConfiguration('isda.modificationTag')) {
+      if (e.affectsConfiguration('isda.trackSourceModifications') || e.affectsConfiguration('isda.modificationTag') || e.affectsConfiguration('isda.modificationTagPosition')) {
         sendModTrackingConfig();
       }
     });
@@ -2688,11 +2688,12 @@ async function getCodeForIStatus(): Promise<{ installed: boolean; connected: boo
  *  in buildWebviewTemplate.js); toggling them in the panel is session-only
  *  and never writes back here, the same relationship Task L11's ruler
  *  toggle already has with nothing in settings at all. */
-function getModTrackingConfig(): { enabled: boolean; tag: string } {
+function getModTrackingConfig(): { enabled: boolean; tag: string; position: 'end' | 'sequence' } {
   const config = vscode.workspace.getConfiguration('isda');
   return {
     enabled: !!config.get<boolean>('trackSourceModifications', false),
     tag: (config.get<string>('modificationTag', '') || '').slice(0, 10),
+    position: config.get<string>('modificationTagPosition', 'end') === 'sequence' ? 'sequence' : 'end',
   };
 }
 

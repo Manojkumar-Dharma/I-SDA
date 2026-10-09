@@ -615,6 +615,19 @@ async function run() {
     modMsg = modPosted.find((m) => m.type === 'modTrackingConfig');
     check('config-change listener re-sends without waiting for another ready', !!modMsg && modMsg.enabled === false);
 
+    console.log('  the tag position (isda.modificationTagPosition) defaults to the end of the line and is pushed with the rest');
+    check('position defaults to end', modMsg && modMsg.position === 'end');
+    vscodeMock.__setMockConfig('isda.modificationTagPosition', 'sequence');
+    modPosted.length = 0;
+    vscodeMock.__fireConfigChange('isda.modificationTagPosition');
+    modMsg = modPosted.find((m) => m.type === 'modTrackingConfig');
+    check('changing the position re-sends it as sequence', !!modMsg && modMsg.position === 'sequence');
+    vscodeMock.__setMockConfig('isda.modificationTagPosition', 'bogus');
+    modPosted.length = 0;
+    await modMessageHandler({ type: 'ready' });
+    modMsg = modPosted.find((m) => m.type === 'modTrackingConfig');
+    check('an unknown position value falls back to end', !!modMsg && modMsg.position === 'end');
+
     console.log('  an unrelated config change does not trigger a resend');
     modPosted.length = 0;
     vscodeMock.__fireConfigChange('isda.designerOpenColumn');
@@ -676,6 +689,13 @@ async function run() {
     vscodeMock.__fireConfigChange('isda.trackSourceModifications');
     mnuModMsg = mnuModPosted.find((m) => m.type === 'modTrackingConfig');
     check('config-change listener re-sends without waiting for another ready', !!mnuModMsg && mnuModMsg.enabled === false);
+
+    console.log('  the same position setting reaches the menu designer');
+    vscodeMock.__setMockConfig('isda.modificationTagPosition', 'sequence');
+    mnuModPosted.length = 0;
+    vscodeMock.__fireConfigChange('isda.modificationTagPosition');
+    mnuModMsg = mnuModPosted.find((m) => m.type === 'modTrackingConfig');
+    check('changing the position re-sends it as sequence', !!mnuModMsg && mnuModMsg.position === 'sequence');
 
     console.log('  an unrelated config change does not trigger a resend');
     mnuModPosted.length = 0;

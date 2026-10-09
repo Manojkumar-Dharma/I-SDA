@@ -9549,19 +9549,86 @@
    * reference a record by name and wouldn't be updated, so name is treated
    * as read-only to avoid silently breaking those cross-references.
    */
-  /** Preserves each ORIGINAL line's own sequence-number/form prefix (cols 1-6) at its position
+  /** A line inside an edited range that the regenerated entry has no equivalent for: a
+   *  comment ('*' in column 7) or a blank line. */
+  function isRangeFillerLine(line) {
+    var s = line == null ? '' : String(line);
+    return s.trim() === '' || s.charAt(6) === '*';
+  }
 
-   *  within the regenerated lines, rather than blanket-applying the first line's prefix to every
-   *  line - keeps diffs minimal when an edit doesn't change the line count. Lines beyond the
-   *  original range (genuinely new lines the edit introduced) keep their default prefix. */
+  /** What identifies a content line apart from its sequence number: columns 8-79, whitespace-
+   *  collapsed, so a line that the edit leaves as it was is matched to itself. */
+  function rangeLineIdentity(line) {
+    return padTo(line == null ? '' : String(line), LINE_WIDTH).slice(7, 79).replace(/\s+/g, ' ').trim();
+  }
+
+  /** Whether `line` carries '+' or '-' in column 80, i.e. continues onto the line below it. */
+  function continuesOntoNextLine(line) {
+    var c = padTo(line == null ? '' : String(line), LINE_WIDTH).charAt(79);
+    return c === '+' || c === '-';
+  }
+
+  /** Carries an edited range's own history over to the regenerated lines:
+   *  1. every comment and blank line that sat INSIDE the original range is put back, verbatim
+   *     (sequence number, '*' and text), after the same number of content lines as before, or at
+   *     the end of the range if the entry got shorter. It never lands between a line and its
+   *     own '+' / '-' continuation.
+   *  2. each regenerated line takes the sequence-number/form prefix (cols 1-6) of the original
+   *     line it IS: the entry's first line takes the original first line's; any other line that
+   *     reads the same as an original line takes that line's (so an untouched keyword keeps its
+   *     number when its neighbours merge or move); lines that changed take the remaining
+   *     original prefixes in order; lines beyond those keep their default prefix. */
   function restampSequenceNumbers(newLines, originalRangeLines) {
-    return newLines.map(function (line, i) {
-      var orig = originalRangeLines[i];
-      if (orig == null) return line;
-      var origPrefix = padTo(orig.slice(0, 6), 6);
+    var content = [];
+    var fillers = [];
+    originalRangeLines.forEach(function (orig) {
+      if (isRangeFillerLine(orig)) fillers.push({ line: orig, anchor: content.length });
+      else content.push(orig);
+    });
+
+    var assigned = new Array(newLines.length);
+    var used = new Array(content.length);
+    if (content.length && newLines.length) { assigned[0] = 0; used[0] = true; }
+    newLines.forEach(function (line, i) {
+      if (i === 0 || assigned[i] !== undefined) return;
+      var id = rangeLineIdentity(line);
+      for (var j = 0; j < content.length; j++) {
+        if (!used[j] && rangeLineIdentity(content[j]) === id) { assigned[i] = j; used[j] = true; return; }
+      }
+    });
+    var nextFree = 0;
+    newLines.forEach(function (line, i) {
+      if (assigned[i] !== undefined) return;
+      while (nextFree < content.length && used[nextFree]) nextFree++;
+      if (nextFree < content.length) { assigned[i] = nextFree; used[nextFree] = true; }
+    });
+
+    var stamped = newLines.map(function (line, i) {
+      if (assigned[i] === undefined) return line;
+      var origPrefix = padTo(content[assigned[i]].slice(0, 6), 6);
       var rest = padTo(line, LINE_WIDTH).slice(6);
       return (origPrefix + rest).replace(/\s+$/, '');
     });
+
+    if (!fillers.length) return stamped;
+    var contentToNew = {};
+    assigned.forEach(function (j, i) { if (j !== undefined) contentToNew[j] = i; });
+    var placed = fillers.map(function (fl, order) {
+      var pos;
+      if (fl.anchor < content.length && contentToNew[fl.anchor] !== undefined) pos = contentToNew[fl.anchor];
+      else if (fl.anchor > 0 && contentToNew[fl.anchor - 1] !== undefined) pos = contentToNew[fl.anchor - 1] + 1;
+      else pos = Math.min(fl.anchor, stamped.length);
+      while (pos > 0 && pos < stamped.length && continuesOntoNextLine(stamped[pos - 1])) pos++;
+      return { line: fl.line, pos: pos, order: order };
+    });
+    placed.sort(function (x, y) { return x.pos - y.pos || x.order - y.order; });
+    var out = [];
+    var p = 0;
+    for (var pos2 = 0; pos2 <= stamped.length; pos2++) {
+      while (p < placed.length && placed[p].pos <= pos2) { out.push(placed[p].line); p++; }
+      if (pos2 < stamped.length) out.push(stamped[pos2]);
+    }
+    return out;
   }
 
   // ---------------------------------------------------------------------
@@ -12103,6 +12170,10 @@
   function commentOutLine(line) {
     var s = line == null ? '' : String(line);
     if (s.length < 7) s = s + new Array(7 - s.length + 1).join(' ');
+    // Column 7 holds the OR marker ('O') of an OR line. A blank column 7 is simply replaced by
+    // the '*'; a used one is kept by inserting the '*' before it, so the line's own text
+    // (the 'O' included) reads on one column to the right instead of being overwritten.
+    if (s.charAt(6) !== ' ') return (s.slice(0, 6) + '*' + s.slice(6)).replace(/\s+$/, '');
     return (s.slice(0, 6) + '*' + s.slice(7)).replace(/\s+$/, '');
   }
 
@@ -12111,8 +12182,14 @@
    *  written to columns 81-90 - stripped of newlines (a tag is always
    *  one line) and capped at 10 characters; no particular format is
    *  imposed beyond that, per how this task was scoped. */
-  function buildModTag(rawTag) {
-    return (rawTag || '').replace(/[\r\n]/g, '').slice(0, 10);
+  function buildModTag(rawTag, position) {
+    return (rawTag || '').replace(/[\r\n]/g, '').slice(0, modTagMaxLength(position));
+  }
+
+  /** Longest tag the chosen position can hold: 5 in columns 1-5 ('sequence'), 10 in columns
+   *  81-90 (anything else, the default). */
+  function modTagMaxLength(position) {
+    return position === 'sequence' ? 5 : 10;
   }
 
   /** Appends `tag` starting at column 81 - past LINE_WIDTH (80), i.e. past
@@ -12122,9 +12199,15 @@
    *  content) so the tag always lands in the same fixed column no matter
    *  how short the line's own compiled content is. A blank/empty tag is a
    *  no-op (nothing appended, line returned unchanged). */
-  function appendModTag(line, tag) {
+  function appendModTag(line, tag, position) {
     if (!tag) return line;
     var s = line == null ? '' : String(line);
+    if (position === 'sequence') {
+      // Columns 1-5 (the sequence-number area, which the compiler ignores): the tag replaces
+      // whatever number the line carried, left-aligned and space-padded to five columns.
+      if (s.length < 6) s = s + new Array(6 - s.length + 1).join(' ');
+      return (padTo(tag.slice(0, 5), 5) + s.slice(5)).replace(/\s+$/, '');
+    }
     if (s.length < LINE_WIDTH) s = s + new Array(LINE_WIDTH - s.length + 1).join(' ');
     return (s + tag).replace(/\s+$/, '');
   }
@@ -12154,7 +12237,7 @@
   function applyModificationTracking(oldLines, newLines, options) {
     options = options || {};
     if (!options.enabled) return newLines;
-    var tag = buildModTag(options.tag);
+    var tag = buildModTag(options.tag, options.position);
     if (!tag) return newLines;
 
     var prefix = commonPrefixLen(oldLines, newLines);
@@ -12201,7 +12284,7 @@
       var oj = j < oldMid.length ? oldMid[j] : null;
       var nj = j < newMid.length ? newMid[j] : null;
       if (nj == null) continue;
-      outMid.push(oj === nj ? nj : appendModTag(nj, tag));
+      outMid.push(oj === nj ? nj : appendModTag(nj, tag, options.position));
     }
 
     return newLines.slice(0, prefix).concat(outMid, newLines.slice(newLines.length - suffix));
@@ -12370,6 +12453,8 @@
     commentOutLine: commentOutLine,
     buildModTag: buildModTag,
     appendModTag: appendModTag,
+    modTagMaxLength: modTagMaxLength,
+    restampSequenceNumbers: restampSequenceNumbers,
     applyModificationTracking: applyModificationTracking,
     getColorAttrStates: getColorAttrStates,
     setColorAttrStates: setColorAttrStates,
