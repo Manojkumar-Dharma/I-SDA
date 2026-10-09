@@ -34,16 +34,41 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 3. [Background](#background) — reference method and how each phase was scoped.
 4. [Task details](#task-details) — one `### I-N` section per task, in strict ID order.
    Each section opens with its Area, Status and Depends-on line.
+5. [Status and version conventions](#status-and-version-conventions) - what may go in the Status and Version columns, and how a task is claimed and landed.
+
+---
+
+## Status and version conventions
+
+Checked by `src/test/keywordFixesFormat.test.js` on every `npm test`, so a cell that drifts fails the build instead of waiting to be noticed.
+
+**Status** (the Status column, and the first words of each section's `**Status:**` line) is one of:
+
+| Status | Meaning |
+|--------|---------|
+| `Open` | Not started. Listed in [Open work](#open-work). |
+| `In progress` | Claimed with a `Claim I-N` commit and pushed; not landed. Listed in Open work. |
+| `Done` | Landed. |
+| `Done (no code change)` | Landed as research, an advisory or a method task that changed no code. |
+| `Done (no behaviour change)` | Landed as a refactor or comment-only change verified not to alter output. |
+
+Nothing else goes in the cell. What a task checked, how many tests it added and what it handed to another task belong in the task's own section.
+
+**Version** is `vX.Y.Z`, the release the work landed in (the version in the commit title and in `CHANGELOG.md`), for every Done row. An Open or In progress row shows `—`; so does the one `Done (no code change)` row with no release (I-1, the method task). A task that lands in several releases shows the last; the earlier ones go in its section.
+
+**Section status line.** `**Status:** <Status> (<version>)`, optionally followed by ` - ` and a one-line note (`Done (v0.10.341) - 130 checks; findings I-177, I-178`). While a task is Open or In progress the line is the bare status. A longer history goes in a `**Landing history.**` paragraph under the line.
+
+**Claiming and landing.** A claim commit sets the row, the section and the Open work row to `In progress` (Version `—`) and updates the headline count. Landing sets Status and Version in the row, the same in the section line, removes the task from Open work (and renumbers its Order column), and moves the headline count and version, with the `CHANGELOG.md` entry and the `package.json` version, in one commit.
 
 ---
 
 ## Status at a glance
 
-231 of 232 tasks done; 1 open (see [Open work](#open-work)). Current version: **v0.10.375**.
+232 of 232 tasks done; 0 open (see [Open work](#open-work)). Current version: **v0.10.376**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
-| [I-1](#i-1) | File | Canonical file-level keyword reference; compare against iSDA (method) | — | Done | — |
+| [I-1](#i-1) | File | Canonical file-level keyword reference; compare against iSDA (method) | — | Done (no code change) | — |
 | [I-2](#i-2) | File | `PRTFILE` is not a real DDS keyword | I-1 | Done | v0.10.83 |
 | [I-3](#i-3) | File | Conditioning audit across the 39 file-level keywords | I-1 | Done | v0.10.82 |
 | [I-4](#i-4) | File | Parameter / sub-parameter completeness audit (39 keywords) | I-1 | Done | v0.10.87 |
@@ -65,13 +90,13 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-20](#i-20) | Record | Repeatable Indicator-instance model made kind-aware | I-7, I-13 | Done | v0.10.101 |
 | [I-21](#i-21) | Record | `CSRLOC` / record-level `HLPTITLE` missing conditioning | I-7 | Done | v0.10.98 |
 | [I-22](#i-22) | Record | `SFLSIZ` / `SFLPAG` / `SFLLIN` display-size conditioning | I-10 | Done | v0.10.102 |
-| [I-23](#i-23) | Record | Keywords implied to conflict with `SFLMSGRCD` | I-11 | Done (advisory only) | v0.10.103 |
+| [I-23](#i-23) | Record | Keywords implied to conflict with `SFLMSGRCD` | I-11 | Done (no code change) | v0.10.103 |
 | [I-24](#i-24) | Record | `WINDOW` vs file-level `PASSRCD` | I-12 | Done | v0.10.99 |
 | [I-25](#i-25) | Record | `KEEP` duplicated across 4 panels; consolidated | I-7, I-9 | Done | v0.10.100 |
 | [I-26](#i-26) | Record | Add `SFLSNGCHC` / `SFLMLTCHC` / `SFLSCROLL` | I-10, I-15 | Done | v0.10.107 |
 | [I-27](#i-27) | Record | Record-level `HLPTITLE` as repeatable instances (up to 15) | I-21 | Done | v0.10.105 |
 | [I-28](#i-28) | Record | `KEEP` conditioning toggle; `KEEP`/`ALWROL`/`CLRL`/`SLNO` mutex | I-9, I-25 | Done | v0.10.106 |
-| [I-29](#i-29) | Record | The "Roll" column on real SDA's display-layout screen | I-22 | Done (research) | v0.10.104 |
+| [I-29](#i-29) | Record | The "Roll" column on real SDA's display-layout screen | I-22 | Done (no code change) | v0.10.104 |
 | [I-30](#i-30) | Field | Character fields (base keyword set) | I-1 | Done | v0.10.109 |
 | [I-31](#i-31) | Field | Numeric fields (editing keywords) | I-30 | Done | v0.10.113 |
 | [I-32](#i-32) | Field | Date / Time / Timestamp fields | I-31 | Done | v0.10.114 |
@@ -146,7 +171,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-101](#i-101) | Tooling / all levels | Raw keyword editor: option-indicator guard for the other ~92 keywords the DDS Reference says take none | I-95 | Done | v0.10.197 |
 | [I-102](#i-102) | Record | `HLPCLR` / `INVITE`: whitelisted on `USRDFN` but refused by the shared guard | I-44, I-51 | Done | v0.10.177 |
 | [I-103](#i-103) | Record | `CHGINPDFT`: record-level row has no `USRDFN` / `MNUBAR` guard | I-44, I-54 | Done | v0.10.182 |
-| [I-104](#i-104) | Record | Table-driven sweep test over every record keyword row (`USRDFN`, `SFL`, `MNUBAR`) | I-102, I-103 | Done (test only) | v0.10.181 |
+| [I-104](#i-104) | Record | Table-driven sweep test over every record keyword row (`USRDFN`, `SFL`, `MNUBAR`) | I-102, I-103 | Done | v0.10.181 |
 | [I-105](#i-105) | Record | `USRDFN` record: consistent presentation of applicable / non-applicable keyword rows (decision first) | I-44, I-102 | Done | v0.10.191 |
 | [I-106](#i-106) | Record | `UNLOCK`: not guarded on `SFL` / `USRDFN` records | I-104 | Done | v0.10.183 |
 | [I-107](#i-107) | Record | `CHECK(AB)` / `CHECK(RL)`: not guarded on `MNUBAR` / `USRDFN` records | I-104 | Done | v0.10.184 |
@@ -154,7 +179,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-109](#i-109) | Record | Record Indicator row: no `USRDFN` whitelist ("+ Add" and the kind switch) | I-104 | Done | v0.10.186 |
 | [I-110](#i-110) | Record | "+ Add" `HLPTITLE` (`USRDFN`, `SFL`) and `MNUBARDSP` (`USRDFN`): accepted although not whitelisted | I-104 | Done | v0.10.185 |
 | [I-111](#i-111) | Record | `USRDFN` / `SFL` / `MNUBAR` guards run on every edit while the box is ticked, not on a real turn-on | I-84, I-102 | Done | v0.10.187 |
-| [I-112](#i-112) | Field | `REFFLD`-inherited validity keywords (`CHECK`, `COMP`, `RANGE`, `VALUES`, `CHKMSGID`) and `FLTPCN` cannot be shown (research first) | I-74 | Done (research; documented limit) | v0.10.188 |
+| [I-112](#i-112) | Field | `REFFLD`-inherited validity keywords (`CHECK`, `COMP`, `RANGE`, `VALUES`, `CHKMSGID`) and `FLTPCN` cannot be shown (research first) | I-74 | Done (no code change) | v0.10.188 |
 | [I-113](#i-113) | Field | "+ Fields from database file" (L14) writes an explicit length, data type and decimals next to `REFFLD` (decision first) | I-74 | Done | v0.10.190 |
 | [I-114](#i-114) | Record | `HELP` / `HLPRTN` on a `USRDFN` record: reachable only through the raw keyword editor (decision first) | I-105 | Done | v0.10.193 |
 | [I-115](#i-115) | Record | `SFLMSG` records' Keywords tab is still the full row set although every row is refused (decision first) | I-105 | Done | v0.10.192 |
@@ -163,36 +188,36 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-118](#i-118) | Tooling | Remove dead code, test-only exports and unreferenced fixtures | I-40 | Done | v0.10.200 |
 | [I-119](#i-119) | Tooling | De-duplicate copied helpers (`escapeHtml`, `isPulldownRecord`, `assembleParams`, ...) | I-118 | Done | v0.10.204 |
 | [I-120](#i-120) | Tooling | Shared test harness: one `check`, one jsdom builder, a real runner | I-40 | Done | v0.10.201 |
-| [I-121](#i-121) | Cross-level | One declarative rule spec per keyword (constraints, parameters, dependencies, display) | I-40, I-119 | Done - every slice I-121a – I-121t landed, the last in v0.10.335 ([slices](#i-121-slices)) | v0.10.335 |
-| [I-121a](#i-121a) | Record | Output, cursor and screen-control keywords (13) | I-121 | Done v0.10.294 (13 entries; relations not enforced opened as I-151) | v0.10.294 |
-| [I-121b](#i-121b) | Record | Initialize, retain and return keywords (7) | I-121 | Done v0.10.288 (RETKEY/RETCMDKEY take no option indicators) | v0.10.288 |
-| [I-121c](#i-121c) | Record | Subfile control keywords (8) | I-121 | Done v0.10.289 (all eight specified; SFLDLT fact folded in; five unguarded rules logged) | v0.10.289 |
-| [I-121d](#i-121d) | Record | Subfile mode and entry keywords (7) | I-121 | Done v0.10.290 (all seven specified; four unguarded rules logged) | v0.10.290 |
-| [I-121e](#i-121e) | Record | Window, menu-bar, help and logging record keywords (11) | I-121 | Done v0.10.295 (11 entries; relations not enforced opened as I-152) | v0.10.295 |
-| [I-121f](#i-121f) | File | File-level display and I/O keywords (8) | I-121 | Done v0.10.305 (8 entries; IGCCNV added to the no-indicator table; rules not enforced logged) | v0.10.305 |
-| [I-121g](#i-121g) | File | File-level help, program-control and command-key keywords (7) | I-121 | Done v0.10.310 (7 entries, two of them command-key patterns; relations not enforced opened as I-160) | v0.10.310 |
-| [I-121h](#i-121h) | File / Record | Command-function keywords (10) | I-121 | Done v0.10.317 | v0.10.317 |
+| [I-121](#i-121) | Cross-level | One declarative rule spec per keyword (constraints, parameters, dependencies, display) | I-40, I-119 | Done | v0.10.335 |
+| [I-121a](#i-121a) | Record | Output, cursor and screen-control keywords (13) | I-121 | Done | v0.10.294 |
+| [I-121b](#i-121b) | Record | Initialize, retain and return keywords (7) | I-121 | Done | v0.10.288 |
+| [I-121c](#i-121c) | Record | Subfile control keywords (8) | I-121 | Done | v0.10.289 |
+| [I-121d](#i-121d) | Record | Subfile mode and entry keywords (7) | I-121 | Done | v0.10.290 |
+| [I-121e](#i-121e) | Record | Window, menu-bar, help and logging record keywords (11) | I-121 | Done | v0.10.295 |
+| [I-121f](#i-121f) | File | File-level display and I/O keywords (8) | I-121 | Done | v0.10.305 |
+| [I-121g](#i-121g) | File | File-level help, program-control and command-key keywords (7) | I-121 | Done | v0.10.310 |
+| [I-121h](#i-121h) | File / Record | Command-function keywords (10) | I-121 | Done | v0.10.317 |
 | [I-121i](#i-121i) | File / Record | Cursor, message and help-title keywords (4) | I-121 | Done | v0.10.313 |
 | [I-121j](#i-121j) | Cross-level | Keywords valid at several levels (6) | I-121 | Done | v0.10.321 |
 | [I-121k](#i-121k) | Help-spec | Help-specification-level keywords (3) | I-121 | Done | v0.10.316 |
 | [I-121l](#i-121l) | Field | Choice and menu-bar field keywords (8) | I-121 | Done | v0.10.326 |
-| [I-121m](#i-121m) | Field | Constant and system-value field keywords (6) | I-121 | Done v0.10.292 (6 of 6 specified) | v0.10.292 |
-| [I-121n](#i-121n) | Field | Input, format and display field keywords (8) | I-121 | Done v0.10.291 (8 of 8 specified) | v0.10.291 |
-| [I-121o](#i-121o) | Field | Reference and database-inherit field keywords (5) | I-121 | Done v0.10.325 (5 of 5 specified) | v0.10.325 |
+| [I-121m](#i-121m) | Field | Constant and system-value field keywords (6) | I-121 | Done | v0.10.292 |
+| [I-121n](#i-121n) | Field | Input, format and display field keywords (8) | I-121 | Done | v0.10.291 |
+| [I-121o](#i-121o) | Field | Reference and database-inherit field keywords (5) | I-121 | Done | v0.10.325 |
 | [I-121p](#i-121p) | Cross-level | S36E restriction table into the spec | I-121 | Done | v0.10.285 |
-| [I-121q](#i-121q) | Cross-level | Audit the remaining `*ConflictReason` functions | I-121a – I-121o (alongside) | Done v0.10.333 | — |
-| [I-121r](#i-121r) | Tooling | Webview constant tables | I-121 | Done v0.10.287 (four value-domain lists from the spec; the rest guarded or classified as screen text) | v0.10.287 |
-| [I-121s](#i-121s) | Tooling | Engine and writer constant tables | I-121 | Done v0.10.286 (writer tables in the spec; engine/message tables classified as presentation) | v0.10.286 |
+| [I-121q](#i-121q) | Cross-level | Audit the remaining `*ConflictReason` functions | I-121a – I-121o (alongside) | Done | v0.10.333 |
+| [I-121r](#i-121r) | Tooling | Webview constant tables | I-121 | Done | v0.10.287 |
+| [I-121s](#i-121s) | Tooling | Engine and writer constant tables | I-121 | Done | v0.10.286 |
 | [I-121t](#i-121t) | Tooling | Generate the keyword index from the spec (do last) | I-121a – I-121s | Done | v0.10.335 |
-| [I-122](#i-122) | Tooling | Generated keyword x dimension test matrix; retire duplicate and stale tests | I-120, I-121 | Done (batch 1 done v0.10.274; batch 2 done v0.10.336: MSGALARM, CSRINPONLY, RETLCKSTS, MAPVAL, INZINP, HLPEXCLD; batch 3 done v0.10.338: HLPFULL, MNUBARSEP, LOCK, DSPRL, FRCDTA, ALWGPH; I-122d done v0.10.341: the subfile-control family; I-122e done v0.10.342: the field format and edit family; I-122f done v0.10.343: the help and window family; I-122g done v0.10.344: the choice family; I-122h done v0.10.348: the command-key family; I-122i done v0.10.350: the generated matrix; I-122j done v0.10.354: nine overlapping checks retired) | — |
-| [I-122d](#i-122d) | Tooling | Subfile-control family tests: SFLCLR, SFLCSRPRG, SFLRCDNBR, SFLMODE, SFLRTNSEL, SFLRNA, SFLROLVAL, SFLNXTCHG | I-122 | Done (130 checks; findings I-177, I-178) | v0.10.341 |
-| [I-122e](#i-122e) | Tooling | Field format and edit family tests: TIMSEP, TIMFMT, DATSEP, DATFMT, FLTPCN, FLTFIXDEC, BLANKS, CNTFLD, FLDCSRPRG, VALNUM | I-122 | Done (171 checks; findings I-179, I-180) | v0.10.342 |
-| [I-122f](#i-122f) | Tooling | Help and window family tests: HLPSCHIDX, HLPBDY, HLPDOC, HLPID, IGCCNV, WDWTITLE, WDWBORDER, NOCCSID | I-122 | Done (138 checks; findings I-181, I-182) | v0.10.343 |
-| [I-122g](#i-122g) | Tooling | Choice family tests: CHCSLT, CHCCTL, CHCUNAVAIL, CHCAVAIL, CHCACCEL, SFLCHCCTL, SFLSNGCHC, SFLMLTCHC | I-122 | Done (147 checks; findings I-183, I-184, I-185) | v0.10.344 |
-| [I-122h](#i-122h) | Tooling | Command-key family tests: CA01-CA24, CF01-CF24, ALTPAGEDWN, ALTPAGEUP, DLTCHK, DLTEDT, RETCMDKEY, MNUBARSW, MNUCNL, GETRETAIN | I-122 | Done (107 checks; findings I-186, I-187, I-188, I-189) | v0.10.348 |
-| [I-122i](#i-122i) | Tooling | Generated per-keyword matrix (L1-L4 from the I-121 spec): generator and harness, then the keywords no hand-written batch covers | I-122, I-121 | Done (1,328 checks on 61 keywords, 3,380 with `MATRIX_ALL`; findings I-190, I-191) | v0.10.350 |
-| [I-122j](#i-122j) | Tooling | Retire overlapping tests, each deletion backed by a stash-based mutation run (do last, serially) | I-122i | Done (9 checks retired; the other overlap classes tested are not redundant) | — |
-| [I-123](#i-123) | Tooling | Move "Task I-nn" history out of source comments | I-121 | Done (comment-only; fingerprint-verified) | v0.10.369 |
+| [I-122](#i-122) | Tooling | Generated keyword x dimension test matrix; retire duplicate and stale tests | I-120, I-121 | Done | v0.10.354 |
+| [I-122d](#i-122d) | Tooling | Subfile-control family tests: SFLCLR, SFLCSRPRG, SFLRCDNBR, SFLMODE, SFLRTNSEL, SFLRNA, SFLROLVAL, SFLNXTCHG | I-122 | Done | v0.10.341 |
+| [I-122e](#i-122e) | Tooling | Field format and edit family tests: TIMSEP, TIMFMT, DATSEP, DATFMT, FLTPCN, FLTFIXDEC, BLANKS, CNTFLD, FLDCSRPRG, VALNUM | I-122 | Done | v0.10.342 |
+| [I-122f](#i-122f) | Tooling | Help and window family tests: HLPSCHIDX, HLPBDY, HLPDOC, HLPID, IGCCNV, WDWTITLE, WDWBORDER, NOCCSID | I-122 | Done | v0.10.343 |
+| [I-122g](#i-122g) | Tooling | Choice family tests: CHCSLT, CHCCTL, CHCUNAVAIL, CHCAVAIL, CHCACCEL, SFLCHCCTL, SFLSNGCHC, SFLMLTCHC | I-122 | Done | v0.10.344 |
+| [I-122h](#i-122h) | Tooling | Command-key family tests: CA01-CA24, CF01-CF24, ALTPAGEDWN, ALTPAGEUP, DLTCHK, DLTEDT, RETCMDKEY, MNUBARSW, MNUCNL, GETRETAIN | I-122 | Done | v0.10.348 |
+| [I-122i](#i-122i) | Tooling | Generated per-keyword matrix (L1-L4 from the I-121 spec): generator and harness, then the keywords no hand-written batch covers | I-122, I-121 | Done | v0.10.350 |
+| [I-122j](#i-122j) | Tooling | Retire overlapping tests, each deletion backed by a stash-based mutation run (do last, serially) | I-122i | Done | v0.10.354 |
+| [I-123](#i-123) | Tooling | Move "Task I-nn" history out of source comments | I-121 | Done (no behaviour change) | v0.10.369 |
 | [I-124](#i-124) | Tooling | Test-only exports that still carry a "kept for backward compatibility / API completeness" note (decision first) | I-118 | Done | v0.10.202 |
 | [I-125](#i-125) | Field | `COMP`/`RANGE`/`VALUES`/`CHECK(AB)` "not on a floating-point field" restriction is unenforced | I-72, I-96 | Done | v0.10.223 |
 | [I-126](#i-126) | Field | `SFLSCROLL`: field-shape requirement (signed numeric, 0 decimals, length 5, hidden) is unenforced | I-121 | Done | v0.10.232 |
@@ -216,7 +241,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-144](#i-144) | Field | DATE/TIME/USER/SYSNAME: constant-only, no-parameter and DATE-parameter rules are not enforced, and the preview draws them one column wide | I-121m | Done | v0.10.293 |
 | [I-145](#i-145) | Record | `SFLRNA` / `SFLMODE` / `SFLMSGRCD` / `SFLINZ` rules not enforced: `SFLRNA` without `SFLINZ`, on a message subfile and with field selection; `SFLMODE` and `SFLMSGRCD` field and line rules | I-121d | Done | v0.10.297 |
 | [I-146](#i-146) | Record | `SFLDROP` and `SFLFOLD` on one record must use the same key; `SFLDROP`/`SFLFOLD`/`SFLROLVAL` refused when SFLSIZ equals SFLPAG; several subfile keywords refused under field selection | I-121c, I-121d | Done | v0.10.298 |
-| [I-147](#i-147) | Record | Subfile-control keywords: `SFLPAG`/`SFLCLR`/`SFLDSP`/`SFLDSPCTL`/`SFLEND` accepted without `SFLCTL`; required companions, display size names and option indicators not checked; `SFLEND` grammar | I-121c | Done v0.10.300 (SFLCTL requirement, display size names and SFLEND grammar refused; companions and indicators noted) | v0.10.300 |
+| [I-147](#i-147) | Record | Subfile-control keywords: `SFLPAG`/`SFLCLR`/`SFLDSP`/`SFLDSPCTL`/`SFLEND` accepted without `SFLCTL`; required companions, display size names and option indicators not checked; `SFLEND` grammar | I-121c | Done | v0.10.300 |
 | [I-148](#i-148) | Record | `GETRETAIN` without `UNLOCK`, `RTNDTA` with `UNLOCK`, and `INZINP` without `PUTOVR`, `OVERLAY` and `ERASEINP(*ALL)` are accepted | I-121b | Done | v0.10.303 |
 | [I-149](#i-149) | Cross-level | `RETKEY`/`RETCMDKEY` accept every exclusion their section states (command keys, `SFL*` keywords, `ALT*` keywords) and are accepted in a file without `INDARA` | I-121b, I-139 | Done | v0.10.302 |
 | [I-150](#i-150) | Field | `CNTFLD` needs an input-capable A field outside a subfile; `FLDCSRPRG` needs an input-capable field, not in a subfile, and not with `SNGCHCFLD`/`MLTCHCFLD`; `FLTFIXDEC` needs usage B/O; `BLANKS` is for input-capable fields | I-121n | Done | v0.10.306 |
@@ -241,40 +266,40 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-169](#i-169) | File / Record | `CAnn` and `CFnn` with the same key number (the reference says "not valid in the same display file", so the whole file; opened from the I-160 deferred finding) | I-160 | Done | v0.10.323 |
 | [I-170](#i-170) | Field | Reference-field and help-identifier rules not enforced: `DLTCHK` / `DLTEDT` / `REFFLD` without R in position 29, `ALIAS` uniqueness, `HLPID` range 1-999 and uniqueness | I-121o | Done | v0.10.330 |
 | [I-171](#i-171) | Field | Choice and menu-bar rules not enforced: `CHCACCEL` outside a `SNGCHCFLD` field in a `PULLDOWN` record, `CHCSLT` with `CHOICE` in a record without `PULLDOWN(*NOSLTIND)`, the `CHCCTL` control-field type and matching choice, the `MNUBARCHC` pull-down record needing `PULLDOWN`, the 12-line menu-bar limit | I-121l | Done | v0.10.331 |
-| [I-172](#i-172) | Field / Record | Choice and menu-bar follow-ups: the 12-line limit of a menu-bar field (how the reference counts lines is unclear) and panel rows that still offer a keyword the guard then refuses (`CHCACCEL` input on a `MLTCHCFLD` field, the colour-state rows on a field with no choice keyword) | I-171 | Done (panel rows; the 12-line limit became I-173) | v0.10.332 |
+| [I-172](#i-172) | Field / Record | Choice and menu-bar follow-ups: the 12-line limit of a menu-bar field (how the reference counts lines is unclear) and panel rows that still offer a keyword the guard then refuses (`CHCACCEL` input on a `MLTCHCFLD` field, the colour-state rows on a field with no choice keyword) | I-171 | Done | v0.10.332 |
 | [I-173](#i-173) | Field | `MNUBARCHC` 12-line limit of a menu-bar field (opened from the I-172 deferred finding; reading decided: width = smallest `DSPSIZ` width minus 2, whole-choice wrap, separator counts as 1 of the 12 unless `*NOSEPARATOR`) | I-172 | Done | v0.10.334 |
 | [I-174](#i-174) | Tooling | `takesNoParameters` / `optionIndicatorsAllowed` answer only for the I-121b keywords, so they say "no" for `MSGALARM`, `CSRINPONLY` and `HLPEXCLD` although their spec entries say the opposite (opened from I-122 batch 2) | I-121 | Done | v0.10.337 |
 | [I-175](#i-175) | Field | `MNUBARSEP` and `MNUBARCHC` need `MNUBAR` on their record, and `MNUBARSEP` cannot be used where `MNUBAR` says `*NOSEPARATOR`; the spec records the rules and nothing enforces them (found logging I-122 batch 3; not asserted as correct) | I-171 | Done | v0.10.340 |
 | [I-176](#i-176) | Tooling | `optionIndicatorsAllowed` still answers "no" for the 11 keywords whose entries spell the fact `optionIndicatorsValid: true` (`ALARM`, `BLINK`, `CSRLOC`, `ERASE`, `ERASEINP`, `OVERLAY`, `PUTOVR`, `FRCDTA`, `PROTECT`, `MDTOFF`, `LOCK`); left over from I-174 | I-174 | Done | v0.10.339 |
 | [I-177](#i-177) | Field | `SFLRCDNBR` rules nothing enforces: not on the same field as `SFLROLVAL`, parameters only `CURSOR` / `*TOP`, field shape (zoned, 0 decimals, signed, up to 4 digits, usage O, B or H) | I-122d | Done | v0.10.346 |
 | [I-178](#i-178) | Tooling | Spec entries for `SFLCSRPRG`, `SFLRCDNBR`, `SFLROLVAL`, `SFLRTNSEL`, `SFLNXTCHG` state no level, parameter or option-indicator fact, so `takesNoParameters` / `optionIndicatorsAllowed` answer wrongly | I-122d | Done | v0.10.345 |
-| [I-179](#i-179) | Field | Date/time format keywords: `DATFMT` / `DATSEP` accepted off data type L and `TIMFMT` / `TIMSEP` off T, values outside IBM's lists, the fixed-separator rule only in the panel Apply, and a Basic-tab type change that strands them | I-122e | Done (eligibility, values, pairing, Basic tab) | v0.10.347 |
+| [I-179](#i-179) | Field | Date/time format keywords: `DATFMT` / `DATSEP` accepted off data type L and `TIMFMT` / `TIMSEP` off T, values outside IBM's lists, the fixed-separator rule only in the panel Apply, and a Basic-tab type change that strands them | I-122e | Done | v0.10.347 |
 | [I-180](#i-180) | Field | `FLTPCN` (type F, `*SINGLE` / `*DOUBLE`, length caps, option indicators not valid) and `CNTFLD` (numeric width, its exclusion list) rules nothing enforces | I-122e | Done | v0.10.351 |
-| [I-181](#i-181) | Tooling | Spec entries for `HLPDOC`, `HLPID`, `WDWBORDER` and `NOCCSID` state no level, parameter or option-indicator fact, so `optionIndicatorsAllowed` answers "no" for `HLPDOC` and `WDWBORDER` although their sections say option indicators are valid | I-122f | Done (levels, parameter forms, option indicators) | v0.10.349 |
-| [I-182](#i-182) | Record | `WDWBORDER` and `WDWTITLE` rules nothing enforces: record-level `WDWBORDER` needs `WINDOW` or `PULLDOWN` on the record, at least one parameter, colour and display-attribute values, `*TOP` / `*BOTTOM` and the three alignments each at most once | I-122f | Done (requirement, parameters, values, forms) | v0.10.352 |
-| [I-183](#i-183) | Field | Choice keyword values nothing enforces: a bare or out-of-list `CHCAVAIL` / `CHCUNAVAIL` / `CHCSLT`, `CHCACCEL` / `CHCCTL` choice number outside 1-99, `CHCACCEL` with no text, the `CHCCTL` message fields' shapes | I-122g | Done (state values, numbers, text, control field, message fields) | v0.10.356 |
-| [I-184](#i-184) | Record | `SFLSNGCHC` / `SFLMLTCHC` rules nothing enforces: the subfile shape (one output field, no input-capable fields), control-record-only, and the `&number-selected` field shape | I-122g | Done (68 checks) | v0.10.357 |
-| [I-185](#i-185) | Tooling | Spec entries for `SFLCHCCTL`, `SFLSNGCHC` and `SFLMLTCHC` carry no level, parameter or option-indicator fact, and the `SFLCHCCTL` control-value table is not in the spec | I-122g | Done (5 checks added to `i122gChoiceFamilyKeywords`, 155 in all) | v0.10.358 |
-| [I-186](#i-186) | Field | Command-key numbers outside 01-24 accepted (`CA00`, `CA25`), and `MNUBARSW(CF05)` / `MNUBARSW(CA25)` pass the menu-bar key guard | I-122h | Done (range, key type, panel guard, raw editors) | v0.10.359 |
-| [I-187](#i-187) | Record | `MNUBARSW` / `MNUCNL` claim a CA key but the CA / CF number guard does not read them: their key can be reused as a CF key on another record | I-122h | Done (explicit and default key, file level, both directions) | v0.10.360 |
-| [I-188](#i-188) | Record | `RETKEY` / `RETCMDKEY` accepted on a subfile (`SFL`) or user-defined (`USRDFN`) record, though the spec records they are not valid there | I-122h | Done (both keywords, both record types, both directions) | v0.10.361 |
-| [I-189](#i-189) | Tooling | `MNUBARSW`, `MNUCNL`, `ALTPAGEDWN`, `ALTPAGEUP`, `DLTCHK` and `DLTEDT` carry no level, parameter or option-indicator fact; `optionIndicatorsAllowed` answers false for `MNUBARSW` / `MNUCNL` (reference: valid) and for a concrete `CA05` | I-122h | Done (six entries, accessor resolves concrete command keys; 7 checks in `i122hCommandKeyFamilyKeywords`) | v0.10.363 |
+| [I-181](#i-181) | Tooling | Spec entries for `HLPDOC`, `HLPID`, `WDWBORDER` and `NOCCSID` state no level, parameter or option-indicator fact, so `optionIndicatorsAllowed` answers "no" for `HLPDOC` and `WDWBORDER` although their sections say option indicators are valid | I-122f | Done | v0.10.349 |
+| [I-182](#i-182) | Record | `WDWBORDER` and `WDWTITLE` rules nothing enforces: record-level `WDWBORDER` needs `WINDOW` or `PULLDOWN` on the record, at least one parameter, colour and display-attribute values, `*TOP` / `*BOTTOM` and the three alignments each at most once | I-122f | Done | v0.10.352 |
+| [I-183](#i-183) | Field | Choice keyword values nothing enforces: a bare or out-of-list `CHCAVAIL` / `CHCUNAVAIL` / `CHCSLT`, `CHCACCEL` / `CHCCTL` choice number outside 1-99, `CHCACCEL` with no text, the `CHCCTL` message fields' shapes | I-122g | Done | v0.10.356 |
+| [I-184](#i-184) | Record | `SFLSNGCHC` / `SFLMLTCHC` rules nothing enforces: the subfile shape (one output field, no input-capable fields), control-record-only, and the `&number-selected` field shape | I-122g | Done | v0.10.357 |
+| [I-185](#i-185) | Tooling | Spec entries for `SFLCHCCTL`, `SFLSNGCHC` and `SFLMLTCHC` carry no level, parameter or option-indicator fact, and the `SFLCHCCTL` control-value table is not in the spec | I-122g | Done | v0.10.358 |
+| [I-186](#i-186) | Field | Command-key numbers outside 01-24 accepted (`CA00`, `CA25`), and `MNUBARSW(CF05)` / `MNUBARSW(CA25)` pass the menu-bar key guard | I-122h | Done | v0.10.359 |
+| [I-187](#i-187) | Record | `MNUBARSW` / `MNUCNL` claim a CA key but the CA / CF number guard does not read them: their key can be reused as a CF key on another record | I-122h | Done | v0.10.360 |
+| [I-188](#i-188) | Record | `RETKEY` / `RETCMDKEY` accepted on a subfile (`SFL`) or user-defined (`USRDFN`) record, though the spec records they are not valid there | I-122h | Done | v0.10.361 |
+| [I-189](#i-189) | Tooling | `MNUBARSW`, `MNUCNL`, `ALTPAGEDWN`, `ALTPAGEUP`, `DLTCHK` and `DLTEDT` carry no level, parameter or option-indicator fact; `optionIndicatorsAllowed` answers false for `MNUBARSW` / `MNUCNL` (reference: valid) and for a concrete `CA05` | I-122h | Done | v0.10.363 |
 | [I-190](#i-190) | Tooling | `HLPRCD`'s spec entry says `levels: ['file']`; the Reference says file level or help-specification level | I-122i | Done | v0.10.365 |
-| [I-191](#i-191) | Tooling | Twelve `RECORD_TYPES` entries state no level and their Reference section names none (`SFLMSG`, `IGCALTTYP`, `ERRMSGID`, `SFLMSGID`, `ERRMSG`, `SFLCSRRRN`, `COLOR`, `CHECK`, `ALTPAGEDWN`, `ALTPAGEUP`, `KEYBRD`, `FLTPCN`): the generated matrix cannot place them | I-122i | Done (levels and option-indicator facts for nine entries; matrix section headings) | v0.10.367 |
+| [I-191](#i-191) | Tooling | Twelve `RECORD_TYPES` entries state no level and their Reference section names none (`SFLMSG`, `IGCALTTYP`, `ERRMSGID`, `SFLMSGID`, `ERRMSG`, `SFLCSRRRN`, `COLOR`, `CHECK`, `ALTPAGEDWN`, `ALTPAGEUP`, `KEYBRD`, `FLTPCN`): the generated matrix cannot place them | I-122i | Done | v0.10.367 |
 | [I-192](#i-192) | Field | `CNTFLD`'s layout rules: the column width must fit within the width of the display or window, and the field needs at least 2 spaces between it and other fields | I-180 | Done | v0.10.353 |
-| [I-193](#i-193) | Tooling | Matrix cells for the writer paths and UI paths it does not call (`setFileFlagKeyword`, webview Apply round trip), then retire the hand-written duplicates | I-122j | Done (v0.10.368) | — |
-| [I-194](#i-194) | Field | Command-key values that no guard reads: `MOUBTN` / `PSHBTNCHC` / `IGCCNV` keys outside 01-24 or of the wrong type, and a key written in a shape that is not `CAnn` / `CFnn` (`MNUBARSW(CA5)`, `ALTHELP(XYZ)`) | I-186 | Done (MOUBTN, PSHBTNCHC, malformed key shapes) | v0.10.362 |
-| [I-195](#i-195) | Cross-level | Comment lines are captured and written only up to column 80: text past it is dropped from the panel, and editing the comment cuts the line to 80 columns. Read the source file's real record length and keep, show and store the whole line | — | Done (52 checks in `i195CommentLineWidth`) | v0.10.364 |
-| [I-196](#i-196) | File | `MNUBARSW` / `MNUCNL` are allowed only in a file containing a menu-bar record (their own sections); no guard reads the spec's `requiresMenuBarRecordInFile` fact | I-189 | Done v0.10.366 | v0.10.366 |
-| [I-197](#i-197) | Tooling | `KEYBRD` still listed as a DDS keyword in the generated keyword index although its spec entry says it is not one (decision first) | I-121t | Done v0.10.372 | v0.10.372 |
+| [I-193](#i-193) | Tooling | Matrix cells for the writer paths and UI paths it does not call (`setFileFlagKeyword`, webview Apply round trip), then retire the hand-written duplicates | I-122j | Done | v0.10.368 |
+| [I-194](#i-194) | Field | Command-key values that no guard reads: `MOUBTN` / `PSHBTNCHC` / `IGCCNV` keys outside 01-24 or of the wrong type, and a key written in a shape that is not `CAnn` / `CFnn` (`MNUBARSW(CA5)`, `ALTHELP(XYZ)`) | I-186 | Done | v0.10.362 |
+| [I-195](#i-195) | Cross-level | Comment lines are captured and written only up to column 80: text past it is dropped from the panel, and editing the comment cuts the line to 80 columns. Read the source file's real record length and keep, show and store the whole line | — | Done | v0.10.364 |
+| [I-196](#i-196) | File | `MNUBARSW` / `MNUCNL` are allowed only in a file containing a menu-bar record (their own sections); no guard reads the spec's `requiresMenuBarRecordInFile` fact | I-189 | Done | v0.10.366 |
+| [I-197](#i-197) | Tooling | `KEYBRD` still listed as a DDS keyword in the generated keyword index although its spec entry says it is not one (decision first) | I-121t | Done | v0.10.372 |
 | [I-198](#i-198) | Tooling | `check_spec_coverage.py` prints "mark the slice Done" for slices the ledger already marks Done | I-121 | Done | v0.10.371 |
 | [I-199](#i-199) | Field | Help-specification panel has no `HLPRCD` row | I-190 | Done | v0.10.374 |
 | [I-200](#i-200) | Subfile | Two `SFLPAG` / `SFLSIZ` rules left unchecked by I-146 | I-146 | Done | v0.10.375 |
-| [I-201](#i-201) | Field | `MNUBARCHC` 12-line count never probed with a literal split over continuation lines | I-173 | Done (v0.10.370) | — |
-| [I-202](#i-202) | Writer | Comment and blank lines inside an edited record or field were deleted, and sequence numbers moved to the wrong lines | I-195 | Done (v0.10.373) | — |
-| [I-203](#i-203) | Tracking | Commenting out an OR line overwrote the `O` in column 7 | I-202 | Done (v0.10.373) | — |
-| [I-204](#i-204) | Tracking | Modification tag can go in columns 1-5 (5 characters) instead of columns 81-90, in both designers | I-203 | Done (v0.10.373) | — |
-| [I-205](#i-205) | Tooling | Status table not formalised: free-text Status cells, Done rows with no Version, section status lines in many shapes, and nothing that checks them | I-198 | In progress | — |
+| [I-201](#i-201) | Field | `MNUBARCHC` 12-line count never probed with a literal split over continuation lines | I-173 | Done | v0.10.370 |
+| [I-202](#i-202) | Writer | Comment and blank lines inside an edited record or field were deleted, and sequence numbers moved to the wrong lines | I-195 | Done | v0.10.373 |
+| [I-203](#i-203) | Tracking | Commenting out an OR line overwrote the `O` in column 7 | I-202 | Done | v0.10.373 |
+| [I-204](#i-204) | Tracking | Modification tag can go in columns 1-5 (5 characters) instead of columns 81-90, in both designers | I-203 | Done | v0.10.373 |
+| [I-205](#i-205) | Tooling | Status table not formalised: free-text Status cells, Done rows with no Version, section status lines in many shapes, and nothing that checks them | I-198 | Done | v0.10.376 |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -286,9 +311,7 @@ keyword index under `docs/sda-reference/keyword-index/`.
 
 Suggested pickup order - roughly smallest and safest first (a real bug with a proven fix shape ahead of spec-fact and tooling work); **not binding** (any task can be picked independently, and the sizes are estimates, not measurements).
 
-| Order | Task | Status | Notes |
-|-------|------|--------|-------|
-| 1 | [I-205](#i-205) | In progress | Small, documentation and one test. |
+No tasks are open.
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The headline there counts the same tasks, so when a task lands or opens, update this table, the headline count and the version together.
 
@@ -452,7 +475,7 @@ Strict ID order. Every task has a section here, whether or not it has landed; th
 
 ### I-1 — Build canonical file-level keyword reference + compare against iSDA
 
-> **Area:** File · **Status:** Done · **Depends on:** —
+> **Area:** File · **Status:** Done (no code change) - method task (reference text and comparison); no release · **Depends on:** —
 
 **Done.** Extracted all ~155 keyword sections from
 `DDS_Keyword_V7r6.txt`, classified each by documented level(s),
@@ -2000,7 +2023,7 @@ silently pass.
 
 ### I-23 — Verify the ~9 keywords only *implied* to conflict with `SFLMSGRCD`
 
-> **Area:** Record · **Status:** Done (advisory only) (v0.10.103) · **Depends on:** I-11
+> **Area:** Record · **Status:** Done (no code change) (v0.10.103) - advisory only · **Depends on:** I-11
 
 I-11's own audit fixed the one keyword (`SFLNXTCHG`) that individually
 restates "You cannot specify SFLNXTCHG with the SFLMSGRCD keyword," but
@@ -2371,7 +2394,7 @@ regression). Full suite: 64 test files, zero failures.
 
 ### I-29 — Research the "Roll" column on real SDA's own "Define Display Layout" screen for `SFLSIZ`/`SFLPAG`/`SFLLIN`
 
-> **Area:** Record · **Status:** Done (research) (v0.10.104) · **Depends on:** I-22
+> **Area:** Record · **Status:** Done (no code change) (v0.10.104) - research · **Depends on:** I-22
 
 I-22's own audit found real SDA's own "Define Display Layout" screen
 (`docs/sda-reference/screens/record-level/subfile-control-sflctl/
@@ -5098,7 +5121,7 @@ New `src/test/i100SflmsgResponseIndicator.test.js` (47 checks): the pure functio
 
 ### I-101 — Raw keyword editor: option-indicator guard for the other ~92 keywords the DDS Reference says take none
 
-> **Area:** Tooling / all levels (file, record, field, help entry) · **Status:** Done (v0.10.197; batches at v0.10.180, .195, .196, .197) · **Depends on:** I-95
+> **Area:** Tooling / all levels (file, record, field, help entry) · **Status:** Done (v0.10.197) - batches at v0.10.180, .195, .196, .197 · **Depends on:** I-95
 
 Opened from I-95's deferred finding, verbatim:
 
@@ -5204,7 +5227,7 @@ The same holds on an **`MNUBAR`** record: `DspfWriter.mnubarWhitelistConflictRea
 
 ### I-104 — Table-driven sweep test over every record keyword row (`USRDFN`, `SFL`, `MNUBAR`)
 
-> **Area:** Record · **Status:** Done (v0.10.181) · **Depends on:** I-102, I-103
+> **Area:** Record · **Status:** Done (v0.10.181) - test only · **Depends on:** I-102, I-103
 
 I-44 assumed which rows a `USRDFN` record shows and wired the guards by name. I-53 and I-54 then swept the `SFL` and `MNUBAR` records row by row, by hand. Nobody did that for `USRDFN`, which is how `CHGINPDFT` (accepted although not allowed, I-103) and `HLPCLR` (refused although allowed, I-102) went unnoticed for so long. A test that walks the rows instead of naming them would have caught both, and would catch the next row someone adds without a guard.
 
@@ -5393,7 +5416,7 @@ The "the box is ticked, so it must be an addition" flaw I-84 fixed for `RTNCSRLO
 
 ### I-112 — `REFFLD`-inherited validity keywords (`CHECK`, `COMP`, `RANGE`, `VALUES`, `CHKMSGID`) and `FLTPCN` cannot be shown (research first)
 
-> **Area:** Field · **Status:** Done (v0.10.188) · **Depends on:** I-74
+> **Area:** Field · **Status:** Done (no code change) (v0.10.188) - research; documented limit · **Depends on:** I-74
 
 Opened from a deferred finding raised by I-74, verbatim:
 
@@ -6087,7 +6110,7 @@ Remaining for I-121 after this slice: the rest of the plain/base record and file
 
 ### I-121a — Output, cursor and screen-control keywords
 
-> **Area:** Record · **Status:** Done (v0.10.294) · **Depends on:** I-121 · **Size (estimate):** Medium
+> **Area:** Record · **Status:** Done (v0.10.294) - 13 entries; relations not enforced opened as I-151 · **Depends on:** I-121 · **Size (estimate):** Medium
 
 **Keywords (13):** `ALARM`, `BLINK`, `CSRLOC`, `RTNCSRLOC`, `ERASE`, `ERASEINP`, `OVERLAY`, `PUTOVR`, `FRCDTA`, `PROTECT`, `MDTOFF`, `LOCK`, `UNLOCK`.
 
@@ -6125,7 +6148,7 @@ New `src/test/i121aOutputCursorScreenControlSpec.test.js` (164 checks): every he
 
 ### I-121b — Initialize, retain and return keywords
 
-> **Area:** Record · **Status:** Done (v0.10.288) · **Depends on:** I-121 · **Size (estimate):** Small
+> **Area:** Record · **Status:** Done (v0.10.288) - RETKEY/RETCMDKEY take no option indicators · **Depends on:** I-121 · **Size (estimate):** Small
 
 **Keywords (7):** `INZRCD`, `INZINP`, `GETRETAIN`, `RTNDTA`, `RETLCKSTS`, `RETKEY`, `RETCMDKEY`.
 
@@ -6159,7 +6182,7 @@ New `src/test/i121bInitRetainReturnSpec.test.js` (107 checks): every entry again
 
 ### I-121c — Subfile control keywords
 
-> **Area:** Record · **Status:** Done (v0.10.289) · **Depends on:** I-121 · **Size (estimate):** Medium
+> **Area:** Record · **Status:** Done (v0.10.289) - all eight specified; SFLDLT fact folded in; five unguarded rules logged · **Depends on:** I-121 · **Size (estimate):** Medium
 
 **Keywords (8):** `SFLCTL` ✓ v0.10.281, `SFLPAG`, `SFLCLR`, `SFLDSP`, `SFLDSPCTL`, `SFLEND`, `SFLINZ`, `SFLDLT`.
 
@@ -6193,7 +6216,7 @@ New `src/test/i121cSubfileControlKeywordSpec.test.js`: the entries against the r
 
 ### I-121d — Subfile mode and entry keywords
 
-> **Area:** Record · **Status:** Done (v0.10.290) · **Depends on:** I-121 · **Size (estimate):** Small
+> **Area:** Record · **Status:** Done (v0.10.290) - all seven specified; four unguarded rules logged · **Depends on:** I-121 · **Size (estimate):** Small
 
 **Keywords (7):** `SFLCSRRRN` ✓ v0.10.282, `SFLMODE`, `SFLRNA`, `SFLMSGRCD`, `SFLDROP`, `SFLENTER`, `SFLFOLD`.
 
@@ -6224,7 +6247,7 @@ New `src/test/i121dSubfileModeEntryKeywordSpec.test.js`: each entry against the 
 
 ### I-121e — Window, menu-bar, help and logging record keywords
 
-> **Area:** Record · **Status:** Done (v0.10.295) · **Depends on:** I-121 · **Size (estimate):** Medium
+> **Area:** Record · **Status:** Done (v0.10.295) - 11 entries; relations not enforced opened as I-152 · **Depends on:** I-121 · **Size (estimate):** Medium
 
 **Keywords (11):** `WDWTITLE`, `RMVWDW`, `USRRSTDSP`, `MNUBARDSP`, `ALTNAME`, `HLPCLR`, `HLPCMDKEY`, `HLPSEQ`, `LOGINP`, `LOGOUT`, `SETOF`.
 
@@ -6264,7 +6287,7 @@ Full suite: 243 files, 13,525 checks, zero failures.
 
 ### I-121f — File-level display and I/O keywords
 
-> **Area:** File · **Status:** Done (v0.10.305) · **Depends on:** I-121 · **Size (estimate):** Medium
+> **Area:** File · **Status:** Done (v0.10.305) - 8 entries; IGCCNV added to the no-indicator table; rules not enforced logged · **Depends on:** I-121 · **Size (estimate):** Medium
 
 **Keywords (8):** `IGCCNV`, `DSPRL`, `DSPSIZ`, `ERRSFL`, `INDARA`, `MSGLOC`, `OPENPRT`, `REF`.
 
@@ -6301,7 +6324,7 @@ Full suite: 253 files, 14,191 checks, zero failures (first run found three older
 
 ### I-121g — File-level help, program-control and command-key keywords
 
-> **Area:** File · **Status:** Done (v0.10.310) · **Depends on:** I-121 · **Size (estimate):** Medium
+> **Area:** File · **Status:** Done (v0.10.310) - 7 entries, two of them command-key patterns; relations not enforced opened as I-160 · **Depends on:** I-121 · **Size (estimate):** Medium
 
 **Keywords (7):** `PASSRCD`, `USRDSPMGT`, `HLPFULL`, `HLPRCD`, `HLPSCHIDX`, `CA01-CA24`, `CF01-CF24`.
 
@@ -6492,7 +6515,7 @@ New `src/test/i121lChoiceMenuBarKeywordSpec.test.js` (99 checks): every cited se
 
 ### I-121m — Constant and system-value field keywords
 
-> **Area:** Field · **Status:** Done (v0.10.292) · **Depends on:** I-121 · **Size (estimate):** Small
+> **Area:** Field · **Status:** Done (v0.10.292) - 6 of 6 specified · **Depends on:** I-121 · **Size (estimate):** Small
 
 **Keywords (6):** `DATE`, `TIME`, `USER`, `SYSNAME`, `MSGCON`, `NOCCSID`.
 
@@ -6515,7 +6538,7 @@ Done when: the checklist in [I-121](#i-121-slices) is met for every keyword abov
 
 ### I-121n — Input, format and display field keywords
 
-> **Area:** Field · **Status:** Done (v0.10.291) · **Depends on:** I-121 · **Size (estimate):** Medium
+> **Area:** Field · **Status:** Done (v0.10.291) - 8 of 8 specified · **Depends on:** I-121 · **Size (estimate):** Medium
 
 **Keywords (8):** `KEYBRD`, `BLANKS`, `CNTFLD`, `FLTFIXDEC`, `FLTPCN`, `MAPVAL`, `FLDCSRPRG`, `ERRMSG`.
 
@@ -6536,7 +6559,7 @@ Full suite: 239 files, 13,132 checks, zero failures.
 
 ### I-121o — Reference and database-inherit field keywords
 
-> **Area:** Field · **Status:** Done (v0.10.325) · **Depends on:** I-121 · **Size (estimate):** Small
+> **Area:** Field · **Status:** Done (v0.10.325) - 5 of 5 specified · **Depends on:** I-121 · **Size (estimate):** Small
 
 **Keywords (5):** `ALIAS`, `REFFLD`, `DLTCHK`, `DLTEDT`, `HLPID`.
 
@@ -6559,7 +6582,7 @@ Done when: the checklist in [I-121](#i-121-slices) is met for every keyword abov
 
 ### I-121p — S36E restriction table into the spec
 
-> **Area:** Cross-level · **Status:** Done (v0.10.285; re-claimed after `3fc4915` never landed) · **Depends on:** I-121 · **Size (estimate):** Small
+> **Area:** Cross-level · **Status:** Done (v0.10.285) - re-claimed after `3fc4915` never landed · **Depends on:** I-121 · **Size (estimate):** Small
 
 Originally claimed in `3fc4915` (no landing commit as of v0.10.278); re-claimed and finished in v0.10.285.
 
@@ -6573,7 +6596,7 @@ Original scope: Scope: `S36E_KEYWORD_RESTRICTIONS` in `dspfWriter.js` (CHANGE, H
 
 ### I-121q — Audit the remaining `*ConflictReason` functions
 
-> **Area:** Cross-level · **Status:** Done v0.10.333 · **Depends on:** I-121a – I-121o (alongside) · **Size (estimate):** Large
+> **Area:** Cross-level · **Status:** Done (v0.10.333) · **Depends on:** I-121a – I-121o (alongside) · **Size (estimate):** Large
 
 The writer has 86 `*ConflictReason`-style functions. A first pass (v0.10.284) found 36 with no direct `KeywordSpec.` call in their body - some delegate through a helper (for example `usrdfnConflictReason` goes through `usrdfnWhitelistCheck`), so this is a starting list, not a verdict: edtmskNewConflictReason, chkmsgidBasicEditConflictReason, chkmsgidMsgDataNewConflictReason, messageIdMsgDataNewConflictReason, chridBasicEditConflictReason, wrdwrapReverseConflictReason, igcalttypBasicEditConflictReason, igcalttypNewConflictReason, noOptionIndicatorsNewConflictReason, msgidSflNewConflictReason, msgidExclusionNewConflictReason, valnumNewConflictReason, valnumBasicEditConflictReason, editKeywordDataTypeNewConflictReason, editKeywordDataTypeBasicEditConflictReason, dupFloatNewConflictReason, blkfoldFloatNewConflictReason, rangeFloatNewConflictReason, compFloatNewConflictReason, valuesFloatNewConflictReason, usrdfnConflictReason, usrdfnWhitelistConflictReason, pshbtnfldNewConflictReason, pshbtnfldBasicEditConflictReason, passrcdRecordConflictReason, altKeyFileExclusionNewConflictReason, sflcsrrrnNewConflictReason, sflctlDependencyNewConflictReason, optionIndicatorRequiredNewConflictReason, sfllinRecordEditConflictReason, sflcsrprgFieldEditConflictReason, sflscrollSizeRecordEditConflictReason, scrbarReservedNewConflictReason, sflscrollBasicEditConflictReason, sflchcctlBasicEditConflictReason, referencedFieldResolveConflictReason. Deliverable: a table of all 86 marked *spec-backed* / *procedural by design* / *needs a spec fact* (and the fact moved), plus the file-vs-record scoping in `mnuBarKeyConflictReason`. Do the keyword-owning slices a-o first or in parallel; this slice only closes what they leave.
 
@@ -6724,7 +6747,7 @@ Test: `i121qConflictReasonAuditSpec.test.js`. No new findings.
 
 ### I-121r — Webview constant tables
 
-> **Area:** Tooling · **Status:** Done v0.10.287 (choice radio groups earlier, v0.10.284) · **Depends on:** I-121 · **Size (estimate):** Medium
+> **Area:** Tooling · **Status:** Done (v0.10.287) - four value-domain lists from the spec; the rest guarded or classified as screen text; choice radio groups earlier, v0.10.284 · **Depends on:** I-121 · **Size (estimate):** Medium
 
 Hand-written keyword tables in `webviewClientHelpers.js`: `RECORD_TYPES` (record-type list), `DSPATR_ATTRS`, `COLOR_VALUES`, `VALIDITY_CHECK_CODES`, `RECORD_INDICATOR_INSTANCE_KEYWORDS`, `KEYING_OPTION_CODES`, `GENERAL_FIELD_KEYWORD_ROWS`, `DFT_GROUP_KEYS`, `CHOICE_COLOR_STATES`, `CHGINPDFT_CODES`, `WDWBORDER_ATTRS`, `BORDER_POSITIONS`, and the `ROW_KEYWORD` map. Some may already derive from the spec after the value-domain slices (v0.10.256-v0.10.272): verify each, then derive or migrate. **Done:** `CHOICE_SELECTION_RADIO_GROUPS` - v0.10.284 (the panel builds its groups from `selectionParameters`; screen wording stays in `CHOICE_SELECTION_GROUP_TEXT`). Display labels (`DATE_FORMAT_LABELS`, `TIME_FORMAT_LABELS`, `DATE_SEP_LABELS`, `TIME_SEP_LABELS`, `CHGINPDFT_LABELS`) are UI text and stay.
 
@@ -6754,7 +6777,7 @@ No new findings.
 
 ### I-121s — Engine and writer constant tables
 
-> **Area:** Tooling · **Status:** Done v0.10.286 (`CHARACTER_TYPES` removed earlier, v0.10.279) · **Depends on:** I-121 · **Size (estimate):** Medium
+> **Area:** Tooling · **Status:** Done (v0.10.286) - writer tables in the spec; engine/message tables classified as presentation; `CHARACTER_TYPES` removed earlier, v0.10.279 · **Depends on:** I-121 · **Size (estimate):** Medium
 
 `dspfEngine.js` (`CHARACTER_TYPES` was removed unused in v0.10.279): `COLOR_HEX`, `NUMERIC_TYPES`, `USAGE_LABEL`, and the `edtwrdDisplayWidth` arithmetic (a rule, left in the engine by v0.10.273 - decide whether it is a spec fact). `dspfWriter.js`: the `TARGET` array in `alwrolClrlSlnoConflictReason`, `SFL_CHOICE_KEYWORDS`, `RECORD_REFERENCE_EXTRACTORS` / `RECORD_REFERENCE_LOCATORS`, and `NO_OPTION_INDICATOR_MESSAGES` (wording is presentation - say so explicitly if it stays).
 
@@ -6812,7 +6835,9 @@ With this slice the I-121 umbrella is complete: every keyword in the lookup has 
 
 ### I-122 — Generated keyword x dimension test matrix; retire duplicate and stale tests
 
-> **Area:** Tooling · **Status:** Done (batches 1-3, I-122d to I-122j) · **Depends on:** I-120, I-121
+> **Area:** Tooling · **Status:** Done (v0.10.354) - batches 1-3, I-122d to I-122j · **Depends on:** I-120, I-121
+
+**Landing history.** batch 1 done v0.10.274; batch 2 done v0.10.336: MSGALARM, CSRINPONLY, RETLCKSTS, MAPVAL, INZINP, HLPEXCLD; batch 3 done v0.10.338: HLPFULL, MNUBARSEP, LOCK, DSPRL, FRCDTA, ALWGPH; I-122d done v0.10.341: the subfile-control family; I-122e done v0.10.342: the field format and edit family; I-122f done v0.10.343: the help and window family; I-122g done v0.10.344: the choice family; I-122h done v0.10.348: the command-key family; I-122i done v0.10.350: the generated matrix; I-122j done v0.10.354: nine overlapping checks retired.
 
 Generate tests from the I-121 spec: L1 pure rule checks, L2 parse/write round-trip of parameters and sub-parameters, L3 UI display and selection (one jsdom per record type iterating rows), L4 behaviour through each commit path (checkbox, raw keyword editor, Basic tab). Cover the keywords with no tests today (`RMVWDW`, `SFLCSRRRN`, `SFLDLT`, `USRRSTDSP`, ...). Migration rule: map each existing `check()` to a keyword x dimension cell; delete it only when a generated cell covers it **and** a stash-based mutation run shows the generated cell fails when the rule is broken; keep unique regressions. Report the before/after check count and suite time.
 
@@ -6832,7 +6857,7 @@ The cells for the keywords outside the matrix's default set are covered unevenly
 
 ### I-122d — Subfile-control family tests: SFLCLR, SFLCSRPRG, SFLRCDNBR, SFLMODE, SFLRTNSEL, SFLRNA, SFLROLVAL, SFLNXTCHG
 
-> **Area:** Tooling · **Status:** Done (v0.10.341) · **Depends on:** I-122 · **Size (estimate):** Small
+> **Area:** Tooling · **Status:** Done (v0.10.341) - 130 checks; findings I-177, I-178 · **Depends on:** I-122 · **Size (estimate):** Small
 
 Opened from I-122 as one batch of the hand-written coverage pass (same method as batches 1-3): a new `src/test/i122D…test.js` file covering the spec facts against each keyword's DDS Reference section, flag and parameter round trips, the rule guards (both directions), and the jsdom panel, saved-state, Conditioning and raw-editor paths; mutation-check every group; log gaps as new tasks and do not assert them as correct. Keyword list by the inventory run on v0.10.339 (test files mentioning each name, thinnest first).
 
@@ -6850,7 +6875,7 @@ Mutation-checked: 12 rule and spec mutations (each guard disabled in turn, `SFLR
 
 ### I-122e — Field format and edit family tests: TIMSEP, TIMFMT, DATSEP, DATFMT, FLTPCN, FLTFIXDEC, BLANKS, CNTFLD, FLDCSRPRG, VALNUM
 
-> **Area:** Tooling · **Status:** Done (v0.10.342) · **Depends on:** I-122 · **Size (estimate):** Medium
+> **Area:** Tooling · **Status:** Done (v0.10.342) - 171 checks; findings I-179, I-180 · **Depends on:** I-122 · **Size (estimate):** Medium
 
 Opened from I-122 as one batch of the hand-written coverage pass (same method as batches 1-3): a new `src/test/i122E…test.js` file covering the spec facts against each keyword's DDS Reference section, flag and parameter round trips, the rule guards (both directions), and the jsdom panel, saved-state, Conditioning and raw-editor paths; mutation-check every group; log gaps as new tasks and do not assert them as correct. Keyword list by the inventory run on v0.10.339 (test files mentioning each name, thinnest first).
 
@@ -6870,7 +6895,7 @@ Gaps found while writing it are not asserted and are logged as I-179 and I-180. 
 
 ### I-122f — Help and window family tests: HLPSCHIDX, HLPBDY, HLPDOC, HLPID, IGCCNV, WDWTITLE, WDWBORDER, NOCCSID
 
-> **Area:** Tooling · **Status:** Done (v0.10.343) · **Depends on:** I-122 · **Size (estimate):** Small
+> **Area:** Tooling · **Status:** Done (v0.10.343) - 138 checks; findings I-181, I-182 · **Depends on:** I-122 · **Size (estimate):** Small
 
 Opened from I-122 as one batch of the hand-written coverage pass (same method as batches 1-3): a new `src/test/i122F…test.js` file covering the spec facts against each keyword's DDS Reference section, flag and parameter round trips, the rule guards (both directions), and the jsdom panel, saved-state, Conditioning and raw-editor paths; mutation-check every group; log gaps as new tasks and do not assert them as correct. Keyword list by the inventory run on v0.10.339 (test files mentioning each name, thinnest first).
 
@@ -6888,7 +6913,7 @@ Mutation-checked: 14 rule, spec and panel mutations each fail the file; a no-op 
 
 ### I-122g — Choice family tests: CHCSLT, CHCCTL, CHCUNAVAIL, CHCAVAIL, CHCACCEL, SFLCHCCTL, SFLSNGCHC, SFLMLTCHC
 
-> **Area:** Tooling · **Status:** Done (v0.10.344) · **Depends on:** I-122 · **Size (estimate):** Medium
+> **Area:** Tooling · **Status:** Done (v0.10.344) - 147 checks; findings I-183, I-184, I-185 · **Depends on:** I-122 · **Size (estimate):** Medium
 
 Opened from I-122 as one batch of the hand-written coverage pass (same method as batches 1-3): a new `src/test/i122G…test.js` file covering the spec facts against each keyword's DDS Reference section, flag and parameter round trips, the rule guards (both directions), and the jsdom panel, saved-state, Conditioning and raw-editor paths; mutation-check every group; log gaps as new tasks and do not assert them as correct. Keyword list by the inventory run on v0.10.339 (test files mentioning each name, thinnest first).
 
@@ -6908,7 +6933,7 @@ Mutation-checked: 14 rule, spec and panel mutations (each recompiled, then rever
 
 ### I-122h — Command-key family tests: CA01-CA24, CF01-CF24, ALTPAGEDWN, ALTPAGEUP, DLTCHK, DLTEDT, RETCMDKEY, MNUBARSW, MNUCNL, GETRETAIN
 
-> **Area:** Tooling · **Status:** Done (v0.10.348) · **Depends on:** I-122 · **Size (estimate):** Medium
+> **Area:** Tooling · **Status:** Done (v0.10.348) - 107 checks; findings I-186, I-187, I-188, I-189 · **Depends on:** I-122 · **Size (estimate):** Medium
 
 Opened from I-122 as one batch of the hand-written coverage pass (same method as batches 1-3): a new `src/test/i122H…test.js` file covering the spec facts against each keyword's DDS Reference section, flag and parameter round trips, the rule guards (both directions), and the jsdom panel, saved-state, Conditioning and raw-editor paths; mutation-check every group; log gaps as new tasks and do not assert them as correct. Keyword list by the inventory run on v0.10.339 (test files mentioning each name, thinnest first).
 
@@ -6928,7 +6953,7 @@ Mutation-checked: 10 spec, guard and panel mutations (each recompiled, then reve
 
 ### I-122i — Generated per-keyword matrix (L1-L4 from the I-121 spec): generator and harness, then the keywords no hand-written batch covers
 
-> **Area:** Tooling · **Status:** Done (v0.10.350) · **Depends on:** I-122, I-121 · **Size (estimate):** Large
+> **Area:** Tooling · **Status:** Done (v0.10.350) - 1,328 checks on 61 keywords, 3,380 with `MATRIX_ALL`; findings I-190, I-191 · **Depends on:** I-122, I-121 · **Size (estimate):** Large
 
 Opened from I-122. The generated matrix itself, which the hand-written batches do not replace. Decision first: generate at test time from `RECORD_TYPES`, or commit generated files. Cover the keywords not claimed by I-122d–h.
 
@@ -6946,7 +6971,7 @@ Disagreements are not asserted as correct: `KNOWN_GAPS` lists the one found (`HL
 
 ### I-122j — Retire overlapping tests, each deletion backed by a stash-based mutation run (do last, serially)
 
-> **Area:** Tooling · **Status:** Done (v0.10.354: 9 checks retired, each backed by a mutation run) · **Depends on:** I-122i · **Size (estimate):** Large
+> **Area:** Tooling · **Status:** Done (v0.10.354) - 9 checks retired; the other overlap classes tested are not redundant; 9 checks retired, each backed by a mutation run · **Depends on:** I-122i · **Size (estimate):** Large
 
 Opened from I-122. Map each existing `check()` to a keyword x dimension cell; delete it only when a generated cell covers it and a stash-based mutation run shows the generated cell fails when the rule is broken. Report before/after check count and suite time. Needs I-122i first.
 
@@ -6975,7 +7000,7 @@ Opened from I-122. Map each existing `check()` to a keyword x dimension cell; de
 
 ### I-123 — Move "Task I-nn" history out of source comments
 
-> **Area:** Tooling · **Status:** Done (v0.10.369) · **Depends on:** I-121
+> **Area:** Tooling · **Status:** Done (no behaviour change) (v0.10.369) - comment-only; fingerprint-verified · **Depends on:** I-121
 
 35-48% of lines in the big source files are comments and about 1,100 lines cite a task ID. Keep comments that state a rule or a DDS Reference citation; move task narrative (what was wrong before, which session found it) to this file and the git log, leaving at most a one-line "see I-nn". I-121 has landed, so each rule's citation already lives in the spec. Mechanical, no behaviour change: the test suite and the compiled output must be unchanged apart from comments.
 
@@ -7421,7 +7446,7 @@ New `src/test/i146SubfileFoldDropFieldSelection.test.js`: each cited sentence is
 
 ### I-147 — Subfile-control keywords are accepted without `SFLCTL`, without required companions and with display size names
 
-> **Area:** Record · **Status:** Done (v0.10.300) · **Depends on:** I-121c
+> **Area:** Record · **Status:** Done (v0.10.300) - SFLCTL requirement, display size names and SFLEND grammar refused; companions and indicators noted · **Depends on:** I-121c
 
 Raised by the I-121c slice (subfile control keywords). The subfile-control keywords state rules no guard enforces (the I-141 dependency check covers only `SFLCSRRRN`/`SFLDLT`/`SFLINZ`): `SFLPAG`, `SFLCLR`, `SFLDSP`, `SFLDSPCTL` and `SFLEND` are accepted on a record without `SFLCTL`; `SFLPAG` and `SFLDSP` are not required on the control record; display size condition names are accepted on `SFLCLR`/`SFLDSP`/`SFLDSPCTL`/`SFLINZ` (only `SFLDLT` refuses them); an option indicator is not required on `SFLCLR`/`SFLEND`. `SFLEND`'s grammar (second parameter only after `*SCRBAR`) and `SFLINZ` on a message subfile without `SFLPGMQ` (now enforced by I-145) are not validated either. The facts are in `keywordSpec.js` (`onRecordType`, `requiredOnSubfileControl`, `displaySizeNames`, `optionIndicators: 'required'`, `sflendGrammar`).
 
@@ -8006,7 +8031,7 @@ New `src/test/i171ChoiceMenuBarRules.test.js` (53 checks): the spec accessors, t
 
 ### I-172 — Choice and menu-bar follow-ups
 
-> **Area:** Field / Record · **Status:** Done (v0.10.332; panel rows done, the 12-line limit is a deferred finding) · **Depends on:** I-171
+> **Area:** Field / Record · **Status:** Done (v0.10.332) - panel rows; the 12-line limit became I-173; panel rows done, the 12-line limit is a deferred finding · **Depends on:** I-171
 
 Raised by the I-171 slice.
 
@@ -8139,7 +8164,7 @@ Do: add the missing facts to the five entries from their reference sections, the
 
 ### I-179 — Date/time format keyword rules nothing enforces
 
-> **Area:** Field · **Status:** Done (v0.10.347) · **Depends on:** I-122e · **Size (estimate):** Small
+> **Area:** Field · **Status:** Done (v0.10.347) - eligibility, values, pairing, Basic tab · **Depends on:** I-122e · **Size (estimate):** Small
 
 Opened from I-122e. `DATFMT` and `DATSEP` are valid only for data type L, `TIMFMT` and `TIMSEP` only for T, `TIMFMT` has no `*JOB`, and `DATFMT` / `TIMFMT` say a fixed-separator format (`*ISO`, `*USA`, `*EUR`, `*JIS`) cannot be used with the separator keyword. Probed on v0.10.341 with the jsdom raw keyword editor: `DATFMT` / `DATSEP` are accepted on a character field, `TIMFMT` on a character and on a date field, `DATSEP('x')`, `DATFMT(*FOO)` and `TIMFMT(*JOB)` with no message, and raw-adding `DATFMT(*ISO)` to a field that already has `DATSEP('/')` is accepted. The separator rule lives only in the panel's Apply handler (`wireDateTimeFormat`). On the Basic tab, changing a date field with `DATFMT` and `DATSEP` to data type A applies and leaves both on the character field. The spec already holds `validDataType`, `validValues` and `fixedSeparatorFormats`.
 
@@ -8175,7 +8200,7 @@ Not done: `CNTFLD`'s column width must also fit within the width of the display 
 
 ### I-181 — Spec entries for HLPDOC, HLPID, WDWBORDER and NOCCSID carry no level, parameter or option-indicator fact
 
-> **Area:** Tooling · **Status:** Done (v0.10.349) · **Depends on:** I-122f · **Size (estimate):** Small
+> **Area:** Tooling · **Status:** Done (v0.10.349) - levels, parameter forms, option indicators · **Depends on:** I-122f · **Size (estimate):** Small
 
 Opened from I-122f. `RECORD_TYPES.HLPDOC` holds only `mutex`, `HLPID` only the identifier rules, `WDWBORDER` only its value lists, `NOCCSID` only `noParameters` / `fieldLevel`. None states `levels` or `optionIndicators`, so `optionIndicatorsAllowed` answers false for `HLPDOC` and `WDWBORDER`, whose sections say "Option indicators are valid for this keyword" (the panels hard-code the Conditioning toggle instead of reading the spec). `HLPDOC` is also a file- or help-specification-level keyword and `WDWBORDER` a file- or record-level one; neither entry says so.
 
@@ -8191,7 +8216,7 @@ Do: add `levels`, parameter and option-indicator facts to the four entries from 
 
 ### I-182 — WDWBORDER and WDWTITLE rules nothing enforces
 
-> **Area:** Record · **Status:** Done (v0.10.352) · **Depends on:** I-122f · **Size (estimate):** Medium
+> **Area:** Record · **Status:** Done (v0.10.352) - requirement, parameters, values, forms · **Depends on:** I-122f · **Size (estimate):** Medium
 
 Opened from I-122f; probed through the record raw keyword editor in a fresh webview, every case below was accepted and written:
 
@@ -8212,7 +8237,7 @@ Do: one model-diff guard in the `windowHelpMenuNewConflictReason` chain reading 
 
 ### I-183 — Choice keyword values nothing enforces
 
-> **Area:** Field · **Status:** Done (v0.10.356) · **Depends on:** I-122g · **Size (estimate):** Medium
+> **Area:** Field · **Status:** Done (v0.10.356) - state values, numbers, text, control field, message fields · **Depends on:** I-122g · **Size (estimate):** Medium
 
 Opened from I-122g; probed on v0.10.343 through the model guard (`choiceMenuBarNewConflictReason`) on a `SNGCHCFLD` field with `CHOICE 1` in a `PULLDOWN` record, every case below was accepted:
 
@@ -8234,7 +8259,7 @@ Do: one model-diff guard reading the spec's `onParameterRequired`, `color.values
 
 ### I-184 — SFLSNGCHC / SFLMLTCHC rules nothing enforces
 
-> **Area:** Record · **Status:** Done (v0.10.357) · **Depends on:** I-122g · **Size (estimate):** Medium
+> **Area:** Record · **Status:** Done (v0.10.357) - 68 checks · **Depends on:** I-122g · **Size (estimate):** Medium
 
 Opened from I-122g. Both sections say a subfile with the keyword "must contain only one output field, cannot contain input capable fields, might / can contain hidden fields", and that the keyword "is valid only for the subfile-control record format"; `SFLMLTCHC`'s `&number-selected` "must name a hidden field with a length of 4, data type of Y, and zero decimal positions". Probed on v0.10.343 (model guards `subfileControlOnlyFieldNewConflictReason`, `choiceMenuBarNewConflictReason`, `subfileKeywordNewConflictReason`, and a parse of the source): a subfile record with two output fields under a control record with `SFLSNGCHC` is accepted; `SFLSNGCHC` parsed on the `SFL` record itself is accepted; `SFLMLTCHC(&BAD)` is accepted with no such field. The `setSflMltChcKeyword` comment already records that the field shape is not validated. Whether the raw editor refuses `SFLSNGCHC` on a non-control record was not probed.
 
@@ -8250,7 +8275,7 @@ Do: a diff-based guard for the subfile shape (counting output and input-capable 
 
 ### I-185 — Spec entries for SFLCHCCTL, SFLSNGCHC and SFLMLTCHC carry no level, parameter or option-indicator fact
 
-> **Area:** Tooling · **Status:** Done (v0.10.358) · **Depends on:** I-122g · **Size (estimate):** Small
+> **Area:** Tooling · **Status:** Done (v0.10.358) - 5 checks added to `i122gChoiceFamilyKeywords`, 155 in all · **Depends on:** I-122g · **Size (estimate):** Small
 
 Opened from I-122g. `RECORD_TYPES.SFLCHCCTL` holds `definitionRequirements`, `mustBeFirstField`, `onePerRecord` and `mutex`; `SFLSNGCHC` and `SFLMLTCHC` hold only `mutex`. None states `levels`, parameter grammar or `optionIndicators`, although their sections say: `SFLCHCCTL` field level, format `SFLCHCCTL`, "Option indicators are not valid"; `SFLMLTCHC` record level, `SFLMLTCHC[(&number-selected] [*NORSTCSR | *RSTCSR] [*NOSLTIND | *SLTIND])]`, not valid; `SFLSNGCHC` record level, `SFLSNGCHC[([*NORSTCSR | *RSTCSR] [*NOSLTIND | *SLTIND] [*NOAUTOSLT | *AUTOSLT | *AUTOSLTENH])]` (its section's indicator sentence was not located in the converted text and must be read first). `optionIndicatorsAllowed` answers false for all three today by default, not by a recorded fact. The `SFLCHCCTL` control-value table (0 available / unselected, 1 selected, 2-4 unavailable, with the enhanced-interface cursor note) is in the `CHCCTL` entry only.
 
@@ -8266,7 +8291,7 @@ Do: add the three facts to the three entries, share the control-value table betw
 
 ### I-186 — Command-key numbers outside 01-24 accepted
 
-> **Area:** Field · **Status:** Done (v0.10.359) · **Depends on:** I-122h · **Size (estimate):** Small
+> **Area:** Field · **Status:** Done (v0.10.359) - range, key type, panel guard, raw editors · **Depends on:** I-122h · **Size (estimate):** Small
 
 Opened from I-122h; probed on v0.10.347. `CAnn` / `CFnn` are "nn = 01-24" (spec `pattern.first` / `last`), but `KeywordSpec.parseCommandKey` and `isCommandKeyName` read the grammar only (`CA00` and `CA25` both parse; the I-121 test says the range "is a separate domain fact"), `parseCommandKeys` returns both, and no guard reads the range. `mnuBarKeyConflictReason('MNUBARSW', 'CF05', ...)` and `('MNUBARSW', 'CA25', ...)` return null: it checks the collision only, not that the parameter is a CA key in 01-24 (the panel may restrict the input; the raw editor was not probed). `ALTPAGEDWN(CF25)` was not probed.
 
@@ -8282,7 +8307,7 @@ Do: a diff-based guard reading the spec range for `CAnn`, `CFnn`, `ALTPAGEDWN` /
 
 ### I-187 — MNUBARSW / MNUCNL keys are not CA claims for the CA / CF number guard
 
-> **Area:** Record · **Status:** Done (v0.10.360) · **Depends on:** I-122h · **Size (estimate):** Small
+> **Area:** Record · **Status:** Done (v0.10.360) - explicit and default key, file level, both directions · **Depends on:** I-122h · **Size (estimate):** Small
 
 Opened from I-122h. Both sections say that with the keyword on a record "the CAnn key or default CA10 / CA12 key can be used only as a CA key on other records, not as a CF key". `commandKeyNumberNewConflictReason` accepts `MNUBARSW(CA10)` on one record with `CF10` on another, `MNUBARSW` (default CA10) with `CF10` on the same record, and a default `MNUCNL` (CA12) with a file-level `CF12`; `commandKeyClaimsInModel` already reads the alt keys and `MNUBARSW` / `MNUCNL` for the alt-key guard, but `commandKeyNumberClash` sees only plain `CAnn` / `CFnn` names.
 
@@ -8296,7 +8321,7 @@ Opened from I-122h. Both sections say that with the keyword on a record "the CAn
 
 ### I-188 — RETKEY / RETCMDKEY accepted on SFL and USRDFN records
 
-> **Area:** Record · **Status:** Done (v0.10.361) · **Depends on:** I-122h · **Size (estimate):** Small
+> **Area:** Record · **Status:** Done (v0.10.361) - both keywords, both record types, both directions · **Depends on:** I-122h · **Size (estimate):** Small
 
 Opened from I-122h. The `RETCMDKEY` spec entry (and `RETKEY`'s, same rules) records `notOnRecordTypes: ['SFL', 'USRDFN']` and `retKeyNewConflictReason` reads the INDARA, file and record exclusions, but a `RETKEY` or `RETCMDKEY` added to a record carrying `SFL` or `USRDFN` (with `INDARA` in the file) returns null. The reference sentence for the two record types was not located in the converted text while writing the test; read it first.
 
@@ -8310,7 +8335,7 @@ Opened from I-122h. The `RETCMDKEY` spec entry (and `RETKEY`'s, same rules) reco
 
 ### I-189 — Spec entries for MNUBARSW, MNUCNL, ALTPAGEDWN, ALTPAGEUP, DLTCHK and DLTEDT carry no level, parameter or option-indicator fact
 
-> **Area:** Tooling · **Status:** Done (v0.10.363) · **Depends on:** I-122h · **Size (estimate):** Small
+> **Area:** Tooling · **Status:** Done (v0.10.363) - six entries, accessor resolves concrete command keys; 7 checks in `i122hCommandKeyFamilyKeywords` · **Depends on:** I-122h · **Size (estimate):** Small
 
 Opened from I-122h. `MNUBARSW` and `MNUCNL` hold only `caKeyPartner`, `caKeyDefault` and `ddsReference`; `ALTPAGEDWN` / `ALTPAGEUP` hold `claimedKeyType`, `defaultKey` and `excluded`; `DLTCHK` / `DLTEDT` hold `requiresReferenceFlag`, `noParameters` and `deletes`. None states `levels`, parameter grammar or `optionIndicators`, though the sections say: `MNUBARSW` and `MNUCNL` file or record level, indicators valid, allowed only in a file with a menu-bar record; `ALTPAGEDWN` / `ALTPAGEUP` file level; `DLTCHK` / `DLTEDT` field level, indicators not valid. So `optionIndicatorsAllowed('MNUBARSW')` and `('MNUCNL')` answer false where the reference says valid, and `optionIndicatorsAllowed('CA05')` answers false because it looks a concrete name up as an entry key (the pattern entry `CA01-CA24` answers true; `commandKeyEntry('CA05')` resolves it). "Allowed only in a file containing a menu-bar record" is a second fact no guard was seen to read.
 
@@ -8344,7 +8369,7 @@ Opened from I-122i. The matrix's L1 level cell compares `levels` with the first 
 
 ### I-191 — Twelve spec entries state no level and their Reference section names none
 
-> **Area:** Tooling · **Status:** Done (v0.10.367) · **Depends on:** I-122i · **Size (estimate):** Small
+> **Area:** Tooling · **Status:** Done (v0.10.367) - levels and option-indicator facts for nine entries; matrix section headings · **Depends on:** I-122i · **Size (estimate):** Small
 
 Opened from I-122i. With neither a `levels` fact in the entry nor a level in the Reference section, the generated matrix cannot place the keyword, so L2-L4 skip it: `SFLMSG`, `IGCALTTYP`, `ERRMSGID`, `SFLMSGID`, `ERRMSG` on the default set, plus `SFLCSRRRN`, `COLOR`, `CHECK`, `ALTPAGEDWN`, `ALTPAGEUP`, `KEYBRD`, `FLTPCN` under `MATRIX_ALL`. Overlaps: `ALTPAGEDWN` / `ALTPAGEUP` are in I-189, `FLTPCN` in I-180 (done, v0.10.351; re-check the matrix skip list), and `KEYBRD` is not a DDS keyword (the spec records it as position 35, see I-122 batch 2). Do: add `levels` (and parameter and option-indicator facts where the section states them) to the rest, so the matrix runs on them; the matrix prints its own skip list, which should end up empty apart from `KEYBRD`.
 
@@ -8394,7 +8419,7 @@ Opened from I-122j. The generated matrix goes through `applyFileKeywordsUpdate`,
 
 ### I-194 — Command-key values that no guard reads
 
-> **Area:** Field · **Status:** Done (v0.10.362) · **Depends on:** I-186 · **Size (estimate):** Small
+> **Area:** Field · **Status:** Done (v0.10.362) - MOUBTN, PSHBTNCHC, malformed key shapes · **Depends on:** I-186 · **Size (estimate):** Small
 
 Opened from I-186; probed on v0.10.359 through every `*NewConflictReason` function. `MOUBTN(*ULP CA25)` and `MOUBTN(*ULP CF00)` return null (the spec entry holds `commandKeyRanges` for the Command key but no guard reads them), `IGCCNV(CF25 5)` was probed on a record only (it is file level) and `PSHBTNCHC`'s command key was not probed. A key that is not `CAnn` / `CFnn` shaped at all (`MNUBARSW(CA5)`, `ALTHELP(XYZ)`) is accepted by the I-186 guard on purpose (a shape error is the keyword's own parameter rule) and no other guard refuses it.
 
@@ -8410,7 +8435,7 @@ Do: read `MOUBTN`'s `commandKeyRanges` and `PSHBTNCHC` / `IGCCNV`'s key from the
 
 ### I-195 — Comment lines past column 80 are cut, and an edit loses the tail
 
-> **Area:** Cross-level · **Status:** Done (v0.10.364) · **Depends on:** — · **Size (estimate):** Medium
+> **Area:** Cross-level · **Status:** Done (v0.10.364) - 52 checks in `i195CommentLineWidth` · **Depends on:** — · **Size (estimate):** Medium
 
 Found by checking whether the Comments panel truncates at 80 columns. It does: `parseDspf` captures a comment's text as columns 8-80 only (`col(padded, 8, LINE_WIDTH)`), so on a 120-column comment line the panel shows 73 characters and 40 are not shown. Opening that comment and saving it with no change rewrites the line to 80 columns (`updateComment`), and `addComment` / `updateComment` cut new text to 73 characters with no warning (the comment input has no length limit or notice). A comment the user never edits is left alone, and the other column-sliced fields have fixed widths, so comments are the only free-text field affected.
 
@@ -8465,7 +8490,7 @@ Do: apply the decision, regenerate with `generate_keyword_index.js`, confirm `--
 
 ### I-198 — `check_spec_coverage.py` prints "mark the slice Done" for slices the ledger already marks Done
 
-> **Area:** Tooling · **Status:** Done · **Depends on:** I-121 · **Size (estimate):** Small
+> **Area:** Tooling · **Status:** Done (v0.10.371) · **Depends on:** I-121 · **Size (estimate):** Small
 
 Opened from the documentation audit of 2026-10-08. The script reads coverage from `KeywordSpec.RECORD_TYPES` and never the ledger's status column, so with 173 of 173 keywords specified it tells the reader to mark all fifteen keyword slices Done although they are.
 
@@ -8582,8 +8607,12 @@ Tests: writer checks in `i202RangeHistory.test.js`; new `i204ModTagPositionWebvi
 
 ### I-205 — Formalise the status table and check it
 
-> **Area:** Tooling · **Status:** In progress · **Depends on:** I-198 · **Size (estimate):** Small
+> **Area:** Tooling · **Status:** Done (v0.10.376) · **Depends on:** I-198 · **Size (estimate):** Small
 
 The Status and Version columns of [Status at a glance](#status-at-a-glance) and the `**Status:**` line of each task section had drifted: 33 free-text Status cells (qualifiers, check counts, versions written into the cell), 7 Done rows with no Version, and 14 shapes of section status line. Nothing checked them, so a wrong cell was only found by reading.
+
+**Done (v0.10.376).** Audited first: the versions were already right (every table version has a `CHANGELOG.md` entry, and every section status agrees with its row on Done / Open), so the work was to make the form uniform. Findings: 33 free-text Status cells (outcome words such as `research`, check counts, versions inside the cell), 7 Done rows with no Version (I-121q, I-122, I-122j, I-193, I-201 to I-204 - each version was already in its section), 14 shapes of section status line. Now: a closed Status vocabulary and the Version rule in the new [Status and version conventions](#status-and-version-conventions); every Done row has a version (I-122 shows its last landing, v0.10.354; I-1, the method task, is the one `Done (no code change)` with no release); every qualifier that left a cell is kept in its section's status line, and I-122's batch history is a `**Landing history.**` paragraph. `check_spec_coverage.py` reads the status with `startswith('Done')`, so it is unaffected.
+
+Tests: new `src/test/keywordFixesFormat.test.js` - well-formed rows, closed vocabulary, version rules, headline counts and version against the table and `package.json`, every table version a released `CHANGELOG.md` entry, one section per row in order with a status line that matches, and Open work equal to the tasks that are not Done.
 
 *Raised by a request to formalise this file. Size (estimate): Small.*
