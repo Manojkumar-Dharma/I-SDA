@@ -47,7 +47,7 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-0 of 10 epics done; 1 sub-task done (E7a). Current version: **v0.11.0**.
+0 of 10 epics done; 2 sub-tasks done (E7a, E7c). Current version: **v0.11.0**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
@@ -245,10 +245,12 @@ and after are identical; a quick tier exists for the edit loop; a CI workflow ru
 |----|--------------------|------------|--------|---------|
 | E7a | **Baseline.** Run `node src/test/run.js --slow 400` on a quiet machine; record per-file time, total, core count and the top 20 in the section; classify the cost (jsdom setup, compile or template build per file, the generated keyword matrix, repeated parsing of large fixtures). Set the numeric target. Results: [E7a baseline](#e7a-baseline-results). | - | Done (no code change) | - |
 | E7b | **Parallel runner.** Worker pool in `src/test/run.js`: `--jobs N` (default cores minus one, `--jobs 1` = today). Each file still gets its own process and its own log file; output stays grouped per file and grep-friendly; the summary, the `FAIL  -` detection and the exit code are unchanged. Guard against tests that share a temp path or fixture. | E7a | Open | - |
-| E7c | **Cut shared setup cost.** From E7a's classification: share one webview template build instead of per-file rebuilds, lazy-load jsdom, memoise big parses in a helper. Each change must keep that file's check count identical. | E7a | In progress | - |
+| E7c | **Cut shared setup cost.** From E7a's classification: share one webview template build instead of per-file rebuilds, lazy-load jsdom, memoise big parses in a helper. Each change must keep that file's check count identical. Outcome: [E7c findings](#e7c-findings): no change made, the rest moved to E7g and E7h. | E7a | Done (no code change) | - |
 | E7d | **Quick tier.** `npm run test:quick`: runs only the test files related to changed source files (**Decision first:** a name-based map, an import-graph walk, or git-diff plus a hand-kept map). The full suite remains the gate before a push. | E7b | Open | - |
 | E7e | **Sharding and CI.** `--shard i/n` for the runner; a GitHub Actions workflow running compile, the sharded suite and `generate_keyword_index.js --check` on push and pull request. | E7b | Open | - |
-| E7f | **Release** (next free minor). Records before/after wall time and check counts in the changelog line. | E7a - E7e | Open | - |
+| E7f | **Release** (next free minor). Records before/after wall time and check counts in the changelog line. | E7a - E7e, E7g, E7h | Open | - |
+| E7g | **Shared-process test execution. Decision first.** Run several test files in one long-lived worker so jsdom is loaded once per worker (the E7a table puts jsdom loading at about 240 s of 1,860 s) and, optionally, keep one pooled webview page per worker. Needs a per-file reset of the globals the tests install (`document`, `window`, `Node`, `DspfWriter`, timers), a `process.exit` shim, per-file output and failure reporting as today, a per-file opt-out marker, and an `--isolate` switch that keeps today's one-process-per-file behaviour. The proposal compares `worker_threads`, `vm` contexts and a child-process pool before any code. | E7a | Open | - |
+| E7h | **Page reuse in the two heaviest files.** `dspfWebview.test.js` (73 pages, 139 s in the baseline) and `menuWebview.test.js` (24 pages, 31 s): build a page once per group of scenarios and load each scenario's source with the page's `externalUpdate` message, resetting the UI state the page keeps (selection, active tab, modification-tracking session flags). Success: identical check counts and results, timed A/B against a control run in the same session. | E7a | Open | - |
 
 
 ### E7a baseline results
@@ -329,6 +331,8 @@ higher, and:
 2. **Wall time on 4 cores:** at most **6 minutes** for the full suite (needs E7b on top of 1).
 3. **Quick tier (E7d):** at most **60 s** for a change confined to one keyword or one record type.
 
+**Superseded:** the absolute numbers above did not survive a re-measurement; see the revised targets in [E7c findings](#e7c-findings).
+
 **Consequences for E7b - E7e.**
 - E7b is still worth building (CI and developer machines have more than one core) but will show no gain in this
   sandbox; its acceptance test must be run on a multi-core machine or a CI runner.
@@ -341,6 +345,37 @@ higher, and:
   `process.exit` behaviour.
 - E7d should map the quick tier onto the buckets above, so the edit loop avoids the page-building files unless
   the change touches the webview code.
+
+### E7c findings
+
+**Measurement noise.** Four of the baseline files were re-run a few hours later on the same code: `i38` 3.4 s
+(baseline 5.7 s), `i43` 2.8 s (4.5 s), `i67` 3.3 s (5.6 s), `menuWebview` 20.3 s (30.7 s), so 34-41% faster
+with nothing changed. The sandbox's speed varies at least that much between runs, so the absolute seconds in
+E7a, and any fixed-seconds target, are unreliable. **Every before/after comparison must be an A/B in one session**
+(control run of the unchanged tree, then the changed tree, alternating where possible).
+
+**Node compile cache: tried, not adopted.** `NODE_COMPILE_CACHE` set by `src/test/run.js` for the child
+processes. Micro-measurements looked promising (`require('jsdom')` 0.84-0.98 s to 0.62-0.71 s; one webview page
+2.2 s to 2.0 s), but running `i38`, `i43`, `i67` and `menuWebview` alternately with and without it gave 29.8 s
+without and 29.2 s / 29.6 s with: no gain outside the noise. The runner is unchanged.
+
+**Page construction has no hotspot.** A CPU profile of building one page for a one-record file (2.5 s) spreads
+over jsdom parsing and DOM building, jsdom's own module compilation, garbage collection (about 11%), and idle
+waits; nothing in iSDA's page script stands out, so editing the script will not shorten it.
+
+**Ceiling of the one-process-per-file model.** Of the estimated 530 s spent building pages, 167 are first pages
+(one per process, unavoidable in this model) and the 97 repeated pages cost about 146 s, under 8% of the suite.
+Together with a small compile-cache effect that is nowhere near the 30% CPU target proposed in E7a. Getting
+there needs processes shared between files (E7g). The page already accepts an `externalUpdate` message that
+re-parses the source and re-renders, so reusing a page is possible (E7h), but the page also keeps UI state
+(selection, active tab, modification-tracking session flags) that a reused page must reset.
+
+**Revised targets (proposal; Manojkumar to confirm).** All measured as an A/B against a control run in the same
+session, check count identical or higher:
+1. **CPU work:** at least 25% below the control (reachable only if E7g lands; E7h alone is worth about 5-8%).
+2. **Wall time on 4 cores:** at least 3.5 times faster than the control (E7b).
+3. **Quick tier (E7d):** at most 5% of the control's full-suite time for a change confined to one keyword or
+   one record type.
 
 ---
 
