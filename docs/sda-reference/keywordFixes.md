@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-231 of 231 tasks done; 0 open (see [Open work](#open-work)). Current version: **v0.10.375**.
+231 of 232 tasks done; 1 open (see [Open work](#open-work)). Current version: **v0.10.375**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -274,6 +274,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-202](#i-202) | Writer | Comment and blank lines inside an edited record or field were deleted, and sequence numbers moved to the wrong lines | I-195 | Done (v0.10.373) | — |
 | [I-203](#i-203) | Tracking | Commenting out an OR line overwrote the `O` in column 7 | I-202 | Done (v0.10.373) | — |
 | [I-204](#i-204) | Tracking | Modification tag can go in columns 1-5 (5 characters) instead of columns 81-90, in both designers | I-203 | Done (v0.10.373) | — |
+| [I-205](#i-205) | Tooling | Status table not formalised: free-text Status cells, Done rows with no Version, section status lines in many shapes, and nothing that checks them | I-198 | In progress | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -285,7 +286,9 @@ keyword index under `docs/sda-reference/keyword-index/`.
 
 Suggested pickup order - roughly smallest and safest first (a real bug with a proven fix shape ahead of spec-fact and tooling work); **not binding** (any task can be picked independently, and the sizes are estimates, not measurements).
 
-No tasks are open.
+| Order | Task | Status | Notes |
+|-------|------|--------|-------|
+| 1 | [I-205](#i-205) | In progress | Small, documentation and one test. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The headline there counts the same tasks, so when a task lands or opens, update this table, the headline count and the version together.
 
@@ -8576,3 +8579,11 @@ Tracking wrote its tag only at columns 81-90. A second position is now available
 Tests: writer checks in `i202RangeHistory.test.js`; new `i204ModTagPositionWebview.test.js` drives the toggle, the limit, the host start value and a real edit in both designers; `extension.test.js` covers the setting and its resend.
 
 *Raised by a reported loss of data in columns 1-7 on edit. Size (estimate): Medium.*
+
+### I-205 — Formalise the status table and check it
+
+> **Area:** Tooling · **Status:** In progress · **Depends on:** I-198 · **Size (estimate):** Small
+
+The Status and Version columns of [Status at a glance](#status-at-a-glance) and the `**Status:**` line of each task section had drifted: 33 free-text Status cells (qualifiers, check counts, versions written into the cell), 7 Done rows with no Version, and 14 shapes of section status line. Nothing checked them, so a wrong cell was only found by reading.
+
+*Raised by a request to formalise this file. Size (estimate): Small.*
