@@ -4668,7 +4668,7 @@ const htmlTemplate = `<!DOCTYPE html>
     // MNUBARCHC/MNUBARSEP gate.
     const isSflOrSflCtlRecord = !isConstant && (WebviewClientHelpers.isSflRecord(found.record) || WebviewClientHelpers.isSflCtlRecord(found.record));
     if (isSflOrSflCtlRecord) {
-      attrsHtml += accordionHtml('field-' + field.sourceLine + '::subfile-keywords', 'Subfile keywords (SFLRCDNBR/SFLROLVAL/SFLSCROLL)', WebviewClientHelpers.subfileFieldKeywordsHtml(field.keywords, 'field-' + field.sourceLine), false);
+      attrsHtml += accordionHtml('field-' + field.sourceLine + '::subfile-keywords', 'Subfile keywords (SFLRCDNBR/SFLROLVAL/SFLSCROLL)', WebviewClientHelpers.subfileFieldKeywordsHtml(field.keywords, 'field-' + field.sourceLine, found.record.keywords), false);
     }
     // D5 - Menu-bar choice fields (docs/sda-reference/ task D5). Two
     // distinct gates, since these serve two different field kinds:

@@ -39,7 +39,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 
 ## Status at a glance
 
-230 of 231 tasks done; 1 open (see [Open work](#open-work)). Current version: **v0.10.374**.
+231 of 231 tasks done; 0 open (see [Open work](#open-work)). Current version: **v0.10.375**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -269,7 +269,7 @@ A new `src/test/*.test.js` file is picked up by `npm test` automatically (I-120)
 | [I-197](#i-197) | Tooling | `KEYBRD` still listed as a DDS keyword in the generated keyword index although its spec entry says it is not one (decision first) | I-121t | Done v0.10.372 | v0.10.372 |
 | [I-198](#i-198) | Tooling | `check_spec_coverage.py` prints "mark the slice Done" for slices the ledger already marks Done | I-121 | Done | v0.10.371 |
 | [I-199](#i-199) | Field | Help-specification panel has no `HLPRCD` row | I-190 | Done | v0.10.374 |
-| [I-200](#i-200) | Subfile | Two `SFLPAG` / `SFLSIZ` rules left unchecked by I-146 | I-146 | In progress | — |
+| [I-200](#i-200) | Subfile | Two `SFLPAG` / `SFLSIZ` rules left unchecked by I-146 | I-146 | Done | v0.10.375 |
 | [I-201](#i-201) | Field | `MNUBARCHC` 12-line count never probed with a literal split over continuation lines | I-173 | Done (v0.10.370) | — |
 | [I-202](#i-202) | Writer | Comment and blank lines inside an edited record or field were deleted, and sequence numbers moved to the wrong lines | I-195 | Done (v0.10.373) | — |
 | [I-203](#i-203) | Tracking | Commenting out an OR line overwrote the `O` in column 7 | I-202 | Done (v0.10.373) | — |
@@ -285,9 +285,7 @@ keyword index under `docs/sda-reference/keyword-index/`.
 
 Suggested pickup order - roughly smallest and safest first (a real bug with a proven fix shape ahead of spec-fact and tooling work); **not binding** (any task can be picked independently, and the sizes are estimates, not measurements).
 
-| Order | Task | Status | Notes |
-|-------|------|--------|-------|
-| 1 | [I-200](#i-200) | In progress | Medium, two spec facts. |
+No tasks are open.
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The headline there counts the same tasks, so when a task lands or opens, update this table, the headline count and the version together.
 
@@ -7410,7 +7408,7 @@ To do: extend the SFLSIZ = SFLPAG check I-127 built for `SFLSCROLL` to the other
 - *`SFLSIZ` equal to `SFLPAG`:* the reference contradicts itself. `SFLPAG`'s section says `SFLDROP`, `SFLFOLD` and `SFLROLVAL` "are not allowed", but `SFLDROP`'s note 2 and `SFLROLVAL`'s section say they are **ignored**, only for the display sizes where the two are equal, and only `SFLFOLD`'s note 2 states an error ("an error message (severity 20) is issued and `SFLFOLD` is ignored"). The guard refuses `SFLFOLD` (`sizeEqualsPageError`) and does **not** refuse `SFLDROP` / `SFLROLVAL` (`sizeEqualsPageIgnored`), because a multi-size file may legitimately have them equal on one size. Equality reuses I-127's `sflsizPagEqualPair` (numeric, per display size; a `&field` never counts as equal).
 - *Same key:* `SFLDROP` and `SFLFOLD` on one record "must use the same key" - refused when the two keywords carry more than one distinct key (case-insensitive, over every instance). A bare keyword (parameter missing) is not this guard's business.
 
-Not done: warning the designer that an *ignored* `SFLDROP` / `SFLROLVAL` has no effect at a display size where `SFLSIZ` equals `SFLPAG` (the preview and the audit do not say so); the reference's other-direction rule that `SFLPAG` must be at least the number of display lines a field-selection record occupies is not checked either.
+Not done: warning the designer that an *ignored* `SFLDROP` / `SFLROLVAL` has no effect at a display size where `SFLSIZ` equals `SFLPAG` (the preview and the audit do not say so); the reference's other-direction rule that `SFLPAG` must be at least the number of display lines a field-selection record occupies is not checked either. (Both are done in I-200.)
 
 New `src/test/i146SubfileFoldDropFieldSelection.test.js`: each cited sentence is found in the reference; all seven keywords refused on a field-selection subfile and accepted without one; the keyword-indicator and constant-indicator non-cases; adding the indicator while a listed keyword is present, removing either side; `SFLFOLD` with equal `SFLSIZ` / `SFLPAG`, `SFLDROP` / `SFLROLVAL` not refused; the key rule (case, one-sided, changed, fixed, indicator instances); fail-safe; and the real webview (raw-adding `SFLDROP` to a field-selection control record and `SFLFOLD(CA04)` beside `SFLDROP(CA03)` are refused with nothing written, `SFLFOLD(CA03)` goes through). Fails against the previous source. Full suite: 246 files, 13,683 checks, zero failures.
 
@@ -8498,11 +8496,18 @@ Do: add the row (record-format-name parameter) to the help-specification panel, 
 
 ### I-200 — Two `SFLPAG` / `SFLSIZ` rules left unchecked by I-146
 
-> **Area:** Subfile · **Status:** In progress · **Depends on:** I-146 · **Size (estimate):** Medium
+> **Area:** Subfile · **Status:** Done (v0.10.375) · **Depends on:** I-146 · **Size (estimate):** Medium
 
 Opened from I-146. (1) No warning that an *ignored* `SFLDROP` / `SFLROLVAL` has no effect at a display size where `SFLSIZ` equals `SFLPAG` (the preview and the audit do not say so; the Reference says "ignored", not an error, so this is a note, not a refusal). (2) `SFLPAG`'s section requires it to be at least the number of display lines a field-selection record occupies; nothing checks it.
 
 Do: read both sections again, add the note and the check as spec facts read by one guard or panel note, and test both directions; keep multi-size files legitimate (equal on one size only).
+
+**Done (v0.10.375).** Both rules are in, as one spec fact and one guard / one note.
+
+- *`SFLPAG` at least the occupied lines (a refusal).* `SFLPAG`'s "Field selection" section says "The value of `SFLPAG` must be greater than or equal to the number of display lines occupied by the subfile" (`KeywordSpec.fieldSelectionPageMinimum`). Because it is a "must" it joins I-146's guard (`subfileFoldDropViolations`, keyed by record and diff-based like the rest): with field selection (a field of the subfile record with an option indicator on its own entry) the guard refuses an edit that makes `SFLPAG` smaller than the lines the subfile record occupies, per display size, whether the edit lowers `SFLPAG`, adds a line to the record, or switches field selection on. A hand-written file that is already too small is not re-reported on an unrelated edit, and fixing it is never blocked. Occupied lines are read the way the preview reads a row's height: highest line minus lowest line plus one over the record's visible (not `H` / `P`) fields and constants that carry an explicit line (`DspfWriter.subfileRecordLineSpan`). A non-numeric or missing `SFLPAG` is left alone (I-147 notes a missing one), and a relative line number is read as the parser reads it, the same as the preview.
+- *`SFLDROP` / `SFLROLVAL` ignored where `SFLSIZ` equals `SFLPAG` (a note).* Nothing is refused: the Reference says "ignored", only for the display sizes where the two are equal. `DspfWriter.sizeEqualsPageIgnoredNote` (keyed to `KeywordSpec.sizeEqualsPageIgnored`) names those sizes, and the panel shows it under the `SFLDROP` row of the subfile-control record and under the `SFLROLVAL` checkbox of a control-record field (which is now given the control record's keywords). `SFLFOLD` has no note because it is refused there (I-146). The preview already said "ignored because `SFLSIZ` equals `SFLPAG`" for `SFLDROP` / `SFLFOLD` on the active display size, so the task text was out of date on that point; `SFLROLVAL` changes paging only, which the preview does not draw, so its note is panel-only. The equal-size helper now has an all-sizes form (`sflsizPagEqualSizes`) behind the existing first-size one.
+
+New `src/test/i200SflpagFieldSelectionAndIgnoredKeywords.test.js` (32 checks): the reference sentences, the spec fact, the note (equal, unequal, `&field`, `SFLFOLD`, multi-size naming only the equal size), the line span, the guard in both directions and diff-based (including per display size, fail-open cases, indicator on a keyword is not field selection), the panel note in the real webview, the `SFLROLVAL` row, and raw-adding `SFLPAG` refused and accepted. Four mutations (`<` to `<=`, guard off, note off, counting hidden fields) fail 2, 4, 4 and 1 of its checks. Full suite: 314 files, 21,157 checks, zero failures.
 
 *Raised by I-146. Size (estimate): Medium.*
 

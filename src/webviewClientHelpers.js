@@ -3160,7 +3160,7 @@
   // DspfWriter.sflScrollFieldConflictReason's own doc comment.
   // -----------------------------------------------------------------------
 
-  function subfileFieldKeywordsHtml(keywords, ownerKey) {
+  function subfileFieldKeywordsHtml(keywords, ownerKey, controlKeywords) {
     var rcdnbr = DspfWriter.getFileFlagKeyword(keywords, 'SFLRCDNBR');
     var rolval = DspfWriter.getFileFlagKeyword(keywords, 'SFLROLVAL');
     var scroll = DspfWriter.getFileFlagKeyword(keywords, 'SFLSCROLL');
@@ -3193,7 +3193,12 @@
       '</select>';
     html += '<label class="attr-check" style="margin-top:8px;"><input type="checkbox" id="' + ownerKey + '-sflrolval" ' + (rolval.present ? 'checked' : '') + '/>Operator can specify the number of records to roll (SFLROLVAL)</label>';
     html += '<label class="attr-check" style="margin-top:8px;"><input type="checkbox" id="' + ownerKey + '-sflscroll" ' + (scroll.present ? 'checked' : '') + '/>Return top-of-subfile record number on scroll (SFLSCROLL)</label>';
-    html += '<div class="hint-small">SFLROLVAL, SFLSCROLL, and SFLRCDNBR cannot share one field, and only one field in the whole record can carry SFLSCROLL. SFLSCROLL needs a 5-digit signed numeric (S), 0-decimal, hidden (H) field - turning it on sets that shape - and is not allowed when SFLSIZ equals SFLPAG.</div>';
+        // SFLROLVAL is only ignored where SFLSIZ equals SFLPAG on the control record.
+    var rolvalIgnored = rolval.present && controlKeywords ? DspfWriter.sizeEqualsPageIgnoredNote('SFLROLVAL', controlKeywords) : null;
+    if (rolvalIgnored) {
+      html += '<div id=\"' + ownerKey + '-sflrolval-ignored\" class=\"kw-warning\" style=\"margin:2px 0 8px 22px;font-size:11px;color:var(--warn, #b45309);\">' + rolvalIgnored + '</div>';
+    }
+html += '<div class="hint-small">SFLROLVAL, SFLSCROLL, and SFLRCDNBR cannot share one field, and only one field in the whole record can carry SFLSCROLL. SFLSCROLL needs a 5-digit signed numeric (S), 0-decimal, hidden (H) field - turning it on sets that shape - and is not allowed when SFLSIZ equals SFLPAG.</div>';
     // SFLRCDNBR, SFLROLVAL and SFLSCROLL are valid only in the subfile
     // control record (refused on a field of an SFL detail record).
     html += '<div class="hint-small">SFLRCDNBR, SFLROLVAL, and SFLSCROLL are valid only on a field of the subfile control (SFLCTL) record - turning one on for a field of a subfile (SFL) record is refused.</div>';
@@ -8316,6 +8321,12 @@
     g += '<div class="section-label">Subfile behavior</div>';
     var fSfldrop = DspfWriter.getFileFlagKeyword(kw, 'SFLDROP');
     g += flagRowHtml(p + '-sfldrop', 'Subfile initially truncated (SFLDROP)', fSfldrop.present, fSfldrop.parameters, 'CFnn or CAnn', fSfldrop.conditions, expandedSet);
+    // SFLDROP is only ignored (not refused) where SFLSIZ equals SFLPAG, so this is a
+    // note on the row, naming the display sizes where it has no effect.
+    var dropIgnored = fSfldrop.present ? DspfWriter.sizeEqualsPageIgnoredNote('SFLDROP', kw) : null;
+    if (dropIgnored) {
+      g += '<div id=\"' + p + '-sfldrop-ignored\" class=\"kw-warning\" style=\"margin:-4px 0 10px 22px;font-size:11px;color:var(--warn, #b45309);\">' + dropIgnored + '</div>';
+    }
     var fSflfold = DspfWriter.getFileFlagKeyword(kw, 'SFLFOLD');
     g += flagRowHtml(p + '-sflfold', 'Subfile initially folded (SFLFOLD)', fSflfold.present, fSflfold.parameters, 'CFnn or CAnn', fSflfold.conditions, expandedSet);
     var fSflenter = DspfWriter.getFileFlagKeyword(kw, 'SFLENTER');

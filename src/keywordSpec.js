@@ -474,6 +474,12 @@
       // equals subfile size, you can specify option indicators for fields in
       // the subfile record format. This is called field selection."
       excludesWithFieldSelection: ['SFLDROP', 'SFLFOLD', 'SFLINZ', 'SFLLIN', 'SFLRCDNBR', 'SFLRNA', 'SFLROLVAL'],
+      // Same section: "The value of SFLPAG must be greater than or equal to the
+      // number of display lines occupied by the subfile" record - with field
+      // selection SFLPAG counts display lines, not records. Occupied lines are
+      // read the way the preview reads them: highest line minus lowest line
+      // plus one over the subfile record's visible (not H / P) fields.
+      fieldSelectionPageMinimum: { measure: 'displayLinesOfSubfileRecord', comparison: 'atLeast' },
       ddsReference:
         'SFLPAG (~line 11845): \"You use this record-level keyword on the subfile-control record format to specify the ' +
         'number of records in the subfile to be displayed at the same time.\" \"This keyword is required for the ' +
@@ -6350,6 +6356,11 @@
   function sizeEqualsPageErrors() { return RECORD_TYPES.SFLPAG.sizeEqualsPageError.slice(); }
   /* Keywords the reference says are only IGNORED then (a copy). */
   function sizeEqualsPageIgnored() { return RECORD_TYPES.SFLPAG.sizeEqualsPageIgnored.slice(); }
+  /** SFLPAG's lower bound under field selection, as data (a copy). */
+  function fieldSelectionPageMinimum() {
+    var m = RECORD_TYPES.SFLPAG.fieldSelectionPageMinimum;
+    return { measure: m.measure, comparison: m.comparison };
+  }
   /** SFLEND's parameter grammar as data (copies). */
   function sflendGrammar() {
     var e = RECORD_TYPES.SFLEND;
@@ -7043,6 +7054,7 @@
     excludedWithFieldSelection: excludedWithFieldSelection,
     sizeEqualsPageErrors: sizeEqualsPageErrors,
     sizeEqualsPageIgnored: sizeEqualsPageIgnored,
+    fieldSelectionPageMinimum: fieldSelectionPageMinimum,
     sflendGrammar: sflendGrammar,
     subfileControlRequiredKeywords: subfileControlRequiredKeywords,
     optionIndicatorRequiredKeywords: optionIndicatorRequiredKeywords,

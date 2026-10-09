@@ -5696,6 +5696,8 @@
    *      states an error ("severity 20"). SFLDROP and SFLROLVAL are only
    *      "ignored" there and are not refused.
    *  (3) SFLDROP and SFLFOLD on one record "must use the same key".
+   *  (4) With field selection SFLPAG counts display lines and must be at least
+   *      the number of lines the subfile record occupies (subfileRecordLineSpan).
    *  Violations are keyed by record, so firstNewViolation reports only what
    *  an edit adds, in either direction (adding the keyword, or the indicator
    *  that makes the subfile a field-selection one).
@@ -5718,6 +5720,25 @@
               ': subfile record ' + sub.name + ' uses field selection (field ' + (selectionField.name || '') + ' has an option indicator) (per the DDS Reference).';
           }
         });
+      }
+      if (selectionField) {
+        // With field selection SFLPAG counts display lines and \"must be greater
+        // than or equal to the number of display lines occupied by the subfile\"
+        // record (KeywordSpec.fieldSelectionPageMinimum).
+        var occ = subfileRecordLineSpan(sub);
+        var pagLayout = getSflDisplayLayout(kws).sflpag;
+        var pagValues = [{ size: '', text: pagLayout.primary }];
+        Object.keys(pagLayout.bySizeName).forEach(function (n) { pagValues.push({ size: n, text: pagLayout.bySizeName[n] }); });
+        if (occ.span > 0) {
+          pagValues.forEach(function (v) {
+            var t = String(v.text == null ? '' : v.text).trim();
+            if (/^\d+$/.test(t) && Number(t) < occ.span) {
+              out[r.name + '|FLDSEL|SFLPAG|' + v.size] = 'SFLPAG(' + t + ')' + (v.size ? ' for display size ' + v.size : '') + ' on subfile-control record format ' + r.name +
+                ' is less than the ' + occ.span + ' display lines subfile record ' + sub.name + ' occupies (lines ' + occ.first + ' to ' + occ.last + '): with field selection (field ' +
+                (selectionField.name || '') + ' has an option indicator) SFLPAG must be at least that many (per the DDS Reference).';
+            }
+          });
+        }
       }
       errorList.forEach(function (name) {
         if (!hasKeywordNamed(kws, name)) return;
@@ -11243,9 +11264,10 @@
   // is that size's own value, else the unconditioned one - which is what
   // the record really is at run time on that display.
   // -----------------------------------------------------------------------
-  function sflsizPagEqualPair(recordKeywords) {
+  function sflsizPagEqualSizes(recordKeywords) {
+    var out = [];
     var pair = KeywordSpec.notAllowedWhenEqual('SFLSCROLL');
-    if (!pair) return null;
+    if (!pair) return out;
     var layout = getSflDisplayLayout(recordKeywords || []);
     var a = layout[pair.keywords[0].toLowerCase()];
     var b = layout[pair.keywords[1].toLowerCase()];
@@ -11254,14 +11276,55 @@
       return /^\d+$/.test(t) ? Number(t) : null;
     };
     var same = function (x, y) { var nx = num(x); return nx !== null && nx === num(y); };
-    if (same(a.primary, b.primary)) return { size: '', value: num(a.primary) };
+    if (same(a.primary, b.primary)) out.push({ size: '', value: num(a.primary) });
     var names = Object.keys(a.bySizeName).concat(Object.keys(b.bySizeName)).filter(function (n, i, all) { return all.indexOf(n) === i; });
     for (var i = 0; i < names.length; i++) {
       var ea = a.bySizeName[names[i]] || a.primary;
       var eb = b.bySizeName[names[i]] || b.primary;
-      if (same(ea, eb)) return { size: names[i], value: num(ea) };
+      if (same(ea, eb)) out.push({ size: names[i], value: num(ea) });
     }
-    return null;
+    return out;
+  }
+  /** The first display size at which SFLSIZ equals SFLPAG (the unconditioned
+   *  one first), or null. */
+  function sflsizPagEqualPair(recordKeywords) {
+    var all = sflsizPagEqualSizes(recordKeywords);
+    return all.length ? all[0] : null;
+  }
+
+  /**
+   * SFLDROP and SFLROLVAL are only IGNORED where SFLSIZ equals SFLPAG (their
+   * own sections; KeywordSpec.sizeEqualsPageIgnored), so nothing is refused -
+   * a multi-size file may have the two equal on one size only. This is the
+   * note the panel shows beside the keyword: which display sizes ignore it.
+   * `controlKeywords` is the subfile-control record's keyword list; null when
+   * `keywordName` is not one of the ignored ones or no size is equal.
+   */
+  function sizeEqualsPageIgnoredNote(keywordName, controlKeywords) {
+    if (KeywordSpec.sizeEqualsPageIgnored().indexOf(String(keywordName)) < 0) return null;
+    var sizes = sflsizPagEqualSizes(controlKeywords);
+    if (!sizes.length) return null;
+    var where = sizes.map(function (z) {
+      return z.size ? 'display size ' + z.size + ' (both ' + z.value + ')' : 'every display size that has no SFLSIZ / SFLPAG of its own (both ' + z.value + ')';
+    }).join('; ');
+    return keywordName + ' is ignored where SFLSIZ equals SFLPAG - here ' + where + ' - so it has no effect there (per the DDS Reference).';
+  }
+
+  /**
+   * How many display lines a subfile record occupies: highest line minus
+   * lowest line plus one over its visible (usage not H / P) fields and
+   * constants that carry an explicit line number - the same reading the
+   * preview uses for a row's height. 0 when none has a line (nothing to
+   * compare against, so nothing is reported).
+   */
+  function subfileRecordLineSpan(subRecord) {
+    var lines = ((subRecord && subRecord.fields) || [])
+      .filter(function (f) { return f && f.usage !== 'H' && f.usage !== 'P' && f.location && typeof f.location.line === 'number'; })
+      .map(function (f) { return f.location.line; });
+    if (!lines.length) return { span: 0, first: 0, last: 0 };
+    var first = Math.min.apply(null, lines);
+    var last = Math.max.apply(null, lines);
+    return { span: last - first + 1, first: first, last: last };
   }
 
   /** A reason string when `recordKeywords` has SFLSIZ equal to SFLPAG (per
@@ -12680,6 +12743,8 @@
     sflendParameterProblem: sflendParameterProblem,
     sflendNewConflictReason: sflendNewConflictReason,
     subfileControlNotes: subfileControlNotes,
+    sizeEqualsPageIgnoredNote: sizeEqualsPageIgnoredNote,
+    subfileRecordLineSpan: subfileRecordLineSpan,
     retKeyNewConflictReason: retKeyNewConflictReason,
     menuBarRecordRequiredNewConflictReason: menuBarRecordRequiredNewConflictReason,
     fileHelpNewConflictReason: fileHelpNewConflictReason,
