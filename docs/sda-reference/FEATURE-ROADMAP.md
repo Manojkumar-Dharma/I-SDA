@@ -37,7 +37,7 @@ epic closes a limitation, writes one summary line in `CHANGELOG.md`, bumps to th
 the `.vsix` (`npx --yes @vscode/vsce package --no-dependencies -o /home/claude/output/`).
 
 **Status** values are the same closed vocabulary as `keywordFixes.md`: `Open`, `In progress`, `Done`,
-`Done (no code change)`, `Done (no behaviour change)`. **Version** is `vX.Y.Z` for every Done row, `—` otherwise.
+`Done (no code change)`, `Done (no behaviour change)`. **Version** is `vX.Y.Z` for a Done row that landed in a release and `—` for Open, In progress and `Done (no code change)` rows, as in `keywordFixes.md`.
 
 **Source stays clean.** No feature below may write design-time-only state (preview values, scenarios,
 simulator settings) into the DDS source. Such state lives in VS Code workspace storage or a settings key,
@@ -47,7 +47,7 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-0 of 10 epics done; 0 sub-tasks done. Current version: **v0.11.0**.
+0 of 10 epics done; 1 sub-task done (E7a). Current version: **v0.11.0**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
@@ -243,12 +243,104 @@ and after are identical; a quick tier exists for the edit loop; a CI workflow ru
 
 | ID | Sub-task and scope | Depends on | Status | Version |
 |----|--------------------|------------|--------|---------|
-| E7a | **Baseline.** Run `node src/test/run.js --slow 400` on a quiet machine; record per-file time, total, core count and the top 20 in the section; classify the cost (jsdom setup, compile or template build per file, the generated keyword matrix, repeated parsing of large fixtures). Set the numeric target. | - | In progress | - |
+| E7a | **Baseline.** Run `node src/test/run.js --slow 400` on a quiet machine; record per-file time, total, core count and the top 20 in the section; classify the cost (jsdom setup, compile or template build per file, the generated keyword matrix, repeated parsing of large fixtures). Set the numeric target. Results: [E7a baseline](#e7a-baseline-results). | - | Done (no code change) | - |
 | E7b | **Parallel runner.** Worker pool in `src/test/run.js`: `--jobs N` (default cores minus one, `--jobs 1` = today). Each file still gets its own process and its own log file; output stays grouped per file and grep-friendly; the summary, the `FAIL  -` detection and the exit code are unchanged. Guard against tests that share a temp path or fixture. | E7a | Open | - |
 | E7c | **Cut shared setup cost.** From E7a's classification: share one webview template build instead of per-file rebuilds, lazy-load jsdom, memoise big parses in a helper. Each change must keep that file's check count identical. | E7a | Open | - |
 | E7d | **Quick tier.** `npm run test:quick`: runs only the test files related to changed source files (**Decision first:** a name-based map, an import-graph walk, or git-diff plus a hand-kept map). The full suite remains the gate before a push. | E7b | Open | - |
 | E7e | **Sharding and CI.** `--shard i/n` for the runner; a GitHub Actions workflow running compile, the sharded suite and `generate_keyword_index.js --check` on push and pull request. | E7b | Open | - |
 | E7f | **Release** (next free minor). Records before/after wall time and check counts in the changelog line. | E7a - E7e | Open | - |
+
+
+### E7a baseline results
+
+**Measured 2026-10-09** on the sandbox the sessions run in: **1 CPU core, 4 GB RAM, Node 22.22.2**, tree at
+`v0.11.0` plus the roadmap commits, `node src/test/run.js --slow 400`, everything green.
+
+| Measure | Value |
+|---------|-------|
+| Test files | 316 |
+| Checks passed / failed | 21,206 / 0 |
+| Wall time | 1,859.5 s (about 31 minutes); sum of per-file times 1,860.5 s |
+| Median file | 4.5 s |
+
+The "about 12 minutes" quoted in older notes was measured on a different, multi-core machine. On one core the
+suite is the sum of its files, so **a parallel runner (E7b) cannot shorten a run here; only cutting CPU work
+(E7c, E7d) can.** This is why the target below is stated in CPU time as well as wall time.
+
+**Distribution.** 104 files finish in under 1 s, 65 in 1-5 s, 110 in 5-10 s and 37 take 10 s or more. The 147
+files at 5 s or more account for 1,653 s (89% of the total). The top 5 files are 19.5% of the total, the top 10
+are 27.9%, the top 20 are 38.5% and the top 50 are 56.0%.
+
+**Top 20 files.**
+
+| # | File | Checks | Seconds | Seconds per check |
+|---|------|--------|---------|-------------------|
+| 1 | `dspfWebview.test.js` | 1218 | 139.4 | 0.11 |
+| 2 | `i122iGeneratedKeywordMatrix.test.js` | 2722 | 74.9 | 0.03 |
+| 3 | `i159FileLevelDisplayIoRules.test.js` | 175 | 55.6 | 0.32 |
+| 4 | `i163CommandFunctionParameterForms.test.js` | 153 | 48.9 | 0.32 |
+| 5 | `i70ChridEligibilityGuard.test.js` | 118 | 43.5 | 0.37 |
+| 6 | `i143MsgconRules.test.js` | 74 | 42.5 | 0.57 |
+| 7 | `menuWebview.test.js` | 199 | 30.7 | 0.15 |
+| 8 | `i153MsgconParameterForm.test.js` | 88 | 29.2 | 0.33 |
+| 9 | `i69ChkmsgidDependencyGuard.test.js` | 83 | 28.6 | 0.34 |
+| 10 | `i170ReferenceFieldRules.test.js` | 239 | 25.7 | 0.11 |
+| 11 | `i97ErrmsgidSflmsgidDataFieldValidation.test.js` | 70 | 22.9 | 0.33 |
+| 12 | `i99SflmsgidGrammar.test.js` | 74 | 22.3 | 0.30 |
+| 13 | `i57PshbtnFieldKind.test.js` | 123 | 21.7 | 0.18 |
+| 14 | `i89ChkmsgidDataFieldValidation.test.js` | 63 | 21.5 | 0.34 |
+| 15 | `i122fHelpWindowFamilyKeywords.test.js` | 137 | 19.9 | 0.15 |
+| 16 | `i162HelpKeywordRelations.test.js` | 56 | 19.8 | 0.35 |
+| 17 | `i104RecordKeywordRowSweep.test.js` | 408 | 18.9 | 0.05 |
+| 18 | `i100SflmsgResponseIndicator.test.js` | 47 | 16.9 | 0.36 |
+| 19 | `i68HlprtnReverseGuard.test.js` | 29 | 16.8 | 0.58 |
+| 20 | `multiSelect.test.js` | 48 | 16.2 | 0.34 |
+
+**Cost classification.** Constants were measured separately on this sandbox: `node` start about 0.04 s;
+`require('jsdom')` 1.23 s; loading `dspfWriter.js` and `keywordSpec.js` about 0.07 s; the first full webview
+page in a process (`newWebviewDom` over the 2.3 MB generated page, scripts running) about 3.5 s including the
+jsdom load, so about 2.3 s on top of it; each further page in the same process about 1.5 s. Test files that
+reference jsdom: 195 of 316. `newWebviewDom(` is called 264 times across 167 files. The buckets
+below combine those constants with the file counts; they are estimates, not a profile, and the last bucket is
+what is left over.
+
+| Bucket | How estimated | Seconds | Share |
+|--------|---------------|---------|-------|
+| Node process start | 316 files x 0.04 s | 13 | 1% |
+| jsdom module load | 195 files x 1.23 s | 240 | 13% |
+| Building a full webview page in jsdom | 167 first pages x 2.3 s + 97 further pages x 1.5 s | 530 | 28% |
+| Everything else (the checks themselves, DOM work after the page exists, fixed waits, the generated keyword matrix) | remainder | 1078 | 58% |
+
+**What the outliers show.**
+- `dspfWebview.test.js` builds 73 pages (about 110 s of its 139 s) and `menuWebview.test.js` builds 24 (the 1.5 s
+  constant would give 36 s against a measured 30.7 s, so it is an upper bound). Both are page-construction cost, which a shared page
+  per group of checks would remove.
+- `i122iGeneratedKeywordMatrix.test.js` (74.9 s, 2,722 checks) builds one page; its time is the matrix itself.
+- Several files take 0.5 s or more per check for 30-90 checks (`i143`, `i153`, `i69`, `i97`, `i99`, `i89`,
+  `i68`). A CPU profile of `i68HlprtnReverseGuard.test.js` (profiler overhead included, 21 s) put about 15% in
+  garbage collection, about 13% in idle waits (`setTimeout`), and most of the rest inside jsdom's own DOM
+  mutation code (`CharacterData.replaceData`, `SymbolTree`, mutation observers), not in the rules code. The
+  per-check cost is rebuilding large panel DOM in jsdom, not the guards being tested.
+- 169 files use `setTimeout`; nearly all literal delays are 0 or 50 ms, so fixed waits are a small share.
+
+**Target (proposal; Manojkumar to confirm or change, E7f measures against it).** Check count unchanged or
+higher, and:
+1. **CPU work:** sum of per-file seconds at most **1,300 s** (down 30% from 1,860 s), measured on this sandbox.
+2. **Wall time on 4 cores:** at most **6 minutes** for the full suite (needs E7b on top of 1).
+3. **Quick tier (E7d):** at most **60 s** for a change confined to one keyword or one record type.
+
+**Consequences for E7b - E7e.**
+- E7b is still worth building (CI and developer machines have more than one core) but will show no gain in this
+  sandbox; its acceptance test must be run on a multi-core machine or a CI runner.
+- E7c candidates, in order of expected return (each figure is an upper bound from the table above, to be
+  verified): load jsdom once per worker instead of once per file (up to about 220 s); share one page per group
+  of checks in `dspfWebview` and `menuWebview` instead of one per check (up to about 130 s); reduce the DOM
+  rebuilt per check in the 0.5 s-per-check files; evaluate a V8 startup snapshot with jsdom preloaded (an
+  experimental Node feature, so a fallback to the current runner is required). Any change that shares a process
+  between files must reset the globals the tests install (`document`, `Node`, `DspfWriter`) and keep each file's
+  `process.exit` behaviour.
+- E7d should map the quick tier onto the buckets above, so the edit loop avoids the page-building files unless
+  the change touches the webview code.
 
 ---
 
