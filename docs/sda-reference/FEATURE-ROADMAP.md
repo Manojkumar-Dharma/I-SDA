@@ -47,7 +47,7 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-0 of 10 epics done; 2 sub-tasks done (E7a, E7c). Current version: **v0.11.0**.
+0 of 10 epics done; 3 sub-tasks done (E7a, E7c, E7g). Current version: **v0.11.0**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
@@ -248,9 +248,13 @@ and after are identical; a quick tier exists for the edit loop; a CI workflow ru
 | E7c | **Cut shared setup cost.** From E7a's classification: share one webview template build instead of per-file rebuilds, lazy-load jsdom, memoise big parses in a helper. Each change must keep that file's check count identical. Outcome: [E7c findings](#e7c-findings): no change made, the rest moved to E7g and E7h. | E7a | Done (no code change) | - |
 | E7d | **Quick tier.** `npm run test:quick`: runs only the test files related to changed source files (**Decision first:** a name-based map, an import-graph walk, or git-diff plus a hand-kept map). The full suite remains the gate before a push. | E7b | Open | - |
 | E7e | **Sharding and CI.** `--shard i/n` for the runner; a GitHub Actions workflow running compile, the sharded suite and `generate_keyword_index.js --check` on push and pull request. | E7b | Open | - |
-| E7f | **Release** (next free minor). Records before/after wall time and check counts in the changelog line. | E7a - E7e, E7g, E7h | Open | - |
-| E7g | **Shared-process test execution. Decision first.** Run several test files in one long-lived worker so jsdom is loaded once per worker (the E7a table puts jsdom loading at about 240 s of 1,860 s) and, optionally, keep one pooled webview page per worker. Needs a per-file reset of the globals the tests install (`document`, `window`, `Node`, `DspfWriter`, timers), a `process.exit` shim, per-file output and failure reporting as today, a per-file opt-out marker, and an `--isolate` switch that keeps today's one-process-per-file behaviour. The proposal compares `worker_threads`, `vm` contexts and a child-process pool before any code. Proposal: [E7g proposal](#e7g-proposal), waiting for Manojkumar's decision. | E7a | In progress | - |
+| E7f | **Release** (next free minor). Records before/after wall time and check counts in the changelog line. | E7a - E7e, E7g - E7l | Open | - |
+| E7g | **Shared-process test execution. Decision first.** Run several test files in one long-lived worker so jsdom is loaded once per worker (the E7a table puts jsdom loading at about 240 s of 1,860 s) and, optionally, keep one pooled webview page per worker. Needs a per-file reset of the globals the tests install (`document`, `window`, `Node`, `DspfWriter`, timers), a `process.exit` shim, per-file output and failure reporting as today, a per-file opt-out marker, and an `--isolate` switch that keeps today's one-process-per-file behaviour. The proposal compares `worker_threads`, `vm` contexts and a child-process pool before any code. Outcome: [E7g proposal](#e7g-proposal), approved; the build is E7i - E7l. | E7a | Done (no code change) | - |
 | E7h | **Page reuse in the two heaviest files.** `dspfWebview.test.js` (73 pages, 139 s in the baseline) and `menuWebview.test.js` (24 pages, 31 s): build a page once per group of scenarios and load each scenario's source with the page's `externalUpdate` message, resetting the UI state the page keeps (selection, active tab, modification-tracking session flags). Success: identical check counts and results, timed A/B against a control run in the same session. | E7a | Open | - |
+| E7i | **Shared worker core.** `src/test/sharedWorker.js`: a worker process that runs a list of test files in order with the reset from the E7g proposal (clear the `require` cache except `node_modules`; first `process.exit` fixes the result and later ones are ignored; read and reset `process.exitCode`; idle detection for files that never exit; output capture per file; timer and interval cleanup; close `global.window`; delete installed globals). `run.js` gets `--shared` (opt-in at first); output blocks, `--- file: N ok, M failed` lines, summary and exit code identical to today. | E7g | Open | - |
+| E7j | **Parity check and opt-out marker.** `// @isda-test: isolate` in a test file's first lines keeps that file in its own process in shared mode. A script (`npm run test:parity`) runs both modes and fails if any file's ok count, failed count or exit code differs; used by CI and by hand before the reset list changes. | E7i | Open | - |
+| E7k | **Recycling and pool integration.** Recycle a worker after 60 files or when its resident memory passes 1.5 GB (both configurable); make the E7b `--jobs` pool schedule files onto shared workers; keep per-file output ordering and `--isolate`. | E7b, E7i | Open | - |
+| E7l | **Make shared mode the default.** After E7j's parity run is clean on the full suite: `--shared` becomes the default and `--isolate` the escape hatch; update the `run.js` header, `README.md` and `ways-of-working` notes; record the A/B against a same-session control run. | E7j, E7k | Open | - |
 
 
 ### E7a baseline results
@@ -379,8 +383,9 @@ session, check count identical or higher:
 
 ### E7g proposal
 
-**Status: decision requested from Manojkumar; no repository code has been written for E7g.** The experiment
-below used a throwaway runner kept outside the repository.
+**Status: approved by Manojkumar as proposed (option B, the `// @isda-test: isolate` marker, recycling after 60
+files or 1.5 GB). No repository code was written for E7g;** the experiment below used a throwaway runner kept
+outside the repository. The build is E7i - E7l.
 
 **What was tried.** A runner that executes many test files in one Node process: before each file it clears the
 `require` cache except `node_modules` (so jsdom stays loaded and warm), replaces `process.exit` with a function
@@ -439,7 +444,7 @@ timing noise; the same-session ratio from the 24-file A/B (0.58) is the number t
   differ; run in CI, and by hand before changing the reset list.
 - No test file is edited for B.
 
-**Sub-tasks to open on approval (IDs taken then, not now):** the shared worker and reset core; the parity check and
+**Sub-tasks opened on approval (E7i - E7l):** the shared worker and reset core; the parity check and
 opt-out marker; wiring into the E7b pool and recycle rules; documentation (`README`, runner header comment).
 
 **Questions for Manojkumar.**
