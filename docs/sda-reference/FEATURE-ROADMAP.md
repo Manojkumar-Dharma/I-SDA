@@ -249,7 +249,7 @@ and after are identical; a quick tier exists for the edit loop; a CI workflow ru
 | E7d | **Quick tier.** `npm run test:quick`: runs only the test files related to changed source files (**Decision first:** a name-based map, an import-graph walk, or git-diff plus a hand-kept map). The full suite remains the gate before a push. | E7b | Open | - |
 | E7e | **Sharding and CI.** `--shard i/n` for the runner; a GitHub Actions workflow running compile, the sharded suite and `generate_keyword_index.js --check` on push and pull request. | E7b | Open | - |
 | E7f | **Release** (next free minor). Records before/after wall time and check counts in the changelog line. | E7a - E7e, E7g, E7h | Open | - |
-| E7g | **Shared-process test execution. Decision first.** Run several test files in one long-lived worker so jsdom is loaded once per worker (the E7a table puts jsdom loading at about 240 s of 1,860 s) and, optionally, keep one pooled webview page per worker. Needs a per-file reset of the globals the tests install (`document`, `window`, `Node`, `DspfWriter`, timers), a `process.exit` shim, per-file output and failure reporting as today, a per-file opt-out marker, and an `--isolate` switch that keeps today's one-process-per-file behaviour. The proposal compares `worker_threads`, `vm` contexts and a child-process pool before any code. | E7a | In progress | - |
+| E7g | **Shared-process test execution. Decision first.** Run several test files in one long-lived worker so jsdom is loaded once per worker (the E7a table puts jsdom loading at about 240 s of 1,860 s) and, optionally, keep one pooled webview page per worker. Needs a per-file reset of the globals the tests install (`document`, `window`, `Node`, `DspfWriter`, timers), a `process.exit` shim, per-file output and failure reporting as today, a per-file opt-out marker, and an `--isolate` switch that keeps today's one-process-per-file behaviour. The proposal compares `worker_threads`, `vm` contexts and a child-process pool before any code. Proposal: [E7g proposal](#e7g-proposal), waiting for Manojkumar's decision. | E7a | In progress | - |
 | E7h | **Page reuse in the two heaviest files.** `dspfWebview.test.js` (73 pages, 139 s in the baseline) and `menuWebview.test.js` (24 pages, 31 s): build a page once per group of scenarios and load each scenario's source with the page's `externalUpdate` message, resetting the UI state the page keeps (selection, active tab, modification-tracking session flags). Success: identical check counts and results, timed A/B against a control run in the same session. | E7a | Open | - |
 
 
@@ -376,6 +376,76 @@ session, check count identical or higher:
 2. **Wall time on 4 cores:** at least 3.5 times faster than the control (E7b).
 3. **Quick tier (E7d):** at most 5% of the control's full-suite time for a change confined to one keyword or
    one record type.
+
+### E7g proposal
+
+**Status: decision requested from Manojkumar; no repository code has been written for E7g.** The experiment
+below used a throwaway runner kept outside the repository.
+
+**What was tried.** A runner that executes many test files in one Node process: before each file it clears the
+`require` cache except `node_modules` (so jsdom stays loaded and warm), replaces `process.exit` with a function
+that records the first exit code and stops the file, captures output, wraps timers so they can be cleared,
+closes `global.window`, and deletes the globals the file installed. A file that never calls `process.exit`
+(four of them) is finished when `process.getActiveResourcesInfo()` shows nothing but the runner's own timer.
+
+**Results (one-core sandbox, so compare ratios, not seconds; see the noise note in E7c findings).**
+
+| Run | Files | Checks passed / failed | Wall |
+|-----|-------|------------------------|------|
+| Current runner, 24 jsdom-using files | 24 | 1,790 / 0 | 130 s |
+| Shared-process runner, same 24 files, two runs | 24 | 1,790 / 0 both times | 76 s and 77 s (42% less) |
+| Shared-process runner, whole suite | 316 | 21,206 / 0 (equal to the baseline total) | 904 s, one run |
+
+After the first file, the average file fell from 5.6 s to 3.2 s, and per-file check counts matched the current
+runner for all 24 files. The whole-suite wall time cannot be compared with the 1,860 s baseline because of the
+timing noise; the same-session ratio from the 24-file A/B (0.58) is the number to trust.
+
+**Problems found, all solvable but each must be designed in:**
+1. **A `process.exit` that throws can be caught by the test.** Ten files (`i57`, `i68`, `i69`, `i70`, `i87`,
+   `i88`, `i89`, `i97`, `i99`, `i100`) end with `main().catch(e => process.exit(1))`. With the exit replaced by a
+   throw, their own catch turned a clean `exit(0)` into exit 1 with 0 failed checks. Fix, verified on those ten:
+   the first `process.exit` in a file fixes the result and later ones are ignored.
+2. **Four files end by letting the event loop drain** instead of calling `process.exit` (for example
+   `i128SflChoiceListReverseGuard`). Idle detection handles them; no test needs editing. 41 files also set
+   `process.exitCode`, which the runner must read and reset.
+3. **Memory.** Resident memory climbed from under 1 GB to about 3.1 GB over roughly 200 files, close to the
+   sandbox's 4 GB, because pages and windows are retained. A worker must be recycled after N files or above a
+   memory limit; a recycle also restores a clean jsdom.
+4. **Isolation is weaker than a process per file.** Anything a test changes outside what the runner resets
+   (built-in prototypes, `process.env`, jsdom-wide state) could leak into the next file. The suite showed no
+   leak (identical counts), but a regression could appear later, so a parity check is part of the proposal.
+5. **Only jsdom loading and warm-up are saved.** Each file still builds its own first webview page (about 2.3 s);
+   sharing pages is E7h.
+
+**Options compared.**
+
+| Option | Verdict |
+|--------|---------|
+| A. One process per file (today) | Strongest isolation; about 240 s of the suite is jsdom being loaded again and again, plus cold JIT on every file. Stays available as `--isolate`. |
+| B. Long-lived worker processes that run files one after another with the reset above | **Recommended.** Measured 42% less time on a 24-file sample, identical results on all 316 files. Works with E7b: the pool runs several such workers across cores. |
+| C. `worker_threads`, one per file | Rejected: each thread has its own module cache, so jsdom loads every time; no gain. |
+| D. V8 startup snapshot with jsdom preloaded | Not tried. Needs jsdom bundled into one file and uses an experimental Node feature; it would keep one process per file. Keep as a later experiment if B's isolation proves too weak. |
+| E. `node --test` with isolation off | Rejected: `process.exit` in the tests would end the whole run, and nothing resets globals. |
+
+**Proposed design (B).**
+- A worker process takes a list of files and runs them in order with the reset above; the parent (the existing
+  `run.js`) collects each file's output and result so the `=== file ===` blocks, the `--- file: N ok, M failed`
+  lines, the summary and the exit code stay exactly as today.
+- Recycle a worker after 60 files or when its resident memory passes 1.5 GB (both configurable; the numbers come
+  from the observed growth of about 15 MB per file and are to be tuned).
+- `--isolate` runs one process per file as today. A first-line comment `// @isda-test: isolate` marks a file that
+  must never share a process.
+- **Parity check:** a script that runs both modes and fails if any file's ok and failed counts or exit code
+  differ; run in CI, and by hand before changing the reset list.
+- No test file is edited for B.
+
+**Sub-tasks to open on approval (IDs taken then, not now):** the shared worker and reset core; the parity check and
+opt-out marker; wiring into the E7b pool and recycle rules; documentation (`README`, runner header comment).
+
+**Questions for Manojkumar.**
+1. Approve option B as the E7g design?
+2. Is `// @isda-test: isolate` an acceptable opt-out marker?
+3. Defaults of 60 files / 1.5 GB for recycling, or a different policy?
 
 ---
 
