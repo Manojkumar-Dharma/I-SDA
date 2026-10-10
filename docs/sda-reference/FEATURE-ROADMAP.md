@@ -47,7 +47,7 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-0 of 10 epics done; 3 sub-tasks done (E7a, E7c, E7g). Current version: **v0.11.0**.
+0 of 10 epics done; 4 sub-tasks done (E7a, E7c, E7g, E7i). Current version: **v0.11.1**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
@@ -251,7 +251,7 @@ and after are identical; a quick tier exists for the edit loop; a CI workflow ru
 | E7f | **Release** (next free minor). Records before/after wall time and check counts in the changelog line. | E7a - E7e, E7g - E7l | Open | - |
 | E7g | **Shared-process test execution. Decision first.** Run several test files in one long-lived worker so jsdom is loaded once per worker (the E7a table puts jsdom loading at about 240 s of 1,860 s) and, optionally, keep one pooled webview page per worker. Needs a per-file reset of the globals the tests install (`document`, `window`, `Node`, `DspfWriter`, timers), a `process.exit` shim, per-file output and failure reporting as today, a per-file opt-out marker, and an `--isolate` switch that keeps today's one-process-per-file behaviour. The proposal compares `worker_threads`, `vm` contexts and a child-process pool before any code. Outcome: [E7g proposal](#e7g-proposal), approved; the build is E7i - E7l. | E7a | Done (no code change) | - |
 | E7h | **Page reuse in the two heaviest files.** `dspfWebview.test.js` (73 pages, 139 s in the baseline) and `menuWebview.test.js` (24 pages, 31 s): build a page once per group of scenarios and load each scenario's source with the page's `externalUpdate` message, resetting the UI state the page keeps (selection, active tab, modification-tracking session flags). Success: identical check counts and results, timed A/B against a control run in the same session. | E7a | Open | - |
-| E7i | **Shared worker core.** `src/test/sharedWorker.js`: a worker process that runs a list of test files in order with the reset from the E7g proposal (clear the `require` cache except `node_modules`; first `process.exit` fixes the result and later ones are ignored; read and reset `process.exitCode`; idle detection for files that never exit; output capture per file; timer and interval cleanup; close `global.window`; delete installed globals). `run.js` gets `--shared` (opt-in at first); output blocks, `--- file: N ok, M failed` lines, summary and exit code identical to today. | E7g | In progress | - |
+| E7i | **Shared worker core.** `src/test/sharedWorker.js`: a worker process that runs a list of test files in order with the reset from the E7g proposal (clear the `require` cache except `node_modules`; first `process.exit` fixes the result and later ones are ignored; read and reset `process.exitCode`; idle detection for files that never exit; output capture per file; timer and interval cleanup; close `global.window`; delete installed globals). `run.js` gets `--shared` (opt-in at first); output blocks, `--- file: N ok, M failed` lines, summary and exit code identical to today. Results: [E7i results](#e7i-results). | E7g | Done | v0.11.1 |
 | E7j | **Parity check and opt-out marker.** `// @isda-test: isolate` in a test file's first lines keeps that file in its own process in shared mode. A script (`npm run test:parity`) runs both modes and fails if any file's ok count, failed count or exit code differs; used by CI and by hand before the reset list changes. | E7i | Open | - |
 | E7k | **Recycling and pool integration.** Recycle a worker after 60 files or when its resident memory passes 1.5 GB (both configurable); make the E7b `--jobs` pool schedule files onto shared workers; keep per-file output ordering and `--isolate`. | E7b, E7i | Open | - |
 | E7l | **Make shared mode the default.** After E7j's parity run is clean on the full suite: `--shared` becomes the default and `--isolate` the escape hatch; update the `run.js` header, `README.md` and `ways-of-working` notes; record the A/B against a same-session control run. | E7j, E7k | Open | - |
@@ -451,6 +451,40 @@ opt-out marker; wiring into the E7b pool and recycle rules; documentation (`READ
 1. Approve option B as the E7g design?
 2. Is `// @isda-test: isolate` an acceptable opt-out marker?
 3. Defaults of 60 files / 1.5 GB for recycling, or a different policy?
+
+### E7i results
+
+**Shipped as v0.11.1 (tests only, no change to the extension).** `src/test/sharedWorker.js` and
+`node src/test/run.js --shared`; the default runner is unchanged and `--shared` stays opt-in until E7l.
+
+**What the worker does** is the reset list from the E7g proposal: module cache cleared except `node_modules`; the
+first `process.exit` wins; `process.exitCode` and event-loop-drain files handled; stdout and stderr captured
+into one log per file; timers, intervals and immediates cleared; every jsdom window closed (the worker wraps
+`JSDOM` to track them; jsdom has no `window.closed`, so the test checks that `window.document` is gone);
+globals, `process.env` and `process.argv` restored. The parent receives only a small IPC message per file and
+reads the output from a log file the worker wrote, for the same lost-tail reason the isolated runner uses files.
+
+**Tests.** `e7iSharedWorker.test.js` (26 checks) drives one worker over IPC with 17 small fixture files in
+`src/test/fixtures/sharedWorker/`: exit codes (including from a timer), drain with and without `exitCode`, the
+first-exit-wins case, uncaught errors and rejections, stdout/stderr ordering, `argv`, and what leaks between files
+(globals, env, a running interval, module state, jsdom windows). Seven deliberate breakages of the worker
+(windows not closed, last exit wins, module cache kept, globals kept, env kept, intervals kept, exit code ignored)
+were each caught; the intervals one as a hang.
+
+**Parity on the full suite.** Isolated run: 317 files, 21,232 checks, 0 failed, 1,283 s. Shared run: the same 317
+files with identical per-file ok/failed counts and no failed file (21,232 checks in total); one shared run was cut
+at file 203 of 317 by a sandbox restart and its remaining 114 files were run afterwards, so the shared time is
+not a clean single run. Summed per-file seconds were 1,286 s isolated against 876 s shared (about 32% less);
+the cleaner same-session comparisons were 24 jsdom files (130 s to 76 s, 42% less) and 8 files (43.9 s to
+33.4 s, 24% less).
+
+**Known limits, left to the next sub-tasks.**
+- No worker recycling yet (E7k). The interrupted run is a reminder: memory grew to about 3 GB over 200 files in
+  the earlier experiment, and a restart during a long shared run is consistent with that, although the cause was
+  not established.
+- No opt-out marker or parity script yet (E7j); no `--jobs` pool yet (E7b, E7k).
+- A file that fails with an uncaught error shows the error stack in its log rather than Node's own message
+  format; its exit code is 1 as before.
 
 ---
 

@@ -14,6 +14,9 @@
  *   node src/test/run.js i106 dspfWriter  run only files whose name contains any argument
  *   node src/test/run.js --list           list the files that would run, then exit
  *   node src/test/run.js --slow 20        show the 20 slowest files in the summary (default 5)
+ *   node src/test/run.js --shared         run the files in one long-lived worker process instead of one
+ *                                         process per file (E7i); results and output are the same, jsdom is
+ *                                         loaded once. Opt-in until E7l makes it the default.
  *
  * Exit code: 0 only if every file exited 0 and printed no `FAIL  -` line.
  */
@@ -22,14 +25,16 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { spawnSync } = require('child_process');
+const { spawnSync, fork } = require('child_process');
 
 const args = process.argv.slice(2);
 let slowCount = 5;
 let listOnly = false;
+let shared = false;
 const filters = [];
 for (let i = 0; i < args.length; i++) {
   if (args[i] === '--list') listOnly = true;
+  else if (args[i] === '--shared') shared = true;
   else if (args[i] === '--slow') slowCount = Math.max(0, parseInt(args[++i], 10) || 0);
   else filters.push(args[i]);
 }
@@ -53,49 +58,95 @@ if (files.length === 0) {
 
 const results = [];
 const suiteStart = Date.now();
-for (const f of files) {
-  console.log('\n=== ' + f + ' ===');
+const root = path.join(dir, '..', '..');
+
+// One test file in a process of its own. Child output goes to a file, not a pipe: many tests end with
+// process.exit(), and on a busy machine a pipe can lose the tail of a large output when the child exits
+// (seen: a file's checks silently dropping from 490 to 295). A file write is synchronous, so nothing is lost.
+function runIsolated(f) {
   const t0 = Date.now();
-  // Child output goes to a file, not a pipe: many tests end with process.exit(), and on a busy
-  // machine a pipe can lose the tail of a large output when the child exits (seen: a file's
-  // checks silently dropping from 490 to 295). A file write is synchronous, so nothing is lost.
   const outFile = path.join(os.tmpdir(), 'isda-test-' + process.pid + '-' + f + '.log');
   const fd = fs.openSync(outFile, 'w');
-  const r = spawnSync(process.execPath, [path.join(dir, f)], {
-    stdio: ['ignore', fd, fd],
-    cwd: path.join(dir, '..', '..'),
-  });
+  const r = spawnSync(process.execPath, [path.join(dir, f)], { stdio: ['ignore', fd, fd], cwd: root });
   fs.closeSync(fd);
   const secs = (Date.now() - t0) / 1000;
   const out = fs.readFileSync(outFile, 'utf8');
   fs.unlinkSync(outFile);
-  process.stdout.write(out.endsWith('\n') || out === '' ? out : out + '\n');
-  const lines = out.split('\n');
-  const ok = lines.filter((l) => l.startsWith('  ok  -')).length;
-  const failed = lines.filter((l) => l.startsWith('FAIL  -')).length;
-  const exitCode = r.status === null ? -1 : r.status;
-  const pass = exitCode === 0 && failed === 0;
-  console.log('--- ' + f + ': ' + ok + ' ok, ' + failed + ' failed, ' + secs.toFixed(1) + ' s');
-  if (!pass) console.log('*** ' + f + ' FAILED (exit ' + exitCode + ', ' + failed + ' failing check(s)) ***');
-  results.push({ file: f, ok, failed, exitCode, secs, pass });
+  return Promise.resolve({ out, exitCode: r.status === null ? -1 : r.status, secs });
 }
 
-const totalSecs = (Date.now() - suiteStart) / 1000;
-const bad = results.filter((r) => !r.pass);
-const totalOk = results.reduce((n, r) => n + r.ok, 0);
-const totalFail = results.reduce((n, r) => n + r.failed, 0);
+// --shared: one long-lived worker (sharedWorker.js) runs the files in order. The worker writes each file's
+// output to a log file itself and only sends a small message over IPC, for the same reason as above.
+let worker = null;
+let nextId = 1;
+function startWorker() {
+  return new Promise((resolve, reject) => {
+    const w = fork(path.join(dir, 'sharedWorker.js'), [], { cwd: root, stdio: ['ignore', 'inherit', 'inherit', 'ipc'] });
+    const onFirst = (m) => { if (m && m.type === 'ready') { w.removeListener('message', onFirst); resolve(w); } };
+    w.on('message', onFirst);
+    w.once('error', reject);
+    w.once('exit', () => reject(new Error('shared worker exited before it was ready')));
+  });
+}
+async function runShared(f) {
+  if (!worker) worker = await startWorker();
+  const w = worker;
+  const id = nextId++;
+  const logPath = path.join(os.tmpdir(), 'isda-test-' + process.pid + '-' + f + '.log');
+  const reply = await new Promise((resolve) => {
+    const onMsg = (m) => { if (m && m.type === 'done' && m.id === id) { cleanup(); resolve(m); } };
+    const onExit = (code) => { cleanup(); worker = null; resolve({ crashed: true, exitCode: code === null ? -1 : code, secs: 0 }); };
+    const cleanup = () => { w.removeListener('message', onMsg); w.removeListener('exit', onExit); };
+    w.on('message', onMsg);
+    w.once('exit', onExit);
+    w.send({ type: 'run', id, file: path.join(dir, f), logPath });
+  });
+  let out = '';
+  try { out = fs.readFileSync(logPath, 'utf8'); fs.unlinkSync(logPath); } catch (e) { /* no log when the worker died */ }
+  if (reply.crashed) out += '\nshared worker died while running this file (exit ' + reply.exitCode + ')\n';
+  return { out, exitCode: reply.exitCode, secs: reply.secs };
+}
 
-console.log('\n' + '-'.repeat(60));
-console.log('Files: ' + results.length + '   checks passed: ' + totalOk + '   checks failed: ' + totalFail);
-console.log('Wall time: ' + totalSecs.toFixed(1) + ' s');
-if (slowCount > 0) {
-  const slow = results.slice().sort((a, b) => b.secs - a.secs).slice(0, slowCount);
-  console.log('Slowest: ' + slow.map((r) => r.file + ' ' + r.secs.toFixed(1) + 's').join(', '));
+async function main() {
+  for (const f of files) {
+    console.log('\n=== ' + f + ' ===');
+    const { out, exitCode, secs } = await (shared ? runShared(f) : runIsolated(f));
+    process.stdout.write(out.endsWith('\n') || out === '' ? out : out + '\n');
+    const lines = out.split('\n');
+    const ok = lines.filter((l) => l.startsWith('  ok  -')).length;
+    const failed = lines.filter((l) => l.startsWith('FAIL  -')).length;
+    const pass = exitCode === 0 && failed === 0;
+    console.log('--- ' + f + ': ' + ok + ' ok, ' + failed + ' failed, ' + secs.toFixed(1) + ' s');
+    if (!pass) console.log('*** ' + f + ' FAILED (exit ' + exitCode + ', ' + failed + ' failing check(s)) ***');
+    results.push({ file: f, ok, failed, exitCode, secs, pass });
+  }
+  if (worker) {
+    const w = worker;
+    await new Promise((resolve) => { w.once('exit', resolve); w.send({ type: 'quit' }); });
+  }
+  summary();
 }
-if (bad.length === 0) {
-  console.log('\nALL CHECKS PASSED');
-  process.exit(0);
+
+function summary() {
+  const totalSecs = (Date.now() - suiteStart) / 1000;
+  const bad = results.filter((r) => !r.pass);
+  const totalOk = results.reduce((n, r) => n + r.ok, 0);
+  const totalFail = results.reduce((n, r) => n + r.failed, 0);
+
+  console.log('\n' + '-'.repeat(60));
+  console.log('Files: ' + results.length + '   checks passed: ' + totalOk + '   checks failed: ' + totalFail);
+  console.log('Wall time: ' + totalSecs.toFixed(1) + ' s');
+  if (slowCount > 0) {
+    const slow = results.slice().sort((a, b) => b.secs - a.secs).slice(0, slowCount);
+    console.log('Slowest: ' + slow.map((r) => r.file + ' ' + r.secs.toFixed(1) + 's').join(', '));
+  }
+  if (bad.length === 0) {
+    console.log('\nALL CHECKS PASSED');
+    process.exit(0);
+  }
+  console.log('\nFAILED FILES (' + bad.length + '):');
+  bad.forEach((r) => console.log('  ' + r.file + '  (exit ' + r.exitCode + ', ' + r.failed + ' failing)'));
+  process.exit(1);
 }
-console.log('\nFAILED FILES (' + bad.length + '):');
-bad.forEach((r) => console.log('  ' + r.file + '  (exit ' + r.exitCode + ', ' + r.failed + ' failing)'));
-process.exit(1);
+
+main();

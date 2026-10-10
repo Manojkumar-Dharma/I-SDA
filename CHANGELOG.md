@@ -13,6 +13,7 @@ citations and tests live in the task's section of
 
 ## 0.11.0 and later
 
+- **0.11.1** — E7i *(tests)*: `node src/test/run.js --shared` runs the suite in one long-lived worker (`src/test/sharedWorker.js`) so jsdom loads once instead of once per file; opt-in, the default one-process-per-file runner is unchanged. New `e7iSharedWorker.test.js` (26 checks). Per-file check counts match the isolated run on all 317 files.
 - **0.11.0** — Release milestone, no code change: rolls up the keyword-compliance audit (I-1 – I-207) and the source-fidelity fixes of I-202 – I-207 (comments and sequence numbers kept, tag in columns 1-5, removed lines kept as comments).
 
 ## 0.10.79 and later — Keyword-compliance audit (I-series) and follow-ups
