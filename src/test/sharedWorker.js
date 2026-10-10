@@ -9,7 +9,8 @@
  * Protocol (child_process.fork IPC):
  *   worker -> parent  { type: 'ready' }
  *   parent -> worker  { type: 'run', id, file, logPath }
- *   worker -> parent  { type: 'done', id, exitCode, secs }       (the file's output is in logPath)
+ *   worker -> parent  { type: 'done', id, exitCode, secs, rssMb } (the file's output is in logPath; rssMb is the
+ *                                                                resident memory after a garbage collection)
  *   parent -> worker  { type: 'quit' }
  *
  * What each file gets, so that it behaves as it would in a process of its own:
@@ -18,7 +19,7 @@
  *     own `main().catch(() => process.exit(1))` would otherwise turn a clean exit(0) into exit 1);
  *   - the exit code of a file that never calls process.exit is process.exitCode (or 0), and the file
  *     ends when the event loop has nothing left to do (four files rely on that);
- *   - stdout and stderr captured into one log, in order, as the isolated runner's shared fd does;
+ *   - stdout and stderr written to one log as they are produced, in order (so a crash keeps the output so far);
  *   - setTimeout / setInterval / setImmediate handles cleared at the end, every jsdom window closed,
  *     globals the file installed deleted, process.env / argv / exitCode restored.
  * An uncaught error or unhandled rejection ends the file with exit code 1 and the stack in the log.
@@ -61,7 +62,7 @@ function problem(err) {
   if (err instanceof ExitSignal) { if (current) current.finish(); return; }
   const text = 'UNCAUGHT: ' + ((err && err.stack) || err) + '\n';
   if (!current) { realStderrWrite('sharedWorker: error outside a test file: ' + text); return; }
-  current.out.push(text);
+  current.write(text);
   if (current.code === null) current.code = 1;
   current.finish();
 }
@@ -78,7 +79,7 @@ function install(state) {
     throw new ExitSignal(state.code);
   };
   const capture = (chunk, enc, cb) => {
-    state.out.push(typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('utf8'));
+    state.write(typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('utf8'));
     const done = typeof enc === 'function' ? enc : cb;
     if (typeof done === 'function') done();
     return true;
@@ -111,13 +112,17 @@ function reset(state) {
   process.argv = baseArgv.slice();
   process.exitCode = undefined;
   clearUserModules();
+  // run.js starts the worker with --expose-gc: collect now, so the memory reported below is what is really retained.
+  if (typeof global.gc === 'function') global.gc();
 }
 
 // Resources that do not mean "the test still has work to do": stdio and the IPC channel to the parent.
 const IGNORED = new Set(['TTYWrap', 'PipeWrap']);
 
 async function runFile(file, logPath) {
-  const state = { out: [], code: null, timers: new Set(), intervals: new Set(), immediates: new Set(), finish: null };
+  // Output goes to the log as it is produced, so a file that kills the worker still leaves what it printed.
+  const fd = fs.openSync(logPath, 'w');
+  const state = { write: (text) => { try { fs.writeSync(fd, text); } catch (e) { /* log gone: nothing to do */ } }, code: null, timers: new Set(), intervals: new Set(), immediates: new Set(), finish: null };
   const finished = new Promise((resolve) => { state.finish = resolve; });
   current = state;
   clearUserModules();
@@ -137,14 +142,14 @@ async function runFile(file, logPath) {
   const secs = (Date.now() - t0) / 1000;
   reset(state);
   current = null;
-  fs.writeFileSync(logPath, state.out.join(''));
-  return { exitCode: state.code === null ? 1 : state.code, secs };
+  fs.closeSync(fd);
+  return { exitCode: state.code === null ? 1 : state.code, secs, rssMb: Math.round(process.memoryUsage().rss / 1048576) };
 }
 
 process.on('message', async (msg) => {
   if (msg.type === 'quit') { process.disconnect(); return; }
   if (msg.type !== 'run') return;
   const r = await runFile(msg.file, msg.logPath);
-  process.send({ type: 'done', id: msg.id, exitCode: r.exitCode, secs: r.secs });
+  process.send({ type: 'done', id: msg.id, exitCode: r.exitCode, secs: r.secs, rssMb: r.rssMb });
 });
 process.send({ type: 'ready' });

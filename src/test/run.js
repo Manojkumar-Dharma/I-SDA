@@ -14,6 +14,9 @@
  *   node src/test/run.js i106 dspfWriter  run only files whose name contains any argument
  *   node src/test/run.js --list           list the files that would run, then exit
  *   node src/test/run.js --slow 20        show the 20 slowest files in the summary (default 5)
+ *   node src/test/run.js --recycle-files N  with --shared: start a fresh worker after N files (default 60, 0 = never)
+ *   node src/test/run.js --recycle-mb M     with --shared: start a fresh worker when its resident memory reaches M MB
+ *                                         after a file (default 1536, 0 = never); E7k
  *   node src/test/run.js --dir <path>     take the *.test.js files from <path> instead of src/test (used by the
  *                                         runner's own tests and by parity.js)
  *   node src/test/run.js --shared         run the files in one long-lived worker process instead of one
@@ -35,11 +38,19 @@ const args = process.argv.slice(2);
 let slowCount = 5;
 let listOnly = false;
 let shared = false;
+let recycleFiles = 60;
+let recycleMb = 1536;
 const filters = [];
 let testDir = __dirname;
 for (let i = 0; i < args.length; i++) {
   if (args[i] === '--list') listOnly = true;
   else if (args[i] === '--shared') shared = true;
+  else if (args[i] === '--recycle-files' || args[i] === '--recycle-mb') {
+    const n = Number(args[i + 1]);
+    if (!Number.isInteger(n) || n < 0) { console.error(args[i] + ' needs a whole number (0 turns it off)'); process.exit(2); }
+    if (args[i] === '--recycle-files') recycleFiles = n; else recycleMb = n;
+    i++;
+  }
   else if (args[i] === '--dir') testDir = path.resolve(args[++i] || '.');
   else if (args[i] === '--slow') slowCount = Math.max(0, parseInt(args[++i], 10) || 0);
   else filters.push(args[i]);
@@ -93,10 +104,18 @@ function hasIsolateMarker(f) {
 // --shared: one long-lived worker (sharedWorker.js) runs the files in order. The worker writes each file's
 // output to a log file itself and only sends a small message over IPC, for the same reason as above.
 let worker = null;
+let workerFiles = 0; // files the current worker has run
 let nextId = 1;
+const workerStats = { started: 0, byFiles: 0, byMemory: 0, crashed: 0 };
+function stopWorker(w) {
+  return new Promise((resolve) => { w.once('exit', resolve); w.send({ type: 'quit' }); });
+}
 function startWorker() {
   return new Promise((resolve, reject) => {
-    const w = fork(path.join(__dirname, 'sharedWorker.js'), [], { cwd: root, stdio: ['ignore', 'inherit', 'inherit', 'ipc'] });
+    // --expose-gc lets the worker collect garbage before it reports its memory, so the recycle limit sees real growth.
+    const w = fork(path.join(__dirname, 'sharedWorker.js'), [], { cwd: root, execArgv: ['--expose-gc'], stdio: ['ignore', 'inherit', 'inherit', 'ipc'] });
+    workerStats.started++;
+    workerFiles = 0;
     const onFirst = (m) => { if (m && m.type === 'ready') { w.removeListener('message', onFirst); resolve(w); } };
     w.on('message', onFirst);
     w.once('error', reject);
@@ -110,12 +129,18 @@ async function runShared(f) {
   const logPath = path.join(os.tmpdir(), 'isda-test-' + process.pid + '-' + f + '.log');
   const reply = await new Promise((resolve) => {
     const onMsg = (m) => { if (m && m.type === 'done' && m.id === id) { cleanup(); resolve(m); } };
-    const onExit = (code) => { cleanup(); worker = null; resolve({ crashed: true, exitCode: code === null ? -1 : code, secs: 0 }); };
+    const onExit = (code) => { cleanup(); worker = null; workerStats.crashed++; resolve({ crashed: true, exitCode: code === null ? -1 : code, secs: 0 }); };
     const cleanup = () => { w.removeListener('message', onMsg); w.removeListener('exit', onExit); };
     w.on('message', onMsg);
     w.once('exit', onExit);
     w.send({ type: 'run', id, file: path.join(dir, f), logPath });
   });
+  if (!reply.crashed) {
+    workerFiles++;
+    // E7k: a long-lived worker slowly keeps pages and windows alive, so it is replaced by a fresh one.
+    if (recycleFiles > 0 && workerFiles >= recycleFiles) { workerStats.byFiles++; await stopWorker(w); worker = null; }
+    else if (recycleMb > 0 && reply.rssMb >= recycleMb) { workerStats.byMemory++; await stopWorker(w); worker = null; }
+  }
   let out = '';
   try { out = fs.readFileSync(logPath, 'utf8'); fs.unlinkSync(logPath); } catch (e) { /* no log when the worker died */ }
   if (reply.crashed) out += '\nshared worker died while running this file (exit ' + reply.exitCode + ')\n';
@@ -139,7 +164,7 @@ async function main() {
   }
   if (worker) {
     const w = worker;
-    await new Promise((resolve) => { w.once('exit', resolve); w.send({ type: 'quit' }); });
+    await stopWorker(w);
   }
   summary();
 }
@@ -153,6 +178,10 @@ function summary() {
   console.log('\n' + '-'.repeat(60));
   console.log('Files: ' + results.length + '   checks passed: ' + totalOk + '   checks failed: ' + totalFail);
   console.log('Wall time: ' + totalSecs.toFixed(1) + ' s');
+  if (shared) {
+    console.log('Shared workers: ' + workerStats.started + ' started (replaced: ' + workerStats.byFiles + ' after ' + recycleFiles
+      + ' files, ' + workerStats.byMemory + ' at ' + recycleMb + ' MB, ' + workerStats.crashed + ' after a crash)');
+  }
   if (shared && isolatedByMarker.length > 0) console.log('Run in their own process by marker: ' + isolatedByMarker.join(', '));
   if (slowCount > 0) {
     const slow = results.slice().sort((a, b) => b.secs - a.secs).slice(0, slowCount);

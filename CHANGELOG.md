@@ -13,6 +13,7 @@ citations and tests live in the task's section of
 
 ## 0.11.0 and later
 
+- **0.11.3** — E7k *(tests)*: `run.js --shared` replaces its worker with a fresh one after 60 files or when the worker's memory reaches 1,536 MB (`--recycle-files N`, `--recycle-mb M`, 0 turns either off), survives a worker that dies, and prints a `Shared workers:` summary line; the worker now writes each file's output to its log as it goes. New `e7kWorkerRecycling.test.js` (22 checks).
 - **0.11.2** — E7j *(tests)*: `// @isda-test: isolate` in a test file's first lines gives it its own process in `--shared` mode; new `npm run test:parity` (`src/test/parity.js`) runs the suite both ways and reports any file whose ok/failed counts or result differ; `run.js --dir <path>` for the runner's own tests. New `e7jParityAndIsolateMarker.test.js` (27 checks).
 - **0.11.1** — E7i *(tests)*: `node src/test/run.js --shared` runs the suite in one long-lived worker (`src/test/sharedWorker.js`) so jsdom loads once instead of once per file; opt-in, the default one-process-per-file runner is unchanged. New `e7iSharedWorker.test.js` (26 checks). Per-file check counts match the isolated run on all 317 files.
 - **0.11.0** — Release milestone, no code change: rolls up the keyword-compliance audit (I-1 – I-207) and the source-fidelity fixes of I-202 – I-207 (comments and sequence numbers kept, tag in columns 1-5, removed lines kept as comments).

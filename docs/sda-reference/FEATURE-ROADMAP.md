@@ -47,7 +47,7 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-0 of 10 epics done; 5 sub-tasks done (E7a, E7c, E7g, E7i, E7j). Current version: **v0.11.2**.
+0 of 10 epics done; 6 sub-tasks done (E7a, E7c, E7g, E7i, E7j, E7k). Current version: **v0.11.3**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
@@ -57,7 +57,7 @@ never in columns 1-80 or the tag area.
 | [E4](#e4) | Message-file integration (`MSGID` / `ERRMSGID` / `CHKMSGID` / `SFLMSGID`) | E4a - E4g | E3f (soft) | Open | - |
 | [E5](#e5) | Preview export (PNG / SVG / HTML / text) | E5a - E5g | E3 (soft, for indicator state) | Open | - |
 | [E6](#e6) | Menu designer: command keys and `TYPE(*UIM)` | E6a - E6h | E2 (soft, for compile errors) | Open | - |
-| [E7](#e7) | Faster test suite | E7a - E7f | - | In progress | - |
+| [E7](#e7) | Faster test suite | E7a - E7m | - | In progress | - |
 | [E8](#e8) | `WINDOW(*DFT)` and runtime-valued window parameters | E8a - E8f | E3f | Open | - |
 | [E9](#e9) | `EDTCDE(Y/W)` separator width | E9a - E9e | - | Open | - |
 | [E10](#e10) | `CHCCTL` / `SFLCHCCTL` choice control values | E10a - E10e | E3f | Open | - |
@@ -248,13 +248,14 @@ and after are identical; a quick tier exists for the edit loop; a CI workflow ru
 | E7c | **Cut shared setup cost.** From E7a's classification: share one webview template build instead of per-file rebuilds, lazy-load jsdom, memoise big parses in a helper. Each change must keep that file's check count identical. Outcome: [E7c findings](#e7c-findings): no change made, the rest moved to E7g and E7h. | E7a | Done (no code change) | - |
 | E7d | **Quick tier.** `npm run test:quick`: runs only the test files related to changed source files (**Decision first:** a name-based map, an import-graph walk, or git-diff plus a hand-kept map). The full suite remains the gate before a push. | E7b | Open | - |
 | E7e | **Sharding and CI.** `--shard i/n` for the runner; a GitHub Actions workflow running compile, the sharded suite and `generate_keyword_index.js --check` on push and pull request. | E7b | Open | - |
-| E7f | **Release** (next free minor). Records before/after wall time and check counts in the changelog line. | E7a - E7e, E7g - E7l | Open | - |
+| E7f | **Release** (next free minor). Records before/after wall time and check counts in the changelog line. | E7a - E7e, E7g - E7m | Open | - |
 | E7g | **Shared-process test execution. Decision first.** Run several test files in one long-lived worker so jsdom is loaded once per worker (the E7a table puts jsdom loading at about 240 s of 1,860 s) and, optionally, keep one pooled webview page per worker. Needs a per-file reset of the globals the tests install (`document`, `window`, `Node`, `DspfWriter`, timers), a `process.exit` shim, per-file output and failure reporting as today, a per-file opt-out marker, and an `--isolate` switch that keeps today's one-process-per-file behaviour. The proposal compares `worker_threads`, `vm` contexts and a child-process pool before any code. Outcome: [E7g proposal](#e7g-proposal), approved; the build is E7i - E7l. | E7a | Done (no code change) | - |
 | E7h | **Page reuse in the two heaviest files.** `dspfWebview.test.js` (73 pages, 139 s in the baseline) and `menuWebview.test.js` (24 pages, 31 s): build a page once per group of scenarios and load each scenario's source with the page's `externalUpdate` message, resetting the UI state the page keeps (selection, active tab, modification-tracking session flags). Success: identical check counts and results, timed A/B against a control run in the same session. | E7a | Open | - |
 | E7i | **Shared worker core.** `src/test/sharedWorker.js`: a worker process that runs a list of test files in order with the reset from the E7g proposal (clear the `require` cache except `node_modules`; first `process.exit` fixes the result and later ones are ignored; read and reset `process.exitCode`; idle detection for files that never exit; output capture per file; timer and interval cleanup; close `global.window`; delete installed globals). `run.js` gets `--shared` (opt-in at first); output blocks, `--- file: N ok, M failed` lines, summary and exit code identical to today. Results: [E7i results](#e7i-results). | E7g | Done | v0.11.1 |
 | E7j | **Parity check and opt-out marker.** `// @isda-test: isolate` in a test file's first lines keeps that file in its own process in shared mode. A script (`npm run test:parity`) runs both modes and fails if any file's ok count, failed count or exit code differs; used by CI and by hand before the reset list changes. Results: [E7j results](#e7j-results). | E7i | Done | v0.11.2 |
-| E7k | **Recycling and pool integration.** Recycle a worker after 60 files or when its resident memory passes 1.5 GB (both configurable); make the E7b `--jobs` pool schedule files onto shared workers; keep per-file output ordering and `--isolate`. | E7b, E7i | Open | - |
+| E7k | **Worker recycling.** Replace a shared worker with a fresh one after 60 files or when its resident memory (measured after a garbage collection) reaches 1,536 MB, both configurable (`--recycle-files`, `--recycle-mb`, 0 = off); keep per-file output ordering; a worker that dies fails only its current file and the run goes on with a new one. Results: [E7k results](#e7k-results). The pool scheduling that was part of this row's first wording moved to E7m, because it needs E7b. | E7i | Done | v0.11.3 |
 | E7l | **Make shared mode the default.** After E7j's parity run is clean on the full suite: `--shared` becomes the default and `--isolate` the escape hatch; update the `run.js` header, `README.md` and `ways-of-working` notes; record the A/B against a same-session control run. | E7j, E7k | Open | - |
+| E7m | **Pool integration.** Make the E7b `--jobs` pool schedule files onto shared workers (each worker recycled by E7k's rules), keeping per-file output ordering, the `--isolate` / marker behaviour and the parity guarantee from E7j. | E7b, E7k | Open | - |
 
 
 ### E7a baseline results
@@ -512,6 +513,36 @@ counts and result in both modes. No file needs the marker today.
 
 **Still open for the shared runner:** worker recycling and the `--jobs` pool (E7k), then making `--shared` the
 default (E7l).
+
+### E7k results
+
+**Shipped as v0.11.3 (tests only).** E7k's first wording also covered scheduling files onto the E7b `--jobs`
+pool; that part needs E7b, so it became E7m and E7k is the recycling.
+
+- **Recycling.** `run.js --shared` replaces its worker with a fresh one after 60 files (`--recycle-files N`) or when
+  the worker's resident memory reaches 1,536 MB after a file (`--recycle-mb M`); 0 turns either off, and a
+  non-number or negative number is refused with exit 2. The worker is started with `--expose-gc` and collects
+  garbage before it reports its memory, so the limit sees what is actually kept alive, not garbage waiting to be
+  collected. The summary gains a line such as `Shared workers: 3 started (replaced: 2 after 60 files, 0 at 1536
+  MB, 0 after a crash)`.
+- **A worker that dies** fails only the file it was running (reported as failed with the output up to the
+  crash); the run continues in a new worker. To make that output survive, the worker now writes each file's
+  output to its log as it is produced instead of at the end.
+
+**Tests.** `e7kWorkerRecycling.test.js` (22 checks) uses fixtures that print their process id (`runner-recycle/`,
+`runner-memory/`, `runner-crash/`): replacement after 2 files, the default of 60, `--recycle-files 0`, a file that
+really keeps 400 MB alive (the next file gets a new worker, files after that share it), `--recycle-mb 0` and
+`--recycle-mb 1`, a worker killed with SIGKILL, refused flag values, and that the flags do nothing without
+`--shared`. Eight deliberate breakages (each recycling rule off, no memory reported, crash not counted, the file
+counter not reset, a changed default, flag values not validated, memory replacements counted as file
+replacements) were each caught.
+
+**Parity with recycling.** Two of the four parity chunks (158 of 318 files) were run again with
+`--recycle-files 25`, so the shared pass used several workers per chunk: both ended `PARITY OK`.
+
+**Choices made:** the defaults are those approved in E7g (60 files, 1,536 MB). The 60-file default was not
+re-derived from a new measurement; a full shared run with the defaults, and a check of how often memory (rather
+than the file count) triggers a replacement on the real suite, belong to E7l when shared mode becomes the default.
 
 ---
 
