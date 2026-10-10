@@ -13,6 +13,7 @@ citations and tests live in the task's section of
 
 ## 0.11.0 and later
 
+- **0.11.4** — E7l *(tests)*: `npm test` now runs the suite in the shared worker by default (jsdom loaded once, worker replaced every 60 files or 1,536 MB); `node src/test/run.js --isolate` restores one process per file, `--shared` is still accepted. `parity.js`, the README and the runner header updated. Full suite in the new default: 319 files, 21,281 checks, 0 failed.
 - **0.11.3** — E7k *(tests)*: `run.js --shared` replaces its worker with a fresh one after 60 files or when the worker's memory reaches 1,536 MB (`--recycle-files N`, `--recycle-mb M`, 0 turns either off), survives a worker that dies, and prints a `Shared workers:` summary line; the worker now writes each file's output to its log as it goes. New `e7kWorkerRecycling.test.js` (22 checks).
 - **0.11.2** — E7j *(tests)*: `// @isda-test: isolate` in a test file's first lines gives it its own process in `--shared` mode; new `npm run test:parity` (`src/test/parity.js`) runs the suite both ways and reports any file whose ok/failed counts or result differ; `run.js --dir <path>` for the runner's own tests. New `e7jParityAndIsolateMarker.test.js` (27 checks).
 - **0.11.1** — E7i *(tests)*: `node src/test/run.js --shared` runs the suite in one long-lived worker (`src/test/sharedWorker.js`) so jsdom loads once instead of once per file; opt-in, the default one-process-per-file runner is unchanged. New `e7iSharedWorker.test.js` (26 checks). Per-file check counts match the isolated run on all 317 files.

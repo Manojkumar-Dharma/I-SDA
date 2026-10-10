@@ -131,6 +131,11 @@ npm test          # pure-Node tests, no framework; UI tests run the real webview
   `node src/test/run.js i106 dspfWriter` runs matching files; `--list` lists; `--slow N` shows the
   slowest. Use the shared `check()` from `src/test/helpers/harness.js`; output is `  ok  - label` /
   `FAIL  - label`.
+- The files run in a long-lived worker that is reset between files and replaced every 60 files or 1,536 MB, so
+  jsdom loads once instead of once per file. `node src/test/run.js --isolate` gives each file its own process
+  (slower; use it to tell a real failure from state leaking between files). A test that changes built-ins or
+  other process-wide state puts `// @isda-test: isolate` in its first lines. `npm run test:parity` runs the
+  suite both ways and fails if any file's result differs; run it after adding such a test.
 - See `vsc-extension-quickstart.md` for the general extension dev loop.
 
 ## Contributing: picking up work

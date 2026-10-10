@@ -28,13 +28,15 @@ function node(script, args, cwd) {
 const lineFor = (out, name) => (out.match(new RegExp('^--- ' + name.replace(/\./g, '\\.') + ': .*$', 'm')) || [''])[0];
 
 // 1. One process per file: nothing is shared, so the polluter cannot hurt anyone.
-let r = node('run.js', ['--dir', fixtures]);
+let r = node('run.js', ['--isolate', '--dir', fixtures]);
 check('isolated mode runs the four fixtures', /Files: 4 /.test(r.out));
 check('isolated mode: the unmarked victim passes (it never sees the polluter)', /^--- a3Victim\.test\.js: 1 ok, 0 failed/m.test(r.out));
 check('isolated mode exits 0', r.status === 0);
 check('isolated mode does not mention markers', !/by marker/.test(r.out));
 
-// 2. Shared mode: the unmarked victim sees the pollution; the marked one gets its own process.
+// 2. Shared mode (the default since E7l): the unmarked victim sees the pollution; the marked one gets its own process.
+r = node('run.js', ['--dir', fixtures]);
+check('shared mode is the default: the worker summary line is there without any flag', /^Shared workers: /m.test(r.out));
 r = node('run.js', ['--shared', '--dir', fixtures]);
 check('shared mode: the unmarked victim now fails because of the polluter before it', /^--- a3Victim\.test\.js: 0 ok, 1 failed/m.test(r.out));
 check('shared mode: the marked victim passes', /^--- a3VictimMarked\.test\.js: 1 ok, 0 failed/m.test(r.out));

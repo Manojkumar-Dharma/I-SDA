@@ -2,9 +2,11 @@
  * run.js - the suite runner (I-120). `npm test` runs this.
  *
  * Discovers every `src/test/*.test.js`, so a new test file can no longer be forgotten
- * in package.json's `test` script. Each file runs in its own node process (they
- * install globals such as `document` and call process.exit), one after another, and
- * the run continues past a failing file so one run reports everything that broke.
+ * in package.json's `test` script. The files run one after another in a long-lived worker process
+ * (sharedWorker.js, E7i - E7l), which resets what each file leaves behind (globals, timers, jsdom windows,
+ * the module cache, `process.exit`) and is replaced by a fresh worker after 60 files or 1,536 MB; `--isolate`
+ * gives every file a node process of its own instead. The run continues past a failing file so one run
+ * reports everything that broke.
  *
  * Output stays grep-friendly: each file's own output is passed through unchanged
  * (`  ok  - label` / `FAIL  - label`), preceded by a `=== <file> ===` header.
@@ -14,16 +16,18 @@
  *   node src/test/run.js i106 dspfWriter  run only files whose name contains any argument
  *   node src/test/run.js --list           list the files that would run, then exit
  *   node src/test/run.js --slow 20        show the 20 slowest files in the summary (default 5)
- *   node src/test/run.js --recycle-files N  with --shared: start a fresh worker after N files (default 60, 0 = never)
- *   node src/test/run.js --recycle-mb M     with --shared: start a fresh worker when its resident memory reaches M MB
- *                                         after a file (default 1536, 0 = never); E7k
+ *   node src/test/run.js --isolate        one node process per file, as before E7l: the strongest isolation, about a
+ *                                         third slower. Use it to tell a real failure from a leak between files.
+ *   node src/test/run.js --recycle-files N  start a fresh worker after N files (default 60, 0 = never)
+ *   node src/test/run.js --recycle-mb M     start a fresh worker when its resident memory reaches M MB after a file
+ *                                         (default 1536, 0 = never); E7k
  *   node src/test/run.js --dir <path>     take the *.test.js files from <path> instead of src/test (used by the
  *                                         runner's own tests and by parity.js)
- *   node src/test/run.js --shared         run the files in one long-lived worker process instead of one
- *                                         process per file (E7i); results and output are the same, jsdom is
- *                                         loaded once. Opt-in until E7l makes it the default. A file whose first
- *                                         lines contain `// @isda-test: isolate` still gets a process of its own
- *                                         (E7j); `node src/test/parity.js` compares the two modes.
+ *   node src/test/run.js --shared         the default since E7l (accepted so older command lines keep working)
+ *
+ * A file whose first lines contain `// @isda-test: isolate` always gets a process of its own (E7j).
+ * `npm run test:parity` (src/test/parity.js) runs the suite both ways and reports any file whose result differs;
+ * run it after adding a test that changes built-ins or other process-wide state.
  *
  * Exit code: 0 only if every file exited 0 and printed no `FAIL  -` line.
  */
@@ -37,7 +41,7 @@ const { spawnSync, fork } = require('child_process');
 const args = process.argv.slice(2);
 let slowCount = 5;
 let listOnly = false;
-let shared = false;
+let shared = true; // E7l: the shared worker is the default; --isolate turns it off
 let recycleFiles = 60;
 let recycleMb = 1536;
 const filters = [];
@@ -45,6 +49,7 @@ let testDir = __dirname;
 for (let i = 0; i < args.length; i++) {
   if (args[i] === '--list') listOnly = true;
   else if (args[i] === '--shared') shared = true;
+  else if (args[i] === '--isolate') shared = false;
   else if (args[i] === '--recycle-files' || args[i] === '--recycle-mb') {
     const n = Number(args[i + 1]);
     if (!Number.isInteger(n) || n < 0) { console.error(args[i] + ' needs a whole number (0 turns it off)'); process.exit(2); }

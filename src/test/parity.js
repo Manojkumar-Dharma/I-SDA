@@ -46,7 +46,7 @@ function parse(out) {
   return files;
 }
 
-const isolated = runMode([]);
+const isolated = runMode(['--isolate']);
 const shared = runMode(['--shared']);
 const a = parse(isolated.out);
 const b = parse(shared.out);

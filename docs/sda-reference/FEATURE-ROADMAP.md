@@ -47,7 +47,7 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-0 of 10 epics done; 6 sub-tasks done (E7a, E7c, E7g, E7i, E7j, E7k). Current version: **v0.11.3**.
+0 of 10 epics done; 7 sub-tasks done (E7a, E7c, E7g, E7i, E7j, E7k, E7l). Current version: **v0.11.4**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
@@ -254,7 +254,7 @@ and after are identical; a quick tier exists for the edit loop; a CI workflow ru
 | E7i | **Shared worker core.** `src/test/sharedWorker.js`: a worker process that runs a list of test files in order with the reset from the E7g proposal (clear the `require` cache except `node_modules`; first `process.exit` fixes the result and later ones are ignored; read and reset `process.exitCode`; idle detection for files that never exit; output capture per file; timer and interval cleanup; close `global.window`; delete installed globals). `run.js` gets `--shared` (opt-in at first); output blocks, `--- file: N ok, M failed` lines, summary and exit code identical to today. Results: [E7i results](#e7i-results). | E7g | Done | v0.11.1 |
 | E7j | **Parity check and opt-out marker.** `// @isda-test: isolate` in a test file's first lines keeps that file in its own process in shared mode. A script (`npm run test:parity`) runs both modes and fails if any file's ok count, failed count or exit code differs; used by CI and by hand before the reset list changes. Results: [E7j results](#e7j-results). | E7i | Done | v0.11.2 |
 | E7k | **Worker recycling.** Replace a shared worker with a fresh one after 60 files or when its resident memory (measured after a garbage collection) reaches 1,536 MB, both configurable (`--recycle-files`, `--recycle-mb`, 0 = off); keep per-file output ordering; a worker that dies fails only its current file and the run goes on with a new one. Results: [E7k results](#e7k-results). The pool scheduling that was part of this row's first wording moved to E7m, because it needs E7b. | E7i | Done | v0.11.3 |
-| E7l | **Make shared mode the default.** After E7j's parity run is clean on the full suite: `--shared` becomes the default and `--isolate` the escape hatch; update the `run.js` header, `README.md` and `ways-of-working` notes; record the A/B against a same-session control run. | E7j, E7k | Open | - |
+| E7l | **Make shared mode the default.** After E7j's parity run is clean on the full suite: `--shared` becomes the default and `--isolate` the escape hatch; update the `run.js` header, `README.md` and `ways-of-working` notes; record the A/B against a same-session control run. Results: [E7l results](#e7l-results). | E7j, E7k | Done | v0.11.4 |
 | E7m | **Pool integration.** Make the E7b `--jobs` pool schedule files onto shared workers (each worker recycled by E7k's rules), keeping per-file output ordering, the `--isolate` / marker behaviour and the parity guarantee from E7j. | E7b, E7k | Open | - |
 
 
@@ -543,6 +543,38 @@ replacements) were each caught.
 **Choices made:** the defaults are those approved in E7g (60 files, 1,536 MB). The 60-file default was not
 re-derived from a new measurement; a full shared run with the defaults, and a check of how often memory (rather
 than the file count) triggers a replacement on the real suite, belong to E7l when shared mode becomes the default.
+
+### E7l results
+
+**Shipped as v0.11.4 (tests only).** `npm test` (`node src/test/run.js`) now runs in the shared worker by default.
+`--isolate` gives every file a process of its own, as before; `--shared` is still accepted. `parity.js` passes
+`--isolate` explicitly for its isolated pass. The runner header and the README's Development section describe
+the modes, the `// @isda-test: isolate` marker and `npm run test:parity`. The three runner tests that assumed the
+old default (`e7j`, `e7k`) were updated, and `e7j` gained a check that the worker summary line appears with no
+flag. The "ways-of-working notes" named in this row are not in the repository and were not changed.
+
+**The full suite in the new default** (`npm test`): 319 files, 21,281 checks, 0 failed, exit 0, 1,115 s. Six workers
+were started: four replaced after 60 files, one replaced at the 1,536 MB limit (so the memory rule does fire on
+the real suite), none after a crash.
+
+**Same-session comparison (control first, then the new default), 80 files, identical per-file counts both times:**
+
+| Mode | Files | Checks | Wall time |
+|------|-------|--------|-----------|
+| `--isolate` (control) | 80 | 7,965 / 0 failed | 372.7 s |
+| shared (new default) | 80 | 7,965 / 0 failed | 319.0 s (14% less) |
+
+One pair, control run before the other, so order and machine noise are not excluded. The gain is well below the
+42% seen on the 24 jsdom-only files in E7g, because this chunk includes the heaviest files (the generated keyword
+matrix, `i159`, `i143`, `i153`), whose time is the checks themselves, and because every file still builds its
+own first webview page. **The E7a/E7c target of at least 25% less CPU work is therefore not reached by E7i - E7l
+alone on this evidence;** the remaining levers are E7h (page reuse in the two heaviest files), E7d (quick tier
+for the edit loop) and the E7b/E7m parallel pool for wall time on more cores. The full-suite A/B against a control
+belongs to the E7f release.
+
+**Guard against leaks.** Parity was clean on all 318 files at E7j and on 158 files again with recycling at 25
+(E7k); the full suite passes in the default mode. Until E7e puts `npm run test:parity` into CI, running it after
+adding a test that changes built-ins or other process-wide state is a manual step (the README says so).
 
 ---
 

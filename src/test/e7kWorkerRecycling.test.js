@@ -58,8 +58,8 @@ r = runner(['--shared', '--recycle-files', 'abc', '--dir', fx('runner-recycle')]
 check('a non-number is refused with exit 2', r.status === 2 && /--recycle-files needs a whole number/.test(r.out));
 r = runner(['--shared', '--recycle-mb', '-5', '--dir', fx('runner-recycle')]);
 check('a negative number is refused with exit 2', r.status === 2 && /--recycle-mb needs a whole number/.test(r.out));
-r = runner(['--recycle-files', '2', '--dir', fx('runner-recycle')]);
-check('without --shared the flags change nothing and there is no worker line', r.status === 0 && r.stats.length === 0 && new Set(r.pids).size === 5);
+r = runner(['--isolate', '--recycle-files', '2', '--dir', fx('runner-recycle')]);
+check('with --isolate the flags change nothing and there is no worker line', r.status === 0 && r.stats.length === 0 && new Set(r.pids).size === 5);
 
 console.log(failureCount() === 0 ? '\nALL CHECKS PASSED' : '\n' + failureCount() + ' CHECK(S) FAILED');
 process.exit(failureCount() === 0 ? 0 : 1);
