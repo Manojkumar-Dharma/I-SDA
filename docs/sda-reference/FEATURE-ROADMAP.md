@@ -47,7 +47,7 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-0 of 10 epics done; 4 sub-tasks done (E7a, E7c, E7g, E7i). Current version: **v0.11.1**.
+0 of 10 epics done; 5 sub-tasks done (E7a, E7c, E7g, E7i, E7j). Current version: **v0.11.2**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
@@ -252,7 +252,7 @@ and after are identical; a quick tier exists for the edit loop; a CI workflow ru
 | E7g | **Shared-process test execution. Decision first.** Run several test files in one long-lived worker so jsdom is loaded once per worker (the E7a table puts jsdom loading at about 240 s of 1,860 s) and, optionally, keep one pooled webview page per worker. Needs a per-file reset of the globals the tests install (`document`, `window`, `Node`, `DspfWriter`, timers), a `process.exit` shim, per-file output and failure reporting as today, a per-file opt-out marker, and an `--isolate` switch that keeps today's one-process-per-file behaviour. The proposal compares `worker_threads`, `vm` contexts and a child-process pool before any code. Outcome: [E7g proposal](#e7g-proposal), approved; the build is E7i - E7l. | E7a | Done (no code change) | - |
 | E7h | **Page reuse in the two heaviest files.** `dspfWebview.test.js` (73 pages, 139 s in the baseline) and `menuWebview.test.js` (24 pages, 31 s): build a page once per group of scenarios and load each scenario's source with the page's `externalUpdate` message, resetting the UI state the page keeps (selection, active tab, modification-tracking session flags). Success: identical check counts and results, timed A/B against a control run in the same session. | E7a | Open | - |
 | E7i | **Shared worker core.** `src/test/sharedWorker.js`: a worker process that runs a list of test files in order with the reset from the E7g proposal (clear the `require` cache except `node_modules`; first `process.exit` fixes the result and later ones are ignored; read and reset `process.exitCode`; idle detection for files that never exit; output capture per file; timer and interval cleanup; close `global.window`; delete installed globals). `run.js` gets `--shared` (opt-in at first); output blocks, `--- file: N ok, M failed` lines, summary and exit code identical to today. Results: [E7i results](#e7i-results). | E7g | Done | v0.11.1 |
-| E7j | **Parity check and opt-out marker.** `// @isda-test: isolate` in a test file's first lines keeps that file in its own process in shared mode. A script (`npm run test:parity`) runs both modes and fails if any file's ok count, failed count or exit code differs; used by CI and by hand before the reset list changes. | E7i | In progress | - |
+| E7j | **Parity check and opt-out marker.** `// @isda-test: isolate` in a test file's first lines keeps that file in its own process in shared mode. A script (`npm run test:parity`) runs both modes and fails if any file's ok count, failed count or exit code differs; used by CI and by hand before the reset list changes. Results: [E7j results](#e7j-results). | E7i | Done | v0.11.2 |
 | E7k | **Recycling and pool integration.** Recycle a worker after 60 files or when its resident memory passes 1.5 GB (both configurable); make the E7b `--jobs` pool schedule files onto shared workers; keep per-file output ordering and `--isolate`. | E7b, E7i | Open | - |
 | E7l | **Make shared mode the default.** After E7j's parity run is clean on the full suite: `--shared` becomes the default and `--isolate` the escape hatch; update the `run.js` header, `README.md` and `ways-of-working` notes; record the A/B against a same-session control run. | E7j, E7k | Open | - |
 
@@ -485,6 +485,33 @@ the cleaner same-session comparisons were 24 jsdom files (130 s to 76 s, 42% les
 - No opt-out marker or parity script yet (E7j); no `--jobs` pool yet (E7b, E7k).
 - A file that fails with an uncaught error shows the error stack in its log rather than Node's own message
   format; its exit code is 1 as before.
+
+### E7j results
+
+**Shipped as v0.11.2 (tests only).**
+
+- **Isolate marker.** In `--shared` mode a test file with `// @isda-test: isolate` as a comment line among its
+  first 30 lines runs in a process of its own; a marker further down, or inside a string, is ignored. The
+  summary names the files run that way.
+- **Parity check.** `npm run test:parity` (`src/test/parity.js`) runs the same files one process per file and in
+  the shared worker, then compares each file's ok count, failed count and pass/fail result. It prints a `DIFF`
+  block for every file that differs and exits 1; it also exits 1 when no files were reported. It accepts the
+  runner's file filters and `--dir`.
+- **`run.js --dir <path>`** takes the test files from another directory (used by the runner's own tests).
+
+**Tests.** `e7jParityAndIsolateMarker.test.js` (27 checks) uses fixtures in `src/test/fixtures/runner/` and
+`runner-diff/`: a file that pollutes `Array.prototype` (the worker does not reset built-ins), a victim that
+fails behind it in shared mode, the same victim with the marker, and three victims that differ from isolated
+mode in exactly one of ok count, failed count and result. Nine deliberate breakages of `run.js` and `parity.js`
+were each caught; the first version of the test missed four of them because its fixtures differed in every
+dimension at once, which is why the single-dimension fixtures exist.
+
+**Parity on the real suite.** All 318 test files were compared in four chunks of about 80 files (a single full
+run was twice cut short by sandbox restarts): every chunk ended `PARITY OK`, so every file reported the same
+counts and result in both modes. No file needs the marker today.
+
+**Still open for the shared runner:** worker recycling and the `--jobs` pool (E7k), then making `--shared` the
+default (E7l).
 
 ---
 

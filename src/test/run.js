@@ -14,9 +14,13 @@
  *   node src/test/run.js i106 dspfWriter  run only files whose name contains any argument
  *   node src/test/run.js --list           list the files that would run, then exit
  *   node src/test/run.js --slow 20        show the 20 slowest files in the summary (default 5)
+ *   node src/test/run.js --dir <path>     take the *.test.js files from <path> instead of src/test (used by the
+ *                                         runner's own tests and by parity.js)
  *   node src/test/run.js --shared         run the files in one long-lived worker process instead of one
  *                                         process per file (E7i); results and output are the same, jsdom is
- *                                         loaded once. Opt-in until E7l makes it the default.
+ *                                         loaded once. Opt-in until E7l makes it the default. A file whose first
+ *                                         lines contain `// @isda-test: isolate` still gets a process of its own
+ *                                         (E7j); `node src/test/parity.js` compares the two modes.
  *
  * Exit code: 0 only if every file exited 0 and printed no `FAIL  -` line.
  */
@@ -32,14 +36,16 @@ let slowCount = 5;
 let listOnly = false;
 let shared = false;
 const filters = [];
+let testDir = __dirname;
 for (let i = 0; i < args.length; i++) {
   if (args[i] === '--list') listOnly = true;
   else if (args[i] === '--shared') shared = true;
+  else if (args[i] === '--dir') testDir = path.resolve(args[++i] || '.');
   else if (args[i] === '--slow') slowCount = Math.max(0, parseInt(args[++i], 10) || 0);
   else filters.push(args[i]);
 }
 
-const dir = __dirname;
+const dir = testDir;
 const files = fs
   .readdirSync(dir)
   .filter((f) => f.endsWith('.test.js'))
@@ -58,7 +64,7 @@ if (files.length === 0) {
 
 const results = [];
 const suiteStart = Date.now();
-const root = path.join(dir, '..', '..');
+const root = path.join(__dirname, '..', '..');
 
 // One test file in a process of its own. Child output goes to a file, not a pipe: many tests end with
 // process.exit(), and on a busy machine a pipe can lose the tail of a large output when the child exits
@@ -75,13 +81,22 @@ function runIsolated(f) {
   return Promise.resolve({ out, exitCode: r.status === null ? -1 : r.status, secs });
 }
 
+// E7j: a file that cannot share a process (it changes something the worker does not reset, such as a built-in
+// prototype) says so in a comment among its first lines; --shared then runs it in a process of its own.
+const ISOLATE_MARKER = /^\s*\/\/\s*@isda-test:\s*isolate\b/m;
+const isolatedByMarker = [];
+function hasIsolateMarker(f) {
+  const head = fs.readFileSync(path.join(dir, f), 'utf8').split('\n').slice(0, 30).join('\n');
+  return ISOLATE_MARKER.test(head);
+}
+
 // --shared: one long-lived worker (sharedWorker.js) runs the files in order. The worker writes each file's
 // output to a log file itself and only sends a small message over IPC, for the same reason as above.
 let worker = null;
 let nextId = 1;
 function startWorker() {
   return new Promise((resolve, reject) => {
-    const w = fork(path.join(dir, 'sharedWorker.js'), [], { cwd: root, stdio: ['ignore', 'inherit', 'inherit', 'ipc'] });
+    const w = fork(path.join(__dirname, 'sharedWorker.js'), [], { cwd: root, stdio: ['ignore', 'inherit', 'inherit', 'ipc'] });
     const onFirst = (m) => { if (m && m.type === 'ready') { w.removeListener('message', onFirst); resolve(w); } };
     w.on('message', onFirst);
     w.once('error', reject);
@@ -110,7 +125,9 @@ async function runShared(f) {
 async function main() {
   for (const f of files) {
     console.log('\n=== ' + f + ' ===');
-    const { out, exitCode, secs } = await (shared ? runShared(f) : runIsolated(f));
+    let useWorker = shared;
+    if (shared && hasIsolateMarker(f)) { useWorker = false; isolatedByMarker.push(f); }
+    const { out, exitCode, secs } = await (useWorker ? runShared(f) : runIsolated(f));
     process.stdout.write(out.endsWith('\n') || out === '' ? out : out + '\n');
     const lines = out.split('\n');
     const ok = lines.filter((l) => l.startsWith('  ok  -')).length;
@@ -136,6 +153,7 @@ function summary() {
   console.log('\n' + '-'.repeat(60));
   console.log('Files: ' + results.length + '   checks passed: ' + totalOk + '   checks failed: ' + totalFail);
   console.log('Wall time: ' + totalSecs.toFixed(1) + ' s');
+  if (shared && isolatedByMarker.length > 0) console.log('Run in their own process by marker: ' + isolatedByMarker.join(', '));
   if (slowCount > 0) {
     const slow = results.slice().sort((a, b) => b.secs - a.secs).slice(0, slowCount);
     console.log('Slowest: ' + slow.map((r) => r.file + ' ' + r.secs.toFixed(1) + 's').join(', '));
