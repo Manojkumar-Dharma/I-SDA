@@ -32,7 +32,7 @@ function dewrapDds(text) {
 }
 
 const { check, failureCount } = require('./helpers/harness');
-const { newWebviewDom, webviewHtml } = require('./helpers/common');
+const { newWebviewDom, webviewHtml, leaseDspfPage } = require('./helpers/common');
 
 const dspfSource =
   [
@@ -341,12 +341,7 @@ function runConditionalOverlapScenario() {
       buildLine({ seq: '00040', line: '10', col: '2', ind1: '05', func: "'Fifth flag on'" }),
       buildLine({ seq: '00050', line: '10', col: '2', ind1: '07', func: "'Seventh flag on'" }),
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce14', src, 'CONDOVERLAP.DSPF');
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
-    },
-  });
+  const dom = leaseDspfPage(src, 'CONDOVERLAP.DSPF');
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -390,13 +385,8 @@ function runConstantTextEditScenario() {
       '     A          R SCR1',
       "     A                                  1  2'Old text'",
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce5', src, 'CONSTEDIT.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-    },
-  });
+  const dom = leaseDspfPage(src, 'CONSTEDIT.DSPF', { posted: posted });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -428,20 +418,8 @@ function runCopyFieldScenario() {
       buildLine({ seq: '00020', name: 'CUSTNAME', length: '30', dataType: 'A', usage: 'B', line: '10', col: '15', func: 'DSPATR(HI)' }),
       buildLine({ seq: '00030', line: '3', col: '5', func: "'Some label'" }),
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce6', src, 'COPYTEST.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-      // Task L36: the Copy button now goes through the same click-to-place flow as
-      // "+ Field"/"+ Constant" - gridMetrics() needs a non-zero rect to convert a pixel
-      // click into a line/column (jsdom does no real layout). Same 10px/col, 20px/row
-      // stub runClickToPlaceScenario uses.
-      window.Element.prototype.getBoundingClientRect = function () {
-        return { width: 800, height: 480, left: 0, top: 0, right: 800, bottom: 480, x: 0, y: 0, toJSON() {} };
-      };
-    },
-  });
+  const dom = leaseDspfPage(src, 'COPYTEST.DSPF', { posted: posted, rect: true });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -592,22 +570,8 @@ function runNudgeCutCopyPasteScenario() {
       buildLine({ seq: '00020', name: 'CUSTNAME', length: '30', dataType: 'A', usage: 'B', line: '10', col: '15' }),
       buildLine({ seq: '00030', nameType: 'R', name: 'SCR2' }),
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce7', src, 'NUDGETEST.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-      // Task L44: Ctrl+V (single-field clipboard) now goes through the
-      // same click-to-place flow as the Copy button/Ctrl+D - see
-      // runCopyFieldScenario's own identical stub for why gridMetrics()
-      // needs this (jsdom does no real layout, so getBoundingClientRect
-      // returns all zeros by default, which would make every click-to-
-      // grid conversion divide by zero).
-      window.Element.prototype.getBoundingClientRect = function () {
-        return { width: 800, height: 480, left: 0, top: 0, right: 800, bottom: 480, x: 0, y: 0, toJSON() {} };
-      };
-    },
-  });
+  const dom = leaseDspfPage(src, 'NUDGETEST.DSPF', { posted: posted, rect: true });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -717,13 +681,8 @@ function runFileAttrsScenario() {
       buildLine({ seq: '00040', line: '2', col: '2', func: "'Second'" }),
       buildLine({ seq: '00050', line: '3', col: '2', func: "'Third'" }),
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce7', src, 'ATTRSTEST.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-    },
-  });
+  const dom = leaseDspfPage(src, 'ATTRSTEST.DSPF', { posted: posted });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -788,13 +747,8 @@ function runCommandKeysScenario() {
       buildLine({ seq: '00030', nameType: 'R', name: 'SCR2' }),
       buildLine({ seq: '00040', line: '1', col: '2', func: "'Bye'" }),
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce9', src, 'CMDKEYS.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-    },
-  });
+  const dom = leaseDspfPage(src, 'CMDKEYS.DSPF', { posted: posted });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -918,12 +872,7 @@ function runRulerScenario() {
       buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
       buildLine({ seq: '00020', line: '1', col: '2', func: "'Hi'" }),
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce10', src, 'RULER.DSPF');
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
-    },
-  });
+  const dom = leaseDspfPage(src, 'RULER.DSPF');
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -965,20 +914,7 @@ function runCrosshairScenario() {
       buildLine({ seq: '00020', line: '1', col: '2', func: "'Hi'" }),
       buildLine({ seq: '00030', nameType: 'R', name: 'SCR2' }),
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce11', src, 'CROSSHAIR.DSPF');
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
-      // Same 800x480-for-80x24 stub runClickToPlaceScenario already uses -
-      // a clean 10px/col, 20px/row grid. rulerWrap and .dspf-screen share
-      // this same stubbed rect (both at 0,0/800x480), so the wrapRect
-      // offset the crosshair math subtracts is zero here - fine for
-      // checking the row/column conversion and visibility toggling itself.
-      window.Element.prototype.getBoundingClientRect = function () {
-        return { width: 800, height: 480, left: 0, top: 0, right: 800, bottom: 480, x: 0, y: 0, toJSON() {} };
-      };
-    },
-  });
+  const dom = leaseDspfPage(src, 'CROSSHAIR.DSPF', { rect: true });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -1034,13 +970,8 @@ function runConditionsScenario() {
       buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
       buildLine({ seq: '00020', name: 'NAME', length: '10', dataType: 'A', usage: 'B', line: '1', col: '5' }),
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce8', src, 'CONDTEST.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-    },
-  });
+  const dom = leaseDspfPage(src, 'CONDTEST.DSPF', { posted: posted });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -1093,13 +1024,8 @@ function runPerKeywordConditioningScenario() {
       buildLine({ seq: '00020', name: 'NAME', length: '10', dataType: 'A', usage: 'B', line: '1', col: '5', func: 'DSPATR(HI)' }),
       buildLine({ seq: '00030', func: 'COLOR(BLU)' }),
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce9', src, 'KWCONDTEST.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-    },
-  });
+  const dom = leaseDspfPage(src, 'KWCONDTEST.DSPF', { posted: posted });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -1144,13 +1070,8 @@ function runRecordCrudScenario() {
       buildLine({ seq: '00040', nameType: 'R', name: 'DETAIL' }),
       buildLine({ seq: '00050', line: '1', col: '2', func: "'Detail'" }),
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce10', src, 'RECCRUD.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-    },
-  });
+  const dom = leaseDspfPage(src, 'RECCRUD.DSPF', { posted: posted });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -1223,13 +1144,8 @@ function runRecordTypeWizardScenario() {
       buildLine({ seq: '00030', nameType: 'R', name: 'BOX' }),
       buildLine({ seq: '00040', func: 'WINDOW(2 2 10 40)' }),
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce11', src, 'TYPEWIZ.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-    },
-  });
+  const dom = leaseDspfPage(src, 'TYPEWIZ.DSPF', { posted: posted });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -1486,13 +1402,8 @@ function runHiddenFieldsScenario() {
       buildLine({ seq: '00030', name: 'EXIST', dataType: 'A', length: '4', usage: 'H' }),
       buildLine({ seq: '00040', func: 'SFLMSGKEY' }),
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce12', src, 'HIDDEN.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-    },
-  });
+  const dom = leaseDspfPage(src, 'HIDDEN.DSPF', { posted: posted });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -1570,13 +1481,8 @@ function runProgramFieldsScenario() {
       buildLine({ seq: '00030', name: 'EXISTP', dataType: 'A', length: '4', usage: 'P' }),
       buildLine({ seq: '00040', func: 'SFLMSGKEY' }),
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce12', src, 'PROGRAM.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-    },
-  });
+  const dom = leaseDspfPage(src, 'PROGRAM.DSPF', { posted: posted });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -1653,13 +1559,8 @@ function runFieldPropertyHelpersScenario() {
       // names MSGFLD1.
       '     A            MSGFLD1       12A  P',
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce7', src, 'PROPHELP.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-    },
-  });
+  const dom = leaseDspfPage(src, 'PROPHELP.DSPF', { posted: posted });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -2236,12 +2137,7 @@ function runFieldKeywordVisibilityScenario() {
       buildLine({ seq: '00060', name: 'FLDFLOAT', dataType: 'F', length: '8', decimals: '2', usage: 'B', line: '8', col: '5' }),
       buildLine({ seq: '00070', name: 'FLDHID', dataType: 'A', length: '4', usage: 'H' }),
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce13', src, 'D2VIS.DSPF');
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
-    },
-  });
+  const dom = leaseDspfPage(src, 'D2VIS.DSPF');
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -2339,13 +2235,8 @@ function runD5MenuBarChoiceScenario() {
       buildLine({ seq: '00030', nameType: 'R', name: 'PULLFILE', func: 'PULLDOWN' }),
       buildLine({ seq: '00040', name: 'F1', dataType: 'Y', length: '2', decimals: '0', usage: 'B', line: '1', col: '2' }),
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce14', src, 'D5.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-    },
-  });
+  const dom = leaseDspfPage(src, 'D5.DSPF', { posted: posted });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -2495,13 +2386,8 @@ function runD4ConstantWiringScenario() {
       buildLine({ seq: '00010', nameType: 'R', name: 'MB', func: 'MNUBAR' }),
       "     A                                  1  2'>File'",
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce15', src, 'D4.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-    },
-  });
+  const dom = leaseDspfPage(src, 'D4.DSPF', { posted: posted });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -2556,20 +2442,8 @@ function runClickToPlaceScenario() {
       '     A          R SCR1',
       "     A                                  1  2'A short label'",
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce8', src, 'PLACE.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-      // jsdom does no real layout, so getBoundingClientRect() is always all-zero -
-      // gridMetrics() (used by both drag and click-to-place) needs a non-zero
-      // rect to convert a pixel click into a line/column. 800x480 for an 80x24
-      // screen gives a clean 10px/col, 20px/row grid to click against.
-      window.Element.prototype.getBoundingClientRect = function () {
-        return { width: 800, height: 480, left: 0, top: 0, right: 800, bottom: 480, x: 0, y: 0, toJSON() {} };
-      };
-    },
-  });
+  const dom = leaseDspfPage(src, 'PLACE.DSPF', { posted: posted, rect: true });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -2644,12 +2518,7 @@ function runWindowBorderAndDefaultColorScenario() {
       '     A                                      WDWBORDER((*COLOR RED) (*DSPATR HI))',
       "     A                                  1  2'Hello'",
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce16', src, 'WDWBORDER.DSPF');
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
-    },
-  });
+  const dom = leaseDspfPage(src, 'WDWBORDER.DSPF');
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -2718,12 +2587,7 @@ function runIndicatorListScenario() {
       buildLine({ seq: '00020', ind1: '51', func: 'ALARM' }),
       buildLine({ seq: '00030', name: 'FLD1', length: '10', dataType: 'A', usage: 'B', line: '2', col: '2' }),
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce18', src, 'INDLIST.DSPF');
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
-    },
-  });
+  const dom = leaseDspfPage(src, 'INDLIST.DSPF');
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -2756,12 +2620,7 @@ function runSflIndicatorPairingScenario() {
       buildLine({ seq: '00070', name: 'HDRFLD', dataType: 'A', length: '10', usage: 'O', line: '1', col: '20' }),
       buildLine({ seq: '00080', ind1: '62', func: 'DSPATR(HI)' }), // indicator only ever used on the SFLCTL side
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce19', src, 'SFLINDPAIR.DSPF');
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
-    },
-  });
+  const dom = leaseDspfPage(src, 'SFLINDPAIR.DSPF');
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -2805,12 +2664,7 @@ function runFileIndicatorScenario() {
       buildLine({ seq: '00020', nameType: 'R', name: 'SCR1' }),
       buildLine({ seq: '00030', name: 'FLD1', length: '10', dataType: 'A', usage: 'B', line: '2', col: '2' }),
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce20', src, 'FILEIND.DSPF');
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
-    },
-  });
+  const dom = leaseDspfPage(src, 'FILEIND.DSPF');
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -2836,13 +2690,8 @@ function runChgInpDftFileRecordScenario() {
       buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
       buildLine({ seq: '00020', name: 'FLD1', length: '10', dataType: 'A', usage: 'B', line: '1', col: '2' }),
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce22', src, 'CHGINPDFT.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-    },
-  });
+  const dom = leaseDspfPage(src, 'CHGINPDFT.DSPF', { posted: posted });
 
   setTimeout(() => {
     const { document: doc, Event } = dom.window;
@@ -2890,13 +2739,8 @@ function runL22FollowUpFixesScenario() {
       buildLine({ seq: '00020', nameType: 'R', name: 'SCR1' }),
       buildLine({ seq: '00030', name: 'FLD1', length: '10', dataType: 'A', usage: 'B', line: '1', col: '2' }),
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce23', src, 'L22.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-    },
-  });
+  const dom = leaseDspfPage(src, 'L22.DSPF', { posted: posted });
 
   setTimeout(() => {
     const { document: doc, Event } = dom.window;
@@ -2975,12 +2819,7 @@ function runCodeForIBadgeScenario() {
       buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
       buildLine({ seq: '00020', name: 'FLD1', length: '10', dataType: 'A', usage: 'B', line: '1', col: '2' }),
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce20', src, 'BADGE.DSPF');
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
-    },
-  });
+  const dom = leaseDspfPage(src, 'BADGE.DSPF');
 
   setTimeout(() => {
     const { document: doc, MessageEvent } = dom.window;
@@ -3114,12 +2953,7 @@ function runFieldSearchScenario() {
 
 function runFileNamePositionScenario() {
   console.log('\nBug fix - both the redundant file name label AND the "File" section-label above the IBM i badge are gone from the left panel (the filename duplicated the tab title; the "File" crumb in the properties panel - see crumb-file - already covers what this label\'s click used to do); "Screen Design" now leads straight into the badge');
-  const html = webviewHtml('vscode-webview://fake', 'testnonce22', dspfSource, 'REORDERED.DSPF');
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
-    },
-  });
+  const dom = leaseDspfPage(dspfSource, 'REORDERED.DSPF');
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -3149,12 +2983,7 @@ function runDefaultWindowBorderScenario() {
       '     A                                      WINDOW(3 10 8 30)',
       "     A                                  1  2'Hello'",
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce24', src, 'NOBORDER.DSPF');
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
-    },
-  });
+  const dom = leaseDspfPage(src, 'NOBORDER.DSPF');
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -3215,13 +3044,8 @@ function runWindowTitleScenario() {
       "     A                                      WDWTITLE(('Old Title'))",
       "     A                                  1  2'Hello'",
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce9', src, 'WINTITLE.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-    },
-  });
+  const dom = leaseDspfPage(src, 'WINTITLE.DSPF', { posted: posted });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -3262,17 +3086,8 @@ function runWindowMoveResizeScenario() {
       '     A          R DFTREC',
       '     A                                      WINDOW(*DFT 6 30)',
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce11', src, 'WDWMOVE.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-      // Same 10px/col x 20px/row mock as runClickToPlaceScenario above.
-      window.Element.prototype.getBoundingClientRect = function () {
-        return { width: 800, height: 480, left: 0, top: 0, right: 800, bottom: 480, x: 0, y: 0, toJSON() {} };
-      };
-    },
-  });
+  const dom = leaseDspfPage(src, 'WDWMOVE.DSPF', { posted: posted, rect: true });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -3343,17 +3158,8 @@ function runWindowMoveOffOriginScenario() {
       '     A                                      WINDOW(3 10 8 40)',
       "     A                                  1  2'In the window'",
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce26', src, 'WDWDRAG.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-      // Same 10px/col x 20px/row mock as the other window scenarios.
-      window.Element.prototype.getBoundingClientRect = function () {
-        return { width: 800, height: 480, left: 0, top: 0, right: 800, bottom: 480, x: 0, y: 0, toJSON() {} };
-      };
-    },
-  });
+  const dom = leaseDspfPage(src, 'WDWDRAG.DSPF', { posted: posted, rect: true });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -3396,17 +3202,8 @@ function runFieldDragOffOriginScenario() {
       buildLine({ seq: '00020', nameType: 'R', name: 'SCR1' }),
       buildLine({ seq: '00030', name: 'FLDA', length: '6', dataType: 'A', usage: 'B', line: '3', col: '10' }),
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce27', src, 'FLDDRAG.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-      // Same 10px/col x 20px/row mock the window-drag scenarios use.
-      window.Element.prototype.getBoundingClientRect = function () {
-        return { width: 800, height: 480, left: 0, top: 0, right: 800, bottom: 480, x: 0, y: 0, toJSON() {} };
-      };
-    },
-  });
+  const dom = leaseDspfPage(src, 'FLDDRAG.DSPF', { posted: posted, rect: true });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -3459,16 +3256,8 @@ function runSubfileControlEditScenario() {
       buildLine({ seq: '00050', func: 'SFLPAG(3)' }),
       buildLine({ seq: '00060', line: '1', col: '2', func: "'Header'" }),
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce12', src, 'SFLEDIT.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-      window.Element.prototype.getBoundingClientRect = function () {
-        return { width: 800, height: 480, left: 0, top: 0, right: 800, bottom: 480, x: 0, y: 0, toJSON() {} };
-      };
-    },
-  });
+  const dom = leaseDspfPage(src, 'SFLEDIT.DSPF', { posted: posted, rect: true });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -3505,16 +3294,8 @@ function runWindowFieldDragBoundaryScenario() {
       buildLine({ seq: '00020', nameType: 'R', name: 'WDWREC', func: 'WINDOW(5 10 6 20)' }),
       buildLine({ seq: '00030', name: 'FLDA', length: '6', dataType: 'A', usage: 'B', line: '3', col: '5' }),
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce39', src, 'WDWDRAG.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-      window.Element.prototype.getBoundingClientRect = function () {
-        return { width: 800, height: 480, left: 0, top: 0, right: 800, bottom: 480, x: 0, y: 0, toJSON() {} };
-      };
-    },
-  });
+  const dom = leaseDspfPage(src, 'WDWDRAG.DSPF', { posted: posted, rect: true });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -3561,16 +3342,8 @@ function runSflRegionDragBoundaryScenario() {
       buildLine({ seq: '00050', func: 'SFLPAG(3)' }),
       buildLine({ seq: '00060', name: 'HEADER', length: '10', dataType: 'A', usage: 'O', line: '3', col: '2' }),
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce40', src, 'SFLBOUND.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-      window.Element.prototype.getBoundingClientRect = function () {
-        return { width: 800, height: 480, left: 0, top: 0, right: 800, bottom: 480, x: 0, y: 0, toJSON() {} };
-      };
-    },
-  });
+  const dom = leaseDspfPage(src, 'SFLBOUND.DSPF', { posted: posted, rect: true });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -3633,13 +3406,8 @@ function runWindowNudgeBoundaryScenario() {
       buildLine({ seq: '00020', nameType: 'R', name: 'WDWREC', func: 'WINDOW(5 10 6 20)' }),
       buildLine({ seq: '00030', name: 'FLDA', length: '6', dataType: 'A', usage: 'B', line: '3', col: '5' }),
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce39n', src, 'WDWNUDGE.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-    },
-  });
+  const dom = leaseDspfPage(src, 'WDWNUDGE.DSPF', { posted: posted });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -3683,13 +3451,8 @@ function runSflRegionNudgeBoundaryScenario() {
       buildLine({ seq: '00050', func: 'SFLPAG(3)' }),
       buildLine({ seq: '00060', name: 'HEADER', length: '10', dataType: 'A', usage: 'O', line: '3', col: '2' }),
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce40n', src, 'SFLNUDGE.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-    },
-  });
+  const dom = leaseDspfPage(src, 'SFLNUDGE.DSPF', { posted: posted });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -3740,16 +3503,8 @@ function runPulldownEditScenario() {
       // test would silently exercise the wrong field.
       buildLine({ seq: '00050', name: 'PDFLD', length: '10', dataType: 'A', usage: 'B', line: '5', col: '10' }),
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce13', src, 'PULLEDIT.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-      window.Element.prototype.getBoundingClientRect = function () {
-        return { width: 800, height: 480, left: 0, top: 0, right: 800, bottom: 480, x: 0, y: 0, toJSON() {} };
-      };
-    },
-  });
+  const dom = leaseDspfPage(src, 'PULLEDIT.DSPF', { posted: posted, rect: true });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -3803,13 +3558,8 @@ function runDimmedCompareScenario() {
       '     A          R SCR2',
       "     A                                  3  5'Screen two'",
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce12', src, 'DIMCOMPARE.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-    },
-  });
+  const dom = leaseDspfPage(src, 'DIMCOMPARE.DSPF', { posted: posted });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -3884,13 +3634,8 @@ function runFullOverlayCompareScenario() {
       '     A          R SCR2',
       "     A                                  3  5'Screen two'",
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce14', src, 'FULLOVERLAY.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-    },
-  });
+  const dom = leaseDspfPage(src, 'FULLOVERLAY.DSPF', { posted: posted });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -4015,13 +3760,8 @@ function runSflMsgPickerScenario() {
       buildLine({ seq: '00070', nameType: 'R', name: 'PLAIN' }),
       buildLine({ seq: '00080', name: 'FLD1', dataType: 'A', length: '5', usage: 'B', line: '1', col: '1' }),
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce16', src, 'SFLMSG.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-    },
-  });
+  const dom = leaseDspfPage(src, 'SFLMSG.DSPF', { posted: posted });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -4212,13 +3952,8 @@ function runSflMsgRcdDspsizConditioningScenario() {
       buildLine({ seq: '00070', name: 'PGMQ', dataType: 'A', length: '10', usage: 'H' }),
       buildLine({ seq: '00080', func: 'SFLPGMQ' }),
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce18', src, 'SFLMSG2.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-    },
-  });
+  const dom = leaseDspfPage(src, 'SFLMSG2.DSPF', { posted: posted });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -4305,13 +4040,8 @@ function runSflMsgRcdBothSizesConditionedScenario() {
       buildLine({ seq: '00070', name: 'PROGRAMQ', dataType: 'A', length: '10', usage: 'H' }),
       buildLine({ seq: '00080', func: 'SFLPGMQ' }),
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce19', src, 'MSGSFL.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-    },
-  });
+  const dom = leaseDspfPage(src, 'MSGSFL.DSPF', { posted: posted });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -4368,13 +4098,8 @@ function runSflPickerScenario() {
       buildLine({ seq: '00040', nameType: 'R', name: 'PLAIN' }),
       buildLine({ seq: '00050', name: 'FLD1', dataType: 'A', length: '5', usage: 'B', line: '1', col: '1' }),
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce17', src, 'SFL.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-    },
-  });
+  const dom = leaseDspfPage(src, 'SFL.DSPF', { posted: posted });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -4446,13 +4171,8 @@ function runWindowPickerScenario() {
       buildLine({ seq: '00040', nameType: 'R', name: 'PLAIN' }),
       buildLine({ seq: '00050', name: 'FLD1', dataType: 'A', length: '5', usage: 'B', line: '1', col: '1' }),
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce17', src, 'WINDOW.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-    },
-  });
+  const dom = leaseDspfPage(src, 'WINDOW.DSPF', { posted: posted });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -4633,13 +4353,8 @@ function runUsrDfnPickerScenario() {
       buildLine({ seq: '00030', nameType: 'R', name: 'PLAIN' }),
       buildLine({ seq: '00040', name: 'FLD2', dataType: 'A', length: '5', usage: 'B', line: '1', col: '1' }),
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce17', src, 'USRDFN.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-    },
-  });
+  const dom = leaseDspfPage(src, 'USRDFN.DSPF', { posted: posted });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -4715,13 +4430,8 @@ function runApplicationHelpScenario() {
       buildLine({ seq: '00030', nameType: 'H', func: "HLPARA(*RCD) HLPPNLGRP(M1 G1 LIB1)" }),
       buildLine({ seq: '00040', line: '2', col: '2', func: "'Second'" }),
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce18', src, 'APPHELP.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-    },
-  });
+  const dom = leaseDspfPage(src, 'APPHELP.DSPF', { posted: posted });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -4780,13 +4490,8 @@ function runSflCtlPickerScenario() {
       buildLine({ seq: '00060', nameType: 'R', name: 'PLAIN' }),
       buildLine({ seq: '00070', name: 'FLD2', dataType: 'A', length: '5', usage: 'B', line: '1', col: '1' }),
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce18', src, 'SFLCTL.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-    },
-  });
+  const dom = leaseDspfPage(src, 'SFLCTL.DSPF', { posted: posted });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -5026,13 +4731,8 @@ function runNumericFieldPickerScenario() {
       buildLine({ seq: '00060', name: 'DESCR', dataType: 'A', length: '10', usage: 'B', line: '2', col: '1' }),
       buildLine({ seq: '00070', name: 'DATEFLD', dataType: 'L', usage: 'O', line: '3', col: '1' }),
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce18', src, 'NUMERIC.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-    },
-  });
+  const dom = leaseDspfPage(src, 'NUMERIC.DSPF', { posted: posted });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -5188,13 +4888,8 @@ function runMnuBarPickerScenario() {
       buildLine({ seq: '00020', nameType: 'R', name: 'PLAIN' }),
       buildLine({ seq: '00030', name: 'FLD1', dataType: 'A', length: '5', usage: 'B', line: '1', col: '1' }),
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce19', src, 'MNUBAR.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-    },
-  });
+  const dom = leaseDspfPage(src, 'MNUBAR.DSPF', { posted: posted });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -5365,13 +5060,8 @@ function runSflMsgCtlPickerScenario() {
       buildLine({ seq: '00060', func: 'SFLSIZ(20)' }),
       buildLine({ seq: '00070', func: 'SFLPAG(10)' }),
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce19', src, 'SFLMSGCTL.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-    },
-  });
+  const dom = leaseDspfPage(src, 'SFLMSGCTL.DSPF', { posted: posted });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -5457,13 +5147,8 @@ function runWndSfCtlPickerScenario() {
       buildLine({ seq: '00060', func: 'WINDOW(2 2 10 40)' }),
       buildLine({ seq: '00070', func: 'RSTCSR' }),
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce20', src, 'WNDSFCTL.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-    },
-  });
+  const dom = leaseDspfPage(src, 'WNDSFCTL.DSPF', { posted: posted });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -5539,13 +5224,8 @@ function runWndSflScenario() {
       buildLine({ seq: '00030', name: 'F1', dataType: 'A', length: '10', usage: 'O', line: '1', col: '2' }),
       buildLine({ seq: '00040', nameType: 'R', name: 'PLAIN' }),
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce20', src, 'WNDSFL.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-    },
-  });
+  const dom = leaseDspfPage(src, 'WNDSFL.DSPF', { posted: posted });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -5631,13 +5311,8 @@ function runPuldwnsflPickerScenario() {
       buildLine({ seq: '00050', func: 'SFLSIZ(20)' }),
       buildLine({ seq: '00060', func: 'SFLPAG(10)' }),
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce21', src, 'PDNSFL.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-    },
-  });
+  const dom = leaseDspfPage(src, 'PDNSFL.DSPF', { posted: posted });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -5737,13 +5412,8 @@ function runPdnSflCtlPickerScenario() {
       buildLine({ seq: '00050', func: 'SFLPAG(10)' }),
       buildLine({ seq: '00060', func: 'PULLDOWN(*SLTIND)' }),
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce22', src, 'PDNSFLCTL.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-    },
-  });
+  const dom = leaseDspfPage(src, 'PDNSFLCTL.DSPF', { posted: posted });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -6243,21 +5913,8 @@ function runCommentsScenario() {
 function runDatabaseFieldsPickerScenario() {
   console.log('\nTask L14: "+ Fields from database file" picker (webview-side plumbing)');
   const src = [buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' })].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce20', src, 'DBFIELDS.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-      // Task L53: "Add fields" now goes through click-to-place, which needs
-      // gridMetrics() to have a non-zero rect to convert a pixel click into a
-      // line/column - same 800x480/10px-col/20px-row mock the other
-      // click-to-place scenarios use (see e.g. runD4ConstantWiringScenario's
-      // own "+ Constant"/"+ Field" click-to-place coverage).
-      window.Element.prototype.getBoundingClientRect = function () {
-        return { width: 800, height: 480, left: 0, top: 0, right: 800, bottom: 480, x: 0, y: 0, toJSON() {} };
-      };
-    },
-  });
+  const dom = leaseDspfPage(src, 'DBFIELDS.DSPF', { posted: posted, rect: true });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -6392,16 +6049,8 @@ function runSystemValueConstantScenario() {
       '     A                                  2 10DATE',
       "     A                                  3  2'Hello'",
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce21', src, 'SYSVAL.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-      window.Element.prototype.getBoundingClientRect = function () {
-        return { width: 800, height: 480, left: 0, top: 0, right: 800, bottom: 480, x: 0, y: 0, toJSON() {} };
-      };
-    },
-  });
+  const dom = leaseDspfPage(src, 'SYSVAL.DSPF', { posted: posted, rect: true });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -6485,16 +6134,8 @@ function runMsgConConstantScenario() {
       '     A                                  1 10MSGCON(20 MSG0001 MYLIB/MYMSGF)',
       "     A                                  2  2'Hello'",
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce22', src, 'MSGCON.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-      window.Element.prototype.getBoundingClientRect = function () {
-        return { width: 800, height: 480, left: 0, top: 0, right: 800, bottom: 480, x: 0, y: 0, toJSON() {} };
-      };
-    },
-  });
+  const dom = leaseDspfPage(src, 'MSGCON.DSPF', { posted: posted, rect: true });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -6568,15 +6209,7 @@ function runGeneralKeywordsConstantGatingScenario() {
       // output-capable fields, and this scenario is about constant vs. named.
       '     A            NAMEFLD       10A  B  2  5',
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce23', src, 'GATING.DSPF');
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: () => {} });
-      window.Element.prototype.getBoundingClientRect = function () {
-        return { width: 800, height: 480, left: 0, top: 0, right: 800, bottom: 480, x: 0, y: 0, toJSON() {} };
-      };
-    },
-  });
+  const dom = leaseDspfPage(src, 'GATING.DSPF', { rect: true });
 
   setTimeout(() => {
     const doc = dom.window.document;
@@ -6617,16 +6250,8 @@ function runDateTimeFormatScenario() {
       buildLine({ seq: '00030', name: 'TIMEFLD', dataType: 'T', usage: 'B', line: '2', col: '5', func: "TIMFMT(*HMS) TIMSEP(':')" }),
       buildLine({ seq: '00040', name: 'NUMFLD', dataType: 'S', length: '5', decimals: '0', usage: 'B', line: '3', col: '5' }),
     ].join('\n') + '\n';
-  const html = webviewHtml('vscode-webview://fake', 'testnonce24', src, 'DATETIME.DSPF');
   const posted = [];
-  const dom = newWebviewDom(html, {
-    beforeParse(window) {
-      window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => posted.push(m) });
-      window.Element.prototype.getBoundingClientRect = function () {
-        return { width: 800, height: 480, left: 0, top: 0, right: 800, bottom: 480, x: 0, y: 0, toJSON() {} };
-      };
-    },
-  });
+  const dom = leaseDspfPage(src, 'DATETIME.DSPF', { posted: posted, rect: true });
 
   setTimeout(() => {
     const doc = dom.window.document;

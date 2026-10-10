@@ -250,7 +250,7 @@ and after are identical; a quick tier exists for the edit loop; a CI workflow ru
 | E7e | **Sharding and CI.** `--shard i/n` for the runner; a GitHub Actions workflow running compile, the sharded suite and `generate_keyword_index.js --check` on push and pull request. | E7b | Open | - |
 | E7f | **Release** (next free minor). Records before/after wall time and check counts in the changelog line. | E7a - E7e, E7g - E7m | Open | - |
 | E7g | **Shared-process test execution. Decision first.** Run several test files in one long-lived worker so jsdom is loaded once per worker (the E7a table puts jsdom loading at about 240 s of 1,860 s) and, optionally, keep one pooled webview page per worker. Needs a per-file reset of the globals the tests install (`document`, `window`, `Node`, `DspfWriter`, timers), a `process.exit` shim, per-file output and failure reporting as today, a per-file opt-out marker, and an `--isolate` switch that keeps today's one-process-per-file behaviour. The proposal compares `worker_threads`, `vm` contexts and a child-process pool before any code. Outcome: [E7g proposal](#e7g-proposal), approved; the build is E7i - E7l. | E7a | Done (no code change) | - |
-| E7h | **Page reuse in the two heaviest files.** `dspfWebview.test.js` (73 pages, 139 s in the baseline) and `menuWebview.test.js` (24 pages, 31 s): build a page once per group of scenarios and load each scenario's source with the page's `externalUpdate` message, resetting the UI state the page keeps (selection, active tab, modification-tracking session flags). Success: identical check counts and results, timed A/B against a control run in the same session. | E7a | In progress | - |
+| E7h | **Page reuse in the two heaviest files.** `dspfWebview.test.js` (73 pages, 139 s in the baseline) and `menuWebview.test.js` (24 pages, 31 s): build a page once per group of scenarios and load each scenario's source with the page's `externalUpdate` message, resetting the UI state the page keeps (selection, active tab, modification-tracking session flags). Success: identical check counts and results, timed A/B against a control run in the same session. Result and the part left out: [E7h results](#e7h-results). | E7a | Done | v0.11.5 |
 | E7i | **Shared worker core.** `src/test/sharedWorker.js`: a worker process that runs a list of test files in order with the reset from the E7g proposal (clear the `require` cache except `node_modules`; first `process.exit` fixes the result and later ones are ignored; read and reset `process.exitCode`; idle detection for files that never exit; output capture per file; timer and interval cleanup; close `global.window`; delete installed globals). `run.js` gets `--shared` (opt-in at first); output blocks, `--- file: N ok, M failed` lines, summary and exit code identical to today. Results: [E7i results](#e7i-results). | E7g | Done | v0.11.1 |
 | E7j | **Parity check and opt-out marker.** `// @isda-test: isolate` in a test file's first lines keeps that file in its own process in shared mode. A script (`npm run test:parity`) runs both modes and fails if any file's ok count, failed count or exit code differs; used by CI and by hand before the reset list changes. Results: [E7j results](#e7j-results). | E7i | Done | v0.11.2 |
 | E7k | **Worker recycling.** Replace a shared worker with a fresh one after 60 files or when its resident memory (measured after a garbage collection) reaches 1,536 MB, both configurable (`--recycle-files`, `--recycle-mb`, 0 = off); keep per-file output ordering; a worker that dies fails only its current file and the run goes on with a new one. Results: [E7k results](#e7k-results). The pool scheduling that was part of this row's first wording moved to E7m, because it needs E7b. | E7i | Done | v0.11.3 |
@@ -575,6 +575,48 @@ belongs to the E7f release.
 **Guard against leaks.** Parity was clean on all 318 files at E7j and on 158 files again with recycling at 25
 (E7k); the full suite passes in the default mode. Until E7e puts `npm run test:parity` into CI, running it after
 adding a test that changes built-ins or other process-wide state is a manual step (the README says so).
+
+---
+
+### E7h results
+
+**Shipped as v0.11.5 (tests, plus one message in the page script).** `dspfWebview.test.js` now builds one DSPF
+designer page per process and resets it for each scenario instead of building 60 of its 73 pages.
+
+**How it works.** The page script gained a `resetViewState` message (not sent by the extension host). It undoes
+the toggles through their own change listeners, puts every session-only variable back (selection, tabs, compare
+mode, ruler and crosshair, modification tracking, panels, the add-record form, UI style and theme, the echo-suppress
+flag, host-pushed settings, the save and Code for IBM i badge state), empties the record and size selects, and
+loads the new source. `leaseDspfPage(source, fileName, { posted, rect })` in `helpers/common.js` sends it twice
+(the first pass with the message sink closed, so only the second render reaches the scenario) and then posts the
+`ready` message a fresh page posts last. A lease taken before the previous scenario has started (two scenarios
+launched back to back) gets a page of its own. `ISDA_NO_PAGE_REUSE=1` builds a fresh page for every lease.
+
+**What was converted.** Scenarios whose page is the only one in use, built from `webviewHtml` with four arguments
+and either no stubs or the standard 800x480 rectangle mock. Nested pages inside a scenario, pages built with a
+UI style or theme argument, and scenarios that use `html` after building the page keep `newWebviewDom`.
+
+**Guard.** `e7hResetParity.test.js` dirties a page as far as the UI allows and compares it after the reset with a
+fresh page for nine source pairs (body markup, body data attributes and style, messages posted by the render). It
+found four leaks in the first version of the reset (the dirty-state mark on Save, the Code for IBM i badge, the
+ruler contents, the canvas message class) plus stale size-select options, and it checks that the dirtying steps
+did change the page. A new piece of page state that is not added to `resetViewState` is expected to show up there
+or in a `dspfWebview.test.js` scenario.
+
+**Same-session A/B on `dspfWebview.test.js`, 1-core machine, identical 1,218 checks both times:**
+
+| Mode | Checks | Wall time |
+|------|--------|-----------|
+| `ISDA_NO_PAGE_REUSE=1` (control) | 1,218 / 0 failed | 125.0 s |
+| page reuse | 1,218 / 0 failed | 78.0 s (38% less) |
+
+One pair, control first, so order and machine noise are not excluded (the second pair was lost when the sandbox
+dropped the background job). The earlier baseline of 91 s was taken with a cold disk cache. **The full suite**
+(`npm test`): 320 files, 21,338 checks (the 57 new ones are `e7hResetParity`), 0 failed, exit 0, 931 s.
+
+**Not done: `menuWebview.test.js`.** Its page keeps the file names and the command-source status in `const`s
+built into the script, so a reused page would show the wrong ones, and reuse would first need those turned into
+state. The file builds 24 pages in about 20 s, so the possible gain is about 6 s, under 1% of the suite. Left as is.
 
 ---
 

@@ -6,6 +6,7 @@
  *   newWebviewDom(html, options)        JSDOM with the options every full-page test used
  *   webviewHtml(...args)                getWebviewHtml(...args) minus the CSP <meta>, cached per process
  *   menuWebviewHtml(...args)            same for getMenuWebviewHtml
+ *   leaseDspfPage(source, file, opts)   a reused, reset DSPF designer page (E7h)
  *
  * Nothing here touches globals at require time, so requiring this module has no effect
  * until a helper is called (files that set `global.window` / `global.document` still do so
@@ -67,4 +68,66 @@ function menuWebviewHtml(...args) {
   return cachedHtml('menu', getMenuWebviewHtml, args);
 }
 
-module.exports = { kwd, withAlertCapture, newWebviewDom, webviewHtml, menuWebviewHtml };
+/**
+ * leaseDspfPage(source, fileName, { posted, rect }) - E7h. A DSPF designer page for ONE scenario,
+ * built once per process and reused: the first lease builds the page from `source` exactly like
+ * newWebviewDom(webviewHtml(...)) did; every later lease sends the page a 'resetViewState' message
+ * (view state back to a fresh page's, then `source` loaded), twice - the first pass with the message
+ * sink closed so nothing the reset itself provokes (a toggle undone, say) reaches the scenario, the
+ * second with the sink open so the scenario sees what a fresh page's first render posts - and then
+ * the 'ready' message a fresh page posts last. `posted` receives the page's postMessage calls;
+ * `rect` gives every element an 800x480 getBoundingClientRect (10px/col x 20px/row for 80x24), as
+ * the click-to-place and drag scenarios need.
+ *
+ * A lease taken while the previous lessee has not started yet (two scenarios launched back to back) gets
+ * an unpooled page of its own. Nested pages inside a scenario that is still using its own page stay on
+ * newWebviewDom. A scenario that needs other window stubs (alert, scrollIntoView...) stays on it too.
+ * `--isolate`-style opt-out: set ISDA_NO_PAGE_REUSE=1 to build a fresh page for every lease.
+ */
+const dspfPagePool = new Map();
+function leaseDspfPage(source, fileName, options) {
+  const o = options || {};
+  const rect = !!o.rect;
+  const sink = o.posted ? (m) => o.posted.push(m) : null;
+  const build = () => {
+    const html = webviewHtml('vscode-webview://fake', 'pooledpage', source, fileName);
+    return newWebviewDom(html, {
+      beforeParse(window) {
+        window.__isdaSink = sink;
+        window.acquireVsCodeApi = () => ({ getState: () => null, setState: () => {}, postMessage: (m) => { if (window.__isdaSink) window.__isdaSink(m); } });
+        if (rect) {
+          window.Element.prototype.getBoundingClientRect = function () {
+            return { width: 800, height: 480, left: 0, top: 0, right: 800, bottom: 480, x: 0, y: 0, toJSON() {} };
+          };
+        }
+      },
+    });
+  };
+  if (process.env.ISDA_NO_PAGE_REUSE) return build();
+  // 'started' is false from the moment a page is leased until the timer queued here fires. A scenario
+  // queues its own setTimeout(0) right after leasing, so ours fires first; if the page is leased again
+  // before that, two scenarios were started in the same synchronous stretch and are live at once, so
+  // the second gets a page of its own (not pooled) instead of resetting the first one's under it.
+  const entry = dspfPagePool.get(rect);
+  if (!entry) {
+    const fresh = build();
+    const created = { dom: fresh, started: false };
+    dspfPagePool.set(rect, created);
+    setTimeout(() => { created.started = true; }, 0);
+    return fresh;
+  }
+  if (!entry.started) return build();
+  entry.started = false;
+  setTimeout(() => { entry.started = true; }, 0);
+  const dom = entry.dom;
+  const w = dom.window;
+  const reset = () => w.dispatchEvent(new w.MessageEvent('message', { data: { type: 'resetViewState', text: source } }));
+  w.__isdaSink = null;
+  reset();
+  w.__isdaSink = sink;
+  reset();
+  if (sink) sink({ type: 'ready' });
+  return dom;
+}
+
+module.exports = { kwd, withAlertCapture, newWebviewDom, webviewHtml, menuWebviewHtml, leaseDspfPage };

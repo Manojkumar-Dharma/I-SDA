@@ -1533,6 +1533,12 @@ const htmlTemplate = `<!DOCTYPE html>
   // above already gives for toolbarCompileBtn (and for the exact same
   // "P5i deletes the aside original outright" future-proofing reason).
   const toolbarCodeForIBadge = document.getElementById('toolbarCodeForIBadge');
+  // Task E7h - what the badge and the three buttons it gates look like before the host has said anything,
+  // kept so resetViewState can put them back.
+  const codeForIInitial = {
+    badges: [codeForIBadge, toolbarCodeForIBadge].map((badge) => badge ? { badge: badge, className: badge.className, text: badge.textContent, title: badge.title } : null),
+    gated: [compileDspfBtn, toolbarCompileBtn, addFromDbBtn].map((btn) => btn ? { btn: btn, hidden: btn.classList.contains('hidden') } : null),
+  };
   function updateCodeForIBadge(installed, connected) {
     [codeForIBadge, toolbarCodeForIBadge].forEach((badge) => {
       if (!badge) return;
@@ -7519,9 +7525,65 @@ const htmlTemplate = `<!DOCTYPE html>
     else commitDeleteSelection();
   });
 
+  // Task E7h - resetViewState: puts every piece of session-only view state back to what a freshly
+  // opened page has, then loads msg.text as the source, so the test suite can build one page per group
+  // of scenarios instead of one per scenario (jsdom page construction is the cost - see FEATURE-ROADMAP.md).
+  // Not sent by the extension host. Toggles go through their real change listeners (so their side
+  // effects run); everything else is assigned directly. Keep in step with the state declarations above
+  // - e7hResetParity.test.js compares a reset page with a fresh one for a set of sources.
+  function resetViewState(text) {
+    [compareOverlayToggle, compareModeToggle, previewRowsToggle, rulerToggle, crosshairToggle, modTrackingSeqToggle, modTrackingToggle].forEach((toggle) => {
+      if (toggle && toggle.checked) { toggle.checked = false; toggle.dispatchEvent(new Event('change')); }
+    });
+    if (document.body.dataset.uiStyle !== 'modern') document.getElementById('uiStyleToggle').click();
+    const themeSelect = document.getElementById('uiThemeSelect');
+    if (themeSelect && themeSelect.value !== 'green') { themeSelect.value = 'green'; themeSelect.dispatchEvent(new Event('change')); }
+    setAddRecordMode(false);
+    placementMode = null; pendingPlacement = null; pendingCopySource = null; pendingDbFieldsSource = null;
+    placeFieldBtn.classList.remove('active');
+    placeConstantBtn.classList.remove('active');
+    if (fabWindowBtn) fabWindowBtn.classList.remove('active');
+    placementHint.classList.add('hidden');
+    leftPanelCollapsed = false; rightPanelCollapsed = false; applyPanelCollapse();
+    keywordFinderInput.value = '';
+    closeKeywordFinderResults();
+    hideCrosshair();
+    rulerCols.innerHTML = ''; rulerRows.innerHTML = '';
+    canvasMessage.classList.remove('ok', 'fail');
+    Array.from(document.querySelectorAll('.confirm-overlay')).forEach((el) => el.remove());
+    modTrackingEnabled = false; modTrackingTag = ''; modTrackingPosition = 'end'; modTrackingSessionTouched = false;
+    modTrackingTagInput.value = '';
+    keepRemovedLinesSetting = false;
+    sourceLineMax = undefined;
+    DspfEngine.setJobDateFormat(null);
+    suppressNextExternalUpdate = false;
+    updateSaveButtonDirtyState(false);
+    codeForIInitial.badges.forEach((b) => { if (b) { b.badge.className = b.className; b.badge.textContent = b.text; b.badge.title = b.title; } });
+    codeForIInitial.gated.forEach((g) => { if (g) g.btn.classList.toggle('hidden', g.hidden); });
+    selectedHelpSourceLine = null; showFileProps = false; activePulldown = null;
+    compareFullOverlay = false; compareSelectedRecords.clear();
+    previewMultipleRows = false; sflFoldFlipped = false; sflEndLastPage = false;
+    rulerEnabled = false; crosshairEnabled = false;
+    selectedSizeIndex = 0; lastScreen = null;
+    active.clear(); expandedKeywordConditioning.clear(); accordionOpenState.clear();
+    activeFieldTab = 'basic'; activeRecordTab = 'basic'; activeFileTab = 'general'; activeRecordKwTab = 'general';
+    dragState = null; clipboardField = null;
+    resolvedReferences = {};
+    clearSelection();
+    recordSelect.innerHTML = '';
+    if (toolbarRecordSelect) toolbarRecordSelect.innerHTML = '';
+    sizeSelect.innerHTML = '';
+    if (toolbarSizeSelect) toolbarSizeSelect.innerHTML = '';
+    sourceText = text;
+    model = DspfParser.parseDspf(sourceText);
+    render();
+  }
+
   window.addEventListener('message', (event) => {
     const msg = event.data;
-    if (msg.type === 'externalUpdate') {
+    if (msg.type === 'resetViewState') {
+      resetViewState(msg.text);
+    } else if (msg.type === 'externalUpdate') {
       if (suppressNextExternalUpdate) { suppressNextExternalUpdate = false; return; }
       sourceText = msg.text;
       model = DspfParser.parseDspf(sourceText);
