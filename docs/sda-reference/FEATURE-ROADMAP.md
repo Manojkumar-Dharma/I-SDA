@@ -375,7 +375,7 @@ there needs processes shared between files (E7g). The page already accepts an `e
 re-parses the source and re-renders, so reusing a page is possible (E7h), but the page also keeps UI state
 (selection, active tab, modification-tracking session flags) that a reused page must reset.
 
-**Revised targets (proposal; Manojkumar to confirm).** All measured as an A/B against a control run in the same
+**Revised targets (confirmed by Manojkumar after E7f, unchanged from the proposal).** All measured as an A/B against a control run in the same
 session, check count identical or higher:
 1. **CPU work:** at least 25% below the control (reachable only if E7g lands; E7h alone is worth about 5-8%).
 2. **Wall time on 4 cores:** at least 3.5 times faster than the control (E7b).
@@ -759,7 +759,7 @@ nothing changed. Tree: v0.11.10 plus the E7f claim commit, so every E7 task is i
 | Sum of per-file seconds | 1,833 s | 1,359 s | **25.9% less** |
 | `dspfWebview.test.js` | 126.5 s | 86.1 s | 32% less |
 
-**Against the revised targets (E7c findings; "proposal, Manojkumar to confirm" - they were not changed).**
+**Against the revised targets (E7c findings, confirmed by Manojkumar unchanged).**
 1. *CPU work at least 25% below the control:* **borderline, not shown to be met.** By the sum of per-file times, the measure the
    E7a baseline used, it is 25.9%; by wall time on one core, which also counts starting and replacing workers (about 72 s here), it
    is 21.9%. It is one pair, run in sequence (control first), so the 3-point gap between the two measures is inside what a repeat
@@ -792,7 +792,7 @@ four-core runner; it is **not** a comparison with the sandbox control (1,831 s o
 wall time and the slowest shard job is the number target 2 asks for. The local full suite on v0.12.1: 324 files, 21,438 checks, 0 failed, 994 s.
 
 **What is left open.** (a) The four-core wall time, from CI or a multi-core machine. (b) A repeated pair, preferably with the
-control second, to see whether target 1 is 22% or 26% in practice. (c) Targets 1-3 are still the proposal; confirm or change them.
+control second, to see whether target 1 is 22% or 26% in practice. (c) Targets 1-3: confirmed as written (no change).
 
 ---
 
