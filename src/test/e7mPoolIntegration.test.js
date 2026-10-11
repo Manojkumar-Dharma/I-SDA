@@ -49,7 +49,10 @@ fs.rmSync(barrierDir, { recursive: true, force: true });
 check('three files that wait for each other pass: the pool runs them at the same time', bar.status === 0 && /Files: 3 {3}checks passed: 6 {3}checks failed: 0/.test(bar.out) && (bar.out.match(/ran together with the other two/g) || []).length === 3);
 check('each of the three ran in a worker of its own', new Set(bar.pids).size === 3 && bar.stats[0] === 3);
 check('three workers were started, one per slot, none replaced', three.stats[0] === 3 && three.stats[1] === 0 && three.stats[3] === 0 && three.stats[5] === 0);
-check('the six files ran in three different processes, two each', new Set(three.pids).size === 3 && three.pids.every((p) => three.pids.filter((q) => q === p).length === 2));
+// How the six files split between the three workers depends on the clock (a free slot takes the next file), so the
+// split is not asserted: on a loaded 4-core CI runner one worker took three files and another one (E7 follow-up).
+// What is guaranteed is that the first three files start the three slots, so three processes ran all six files.
+check('the six files ran in three different processes', three.pids.length === 6 && new Set(three.pids).size === 3);
 check('the summary names the jobs and the shared workers', /^Jobs: 3 files at once, on shared workers \(one per slot\)$/m.test(three.out) && !/^Jobs:/m.test(one.out));
 check('blocks are in file order and whole', JSON.stringify(blocks(three.out)) === JSON.stringify(blocks(one.out)) && blocks(three.out).length === 6 && /^--- p6Sleep\.test\.js: 2 ok, 0 failed/m.test(three.out));
 check('the report is identical to the one-worker run apart from pids, timings and the jobs/worker lines', stable(three.out) === stable(one.out));

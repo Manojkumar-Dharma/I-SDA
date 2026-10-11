@@ -47,7 +47,7 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-0 of 10 epics done; 12 sub-tasks done (E7a, E7b, E7c, E7d, E7g, E7h, E7i, E7j, E7k, E7l, E7m; E7e shipped in part). Current version: **v0.11.9**.
+0 of 10 epics done; 13 sub-tasks done (E7a - E7m, every sub-task of E7; the E7 epic row stays In progress until the target 1 reading in [E7f results](#e7f-results) is settled). Current version: **v0.12.1**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
@@ -809,7 +809,26 @@ command took 1,831 s in the first session and 1,394 s in the second, a 31% swing
 runs mean anything; with that noise, "about 22-28% depending on how it is counted" is what the data supports, and "at least 25%"
 holds for per-file seconds but not reliably for wall time. If the target is read as wall time, it is not met on one core.
 
-**What is left open.** (a) The four-core wall time, from CI or a multi-core machine. (b) ~~A repeated pair~~ done above. (c) Targets 1-3: confirmed as written (no change).
+**Target 2, from the manual CI control run (2026-10-11, Actions run 38150069745, `workflow_dispatch` with "control" ticked, v0.12.1).**
+The control job (old way: `ISDA_NO_PAGE_REUSE=1 ISDA_JOBS=1 ... --isolate --jobs 1`, one job on a four-core `ubuntu-latest` runner) timed
+its test step at **685 s** (15:09:10 to 15:20:35 UTC). The four shard jobs of the same run, started at the same moment, took
+**88, 98, 99 and 114 s** in total (job start to end, `npm ci` and compile included). Control divided by the slowest shard job:
+**685 / 114 = 6.0 times faster**, against the target of at least 3.5 times: **met**. Measured against the slowest shard
+that passed (99 s) it is 6.9 times. Caveat: this compares one job on one runner with four jobs on four runners, which is
+what the workflow does for a person waiting for CI; it is not `--jobs 4` on one machine. The same run's parity job
+(`npm run test:parity`, both modes over the whole suite, 829 s) agreed on every file. `parity.js --jobs` (the pool) was still
+not run on the whole suite.
+
+**A flaky check found in that run.** Shard 1/4 of the same run failed one check of `e7mPoolIntegration.test.js`: "the six
+files ran in three different processes, two each". The fixture is six 0.5 s files on three pool slots and the check
+assumed the clock splits them two and two; on a loaded runner a slot can take three files and another one. The check now
+asserts what is guaranteed (all six files reported, by exactly three processes); the barrier check already proves the overlap.
+Same check count, and the earlier runs on the same code were green, so it is a timing flake, not a pool bug.
+
+**What is left open.** (a) ~~The four-core wall time~~ done above (target 2 met). (b) ~~A repeated pair~~ done above. (c) Targets
+1-3 were confirmed as written. Target 1 reads as met by per-file seconds and not reliably by wall time on one core: the E7
+epic row can move to Done once that reading is accepted. (d) `parity.js --jobs` on the whole suite, and the stray
+`ExitSignal { code: 0 }` line the runner prints after some files (older than E7m), are not done.
 
 ---
 
@@ -940,4 +959,3 @@ the reference requires; the limitation entry is rewritten.
 | 1 | E2a: a real failing compile listing and joblog from the IBM i, as fixtures. | E2a |
 | 2 | E6c: the IBM UIM reference text for menu panel groups (the IBM site is bot-blocked). | E6c |
 | 3 | E10a: which exact gap was meant by "missing field-level indicator for `CHCCTL`". | E10a |
-| 4 | E7a: is 4 minutes on 4 cores the right target for the full suite? | E7a |
