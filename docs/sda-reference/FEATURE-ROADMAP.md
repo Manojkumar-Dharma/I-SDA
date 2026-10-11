@@ -979,7 +979,7 @@ the reference requires; the limitation entry is rewritten.
 | ID | Sub-task and scope | Depends on | Status | Version |
 |----|--------------------|------------|--------|---------|
 | E10a | **Audit and scope.** What `CHCCTL` and `SFLCHCCTL` already have (spec entries, panel rows, guards such as the I-171 family) vs what the reference requires; pin down the gap named in the box above; list what each state looks like with and without `CHCAVAIL` / `CHCUNAVAIL` / `CHCSLT`; note that the cursor-restriction values only apply to an enhanced-interface controller. | - | Done (no code change) | — |
-| E10b | **Advisory and help line.** The panel row, type check and raw-editor guards already exist (E10a). Add: a non-blocking advisory when a `CHCCTL` control field is not defined in the record (forward references stay accepted while typing), and one help line under the control field giving the 0 - 4 value table from `CHOICE_CONTROL_VALUES` with the enhanced-interface cursor note. Tests in a new `e10` file. | E10a | In progress | — |
+| E10b | **Advisory and help line.** The panel row, type check and raw-editor guards already exist (E10a). Add: a non-blocking advisory when a `CHCCTL` control field is not defined in the record (forward references stay accepted while typing), and one help line under the control field giving the 0 - 4 value table from `CHOICE_CONTROL_VALUES` with the enhanced-interface cursor note. Tests in a new `e10` file. | E10a | Done | v0.13.1 |
 | E10c | **Preview states.** Draw a choice as available / selected / unavailable in the preview (radio, checkbox and push button), applying `CHCAVAIL`, `CHCUNAVAIL` and `CHCSLT` colours and attributes under the reference's own conditions; 2, 3 and 4 draw the same. The state comes from a preview-only per-choice selector in the field panel, held in the webview and not saved, defaulting to available so existing previews do not change. Unit tests for `0` - `4`. | E10a | Open | - |
 | E10d | **`SFLCHCCTL`.** The same for subfile choice lists (`SFLSNGCHC` / `SFLMLTCHC`), including the structural requirements already in the spec. | E10c | Open | - |
 | E10e | **Release** (next free minor); rewrite the `CHCCTL` entry in `LIMITATIONS-PLAN.md`. | E10a - E10d, E10f | Open | - |
@@ -1042,6 +1042,16 @@ real gaps, in the order I would pick them:
 **Decision (Manojkumar, after E10a): gap 1 is what was meant** - a design-time control value that sets the
 preview state. E10c ships the drawing with a preview-only selector first, so it does not wait for E3f; E10f (new,
 the next free letter) moves the value into the E3f store once that exists. E10b is reduced to the advisory and help line.
+
+
+**E10b (built, v0.13.1).** `DspfWriter.chcctlUndefinedControlFieldNotes(fieldKeywords, recordFields)` returns one
+note per `CHCCTL` whose control field is named but not defined in the record; the selection-field and push-button
+`CHCCTL` panels show it as a `.hint-small.warn` line. It is an advisory only: a forward reference is still accepted
+(pinned by the I-171 and I-183 tests), and a `CHCCTL` with no choice number is left to the existing number guard.
+`KeywordSpec.choiceControlValues(name)` returns the shared 0 - 4 table (a copy) and
+`DspfWriter.choiceControlValueHelp(name)` turns it into the help line, with the enhanced-interface note and the
+remark that the preview draws 2, 3 and 4 the same. Both panels take the record's fields as a new last argument; with
+none given there is no warning, so other callers are unchanged. Tests: `e10bControlFieldAdvisory.test.js`.
 
 ---
 

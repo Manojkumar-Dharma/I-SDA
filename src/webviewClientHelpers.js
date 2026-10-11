@@ -3801,6 +3801,19 @@ html += '<div class="hint-small">SFLROLVAL, SFLSCROLL, and SFLRCDNBR cannot shar
     );
   }
 
+  /** E10b: the control-value help line plus a warning per CHCCTL control field not defined in the record yet. */
+  function chcctlAdvisoryHtml(keywords, recordFields, keywordName) {
+    var html = '';
+    var help = DspfWriter.choiceControlValueHelp(keywordName);
+    if (help) html += '<div class="hint-small chcctl-values">Control values: ' + escapeHtml(help) + '</div>';
+    if (recordFields) {
+      DspfWriter.chcctlUndefinedControlFieldNotes(keywords, recordFields).forEach(function (n) {
+        html += '<div class="hint-small warn chcctl-undefined" data-choice-id="' + escapeHtml(n.id) + '">' + escapeHtml(n.text) + '</div>';
+      });
+    }
+    return html;
+  }
+
   /** CHOICE + CHCCTL + CHCACCEL - one row per choice number, all three
    *  keywords for that choice edited together (a choice's text, its
    *  optional control field/message, and its optional accelerator text
@@ -3808,7 +3821,7 @@ html += '<div class="hint-small">SFLROLVAL, SFLSCROLL, and SFLRCDNBR cannot shar
    *  "Define Choice Keywords" screen which prompts for all three under one
    *  choice-number header). Rows commit together via one Apply, same
    *  batch-edit pattern as menuBarChoicesHtml. */
-  function choiceKeywordsListHtml(keywords, ownerKey, expandedSet, recordKeywords) {
+  function choiceKeywordsListHtml(keywords, ownerKey, expandedSet, recordKeywords, recordFields) {
     var choices = DspfWriter.getChoices(keywords);
     var controls = DspfWriter.getChoiceControls(keywords);
     var accelerators = DspfWriter.getChoiceAccelerators(keywords);
@@ -3824,6 +3837,7 @@ html += '<div class="hint-small">SFLROLVAL, SFLSCROLL, and SFLRCDNBR cannot shar
       return { id: id, text: choice.text, spaceBefore: choice.spaceBefore, controlField: control.controlField, messageId: control.messageId, messageFile: control.messageFile, library: control.library, accelText: accel.text, conditions: choice.conditions || [] };
     });
     var html = '<div class="section-label">Choice keywords (CHOICE / CHCCTL / CHCACCEL)</div>';
+    html += chcctlAdvisoryHtml(keywords, recordFields, 'CHCCTL');
     html += '<div id="' + ownerKey + '-choicekw-rows">';
     merged.forEach(function (c, idx) { html += choiceKeywordRowHtml(ownerKey, idx, c, expandedSet, hideAccel); });
     html += '</div>';
@@ -3960,7 +3974,7 @@ html += '<div class="hint-small">SFLROLVAL, SFLSCROLL, and SFLRCDNBR cannot shar
    * PSHBTNFLD whitelist forbids, so a push-button field gets this
    * CHCCTL-only editor instead, keyed by the field's PSHBTNCHC numbers.
    */
-  function pshbtnChoiceControlHtml(keywords, ownerKey) {
+  function pshbtnChoiceControlHtml(keywords, ownerKey, recordFields) {
     var rows = pshbtnChoiceControlRows(keywords);
     var html = '<div class="section-label">Push-button choice control (CHCCTL)</div>';
     html += '<div class="hint-small">Optional. Names a hidden 1-byte numeric field (type Y, length 1, decimals 0, usage H, in this record) whose value makes a button available (0) or unavailable (2, 3 or 4) at run time. Leave a button\'s control field blank for no CHCCTL.</div>';
@@ -3968,6 +3982,7 @@ html += '<div class="hint-small">SFLROLVAL, SFLSCROLL, and SFLRCDNBR cannot shar
       html += '<div class="hint-small" style="color:var(--warn);">Add a push-button choice (PSHBTNCHC) first - CHCCTL needs a choice with the same number.</div>';
       return dataKwWrap(['CHCCTL'], html);
     }
+    html += chcctlAdvisoryHtml(keywords, recordFields, 'CHCCTL');
     html += '<div id="' + ownerKey + '-pbctl-rows">';
     rows.forEach(function (r) {
       html += '<div class="pbctl-row-block" data-choice-id="' + escapeHtml(r.id) + '" style="border:1px solid var(--border,#333);border-radius:4px;padding:8px;margin-bottom:8px;">';

@@ -6709,6 +6709,21 @@
     };
   }
   /**
+   * The choice control-value table CHCCTL and SFLCHCCTL share (a copy), one row per value in order:
+   * [{ value, onOutput, onInput }] (onInput is '' where the table prints none), plus
+   * `cursorNote` - true when the entry says the cursor restrictions (2 and 4) need an
+   * enhanced-interface controller. Returns null for a keyword that has no control values.
+   */
+  function choiceControlValues(name) {
+    var e = RECORD_TYPES[name];
+    if (!e || !e.controlValues) return null;
+    var rows = Object.keys(e.controlValues).sort().map(function (v) {
+      var r = e.controlValues[v];
+      return { value: Number(v), onOutput: r.onOutput, onInput: r.onInput || '' };
+    });
+    return { rows: rows, cursorNote: !!e.cursorRestrictionsNeedEnhancedInterfaceController };
+  }
+  /**
    * CHCAVAIL / CHCUNAVAIL / CHCSLT value rules, read from each entry (copies): { minParameters
    * (\"one parameter must be specified\"), colors, displayAttributes }, or null.
    */
@@ -6963,6 +6978,7 @@
     isValidValue: isValidValue,
     choiceCompanionRules: choiceCompanionRules,
     chcctlRules: chcctlRules,
+    choiceControlValues: choiceControlValues,
     sflChoiceRules: sflChoiceRules,
     choiceStateValueRules: choiceStateValueRules,
     choiceNumberRange: choiceNumberRange,

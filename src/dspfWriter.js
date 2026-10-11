@@ -6349,6 +6349,48 @@
   }
 
   /**
+   * E10b - CHCCTL's control field must be a hidden 1-byte numeric field defined in the SAME record
+   * (DDS Reference). A name that is not defined yet is accepted while typing (a forward reference,
+   * pinned by the I-171 / I-183 tests), so it is advised here, never refused. `fieldKeywords` is the
+   * choice field's keyword list, `recordFields` the fields of its record. Returns
+   * [{ id, field, text }], one per CHCCTL whose control field is named but not found.
+   */
+  function chcctlUndefinedControlFieldNotes(fieldKeywords, recordFields) {
+    var names = {};
+    (recordFields || []).forEach(function (f) { if (f && f.name) names[String(f.name).toUpperCase()] = true; });
+    var shape = KeywordSpec.chcctlRules().controlField;
+    var out = [];
+    getChoiceControls(fieldKeywords || []).forEach(function (c) {
+      var nm = String(c.controlField || '').replace(/^&/, '').trim().toUpperCase();
+      // A CHCCTL with no choice number is malformed (the number guard reports it), not a control field to advise on.
+      if (!c.id || !nm || names[nm]) return;
+      out.push({
+        id: c.id,
+        field: nm,
+        text: 'CHCCTL(' + c.id + '): control field ' + nm + ' is not defined in this record yet. It must be a hidden 1-byte numeric field (data type ' +
+          shape.dataType + ', length ' + shape.length + ', ' + shape.decimalPositions + ' decimal positions, usage ' + shape.usage + ') in the same record. ' +
+          'Not refused while you work; add the field before you compile.'
+      });
+    });
+    return out;
+  }
+
+  /**
+   * E10b - the one-paragraph control-value help shown under a CHCCTL / SFLCHCCTL control field, read from
+   * the spec's value table: '0 available (input: unselected); 1 selected; 2 / 3 / 4 unavailable ...'.
+   * Returns '' for a keyword with no table.
+   */
+  function choiceControlValueHelp(keywordName) {
+    var t = KeywordSpec.choiceControlValues(keywordName);
+    if (!t) return '';
+    var text = t.rows.map(function (r) {
+      return r.value + ' ' + r.onOutput + (r.onInput ? ' (input: ' + r.onInput + ')' : '');
+    }).join('; ') + '.';
+    if (t.cursorNote) text += ' The cursor restrictions (2 and 4) apply only on a display attached to a controller with the enhanced interface; the preview draws 2, 3 and 4 the same.';
+    return text;
+  }
+
+  /**
    * The advisory (not a refusal) for the four keywords that only the System/36
    * considerations list adds to USRDSPMGT's forbidden set (ERRSFL, MNUBAR,
    * PULLDOWN, SNGCHCFLD), or null. The keyword's own eight names are refused by
@@ -12826,6 +12868,8 @@
     multiLevelFieldReason: multiLevelFieldReason,
     putretainDspmodAdvisory: putretainDspmodAdvisory,
     usrdspmgtSystem36ExtrasNote: usrdspmgtSystem36ExtrasNote,
+    chcctlUndefinedControlFieldNotes: chcctlUndefinedControlFieldNotes,
+    choiceControlValueHelp: choiceControlValueHelp,
     windowHelpMenuNewConflictReason: windowHelpMenuNewConflictReason,
     initRetainReturnNewConflictReason: initRetainReturnNewConflictReason,
     fileLevelDisplayNewConflictReason: fileLevelDisplayNewConflictReason,

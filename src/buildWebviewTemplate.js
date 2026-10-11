@@ -4726,13 +4726,13 @@ const htmlTemplate = `<!DOCTYPE html>
       // distinct '-pbx' owner key so element ids can never collide with
       // the choice-field editors' own.
       if (DspfWriter.getPshbtnfld(field.keywords).present) {
-        attrsHtml += accordionHtml('field-' + field.sourceLine + '::pshbtn-choice-control', 'Push-button choice control (CHCCTL)', WebviewClientHelpers.pshbtnChoiceControlHtml(field.keywords, 'field-' + field.sourceLine + '-pbx'), false);
+        attrsHtml += accordionHtml('field-' + field.sourceLine + '::pshbtn-choice-control', 'Push-button choice control (CHCCTL)', WebviewClientHelpers.pshbtnChoiceControlHtml(field.keywords, 'field-' + field.sourceLine + '-pbx', ownerRecord ? ownerRecord.fields : undefined), false);
         attrsHtml += accordionHtml('field-' + field.sourceLine + '::pshbtn-choice-colors', 'Push-button colors & attributes (CHCAVAIL/CHCUNAVAIL)', WebviewClientHelpers.choiceColorStatesHtml(field.keywords, 'field-' + field.sourceLine + '-pbx', expandedKeywordConditioning, WebviewClientHelpers.pshbtnChoiceColorStateKeys(), ownerRecord.keywords), false);
       }
       attrsHtml += accordionHtml('field-' + field.sourceLine + '::choice-selection-type', 'Choice selection type', WebviewClientHelpers.choiceSelectionTypeHtml(field.keywords, 'field-' + field.sourceLine), false);
       const isChoiceField = DspfWriter.getChoiceSelectionType(field.keywords).kind !== '';
       if (isChoiceField) {
-        attrsHtml += accordionHtml('field-' + field.sourceLine + '::choice-keywords', 'Choice keywords (CHOICE/CHCCTL/CHCACCEL)', WebviewClientHelpers.choiceKeywordsListHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning, ownerRecord.keywords), false);
+        attrsHtml += accordionHtml('field-' + field.sourceLine + '::choice-keywords', 'Choice keywords (CHOICE/CHCCTL/CHCACCEL)', WebviewClientHelpers.choiceKeywordsListHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning, ownerRecord.keywords, ownerRecord.fields), false);
         attrsHtml += accordionHtml('field-' + field.sourceLine + '::choice-colors-attrs', 'Choice colors & attributes', WebviewClientHelpers.choiceColorStatesHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning, undefined, ownerRecord.keywords), false);
       }
     }
