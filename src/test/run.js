@@ -24,6 +24,11 @@
  *   node src/test/run.js --dir <path>     take the *.test.js files from <path> instead of src/test (used by the
  *                                         runner's own tests and by parity.js)
  *   node src/test/run.js --shared         the default since E7l (accepted so older command lines keep working)
+ *   node src/test/run.js --isolate --jobs N   run up to N files at once, each in a process of its own (E7b); the default
+ *                                         is the number of cores minus one (at least 1), --jobs 1 is the sequential run. Each
+ *                                         file's output still appears as one block, in file order; each slot gets its own
+ *                                         temp directory (TMPDIR). Shared mode keeps one worker until the pool is integrated
+ *                                         with it (E7m), so --jobs has no effect there.
  *
  * A file whose first lines contain `// @isda-test: isolate` always gets a process of its own (E7j).
  * `npm run test:parity` (src/test/parity.js) runs the suite both ways and reports any file whose result differs;
@@ -36,7 +41,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { spawnSync, fork } = require('child_process');
+const { spawn, fork } = require('child_process');
 
 const args = process.argv.slice(2);
 let slowCount = 5;
@@ -44,6 +49,8 @@ let listOnly = false;
 let shared = true; // E7l: the shared worker is the default; --isolate turns it off
 let recycleFiles = 60;
 let recycleMb = 1536;
+let jobs = Math.max(1, os.cpus().length - 1); // E7b
+let jobsGiven = false;
 const filters = [];
 let testDir = __dirname;
 for (let i = 0; i < args.length; i++) {
@@ -54,6 +61,12 @@ for (let i = 0; i < args.length; i++) {
     const n = Number(args[i + 1]);
     if (!Number.isInteger(n) || n < 0) { console.error(args[i] + ' needs a whole number (0 turns it off)'); process.exit(2); }
     if (args[i] === '--recycle-files') recycleFiles = n; else recycleMb = n;
+    i++;
+  }
+  else if (args[i] === '--jobs') {
+    const n = Number(args[i + 1]);
+    if (!Number.isInteger(n) || n < 1) { console.error('--jobs needs a whole number of at least 1'); process.exit(2); }
+    jobs = n; jobsGiven = true;
     i++;
   }
   else if (args[i] === '--dir') testDir = path.resolve(args[++i] || '.');
@@ -85,16 +98,36 @@ const root = path.join(__dirname, '..', '..');
 // One test file in a process of its own. Child output goes to a file, not a pipe: many tests end with
 // process.exit(), and on a busy machine a pipe can lose the tail of a large output when the child exits
 // (seen: a file's checks silently dropping from 490 to 295). A file write is synchronous, so nothing is lost.
-function runIsolated(f) {
-  const t0 = Date.now();
-  const outFile = path.join(os.tmpdir(), 'isda-test-' + process.pid + '-' + f + '.log');
-  const fd = fs.openSync(outFile, 'w');
-  const r = spawnSync(process.execPath, [path.join(dir, f)], { stdio: ['ignore', fd, fd], cwd: root });
-  fs.closeSync(fd);
-  const secs = (Date.now() - t0) / 1000;
-  const out = fs.readFileSync(outFile, 'utf8');
-  fs.unlinkSync(outFile);
-  return Promise.resolve({ out, exitCode: r.status === null ? -1 : r.status, secs });
+// E7b: the same, asynchronously, so several can run at once. With more than one job every slot gets a temp
+// directory of its own (TMPDIR/TMP/TEMP), so two files that write a fixed name in the temp directory cannot
+// meet; with one job the child's environment is left exactly as it was.
+let tmpRoot = null;
+function runIsolated(f, slot) {
+  return new Promise((resolve) => {
+    const t0 = Date.now();
+    const outFile = path.join(os.tmpdir(), 'isda-test-' + process.pid + '-' + f + '.log');
+    const fd = fs.openSync(outFile, 'w');
+    const env = Object.assign({}, process.env);
+    if (jobs > 1) {
+      if (!tmpRoot) tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'isda-jobs-' + process.pid + '-'));
+      const slotTmp = path.join(tmpRoot, String(slot));
+      fs.mkdirSync(slotTmp, { recursive: true });
+      env.TMPDIR = slotTmp; env.TMP = slotTmp; env.TEMP = slotTmp;
+    }
+    let settled = false;
+    const finish = (code) => {
+      if (settled) return;
+      settled = true;
+      fs.closeSync(fd);
+      const secs = (Date.now() - t0) / 1000;
+      let out = '';
+      try { out = fs.readFileSync(outFile, 'utf8'); fs.unlinkSync(outFile); } catch (e) { /* no log */ }
+      resolve({ out, exitCode: code === null || code === undefined ? -1 : code, secs });
+    };
+    const child = spawn(process.execPath, [path.join(dir, f)], { stdio: ['ignore', fd, fd], cwd: root, env });
+    child.on('error', () => finish(-1));
+    child.on('close', (code) => finish(code));
+  });
 }
 
 // E7j: a file that cannot share a process (it changes something the worker does not reset, such as a built-in
@@ -152,20 +185,58 @@ async function runShared(f) {
   return { out, exitCode: reply.exitCode, secs: reply.secs };
 }
 
+// Prints one file's block and records its result. The header is printed by the caller.
+function report(f, { out, exitCode, secs }) {
+  process.stdout.write(out.endsWith('\n') || out === '' ? out : out + '\n');
+  const lines = out.split('\n');
+  const ok = lines.filter((l) => l.startsWith('  ok  -')).length;
+  const failed = lines.filter((l) => l.startsWith('FAIL  -')).length;
+  const pass = exitCode === 0 && failed === 0;
+  console.log('--- ' + f + ': ' + ok + ' ok, ' + failed + ' failed, ' + secs.toFixed(1) + ' s');
+  if (!pass) console.log('*** ' + f + ' FAILED (exit ' + exitCode + ', ' + failed + ' failing check(s)) ***');
+  results.push({ file: f, ok, failed, exitCode, secs, pass });
+}
+
+// E7b: up to `jobs` files at once, one process each. A file's block is printed when it and every file before it
+// have finished, so the output reads as in a sequential run and blocks never interleave.
+async function runPool() {
+  const finished = new Array(files.length).fill(null);
+  let next = 0;
+  let printed = 0;
+  const flush = () => {
+    while (printed < files.length && finished[printed]) {
+      console.log('\n=== ' + files[printed] + ' ===');
+      report(files[printed], finished[printed]);
+      finished[printed] = null;
+      printed++;
+    }
+  };
+  const slots = Math.min(jobs, files.length);
+  await Promise.all(Array.from({ length: slots }, async (_, slot) => {
+    while (next < files.length) {
+      const i = next++;
+      const r = await runIsolated(files[i], slot);
+      finished[i] = r;
+      flush();
+    }
+  }));
+  if (tmpRoot) fs.rmSync(tmpRoot, { recursive: true, force: true });
+}
+
 async function main() {
+  if (!shared && jobs > 1) {
+    await runPool();
+    summary();
+    return;
+  }
+  if (shared && jobsGiven && jobs > 1) {
+    console.error('note: --jobs ' + jobs + ' has no effect in shared mode (one worker, E7m adds the pool); use --isolate --jobs ' + jobs + ' to run files in parallel');
+  }
   for (const f of files) {
     console.log('\n=== ' + f + ' ===');
     let useWorker = shared;
     if (shared && hasIsolateMarker(f)) { useWorker = false; isolatedByMarker.push(f); }
-    const { out, exitCode, secs } = await (useWorker ? runShared(f) : runIsolated(f));
-    process.stdout.write(out.endsWith('\n') || out === '' ? out : out + '\n');
-    const lines = out.split('\n');
-    const ok = lines.filter((l) => l.startsWith('  ok  -')).length;
-    const failed = lines.filter((l) => l.startsWith('FAIL  -')).length;
-    const pass = exitCode === 0 && failed === 0;
-    console.log('--- ' + f + ': ' + ok + ' ok, ' + failed + ' failed, ' + secs.toFixed(1) + ' s');
-    if (!pass) console.log('*** ' + f + ' FAILED (exit ' + exitCode + ', ' + failed + ' failing check(s)) ***');
-    results.push({ file: f, ok, failed, exitCode, secs, pass });
+    report(f, await (useWorker ? runShared(f) : runIsolated(f, 0)));
   }
   if (worker) {
     const w = worker;
@@ -183,6 +254,7 @@ function summary() {
   console.log('\n' + '-'.repeat(60));
   console.log('Files: ' + results.length + '   checks passed: ' + totalOk + '   checks failed: ' + totalFail);
   console.log('Wall time: ' + totalSecs.toFixed(1) + ' s');
+  if (!shared && jobs > 1) console.log('Jobs: ' + jobs + ' files at once, one process each');
   if (shared) {
     console.log('Shared workers: ' + workerStats.started + ' started (replaced: ' + workerStats.byFiles + ' after ' + recycleFiles
       + ' files, ' + workerStats.byMemory + ' at ' + recycleMb + ' MB, ' + workerStats.crashed + ' after a crash)');

@@ -244,7 +244,7 @@ and after are identical; a quick tier exists for the edit loop; a CI workflow ru
 | ID | Sub-task and scope | Depends on | Status | Version |
 |----|--------------------|------------|--------|---------|
 | E7a | **Baseline.** Run `node src/test/run.js --slow 400` on a quiet machine; record per-file time, total, core count and the top 20 in the section; classify the cost (jsdom setup, compile or template build per file, the generated keyword matrix, repeated parsing of large fixtures). Set the numeric target. Results: [E7a baseline](#e7a-baseline-results). | - | Done (no code change) | - |
-| E7b | **Parallel runner.** Worker pool in `src/test/run.js`: `--jobs N` (default cores minus one, `--jobs 1` = today). Each file still gets its own process and its own log file; output stays grouped per file and grep-friendly; the summary, the `FAIL  -` detection and the exit code are unchanged. Guard against tests that share a temp path or fixture. | E7a | In progress | - |
+| E7b | **Parallel runner.** Worker pool in `src/test/run.js`: `--jobs N` (default cores minus one, `--jobs 1` = today). Each file still gets its own process and its own log file; output stays grouped per file and grep-friendly; the summary, the `FAIL  -` detection and the exit code are unchanged. Guard against tests that share a temp path or fixture. Result and scope: [E7b results](#e7b-results). | E7a | Done | v0.11.6 |
 | E7c | **Cut shared setup cost.** From E7a's classification: share one webview template build instead of per-file rebuilds, lazy-load jsdom, memoise big parses in a helper. Each change must keep that file's check count identical. Outcome: [E7c findings](#e7c-findings): no change made, the rest moved to E7g and E7h. | E7a | Done (no code change) | - |
 | E7d | **Quick tier.** `npm run test:quick`: runs only the test files related to changed source files (**Decision first:** a name-based map, an import-graph walk, or git-diff plus a hand-kept map). The full suite remains the gate before a push. | E7b | Open | - |
 | E7e | **Sharding and CI.** `--shard i/n` for the runner; a GitHub Actions workflow running compile, the sharded suite and `generate_keyword_index.js --check` on push and pull request. | E7b | Open | - |
@@ -617,6 +617,36 @@ dropped the background job). The earlier baseline of 91 s was taken with a cold 
 **Not done: `menuWebview.test.js`.** Its page keeps the file names and the command-source status in `const`s
 built into the script, so a reused page would show the wrong ones, and reuse would first need those turned into
 state. The file builds 24 pages in about 20 s, so the possible gain is about 6 s, under 1% of the suite. Left as is.
+
+---
+
+### E7b results
+
+**Shipped as v0.11.6 (tests only).** `node src/test/run.js --isolate --jobs N` runs up to N test files at once, each
+in a process of its own, writing its output to its own log file as before.
+
+**Behaviour.** The default is the number of cores minus one (at least 1); `--jobs 1` is the sequential run, with the
+child environment untouched. A file's block (`=== file ===`, its output, the `--- file: ...` line and any
+`*** FAILED ***` line) is printed when it and every file before it have finished, so blocks are whole, in file order
+and grep-friendly. The summary, the `FAIL  -` detection and the exit code are the same; with more than one job the
+summary adds a `Jobs:` line. `--jobs` needs a whole number of at least 1 (exit 2 otherwise).
+
+**Guard against shared paths.** Each slot's children get their own temp directory (`TMPDIR`, `TMP`, `TEMP`), removed
+at the end of the run. An audit of `src/test` found no test that writes a fixed path outside the temp directory; the
+new fixture files write the same temp name on purpose, and three of four overwrite each other's file when run at
+once without the private directory.
+
+**Scope.** The pool applies to the process-per-file path. The default shared mode still runs one worker, so `--jobs`
+has no effect there and says so; scheduling files onto several shared workers is E7m.
+
+**Checks.** `e7bParallelRunner.test.js` (13 checks): 1 job against 4 on four 0.8 s files (output identical apart
+from timings, 4 jobs clearly faster, private temp files), a failing file among passing ones in both modes,
+`--jobs` validation, and the shared-mode note. Full suite, default mode: 321 files, 21,351 checks, 0 failed, exit 0,
+954 s. Full suite through the pool (`--isolate --jobs 3`): 321 files, 21,351 checks, 0 failed, exit 0, 1,083 s.
+
+**What this does not show.** The machine has one core, so the pool gave no speed-up on the real suite and the
+1,083 s is not a comparison with anything. The speed claim for E7b still needs a timed A/B (`--isolate --jobs 1`
+against `--jobs N`) on a multi-core machine; the sleeping fixtures only show that files overlap.
 
 ---
 
