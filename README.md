@@ -146,7 +146,7 @@ npm test          # pure-Node tests, no framework; UI tests run the real webview
 - `node src/test/run.js --jobs N` runs N files at once on N shared workers, each recycled on its own count and memory (E7m); with
   `--isolate` each file gets a process of its own instead. The default is the number of cores minus one; `--jobs 1` is one worker.
 - `node src/test/run.js --shard I/N` runs slice I of N (1-based) of the sorted test files, round-robin, so the N slices are
-  exactly the whole suite and the split is the same on every machine (E7e). the workflow (`.github/workflows/test.yml`; until it is copied there, `docs/sda-reference/ci/test.yml`) runs four shards
+  exactly the whole suite and the split is the same on every machine (E7e). `.github/workflows/test.yml` runs four shards
   as parallel jobs on every push to `main` and every pull request, plus the keyword-index check; the shared-worker parity
   check (`npm run test:parity`) runs there weekly and on request.
 - See `vsc-extension-quickstart.md` for the general extension dev loop.

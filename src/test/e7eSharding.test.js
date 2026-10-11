@@ -70,10 +70,7 @@ r = runner([...dir, '--shard', '2/2', '--isolate', '--jobs', '2']);
 check('it combines with --isolate --jobs', r.status === 0 && /Files: 2 {3}checks passed: 2/.test(r.out) && /^Jobs: 2/m.test(r.out));
 
 // 6. The workflow.
-// The workflow belongs in .github/workflows/test.yml; until it can be pushed there (that needs a token with the `workflow`
-// scope) the copy in docs/sda-reference/ci/ is the one checked.
-const live = path.join(root, '.github', 'workflows', 'test.yml');
-const wf = fs.readFileSync(fs.existsSync(live) ? live : path.join(root, 'docs', 'sda-reference', 'ci', 'test.yml'), 'utf8');
+const wf = fs.readFileSync(path.join(root, '.github', 'workflows', 'test.yml'), 'utf8');
 const matrix = (wf.match(/shard:\s*\[([^\]]*)\]/) || [])[1] || '';
 const specs = matrix.split(',').map((x) => x.replace(/['\s]/g, '')).filter(Boolean);
 check('the workflow runs on push to main, on pull requests and on request', /^on:/m.test(wf) && /push:\s*\n\s*branches: \[main\]/.test(wf) && /pull_request:/.test(wf) && /workflow_dispatch:/.test(wf));

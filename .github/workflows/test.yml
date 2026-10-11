@@ -1,6 +1,3 @@
-# PENDING: copy this file to .github/workflows/test.yml. It lives here because the token used to push it had no
-# `workflow` scope, and GitHub refuses any push that adds or changes a file under .github/workflows without it.
-# e7eSharding.test.js reads this copy until .github/workflows/test.yml exists, then that one.
 # E7e: compile, the full suite split into shards (one job each), and the keyword-index check, on every push to main
 # and every pull request. The shards are `node src/test/run.js --shard I/N`: together exactly the files of a plain
 # run, each once. When you change the number of shards, change the matrix and nothing else.
