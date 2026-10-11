@@ -11,6 +11,11 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      control:
+        description: 'Also time the old way (one process per file, one job, no page reuse) on a runner, to compare with the four shards'
+        type: boolean
+        default: false
   schedule:
     - cron: '17 3 * * 1'
 
@@ -68,3 +73,24 @@ jobs:
       - run: npm ci
       - run: npm run compile
       - run: npm run test:parity
+
+  # E7f target 2: the full suite the way it ran before E7, on the same kind of runner as the four shards above.
+  # Manual only (run with "control" ticked); the figure to compare with is the slowest shard job's total time.
+  control:
+    name: Control, old way on one job
+    if: github.event_name == 'workflow_dispatch' && inputs.control
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run compile
+      - name: Old way, timed
+        shell: bash
+        run: |
+          start=$(date +%s)
+          ISDA_NO_PAGE_REUSE=1 ISDA_JOBS=1 node src/test/run.js --isolate --jobs 1 2>&1 | tee control.log | tail -15
+          echo "control wall seconds: $(( $(date +%s) - start ))" | tee -a "$GITHUB_STEP_SUMMARY"
