@@ -60,7 +60,7 @@ never in columns 1-80 or the tag area.
 | [E7](#e7) | Faster test suite | E7a - E7m | - | Done | v0.12.2 |
 | [E8](#e8) | `WINDOW(*DFT)` and runtime-valued window parameters | E8a - E8f | E3f | Open | - |
 | [E9](#e9) | `EDTCDE(Y/W)` separator width | E9a - E9e | - | Done | v0.13.0 |
-| [E10](#e10) | `CHCCTL` / `SFLCHCCTL` choice control values | E10a - E10e | E3f | Open | - |
+| [E10](#e10) | `CHCCTL` / `SFLCHCCTL` choice control values | E10a - E10f | E3f (E10f only) | Open | - |
 
 ### Suggested order
 
@@ -979,10 +979,11 @@ the reference requires; the limitation entry is rewritten.
 | ID | Sub-task and scope | Depends on | Status | Version |
 |----|--------------------|------------|--------|---------|
 | E10a | **Audit and scope.** What `CHCCTL` and `SFLCHCCTL` already have (spec entries, panel rows, guards such as the I-171 family) vs what the reference requires; pin down the gap named in the box above; list what each state looks like with and without `CHCAVAIL` / `CHCUNAVAIL` / `CHCSLT`; note that the cursor-restriction values only apply to an enhanced-interface controller. | - | Done (no code change) | — |
-| E10b | **Panel and guards.** A `CHCCTL` row (choice number plus `&field`) on choice fields, with the field-existence and type checks the reference requires, for both the panel and the raw editor. | E10a | Open | - |
-| E10c | **Preview.** Render a choice in the state given by its control field's value from the E3f store; default state when no value is set; unit tests for `0` - `4`. | E10a, E3f | Open | - |
+| E10b | **Advisory and help line.** The panel row, type check and raw-editor guards already exist (E10a). Add: a non-blocking advisory when a `CHCCTL` control field is not defined in the record (forward references stay accepted while typing), and one help line under the control field giving the 0 - 4 value table from `CHOICE_CONTROL_VALUES` with the enhanced-interface cursor note. Tests in a new `e10` file. | E10a | Open | - |
+| E10c | **Preview states.** Draw a choice as available / selected / unavailable in the preview (radio, checkbox and push button), applying `CHCAVAIL`, `CHCUNAVAIL` and `CHCSLT` colours and attributes under the reference's own conditions; 2, 3 and 4 draw the same. The state comes from a preview-only per-choice selector in the field panel, held in the webview and not saved, defaulting to available so existing previews do not change. Unit tests for `0` - `4`. | E10a | Open | - |
 | E10d | **`SFLCHCCTL`.** The same for subfile choice lists (`SFLSNGCHC` / `SFLMLTCHC`), including the structural requirements already in the spec. | E10c | Open | - |
-| E10e | **Release** (next free minor); rewrite the `CHCCTL` entry in `LIMITATIONS-PLAN.md`. | E10a - E10d | Open | - |
+| E10e | **Release** (next free minor); rewrite the `CHCCTL` entry in `LIMITATIONS-PLAN.md`. | E10a - E10d, E10f | Open | - |
+| E10f | **Control value from the E3f store.** Replace E10c's preview-only selector with the design-time control value kept in the E3f store, keyed by file, record and control field; the selector becomes the editor for that value. Same default (available) when no value is set. | E10c, E3f | Open | - |
 
 
 ### E10a results
@@ -1038,8 +1039,9 @@ real gaps, in the order I would pick them:
 - **E10d** (`SFLCHCCTL`) only needs the subfile list drawing to take a per-record control value; the subfile
   preview repeats the record, so it also needs a decision on whether one value applies to every row or one per row.
 
-**Open question 3 is answered by this reading, but still needs Manojkumar's confirmation** before E10b - E10d are
-scoped: is gap 1 (design-time control value) what was meant?
+**Decision (Manojkumar, after E10a): gap 1 is what was meant** - a design-time control value that sets the
+preview state. E10c ships the drawing with a preview-only selector first, so it does not wait for E3f; E10f (new,
+the next free letter) moves the value into the E3f store once that exists. E10b is reduced to the advisory and help line.
 
 ---
 
@@ -1049,4 +1051,3 @@ scoped: is gap 1 (design-time control value) what was meant?
 |---|----------|-----------|
 | 1 | E2a: a real failing compile listing and joblog from the IBM i, as fixtures. | E2a |
 | 2 | E6c: the IBM UIM reference text for menu panel groups (the IBM site is bot-blocked). | E6c |
-| 3 | E10a: which exact gap was meant by "missing field-level indicator for `CHCCTL`". | E10a |
