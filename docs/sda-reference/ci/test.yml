@@ -1,0 +1,66 @@
+# PENDING: copy this file to .github/workflows/test.yml. It lives here because the token used to push it had no
+# `workflow` scope, and GitHub refuses any push that adds or changes a file under .github/workflows without it.
+# e7eSharding.test.js reads this copy until .github/workflows/test.yml exists, then that one.
+# E7e: compile, the full suite split into shards (one job each), and the keyword-index check, on every push to main
+# and every pull request. The shards are `node src/test/run.js --shard I/N`: together exactly the files of a plain
+# run, each once. When you change the number of shards, change the matrix and nothing else.
+#
+# The shared-worker / one-process-per-file parity check (`npm run test:parity`) runs the suite twice, so it is a
+# separate job that runs weekly and on request, not on every push.
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 3 * * 1'
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  keyword-index:
+    name: Keyword index is up to date
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node docs/sda-reference/keyword-index/generate_keyword_index.js --check
+
+  suite:
+    name: Suite, shard ${{ matrix.shard }}
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ['1/4', '2/4', '3/4', '4/4']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run compile
+      - run: node src/test/run.js --shard ${{ matrix.shard }}
+
+  parity:
+    name: Shared worker and one process per file agree
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run compile
+      - run: npm run test:parity

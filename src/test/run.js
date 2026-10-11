@@ -21,6 +21,10 @@
  *   node src/test/run.js --recycle-files N  start a fresh worker after N files (default 60, 0 = never)
  *   node src/test/run.js --recycle-mb M     start a fresh worker when its resident memory reaches M MB after a file
  *                                         (default 1536, 0 = never); E7k
+ *   node src/test/run.js --shard I/N      run only shard I of N (1-based): the files, in name order, whose position modulo N is
+ *                                         I-1 (E7e). The N shards together are exactly the files without --shard, each once;
+ *                                         the split depends only on the file names, so it is the same on every machine. CI runs
+ *                                         one job per shard (.github/workflows/test.yml).
  *   node src/test/run.js --dir <path>     take the *.test.js files from <path> instead of src/test (used by the
  *                                         runner's own tests and by parity.js)
  *   node src/test/run.js --shared         the default since E7l (accepted so older command lines keep working)
@@ -51,6 +55,8 @@ let recycleFiles = 60;
 let recycleMb = 1536;
 let jobs = Math.max(1, os.cpus().length - 1); // E7b
 let jobsGiven = false;
+let shardI = 0; // E7e: 0 = no sharding
+let shardN = 0;
 const filters = [];
 let testDir = __dirname;
 for (let i = 0; i < args.length; i++) {
@@ -69,26 +75,49 @@ for (let i = 0; i < args.length; i++) {
     jobs = n; jobsGiven = true;
     i++;
   }
+  else if (args[i] === '--shard') {
+    const m = /^(\d+)\/(\d+)$/.exec(args[i + 1] || '');
+    if (!m || Number(m[2]) < 1 || Number(m[1]) < 1 || Number(m[1]) > Number(m[2])) { console.error('--shard needs I/N with 1 <= I <= N, for example --shard 2/4'); process.exit(2); }
+    shardI = Number(m[1]); shardN = Number(m[2]);
+    i++;
+  }
   else if (args[i] === '--dir') testDir = path.resolve(args[++i] || '.');
   else if (args[i] === '--slow') slowCount = Math.max(0, parseInt(args[++i], 10) || 0);
   else filters.push(args[i]);
 }
 
+// Exit only after stdout has been flushed. process.exit() right after a large write can drop the tail when stdout is a
+// pipe (seen: `--list | ...` returning 231 of 323 names), and CI logs are pipes.
+function exitAfterFlush(code) {
+  process.stdout.write('', () => process.exit(code));
+}
+
 const dir = testDir;
-const files = fs
+const matching = fs
   .readdirSync(dir)
   .filter((f) => f.endsWith('.test.js'))
   .filter((f) => filters.length === 0 || filters.some((s) => f.includes(s)))
   .sort();
+// E7e: round-robin over the sorted names. Measured on the 322-file suite it stays within 2%, 8% and 17% of a perfectly
+// even split by time for 2, 4 and 6 shards, and it needs no stored timings, so every machine computes the same shards.
+const files = shardN > 0 ? matching.filter((f, i) => i % shardN === shardI - 1) : matching;
+if (shardN > 0) console.log('Shard ' + shardI + '/' + shardN + ': ' + files.length + ' of ' + matching.length + ' test file(s)');
 
 if (listOnly) {
   files.forEach((f) => console.log(f));
   console.log('\n' + files.length + ' test file(s)');
-  process.exit(0);
+  exitAfterFlush(0);
+  return; // CommonJS allows a top-level return; the exit itself waits for the flush
+}
+if (files.length === 0 && shardN > 0 && matching.length > 0) {
+  console.log('No test files in this shard.');
+  exitAfterFlush(0);
+  return;
 }
 if (files.length === 0) {
   console.log('No test files match: ' + filters.join(', '));
-  process.exit(1);
+  exitAfterFlush(1);
+  return;
 }
 
 const results = [];
@@ -275,11 +304,12 @@ function summary() {
   }
   if (bad.length === 0) {
     console.log('\nALL CHECKS PASSED');
-    process.exit(0);
+    exitAfterFlush(0);
+    return;
   }
   console.log('\nFAILED FILES (' + bad.length + '):');
   bad.forEach((r) => console.log('  ' + r.file + '  (exit ' + r.exitCode + ', ' + r.failed + ' failing)'));
-  process.exit(1);
+  exitAfterFlush(1);
 }
 
 main();

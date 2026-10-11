@@ -247,7 +247,7 @@ and after are identical; a quick tier exists for the edit loop; a CI workflow ru
 | E7b | **Parallel runner.** Worker pool in `src/test/run.js`: `--jobs N` (default cores minus one, `--jobs 1` = today). Each file still gets its own process and its own log file; output stays grouped per file and grep-friendly; the summary, the `FAIL  -` detection and the exit code are unchanged. Guard against tests that share a temp path or fixture. Result and scope: [E7b results](#e7b-results). | E7a | Done | v0.11.6 |
 | E7c | **Cut shared setup cost.** From E7a's classification: share one webview template build instead of per-file rebuilds, lazy-load jsdom, memoise big parses in a helper. Each change must keep that file's check count identical. Outcome: [E7c findings](#e7c-findings): no change made, the rest moved to E7g and E7h. | E7a | Done (no code change) | - |
 | E7d | **Quick tier.** `npm run test:quick`: runs only the test files related to changed source files (**Decision first:** a name-based map, an import-graph walk, or git-diff plus a hand-kept map). The full suite remains the gate before a push. Decision and results: [E7d results](#e7d-results). | E7b | Done | v0.11.7 |
-| E7e | **Sharding and CI.** `--shard i/n` for the runner; a GitHub Actions workflow running compile, the sharded suite and `generate_keyword_index.js --check` on push and pull request. | E7b | In progress | - |
+| E7e | **Sharding and CI.** `--shard i/n` for the runner; a GitHub Actions workflow running compile, the sharded suite and `generate_keyword_index.js --check` on push and pull request. Sharding shipped; the workflow still has to be copied into `.github/workflows/`: [E7e results](#e7e-results). | E7b | In progress | v0.11.8 (sharding) |
 | E7f | **Release** (next free minor). Records before/after wall time and check counts in the changelog line. | E7a - E7e, E7g - E7m | Open | - |
 | E7g | **Shared-process test execution. Decision first.** Run several test files in one long-lived worker so jsdom is loaded once per worker (the E7a table puts jsdom loading at about 240 s of 1,860 s) and, optionally, keep one pooled webview page per worker. Needs a per-file reset of the globals the tests install (`document`, `window`, `Node`, `DspfWriter`, timers), a `process.exit` shim, per-file output and failure reporting as today, a per-file opt-out marker, and an `--isolate` switch that keeps today's one-process-per-file behaviour. The proposal compares `worker_threads`, `vm` contexts and a child-process pool before any code. Outcome: [E7g proposal](#e7g-proposal), approved; the build is E7i - E7l. | E7a | Done (no code change) | - |
 | E7h | **Page reuse in the two heaviest files.** `dspfWebview.test.js` (73 pages, 139 s in the baseline) and `menuWebview.test.js` (24 pages, 31 s): build a page once per group of scenarios and load each scenario's source with the page's `externalUpdate` message, resetting the UI state the page keeps (selection, active tab, modification-tracking session flags). Success: identical check counts and results, timed A/B against a control run in the same session. Result and the part left out: [E7h results](#e7h-results). | E7a | Done | v0.11.5 |
@@ -701,6 +701,48 @@ single shared core).
 without timings, comment lines, the frequency limit, ranking and budget, helper changes) and the command against a
 throw-away git repository (no change, a changed line, a left-out slow file, the normal runner's summary and exit code,
 a failing changed test, new untracked files, flag validation).
+
+---
+
+### E7e results
+
+**Shipped as v0.11.8, in two parts.** `--shard I/N` in `src/test/run.js` is in. The workflow is written and checked but sits at
+`docs/sda-reference/ci/test.yml`: the push was refused because the token had no `workflow` scope. **Remaining step:** copy that
+file to `.github/workflows/test.yml` (with a token that has the scope, or in the GitHub web editor), delete the PENDING
+comment at its top, and set this row to Done.
+
+**The split.** After name filters, the sorted file list is cut round-robin: shard I takes the files whose position modulo N
+is I-1. The N shards are therefore exactly the files of a plain run, each once, and the split depends only on the file
+names, so every machine computes the same shards. Timing-based balancing was left out on purpose: a split that read a
+local timing file would differ between machines and the shards might not add up to the suite. Measured on the recorded
+per-file times of the 322-file suite, round-robin comes within **2%, 8% and 17%** of a perfectly even split for 2, 4 and
+6 shards (name hashing: 19%, 65%, 59%; contiguous chunks: 17%, 19%, 42%). A shard prints `Shard I/N: k of m test file(s)`,
+runs through the normal runner (summary, `FAIL  -` detection, exit code) and combines with `--isolate --jobs N`. A shard
+with no files exits 0; a name filter that matches nothing is still an error; a bad spec exits 2.
+
+**A runner bug found on the way.** `run.js --list` (and the summary's exit) called `process.exit` straight after printing, which
+drops the tail of large output when stdout is a pipe; the first version of the shard test flaked on it (292, 246, 276 or 231
+of 323 names in 4 of 40 probes, none in 40 after the fix). Every exit in the runner now waits for stdout to flush. CI logs
+are pipes, so this mattered for the new workflow too.
+
+**The workflow** (`docs/sda-reference/ci/test.yml` for now). Three jobs. `keyword-index` runs `generate_keyword_index.js --check`. `suite` runs on a matrix of four
+shards (`fail-fast: false`, so one shard's failure does not hide another's): checkout, Node 22, `npm ci`, `npm run
+compile`, `node src/test/run.js --shard ${{ matrix.shard }}`. `parity` runs `npm run test:parity` weekly and on request
+only, since it runs the suite twice; this is the CI step that E7j's note was waiting for. Triggers: push to `main`, pull
+requests, manual run, and the weekly schedule. Pull-request runs cancel older runs of the same branch.
+
+**What was checked here.** The workflow file parses as YAML. The steps were run by hand on a clean copy of the working tree
+(tracked and untracked files only, no `node_modules`, no `dist`, no generated templates): keyword-index check, `npm ci` (330
+packages), `npm run compile`, then shard 4/4: 80 of 323 files, 5,675 checks, 0 failed, exit 0, 348 s on one shared core.
+`e7eSharding.test.js` (36 checks, including twelve `--list` runs through a pipe) covers the partition (fixture directory with 1, 2, 3, 5 and 7 shards, and the real
+suite with 4: every file exactly once, sizes within one file), filters before the split, empty shards, spec validation,
+a shard through the runner, and that the workflow's matrix lists every shard and its steps are the ones above. Full suite,
+default mode (`npm test`, after the flush fix): 323 files, 21,411 checks, 0 failed, exit 0, 1,069 s (one shared core; not comparable with earlier runs).
+
+**What was not run.** The workflow itself has not run on GitHub: this sandbox cannot start Actions. The first push to
+`main` after this release is the real test; check that the four `Suite, shard I/4` jobs and `Keyword index is up to date`
+go green, and that the repository allows Actions. The speed-up from four parallel jobs also needs that first run to be
+read off (the expected shape is a quarter of the suite per job plus install and compile time, not a measurement).
 
 ---
 
