@@ -248,7 +248,7 @@ and after are identical; a quick tier exists for the edit loop; a CI workflow ru
 | E7c | **Cut shared setup cost.** From E7a's classification: share one webview template build instead of per-file rebuilds, lazy-load jsdom, memoise big parses in a helper. Each change must keep that file's check count identical. Outcome: [E7c findings](#e7c-findings): no change made, the rest moved to E7g and E7h. | E7a | Done (no code change) | - |
 | E7d | **Quick tier.** `npm run test:quick`: runs only the test files related to changed source files (**Decision first:** a name-based map, an import-graph walk, or git-diff plus a hand-kept map). The full suite remains the gate before a push. Decision and results: [E7d results](#e7d-results). | E7b | Done | v0.11.7 |
 | E7e | **Sharding and CI.** `--shard i/n` for the runner; a GitHub Actions workflow running compile, the sharded suite and `generate_keyword_index.js --check` on push and pull request. Results and what could not be run here: [E7e results](#e7e-results). | E7b | Done | v0.11.8, v0.11.10 |
-| E7f | **Release** (next free minor). Records before/after wall time and check counts in the changelog line. | E7a - E7e, E7g - E7m | In progress | - |
+| E7f | **Release** (next free minor). Records before/after wall time and check counts in the changelog line. Results against the revised targets: [E7f results](#e7f-results). | E7a - E7e, E7g - E7m | Done | v0.12.0 |
 | E7g | **Shared-process test execution. Decision first.** Run several test files in one long-lived worker so jsdom is loaded once per worker (the E7a table puts jsdom loading at about 240 s of 1,860 s) and, optionally, keep one pooled webview page per worker. Needs a per-file reset of the globals the tests install (`document`, `window`, `Node`, `DspfWriter`, timers), a `process.exit` shim, per-file output and failure reporting as today, a per-file opt-out marker, and an `--isolate` switch that keeps today's one-process-per-file behaviour. The proposal compares `worker_threads`, `vm` contexts and a child-process pool before any code. Outcome: [E7g proposal](#e7g-proposal), approved; the build is E7i - E7l. | E7a | Done (no code change) | - |
 | E7h | **Page reuse in the two heaviest files.** `dspfWebview.test.js` (73 pages, 139 s in the baseline) and `menuWebview.test.js` (24 pages, 31 s): build a page once per group of scenarios and load each scenario's source with the page's `externalUpdate` message, resetting the UI state the page keeps (selection, active tab, modification-tracking session flags). Success: identical check counts and results, timed A/B against a control run in the same session. Result and the part left out: [E7h results](#e7h-results). | E7a | Done | v0.11.5 |
 | E7i | **Shared worker core.** `src/test/sharedWorker.js`: a worker process that runs a list of test files in order with the reset from the E7g proposal (clear the `require` cache except `node_modules`; first `process.exit` fixes the result and later ones are ignored; read and reset `process.exitCode`; idle detection for files that never exit; output capture per file; timer and interval cleanup; close `global.window`; delete installed globals). `run.js` gets `--shared` (opt-in at first); output blocks, `--- file: N ok, M failed` lines, summary and exit code identical to today. Results: [E7i results](#e7i-results). | E7g | Done | v0.11.1 |
@@ -742,6 +742,47 @@ default mode (`npm test`, after the flush fix): 323 files, 21,411 checks, 0 fail
 `main` after this release is the real test; check that the four `Suite, shard I/4` jobs and `Keyword index is up to date`
 go green, and that the repository allows Actions. The speed-up from four parallel jobs also needs that first run to be
 read off (the expected shape is a quarter of the suite per job plus install and compile time, not a measurement).
+
+---
+
+### E7f results
+
+**Released as v0.12.0.** The measurement the E7a baseline asked for, as an A/B in one session on the sandbox the sessions
+run in (1 core, Node 22.22.2), because the E7c findings showed that seconds from different sessions differ by 34-41% with
+nothing changed. Tree: v0.11.10 plus the E7f claim commit, so every E7 task is in.
+
+| | Control | New default | Change |
+|---|---|---|---|
+| Command | `ISDA_NO_PAGE_REUSE=1 node src/test/run.js --isolate --jobs 1` (one process per file, a page per scenario: the suite as it ran before E7) | `npm test` (shared workers, page reuse) | |
+| Files / checks passed / failed | 324 / 21,436 / 0 | 324 / 21,436 / 0 | identical; every file has the same check count in both runs |
+| Wall time | 1,831.5 s | 1,431.2 s | **21.9% less** |
+| Sum of per-file seconds | 1,833 s | 1,359 s | **25.9% less** |
+| `dspfWebview.test.js` | 126.5 s | 86.1 s | 32% less |
+
+**Against the revised targets (E7c findings; "proposal, Manojkumar to confirm" - they were not changed).**
+1. *CPU work at least 25% below the control:* **borderline, not shown to be met.** By the sum of per-file times, the measure the
+   E7a baseline used, it is 25.9%; by wall time on one core, which also counts starting and replacing workers (about 72 s here), it
+   is 21.9%. It is one pair, run in sequence (control first), so the 3-point gap between the two measures is inside what a repeat
+   could move. The reductions that count on one core are the shared worker (E7i-E7l) and page reuse (E7h, 125 s to 78 s on
+   `dspfWebview.test.js` in its own A/B); the pool (E7b, E7m) and shards (E7e) add no CPU work to
+   save on one core.
+2. *Wall time on 4 cores at least 3.5 times faster than the control:* **not measured; it cannot be on this machine.** The
+   parallel pool is checked on one core only for correctness (barrier fixtures prove overlap). The number comes from the first
+   GitHub Actions run of `.github/workflows/test.yml` (four shard jobs, each also paying `npm ci` and compile) or from
+   `--jobs 4` on a four-core machine, set against `--isolate --jobs 1` on the same machine. Until then this target is open.
+3. *Quick tier at most 5% of the control's full-suite time for a one-keyword change:* **met.** Taking the 197 keywords of
+   `keywordSpec.js` that a test mentions, and selecting with `quick.js`'s rules from the control run's per-file times, the
+   selection is a median 1.6% of the control total (90th percentile 3.3%, largest 4.9%, none over 5%); `DSPMOD` selects 9
+   files, 1.2%. This is the selected files' recorded time, not a stopwatch run of the command (that ran 27.7 s on a DSPMOD change
+   during E7d). Its limit stands: at the 5% budget the source diff alone found about two thirds of the existing tests that recent
+   small commits had to modify.
+
+**Context for the numbers.** Eight `e7*` test files that this work added are in both runs and cost 147 s of the control's time;
+they are part of the suite now. Earlier full runs of the new default in this sandbox took 954-1,102 s against 1,432 s here, the
+same drift E7c recorded, which is why only the paired runs above are compared.
+
+**What is left open.** (a) The four-core wall time, from CI or a multi-core machine. (b) A repeated pair, preferably with the
+control second, to see whether target 1 is 22% or 26% in practice. (c) Targets 1-3 are still the proposal; confirm or change them.
 
 ---
 
