@@ -136,6 +136,13 @@ npm test          # pure-Node tests, no framework; UI tests run the real webview
   (slower; use it to tell a real failure from state leaking between files). A test that changes built-ins or
   other process-wide state puts `// @isda-test: isolate` in its first lines. `npm run test:parity` runs the
   suite both ways and fails if any file's result differs; run it after adding such a test.
+- `npm run test:quick` (E7d) runs only the test files related to what you changed since `HEAD` (or `--base <ref>`):
+  changed or new test files, plus files that mention an identifier your change adds or removes in `src/*.js|ts`,
+  most specific first, up to 5% of the last full run's time (`--budget P`, `--wide` = 15%); slow page-building
+  files join only when the webview code changed. `--explain` shows the selection without running it. It is for the
+  edit loop and can miss a test: **run `npm test` before you push.** Timings come from `.isda-test-times.json`,
+  refreshed by every full run (git-ignored).
+- `node src/test/run.js --isolate --jobs N` runs N files at once, each in its own process (E7b).
 - See `vsc-extension-quickstart.md` for the general extension dev loop.
 
 ## Contributing: picking up work

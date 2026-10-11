@@ -246,7 +246,7 @@ and after are identical; a quick tier exists for the edit loop; a CI workflow ru
 | E7a | **Baseline.** Run `node src/test/run.js --slow 400` on a quiet machine; record per-file time, total, core count and the top 20 in the section; classify the cost (jsdom setup, compile or template build per file, the generated keyword matrix, repeated parsing of large fixtures). Set the numeric target. Results: [E7a baseline](#e7a-baseline-results). | - | Done (no code change) | - |
 | E7b | **Parallel runner.** Worker pool in `src/test/run.js`: `--jobs N` (default cores minus one, `--jobs 1` = today). Each file still gets its own process and its own log file; output stays grouped per file and grep-friendly; the summary, the `FAIL  -` detection and the exit code are unchanged. Guard against tests that share a temp path or fixture. Result and scope: [E7b results](#e7b-results). | E7a | Done | v0.11.6 |
 | E7c | **Cut shared setup cost.** From E7a's classification: share one webview template build instead of per-file rebuilds, lazy-load jsdom, memoise big parses in a helper. Each change must keep that file's check count identical. Outcome: [E7c findings](#e7c-findings): no change made, the rest moved to E7g and E7h. | E7a | Done (no code change) | - |
-| E7d | **Quick tier.** `npm run test:quick`: runs only the test files related to changed source files (**Decision first:** a name-based map, an import-graph walk, or git-diff plus a hand-kept map). The full suite remains the gate before a push. | E7b | In progress | - |
+| E7d | **Quick tier.** `npm run test:quick`: runs only the test files related to changed source files (**Decision first:** a name-based map, an import-graph walk, or git-diff plus a hand-kept map). The full suite remains the gate before a push. Decision and results: [E7d results](#e7d-results). | E7b | Done | v0.11.7 |
 | E7e | **Sharding and CI.** `--shard i/n` for the runner; a GitHub Actions workflow running compile, the sharded suite and `generate_keyword_index.js --check` on push and pull request. | E7b | Open | - |
 | E7f | **Release** (next free minor). Records before/after wall time and check counts in the changelog line. | E7a - E7e, E7g - E7m | Open | - |
 | E7g | **Shared-process test execution. Decision first.** Run several test files in one long-lived worker so jsdom is loaded once per worker (the E7a table puts jsdom loading at about 240 s of 1,860 s) and, optionally, keep one pooled webview page per worker. Needs a per-file reset of the globals the tests install (`document`, `window`, `Node`, `DspfWriter`, timers), a `process.exit` shim, per-file output and failure reporting as today, a per-file opt-out marker, and an `--isolate` switch that keeps today's one-process-per-file behaviour. The proposal compares `worker_threads`, `vm` contexts and a child-process pool before any code. Outcome: [E7g proposal](#e7g-proposal), approved; the build is E7i - E7l. | E7a | Done (no code change) | - |
@@ -647,6 +647,60 @@ from timings, 4 jobs clearly faster, private temp files), a failing file among p
 **What this does not show.** The machine has one core, so the pool gave no speed-up on the real suite and the
 1,083 s is not a comparison with anything. The speed claim for E7b still needs a timed A/B (`--isolate --jobs 1`
 against `--jobs N`) on a multi-core machine; the sleeping fixtures only show that files overlap.
+
+---
+
+### E7d results
+
+**Decision (taken here, confirmed by Manojkumar):** git diff plus identifiers, chosen over a name-based map and an
+import-graph walk. **Shipped as v0.11.7 (tests only).** `npm run test:quick` (`src/test/quick.js`, selection in
+`src/test/quickSelect.js`).
+
+**Why not the other two.**
+- *Name-based map:* test files are named after task ids (`i122...`, `i159...`), not modules or keywords, so a name
+  gives nothing to key on.
+- *Import-graph walk:* of 321 files, 191 (94% of the 910 s of per-file time) depend on the same four modules
+  (`webviewTemplate`, `keywordSpec`, `dspfEngine`, `menuWebviewTemplate`); a change to `keywordSpec.js` would select
+  237 files, about 69% of the suite.
+- *Git diff plus identifiers* ranks by what the change actually says, needs no hand-kept map, and can be given a time
+  budget.
+
+**What it does.** Reads the change from git (staged, unstaged and new files, since `HEAD` or `--base <ref>`). Always
+runs changed or new `*.test.js` files. Takes the identifiers (words of 5 or more characters, comment-only lines
+ignored) that the change adds or removes in `src/*.js|ts`, ignores any found in more than 40 test files, and ranks the
+test files that mention them by specificity (a match on a word found in 2 files counts for more than one found in 30).
+It takes them in that order until their time reaches 5% of the last full run (`--budget P`; `--wide` is 15%); the rest
+are listed as cut. Files that took over 8 s in the last run (or, without timings, files that build a webview page) join
+only when the webview code changed. `--explain` shows the selection without running it. The chosen files go through the
+normal runner, so output, summary and exit code are the same. Changes to shared test support (helpers, the runner) are
+flagged rather than guessed at. `run.js` records per-file seconds in `.isda-test-times.json` (git-ignored).
+
+**Measurements (timings from the 321-file default run, 910 s of per-file time).**
+- *One keyword.* For each of the 197 keywords in `keywordSpec.js` that a test mentions, the files that mention it and
+  took 8 s or less need a median **2.0%** of the suite's time (90th percentile 4.2%); 184 of 197 are within 5%. Without
+  the heavy-file rule the median is 7.4% and only 81 of 197 are within 5%, so that rule is what makes the target
+  reachable.
+- *Real run.* A simulated one-line change mentioning `DSPMOD` in `keywordSpec.js` selected 12 files (11 matches plus the
+  new test file), 447 checks, 27.7 s wall, 2.1% of the last full run's time by the recorded timings.
+- *Against history.* On the 31 recent commits that changed at most 40 source lines and modified existing test files,
+  the source diff alone (without being told which tests the commit changed) found **34 of the 50** modified tests (68%)
+  at the 5% budget, mean 4.8% of the suite's time and never over it; at 15% it found 41 of 50 (82%), which is also
+  where it stops improving: the other 9 are not reachable through identifiers.
+
+**Limits, stated plainly.** A test that depends on the change through something the change does not spell out is not
+found; about a third of the modified tests in recent small commits were missed at 5%. Heavy page-building files are
+left out unless the webview code changed. Timings are per machine; the first run on a new checkout treats every file
+that builds a page as heavy. **The full suite remains the gate before a push** and the README and the command's output
+say so.
+
+**Full suite after the change** (`npm test`): 322 files, 21,375 checks, 0 failed, exit 0, 1,066 s (this run also
+built the timing file the quick tier reads; the 1,066 s is not comparable with the 954 s of the previous run on this
+single shared core).
+
+**Checks.** `e7dQuickTier.test.js` (24): the selection with in-memory files (identifier match, heavy rule with and
+without timings, comment lines, the frequency limit, ranking and budget, helper changes) and the command against a
+throw-away git repository (no change, a changed line, a left-out slow file, the normal runner's summary and exit code,
+a failing changed test, new untracked files, flag validation).
 
 ---
 

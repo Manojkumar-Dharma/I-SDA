@@ -2,7 +2,7 @@
   "name": "i-sda",
   "displayName": "iSDA",
   "description": "Interactive visual designer for IBM i DDS display files (DSPF) \u2014 preview, click, drag, and edit fields with changes written straight back into the DDS source.",
-  "version": "0.11.6",
+  "version": "0.11.7",
   "publisher": "Manojkumar-IBMi",
   "icon": "images/icon.png",
   "engines": {
@@ -175,6 +175,7 @@
   "scripts": {
     "test": "node src/test/run.js",
     "test:parity": "node src/test/parity.js",
+    "test:quick": "node src/test/quick.js",
     "build:webview-assets": "node src/fixtures/generateFixture.js && esbuild src/browserEntry.ts --bundle --format=iife --global-name=DspfParser --outfile=dist/dspfParser.browser.js && node src/buildWebviewTemplate.js && node src/buildMenuWebviewTemplate.js && node -e \"require('fs').mkdirSync('dist',{recursive:true});['mnuCmdEngine.js','dspfEngine.js','keywordSpec.js','dspfWriter.js','webviewClientHelpers.js','qdbrtvfdParser.js','jobDateFormat.js','sourceLineWidth.js'].forEach(f=>require('fs').copyFileSync('src/'+f,'dist/'+f))\"",
     "compile": "npm run build:webview-assets && tsc -p ."
   },

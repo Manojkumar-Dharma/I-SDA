@@ -247,6 +247,15 @@ async function main() {
 
 function summary() {
   const totalSecs = (Date.now() - suiteStart) / 1000;
+  // E7d: the quick tier (quick.js) tells heavy files from light ones by their time in the last run.
+  // Only a run over this repository's own test directory records it, and only for the files it ran.
+  if (testDir === __dirname && results.length > 0) {
+    const timesFile = path.join(root, '.isda-test-times.json');
+    let known = {};
+    try { known = JSON.parse(fs.readFileSync(timesFile, 'utf8')); } catch (e) { /* first run */ }
+    results.forEach((r) => { known[r.file] = Math.round(r.secs * 10) / 10; });
+    try { fs.writeFileSync(timesFile, JSON.stringify(known, null, 1) + '\n'); } catch (e) { /* read-only checkout */ }
+  }
   const bad = results.filter((r) => !r.pass);
   const totalOk = results.reduce((n, r) => n + r.ok, 0);
   const totalFail = results.reduce((n, r) => n + r.failed, 0);
