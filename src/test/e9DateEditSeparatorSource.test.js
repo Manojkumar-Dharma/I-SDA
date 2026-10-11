@@ -58,6 +58,19 @@ check('other edit codes ignore the separator', p({ editCode: '5', dateSeparator:
 check('width never depends on the separator', ['/', '-', '.', ',', ' '].every((c) => KeywordSpec.systemValueConstantWidth('DATE', { editCode: 'Y', dateSeparator: c }) === 8 && KeywordSpec.systemValueConstantWidth('DATE', { editCode: 'W', dateParameters: '*YY', dateSeparator: c }) === 10));
 check('the preview is as wide as the field for every separator', ['/', '-', '.', ',', ' '].every((c) => ['Y', 'W'].every((code) => p({ editCode: code, dateSeparator: c }).length <= KeywordSpec.systemValueConstantWidth('DATE', { editCode: code, dateSeparator: c }))));
 
+// 3b. the EDTCDE rules (Table 6 notes 2 and 3): zero suppression and patterns agree
+const dt = (y, m, d) => new Date(y, m - 1, d, 0, 0, 0);
+const pv = (o, when) => KeywordSpec.systemValuePreviewText('DATE', o, when);
+const JUL = J('*JUL', '/'), YMD = J('*YMD', '/');
+check('rule Y, 6 digits: farthest left zero suppressed', pv({ editCode: 'Y' }, dt(2003, 1, 5)) === ' 1/05/03');
+check('rule Y, 8 digits: farthest left zero suppressed', pv({ editCode: 'Y', dateParameters: '*YY' }, dt(2003, 1, 5)) === ' 1/05/2003');
+check('rule Y, 5 digits (Julian): farthest left zero suppressed', pv({ editCode: 'Y', jobDate: JUL }, dt(2003, 1, 5)) === ' 3/005');
+check('rule Y, 7 digits (Julian *YY): nothing to suppress when the first digit is not zero', pv({ editCode: 'Y', dateParameters: '*YY', jobDate: JUL }, dt(2003, 1, 5)) === '2003/005');
+check('rule W, 5 digits: farthest left zero suppressed', pv({ editCode: 'W', jobDate: JUL }, dt(2003, 1, 5)) === ' 3/005');
+check('rule W, 6 digits: up to three left zeros suppressed, stopping at the first non-zero', pv({ editCode: 'W', jobDate: YMD }, dt(2003, 1, 5)) === ' 301/05');
+check('rule W, 8 digits: pattern nnnn/nn/nn', pv({ editCode: 'W', dateParameters: '*YY', jobDate: YMD }, dt(2003, 1, 5)) === '2003/01/05');
+check('every length the rules give a pattern for has one: Y 3-8, W 5-8', [3, 4, 5, 6, 7, 8].every((n) => KeywordSpec.dateEditCodePattern('Y', n)) && [5, 6, 7, 8].every((n) => KeywordSpec.dateEditCodePattern('W', n)) && !KeywordSpec.dateEditCodePattern('W', 4));
+
 // 4. engine
 const field = { nameType: 'CONSTANT', constantValue: null, length: 0, decimalPositions: 0, dataType: '', usage: 'O', keywords: [{ name: 'DATE', parameters: '' }, { name: 'EDTCDE', parameters: 'Y' }] };
 function reset() { DspfEngine.setJobDateFormat(null); DspfEngine.setDateSeparatorSetting(null); }

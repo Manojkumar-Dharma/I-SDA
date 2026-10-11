@@ -947,8 +947,9 @@ decimals, keeps its coded length.
 **Decision (Manojkumar, E9 start): follow the job's `DATSEP` for both `Y` and `W`.** The Reference ties the job
 attribute `DATSEP` to `EDTCDE(Y)` with `DATE` only, and says `W` inserts slashes. The epic as written applies the
 separator to every `Y`/`W` field, so `W` follows it too (one place to revert: `systemValuePreviewText` in
-`keywordSpec.js`). Open for a later finding: the notes' zero-suppression sentences do not line up with the listed
-patterns for every length (for example `W` at 5, 6 and 8 digits), so the patterns are the oracle.
+`keywordSpec.js`). Checked against the Reference's own zero-suppression sentences
+(Y: one left zero, two at 7 digits; W: one at 5 digits, three at 6 - 8, stopping at the first non-zero digit): the
+engine agrees at every length, so there is no open finding; the cases are pinned in the E9 test.
 
 **E9b - E9d (built).** `KeywordSpec.resolveDateSeparator(job, setting)` picks the separator: the connected job's
 `DATSEP`, then the new `isda.previewDateSeparator` setting (`/ - . ,` or `blank`; unset by default), then `/`.
