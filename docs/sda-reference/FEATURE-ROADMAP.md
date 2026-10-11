@@ -781,6 +781,16 @@ nothing changed. Tree: v0.11.10 plus the E7f claim commit, so every E7 task is i
 they are part of the suite now. Earlier full runs of the new default in this sandbox took 954-1,102 s against 1,432 s here, the
 same drift E7c recorded, which is why only the paired runs above are compared.
 
+**First GitHub Actions runs (added after the release).** The first three runs (v0.11.10, `febc920`, v0.12.0) failed in shards 3/4
+and 4/4 on every push. Cause, reproduced here by faking a four-core machine (`NODE_OPTIONS=--require` a stub of
+`os.cpus()`): `e7jParityAndIsolateMarker` and `e7kWorkerRecycling` run the runner inside a test and expect one worker, but the
+runner's default `--jobs` is cores minus one, which is 1 on the one-core sandbox and 3 on a four-core runner. Fixed in v0.12.1: those
+two tests set `ISDA_JOBS=1` (a new way to set the default job count). The run on that commit is green: four shards with test steps of
+74, 77, 86 and 109 s (job totals 88-124 s including `npm ci`, about 7 s) and a whole-run wall of 127 s. That is the new way on a
+four-core runner; it is **not** a comparison with the sandbox control (1,831 s on one core). A manual `control` job
+(Actions, "Tests", Run workflow with "control" ticked) now times the old way on the same kind of runner; the quotient of its
+wall time and the slowest shard job is the number target 2 asks for. The local full suite on v0.12.1: 324 files, 21,438 checks, 0 failed, 994 s.
+
 **What is left open.** (a) The four-core wall time, from CI or a multi-core machine. (b) A repeated pair, preferably with the
 control second, to see whether target 1 is 22% or 26% in practice. (c) Targets 1-3 are still the proposal; confirm or change them.
 
