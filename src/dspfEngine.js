@@ -365,6 +365,13 @@
   function setJobDateFormat(info) { jobDateFormat = KeywordSpec.normalizeJobDate(info); return jobDateFormat; }
   function getJobDateFormat() { return jobDateFormat ? { dateFormat: jobDateFormat.dateFormat, dateSeparator: jobDateFormat.dateSeparator } : null; }
 
+  // Task E9b: the isda.previewDateSeparator setting, the offline fallback for
+  // the Y / W edit-code separator (job first, then this, then '/').
+  var dateSeparatorSetting = null;
+  function setDateSeparatorSetting(value) { dateSeparatorSetting = KeywordSpec.normalizeSeparatorSetting(value); return dateSeparatorSetting; }
+  function getDateSeparatorSetting() { return dateSeparatorSetting; }
+  function resolveDateSeparator() { return KeywordSpec.resolveDateSeparator(jobDateFormat, dateSeparatorSetting); }
+
   function systemValueConstantInfo(field) {
     if (field.nameType !== 'CONSTANT' || field.constantValue != null) return null;
     var kws = field.keywords || [];
@@ -381,6 +388,7 @@
       opts: {
         dateParameters: date ? date.parameters : '',
         jobDate: jobDateFormat,
+        dateSeparator: (function () { var r = resolveDateSeparator(); return r.source === 'default' ? null : r.separator; })(),
         editCode: edtcde ? String(edtcde.parameters || '').trim().split(/\s+/)[0] : '',
         editWordWidth: edtwrd ? edtwrdDisplayWidth(edtwrd.parameters) : null
       }
@@ -2739,6 +2747,9 @@
     resolveScreen: resolveScreen,
     setJobDateFormat: setJobDateFormat,
     getJobDateFormat: getJobDateFormat,
+    setDateSeparatorSetting: setDateSeparatorSetting,
+    getDateSeparatorSetting: getDateSeparatorSetting,
+    resolveDateSeparator: resolveDateSeparator,
     resolveMultiScreen: resolveMultiScreen,
     resolveReferenceTarget: resolveReferenceTarget,
     referenceKey: referenceKey,

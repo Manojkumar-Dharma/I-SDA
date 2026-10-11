@@ -2,7 +2,7 @@
   "name": "i-sda",
   "displayName": "iSDA",
   "description": "Interactive visual designer for IBM i DDS display files (DSPF) \u2014 preview, click, drag, and edit fields with changes written straight back into the DDS source.",
-  "version": "0.12.3",
+  "version": "0.13.0",
   "publisher": "Manojkumar-IBMi",
   "icon": "images/icon.png",
   "engines": {
@@ -54,6 +54,13 @@
           "enumDescriptions": ["Columns 81-90 (up to 10 characters), past what the DDS compiler reads.", "Columns 1-5 (up to 5 characters), the sequence-number area, which replaces the line's sequence number."],
           "default": "end",
           "description": "Screen and Menu Designer: where the Modification tag is written on a new/changed source line when modification tracking is on. The Properties panel's \"Tag in columns 1-5\" toggle overrides it per session; the tag is limited to 5 characters in columns 1-5."
+        },
+        "isda.previewDateSeparator": {
+          "type": "string",
+          "enum": ["", "/", "-", ".", ",", "blank"],
+          "enumDescriptions": ["Not set: the connected job's DATSEP when connected, otherwise a slash.", "Slash", "Dash", "Period", "Comma", "Blank"],
+          "default": "",
+          "description": "Screen Designer: the date separator the preview draws for EDTCDE(Y) and EDTCDE(W) when no IBM i connection can supply the job's DATSEP. The connected job's DATSEP always wins; with neither, a slash (IBM's default) is used. It changes only the character drawn, never the field's width."
         },
         "isda.modificationTag": {
           "type": "string",

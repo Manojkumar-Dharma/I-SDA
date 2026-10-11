@@ -47,7 +47,7 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-1 of 10 epics done (E7); 13 sub-tasks done (E7a - E7m). Current version: **v0.12.3**.
+2 of 10 epics done (E7, E9); 18 sub-tasks done (E7a - E7m, E9a - E9e). Current version: **v0.13.0**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
@@ -59,7 +59,7 @@ never in columns 1-80 or the tag area.
 | [E6](#e6) | Menu designer: command keys and `TYPE(*UIM)` | E6a - E6h | E2 (soft, for compile errors) | Open | - |
 | [E7](#e7) | Faster test suite | E7a - E7m | - | Done | v0.12.2 |
 | [E8](#e8) | `WINDOW(*DFT)` and runtime-valued window parameters | E8a - E8f | E3f | Open | - |
-| [E9](#e9) | `EDTCDE(Y/W)` separator width | E9a - E9e | - | Open | - |
+| [E9](#e9) | `EDTCDE(Y/W)` separator width | E9a - E9e | - | Done | v0.13.0 |
 | [E10](#e10) | `CHCCTL` / `SFLCHCCTL` choice control values | E10a - E10e | E3f | Open | - |
 
 ### Suggested order
@@ -917,11 +917,43 @@ is rewritten.
 
 | ID | Sub-task and scope | Depends on | Status | Version |
 |----|--------------------|------------|--------|---------|
-| E9a | **Rules.** From the `EDTCDE` section of the DDS Reference: what `Y` and `W` insert, how many positions each adds for 6-digit and 8-digit (and 4-digit, if allowed) fields, whether the separator is the job's `DATSEP` in both cases, and what changes with `DATFMT`. Output: a table in this section used as the test oracle. | - | Open | - |
-| E9b | **Separator source.** Reuse `fetchJobDateFormat()`; add a setting `isda.previewDateSeparator` (`/`, `-`, `.`, `,`, blank) for offline use; define precedence (job, then setting, then default) and keep the "proxy for the job the screen will run in" caveat. | E9a | Open | - |
-| E9c | **Engine.** Use the separator in `editCodeDisplay` / display length for `Y` and `W`; output positions of the separators inside the rendered value; the `keywordSpec.js` `editCodeDisplay` entries lose their "runtime separator" marker only where now resolved. Tests against the E9a table. | E9a, E9b | Open | - |
-| E9d | **UI.** A note in the field panel showing the separator source (job / setting / default); delete the corresponding text from the accepted-limitations list. | E9c | Open | - |
-| E9e | **Release** (next free minor). | E9a - E9d | Open | - |
+| E9a | **Rules.** From the `EDTCDE` section of the DDS Reference: what `Y` and `W` insert, how many positions each adds for 6-digit and 8-digit (and 4-digit, if allowed) fields, whether the separator is the job's `DATSEP` in both cases, and what changes with `DATFMT`. Output: a table in this section used as the test oracle. | - | Done (no code change) | — |
+| E9b | **Separator source.** Reuse `fetchJobDateFormat()`; add a setting `isda.previewDateSeparator` (`/`, `-`, `.`, `,`, blank) for offline use; define precedence (job, then setting, then default) and keep the "proxy for the job the screen will run in" caveat. | E9a | Done | v0.13.0 |
+| E9c | **Engine.** Use the separator in `editCodeDisplay` / display length for `Y` and `W`; output positions of the separators inside the rendered value; the `keywordSpec.js` `editCodeDisplay` entries lose their "runtime separator" marker only where now resolved. Tests against the E9a table. | E9a, E9b | Done | v0.13.0 |
+| E9d | **UI.** A note in the field panel showing the separator source (job / setting / default); delete the corresponding text from the accepted-limitations list. | E9c | Done | v0.13.0 |
+| E9e | **Release** (next free minor). | E9a - E9d | Done | v0.13.0 |
+
+### E9 results
+
+**E9a (rules, no code change).** The `EDTCDE` section of the DDS Reference (notes 2 and 3 of Table 6) gives the
+patterns below; they were already in `keywordSpec.js` as `DATE_EDIT_CODE_PATTERNS` (I-154) and the engine already
+sized `Y`/`W` fields from them, so the "left at coded length" text in `LIMITATIONS-PLAN.md` was stale. Widths are the
+pattern lengths and do not depend on the separator character. A digit count with no pattern, or a field with
+decimals, keeps its coded length.
+
+| Code | Digits | Pattern | Width |
+|------|--------|---------|-------|
+| Y | 3 | `nn/n` | 4 |
+| Y | 4 | `nn/nn` | 5 |
+| Y | 5 | `nn/nn/n` | 7 |
+| Y | 6 | `nn/nn/nn` | 8 |
+| Y | 7 | `nnn/nn/nn` | 9 |
+| Y | 8 | `nn/nn/nnnn` | 10 |
+| W | 5 | `nn/nnn` | 6 |
+| W | 6 | `nnnn/nn` | 7 |
+| W | 7 | `nnnn/nnn` | 8 |
+| W | 8 | `nnnn/nn/nn` | 10 |
+
+**Decision (Manojkumar, E9 start): follow the job's `DATSEP` for both `Y` and `W`.** The Reference ties the job
+attribute `DATSEP` to `EDTCDE(Y)` with `DATE` only, and says `W` inserts slashes. The epic as written applies the
+separator to every `Y`/`W` field, so `W` follows it too (one place to revert: `systemValuePreviewText` in
+`keywordSpec.js`). Open for a later finding: the notes' zero-suppression sentences do not line up with the listed
+patterns for every length (for example `W` at 5, 6 and 8 digits), so the patterns are the oracle.
+
+**E9b - E9d (built).** `KeywordSpec.resolveDateSeparator(job, setting)` picks the separator: the connected job's
+`DATSEP`, then the new `isda.previewDateSeparator` setting (`/ - . ,` or `blank`; unset by default), then `/`.
+The webview gets the setting on `ready` and on a live change. `EDTCDE(Y/W)` field panels show a note naming the
+source. The separator changes only the character drawn, never the width. Tests: `e9DateEditSeparatorSource.test.js`.
 
 ---
 

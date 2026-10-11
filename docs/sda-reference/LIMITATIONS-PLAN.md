@@ -45,12 +45,12 @@ one for genuinely fixable, tracked work.
   naming those lines, but confirming still doesn't rewrite the reference
   itself - there's nothing sensible to auto-fix it TO (same reasoning as
   rename's own limitation below).
-- `EDTCDE(Y)`/`EDTCDE(W)` "date edit" codes are left at the field's coded
-  length rather than a guessed display width, since their separator
-  width depends on the job's runtime `DATSEP` attribute - not knowable
-  at design time, the same ambiguity that keeps `WINDOW(*DFT)` a
-  placeholder above. Every other `EDTCDE`/`EDTWRD` case gets an exact
-  computed width.
+- `EDTCDE(Y)`/`EDTCDE(W)` fields are sized from IBM's slash patterns (exact
+  width for 3-8 digits; a digit count IBM gives no pattern for keeps its
+  coded length). Only the separator CHARACTER is a run-time job attribute
+  (`DATSEP`); the preview uses the connected job's, else the
+  `isda.previewDateSeparator` setting, else a slash, and the field panel says
+  which. The job is a proxy for the job the screen will run in. (E9)
 - M/P (Message text/Program-to-system) field usages aren't covered by
   real SDA's own field-keyword "For Field Type" table, so their keyword
   panels fail open (show every category) by design rather than guessing

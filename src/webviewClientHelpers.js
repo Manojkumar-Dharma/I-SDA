@@ -1572,6 +1572,17 @@
    *  editMaskConflictReason enforcing both of EDTMSK's own documented
    *  requirements (usage I or B; an EDTCDE or EDTWRD keyword already
    *  present) at Apply time. */
+  // Task E9d: EDTCDE(Y) / EDTCDE(W) insert the job's date separator; say which
+  // source the preview uses (job, the isda.previewDateSeparator setting, or the
+  // default slash). '' for any other edit code or when the engine is absent.
+  function dateSeparatorNoteHtml(ec, ecParts) {
+    if (ec.kind !== 'EDTCDE') return '';
+    var code = String(ecParts.code || '').trim().toUpperCase();
+    if (code !== 'Y' && code !== 'W') return '';
+    if (typeof DspfEngine === 'undefined' || typeof KeywordSpec === 'undefined') return '';
+    return '<div class="hint-small date-sep-note">' + escapeHtml(KeywordSpec.dateSeparatorSourceNote(DspfEngine.resolveDateSeparator())) + '</div>';
+  }
+
   function editKeywordSectionHtml(keywords, ownerKey, openState) {
     var ec = DspfWriter.getEditKeyword(keywords);
     var em = DspfWriter.getEditMask(keywords);
@@ -1588,6 +1599,7 @@
       '</select>' +
       '<input type="text" id="' + ownerKey + '-ec-params" placeholder="e.g. J" value="' + escapeHtml(ecParts.code) + '" />' +
       '</div><div class="hint-small">EDTCDE: a single code letter (1-4, A-D, J-Q, W, X, Y, Z) &middot; EDTWRD: full quoted substitution string</div>' +
+      dateSeparatorNoteHtml(ec, ecParts) +
       '<div class="two-col" style="margin-top:6px;">' +
       '<label for="' + ownerKey + '-ec-fill">Replace leading zeros with</label>' +
       '<input type="text" id="' + ownerKey + '-ec-fill" maxlength="1" placeholder="* or $" value="' + escapeHtml(ecParts.fill) + '" />' +

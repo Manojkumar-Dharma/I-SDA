@@ -7556,6 +7556,7 @@ const htmlTemplate = `<!DOCTYPE html>
     keepRemovedLinesSetting = false;
     sourceLineMax = undefined;
     DspfEngine.setJobDateFormat(null);
+    DspfEngine.setDateSeparatorSetting(null);
     suppressNextExternalUpdate = false;
     updateSaveButtonDirtyState(false);
     codeForIInitial.badges.forEach((b) => { if (b) { b.badge.className = b.className; b.badge.textContent = b.text; b.badge.title = b.title; } });
@@ -7605,6 +7606,11 @@ const htmlTemplate = `<!DOCTYPE html>
       // engine's DATE preview and width follow it; an unusable value clears
       // it back to the design-time assumption (MDY, slash).
       DspfEngine.setJobDateFormat(msg.ok === false ? null : { dateFormat: msg.dateFormat, dateSeparator: msg.dateSeparator });
+      render();
+    } else if (msg.type === 'previewDateSeparator') {
+      // isda.previewDateSeparator (Task E9b): the offline fallback for the
+      // Y / W edit-code separator; the connected job's DATSEP wins when known.
+      DspfEngine.setDateSeparatorSetting(msg.value);
       render();
     } else if (msg.type === 'sourceLineWidth') {
       // See sourceLineMax. A missing / non-positive maxLength means "no limit".

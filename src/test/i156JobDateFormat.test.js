@@ -163,7 +163,7 @@ console.log('\n2. fetchJobDateFormat against a fake connection');
     check('EDTCDE(Y) with no job date keeps the slash default', p({ editCode: 'Y' }) === '10/03/26');
     check('EDTCDE(Y) Julian: 26/276 and 2026/276', p({ editCode: 'Y', jobDate: J('*JUL', '/') }) === '26/276' && p({ editCode: 'Y', dateParameters: '*YY', jobDate: J('*JUL', '/') }) === '2026/276');
     check('EDTCDE(Y) Julian keeps IBM\'s zero suppression: year 03 -> " 3/276"', p({ editCode: 'Y', jobDate: J('*JUL', '/') }, at(2003, 10, 3, 0, 0, 0)) === ' 3/276');
-    check('EDTCDE(W) always inserts slashes whatever DATSEP is', p({ editCode: 'W', dateParameters: '*YY', jobDate: J('*YMD', '.') }) === '2026/10/03');
+    check('EDTCDE(W) uses the job\'s DATSEP too (Task E9; the Reference text says slashes, the decision is to follow DATSEP)', p({ editCode: 'W', dateParameters: '*YY', jobDate: J('*YMD', '.') }) === '2026.10.03' && p({ editCode: 'W', dateParameters: '*YY', jobDate: J('*YMD', '/') }) === '2026/10/03');
     check('EDTCDE(W) with a non-YMD job date shows IBM\'s own caveat (digits in job order): DMY', p({ editCode: 'W', dateParameters: '*YY', jobDate: J('*DMY', '/') }) === ' 310/20/26');
     check('without a job date W still previews YMD (the design-time assumption)', p({ editCode: 'W', dateParameters: '*YY' }) === '2026/10/03');
     check('TIME is unaffected by a job date', KeywordSpec.systemValuePreviewText('TIME', { jobDate: J('*DMY', '.') }, oct3) === '11:06:45' && KeywordSpec.systemValueConstantWidth('TIME', { jobDate: J('*JUL', '.') }) === 8);

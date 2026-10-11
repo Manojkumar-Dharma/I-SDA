@@ -1697,6 +1697,14 @@ class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
       const cfg = getModTrackingConfig();
       webviewPanel.webview.postMessage({ type: 'modTrackingConfig', enabled: cfg.enabled, tag: cfg.tag, position: cfg.position, keepRemoved: cfg.keepRemoved });
     };
+    // Task E9b: the offline date-separator fallback for the Y / W edit-code preview.
+    const sendPreviewDateSeparator = () => {
+      const value = vscode.workspace.getConfiguration('isda').get<string>('previewDateSeparator', '');
+      webviewPanel.webview.postMessage({ type: 'previewDateSeparator', value });
+    };
+    const previewDateSeparatorSub = vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration('isda.previewDateSeparator')) sendPreviewDateSeparator();
+    });
     const modTrackingConfigSub = vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration('isda.trackSourceModifications') || e.affectsConfiguration('isda.modificationTag') || e.affectsConfiguration('isda.modificationTagPosition') || e.affectsConfiguration('isda.keepRemovedLines')) {
         sendModTrackingConfig();
@@ -1737,6 +1745,7 @@ class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
         sourceLineWidthSent = false;
         await sendCodeForIStatus();
         sendModTrackingConfig();
+        sendPreviewDateSeparator();
       }
     });
 
@@ -1747,6 +1756,7 @@ class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
       clearInterval(statusPollInterval);
       extChangeSub.dispose();
       modTrackingConfigSub.dispose();
+      previewDateSeparatorSub.dispose();
     });
   }
 }

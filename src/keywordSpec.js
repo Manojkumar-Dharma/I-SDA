@@ -2890,9 +2890,11 @@
       // (1, 2, A, B, J, K, N, O). `signWidth`: extra positions the sign
       // reserves - CR (A-D) is two characters, a minus (J-Q) is one, the
       // no-sign codes (1-4) and the codes that strip it (X, Z) reserve
-      // none. `runtimeSeparatorCodes`: W and Y insert
-      // job-attribute-dependent slashes (table notes 2 and 3), so their
-      // width cannot be known at design time.
+      // none. `runtimeSeparatorCodes`: W and Y insert separator
+      // characters (table notes 2 and 3). The WIDTH is exact (IBM's
+      // patterns, DATE_EDIT_CODE_PATTERNS - Task I-154); only the separator
+      // CHARACTER is a run-time job attribute (DATSEP), resolved for the
+      // preview by resolveDateSeparator (job, then setting, then '/').
       editCodeDisplay: {
         commaCodes: ['1', '2', 'A', 'B', 'J', 'K', 'N', 'O'],
         signWidth: {
@@ -4322,6 +4324,46 @@
     return { dateFormat: f, dateSeparator: sep };
   }
 
+  /** The isda.previewDateSeparator setting value as a separator character,
+   *  or null when it is unset or unusable. Accepts the five characters and
+   *  the word "blank" (a settings enum cannot show a lone space). */
+  function normalizeSeparatorSetting(value) {
+    if (value == null) return null;
+    var v = String(value);
+    if (v.trim().toLowerCase() === 'blank') return ' ';
+    if (v === ' ') return ' ';
+    v = v.trim();
+    if (v === '') return null;
+    v = v.charAt(0);
+    return JOB_DATE_SEPARATORS.indexOf(v) >= 0 ? v : null;
+  }
+  /**
+   * Which date separator the Y / W edit-code preview uses, and where it came
+   * from (Task E9b): the connected job's DATSEP first, then the
+   * isda.previewDateSeparator setting (the offline fallback), then the slash
+   * IBM documents as the default. Returns { separator, source } with source
+   * 'job', 'setting' or 'default'. The job is a proxy for the job the
+   * finished screen will run in (see jobDateFormat.js), not a guarantee.
+   */
+  function resolveDateSeparator(jobDate, settingValue) {
+    var jd = normalizeJobDate(jobDate);
+    if (jd) return { separator: jd.dateSeparator, source: 'job' };
+    var fromSetting = normalizeSeparatorSetting(settingValue);
+    if (fromSetting != null) return { separator: fromSetting, source: 'setting' };
+    return { separator: '/', source: 'default' };
+  }
+  /** The field-panel note for EDTCDE(Y) / EDTCDE(W): the separator in use
+   *  and its source. `resolved` is resolveDateSeparator's result. */
+  function dateSeparatorSourceNote(resolved) {
+    var r = resolved || { separator: '/', source: 'default' };
+    var shown = r.separator === ' ' ? 'blank' : "'" + r.separator + "'";
+    var from = r.source === 'job' ? "the connected job's DATSEP"
+      : r.source === 'setting' ? 'the isda.previewDateSeparator setting'
+      : 'the default (no IBM i connection and no setting)';
+    return 'Date separator in the preview: ' + shown + ' from ' + from +
+      ". It is a proxy for the job the screen will run in; the display width is the same for every separator.";
+  }
+
   /** The pattern for edit code `code` (Y or W, any case) on a field of
    *  `digits` digits, or null. */
   function dateEditCodePattern(code, digits, julian) {
@@ -4463,8 +4505,11 @@
     if (pattern) {
       var poured = pour(pattern);
       // EDTCDE(Y) on a DATE uses the job attribute DATSEP at run time (the
-      // slash is only the default); W always inserts slashes.
-      return (code === 'Y' && jobDate) ? poured.replace(/\//g, jobDate.dateSeparator) : poured;
+      // slash is only the default). The Reference says W inserts slashes;
+      // Task E9 (Manojkumar's decision) applies the same separator to W:
+      // `opts.dateSeparator` (resolveDateSeparator) or the job's DATSEP.
+      var sepChar = (o.dateSeparator != null && o.dateSeparator !== '') ? String(o.dateSeparator).charAt(0) : (jobDate ? jobDate.dateSeparator : null);
+      return ((code === 'Y' || code === 'W') && sepChar) ? poured.replace(/\//g, sepChar) : poured;
     }
     if (typeof o.editWordWidth === 'number' && o.editWordWidth > 0) return digitText;
     if (name === 'TIME' && code === '') {
@@ -6898,6 +6943,9 @@
     JOB_DATE_FORMATS: JOB_DATE_FORMATS,
     JOB_DATE_SEPARATORS: JOB_DATE_SEPARATORS,
     dateEditCodePattern: dateEditCodePattern,
+    normalizeSeparatorSetting: normalizeSeparatorSetting,
+    resolveDateSeparator: resolveDateSeparator,
+    dateSeparatorSourceNote: dateSeparatorSourceNote,
     dateEditCodeWidth: dateEditCodeWidth,
     msgconLengthRange: msgconLengthRange,
     msgconParameterShape: msgconParameterShape,
