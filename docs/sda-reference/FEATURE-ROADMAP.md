@@ -791,8 +791,25 @@ four-core runner; it is **not** a comparison with the sandbox control (1,831 s o
 (Actions, "Tests", Run workflow with "control" ticked) now times the old way on the same kind of runner; the quotient of its
 wall time and the slowest shard job is the number target 2 asks for. The local full suite on v0.12.1: 324 files, 21,438 checks, 0 failed, 994 s.
 
-**What is left open.** (a) The four-core wall time, from CI or a multi-core machine. (b) A repeated pair, preferably with the
-control second, to see whether target 1 is 22% or 26% in practice. (c) Targets 1-3: confirmed as written (no change).
+**Repeat, new default on both sides of the control (same sandbox, same day).** Order: new default, then the old way, then new
+default again (a first attempt at the control died when the sandbox session was reset and was started again, so the first
+new-default run and the control are about 40 minutes apart; the second new-default run follows the control directly). 324 files,
+21,438 checks, 0 failed in all three runs, and every file has the same check count in all three.
+
+| | Wall time | Reduction vs control | Sum of per-file seconds | Reduction vs control |
+|---|---|---|---|---|
+| Control (`ISDA_NO_PAGE_REUSE=1 ... --isolate --jobs 1`) | 1,393.8 s | - | 1,395 s | - |
+| New default, before the control | 1,083.2 s | 22.3% | 1,035 s | 25.8% |
+| New default, after the control | 1,044.1 s | 25.1% | 1,001 s | 28.2% |
+
+**Verdict on target 1 (CPU work at least 25% below the control), from all three paired comparisons.** *By the sum of per-file
+seconds*, the measure of the E7a baseline: met each time (25.9%, 25.8%, 28.2%). *By wall time on one core*, which also counts
+starting and replacing workers: 21.9%, 22.3% and 25.1%, so it clears 25% in one of three and averages 23%. The same old-way
+command took 1,831 s in the first session and 1,394 s in the second, a 31% swing with no code change, which is why only paired
+runs mean anything; with that noise, "about 22-28% depending on how it is counted" is what the data supports, and "at least 25%"
+holds for per-file seconds but not reliably for wall time. If the target is read as wall time, it is not met on one core.
+
+**What is left open.** (a) The four-core wall time, from CI or a multi-core machine. (b) ~~A repeated pair~~ done above. (c) Targets 1-3: confirmed as written (no change).
 
 ---
 
