@@ -70,6 +70,7 @@ async function main() {
   r = await run(w, 'catchOverrides.js');
   check('the first process.exit wins over an exit(1) in the file\'s own catch', r.exitCode === 0);
   check('and the checks it printed are kept', /ok {2}- ran/.test(r.out));
+  check('the worker\'s own exit signal is not printed by that catch (no stray "ExitSignal" line)', !/ExitSignal/.test(r.out));
 
   r = await run(w, 'throws.js');
   check('an error thrown at top level is exit 1', r.exitCode === 1);

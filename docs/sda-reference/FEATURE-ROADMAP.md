@@ -47,7 +47,7 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-1 of 10 epics done (E7); 13 sub-tasks done (E7a - E7m). Current version: **v0.12.2**.
+1 of 10 epics done (E7); 13 sub-tasks done (E7a - E7m). Current version: **v0.12.3**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
@@ -827,8 +827,9 @@ Same check count, and the earlier runs on the same code were green, so it is a t
 
 **What is left open.** (a) ~~The four-core wall time~~ done above (target 2 met). (b) ~~A repeated pair~~ done above. (c) Targets
 1-3 were confirmed as written. Target 1 reads as met by per-file seconds (25.8-28.2%) and not reliably by wall time on one core;
-Manojkumar accepted the per-file reading on 2026-10-11, so the E7 epic is Done (v0.12.2). (d) `parity.js --jobs` on the whole suite, and the stray
-`ExitSignal { code: 0 }` line the runner prints after some files (older than E7m), are not done.
+Manojkumar accepted the per-file reading on 2026-10-11, so the E7 epic is Done (v0.12.2). (d) Both loose ends are closed in v0.12.3: `parity.js --jobs 3` on the whole suite (324 files, isolated pool against shared pool)
+agreed on every file, and the stray `ExitSignal { code: 0 }` line (11 files that end with `process.exit` in an async `main()` and a
+`.catch` that prints the error) is dropped by the worker's output capture; it was cosmetic, the exit codes were right.
 
 ---
 

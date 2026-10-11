@@ -79,7 +79,11 @@ function install(state) {
     throw new ExitSignal(state.code);
   };
   const capture = (chunk, enc, cb) => {
-    state.write(typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('utf8'));
+    const text = typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('utf8');
+    // A file that ends with `process.exit(n)` inside an async main() and has `main().catch((e) => { console.error(e); ... })`
+    // prints the shim's own ExitSignal here (the exit(1) in that catch is ignored: the first exit won). That line is the
+    // worker's, not the test's, so it is not part of the file's output; it never appears in a process of its own.
+    state.write(text.replace(/^ExitSignal \{ code: -?\d+ \}\n/gm, ''));
     const done = typeof enc === 'function' ? enc : cb;
     if (typeof done === 'function') done();
     return true;
