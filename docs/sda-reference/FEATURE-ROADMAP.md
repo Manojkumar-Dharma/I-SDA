@@ -978,11 +978,68 @@ the reference requires; the limitation entry is rewritten.
 
 | ID | Sub-task and scope | Depends on | Status | Version |
 |----|--------------------|------------|--------|---------|
-| E10a | **Audit and scope.** What `CHCCTL` and `SFLCHCCTL` already have (spec entries, panel rows, guards such as the I-171 family) vs what the reference requires; pin down the gap named in the box above; list what each state looks like with and without `CHCAVAIL` / `CHCUNAVAIL` / `CHCSLT`; note that the cursor-restriction values only apply to an enhanced-interface controller. | - | In progress | — |
+| E10a | **Audit and scope.** What `CHCCTL` and `SFLCHCCTL` already have (spec entries, panel rows, guards such as the I-171 family) vs what the reference requires; pin down the gap named in the box above; list what each state looks like with and without `CHCAVAIL` / `CHCUNAVAIL` / `CHCSLT`; note that the cursor-restriction values only apply to an enhanced-interface controller. | - | Done (no code change) | — |
 | E10b | **Panel and guards.** A `CHCCTL` row (choice number plus `&field`) on choice fields, with the field-existence and type checks the reference requires, for both the panel and the raw editor. | E10a | Open | - |
 | E10c | **Preview.** Render a choice in the state given by its control field's value from the E3f store; default state when no value is set; unit tests for `0` - `4`. | E10a, E3f | Open | - |
 | E10d | **`SFLCHCCTL`.** The same for subfile choice lists (`SFLSNGCHC` / `SFLMLTCHC`), including the structural requirements already in the spec. | E10c | Open | - |
 | E10e | **Release** (next free minor); rewrite the `CHCCTL` entry in `LIMITATIONS-PLAN.md`. | E10a - E10d | Open | - |
+
+
+### E10a results
+
+**E10a (audit and scope, no code change).** Read against `DDS_Keyword_V7r6.txt` (`CHCCTL` ~line 2833,
+`SFLCHCCTL` ~line 10566, Tables 3 and 11, which print the same 0 - 4 value table).
+
+**What already exists.**
+
+| Area | `CHCCTL` (selection field, push-button field) | `SFLCHCCTL` (subfile record) |
+|------|-----------------------------------------------|------------------------------|
+| Spec | `RECORD_TYPES.CHCCTL`: choice 1 - 99, control field Y / 1 / 0 / `H` in the same record, message shapes, `CHOICE`/`PSHBTNCHC` companion, option indicators not valid; `CHOICE_CONTROL_VALUES` | `RECORD_TYPES.SFLCHCCTL`: first field, one per record, Y / 1 / 0 / `H`, `SFLNXTCHG` mutex; same `CHOICE_CONTROL_VALUES` |
+| Panel | Per-choice text input for the control field plus message id / file / library on selection fields (`choiceKeywordRowHtml`); a separate `CHCCTL` editor on push-button fields | A checkbox on the field (`subfileFieldKeywordsHtml`) that sets Y / 1 / 0 / `H` when turned on |
+| Guards | I-171 (control-field type, matching `CHOICE` / `PSHBTNCHC`), I-183 (number range, message-field shapes) | I-79 (shape, first field, one per record), I-86 (`SFLNXTCHG`), I-87 (reorder) |
+| Preview | none | none |
+
+**The gap.** The designer already lets you write and validate both keywords. What is missing is the *preview
+state*: the preview draws a single-choice list with its first choice marked and a multiple-choice list with every
+box empty, a push button always the same way, whatever the control value would be. `CHCAVAIL`, `CHCUNAVAIL` and
+`CHCSLT` also have editors (I-65) but nothing in the preview applies their colours; `dspfEngine.js` never reads
+them. So E10c is two jobs, not one: (1) draw a choice in the selected / unavailable state at all, and (2) apply the
+state keywords to it. `LIMITATIONS-PLAN.md` ("no visual representation") is accurate for that reason.
+
+**What each control value should look like** (reference text, applies to both keywords):
+
+| Value | On output | Preview |
+|-------|-----------|---------|
+| 0 | available | normal; `CHCAVAIL` colour / attributes if present |
+| 1 | selected | selected glyph; `CHCSLT` where the reference allows it (menu bar, or `PULLDOWN(*NOSLTIND)` selection field, or a subfile list) |
+| 2, 3, 4 | unavailable | `CHCUNAVAIL` (default blue on a selection field; on monochrome the first character is overwritten with `*`); 2 / 3 / 4 differ only in cursor restriction |
+
+The cursor restrictions (2 and 4) apply only on a controller with the enhanced interface, and the preview has no
+cursor model, so 2, 3 and 4 render identically; the panel should say so. On input, 0 means unselected.
+
+**Reading of "the missing field-level indicator for `CHCCTL`".** Not a missing option indicator: the reference says
+option indicators are *not valid* for `CHCCTL` and `SFLCHCCTL`, and the spec already enforces that. The closest
+real gaps, in the order I would pick them:
+
+1. **A design-time value for the control field** that sets the preview state (the E3f store). This is the only
+   one that gives the designer something visible, and it is what the epic's goal describes.
+2. A **per-choice state toggle in the preview** (a quick "show unavailable" switch), if E3f is not wanted for this.
+3. A guard gap: a `CHCCTL` naming a control field that is not defined yet is accepted as a forward reference
+   (pinned by the I-171 and I-183 tests), so a typo is never reported. A file-level "control field not defined in
+   this record" advisory would close it without refusing forward references while typing.
+
+**Scope changes for the other sub-tasks.**
+
+- **E10b** is smaller than written: the `CHCCTL` panel row, the field-existence-free type check and the raw-editor
+  guards are already there. What remains is gap 3 (advisory) and, if wanted, one control-value help line.
+- **E10c** is the main work and is blocked on E3f (still Open, itself waiting on the E3c storage decision). It
+  should be split in two: the unavailable / selected drawing with `CHCAVAIL` / `CHCUNAVAIL` / `CHCSLT` applied
+  (needs no store, can use a fixed default), then the store-driven value.
+- **E10d** (`SFLCHCCTL`) only needs the subfile list drawing to take a per-record control value; the subfile
+  preview repeats the record, so it also needs a decision on whether one value applies to every row or one per row.
+
+**Open question 3 is answered by this reading, but still needs Manojkumar's confirmation** before E10b - E10d are
+scoped: is gap 1 (design-time control value) what was meant?
 
 ---
 
