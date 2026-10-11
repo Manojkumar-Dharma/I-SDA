@@ -47,7 +47,7 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-0 of 10 epics done; 13 sub-tasks done (E7a - E7m, every sub-task of E7; the E7 epic row stays In progress until the target 1 reading in [E7f results](#e7f-results) is settled). Current version: **v0.12.1**.
+1 of 10 epics done (E7); 13 sub-tasks done (E7a - E7m). Current version: **v0.12.2**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
@@ -57,7 +57,7 @@ never in columns 1-80 or the tag area.
 | [E4](#e4) | Message-file integration (`MSGID` / `ERRMSGID` / `CHKMSGID` / `SFLMSGID`) | E4a - E4g | E3f (soft) | Open | - |
 | [E5](#e5) | Preview export (PNG / SVG / HTML / text) | E5a - E5g | E3 (soft, for indicator state) | Open | - |
 | [E6](#e6) | Menu designer: command keys and `TYPE(*UIM)` | E6a - E6h | E2 (soft, for compile errors) | Open | - |
-| [E7](#e7) | Faster test suite | E7a - E7m | - | In progress | - |
+| [E7](#e7) | Faster test suite | E7a - E7m | - | Done | v0.12.2 |
 | [E8](#e8) | `WINDOW(*DFT)` and runtime-valued window parameters | E8a - E8f | E3f | Open | - |
 | [E9](#e9) | `EDTCDE(Y/W)` separator width | E9a - E9e | - | Open | - |
 | [E10](#e10) | `CHCCTL` / `SFLCHCCTL` choice control values | E10a - E10e | E3f | Open | - |
@@ -826,8 +826,8 @@ asserts what is guaranteed (all six files reported, by exactly three processes);
 Same check count, and the earlier runs on the same code were green, so it is a timing flake, not a pool bug.
 
 **What is left open.** (a) ~~The four-core wall time~~ done above (target 2 met). (b) ~~A repeated pair~~ done above. (c) Targets
-1-3 were confirmed as written. Target 1 reads as met by per-file seconds and not reliably by wall time on one core: the E7
-epic row can move to Done once that reading is accepted. (d) `parity.js --jobs` on the whole suite, and the stray
+1-3 were confirmed as written. Target 1 reads as met by per-file seconds (25.8-28.2%) and not reliably by wall time on one core;
+Manojkumar accepted the per-file reading on 2026-10-11, so the E7 epic is Done (v0.12.2). (d) `parity.js --jobs` on the whole suite, and the stray
 `ExitSignal { code: 0 }` line the runner prints after some files (older than E7m), are not done.
 
 ---
