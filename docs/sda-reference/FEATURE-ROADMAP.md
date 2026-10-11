@@ -978,7 +978,7 @@ the reference requires; the limitation entry is rewritten.
 
 | ID | Sub-task and scope | Depends on | Status | Version |
 |----|--------------------|------------|--------|---------|
-| E10a | **Audit and scope.** What `CHCCTL` and `SFLCHCCTL` already have (spec entries, panel rows, guards such as the I-171 family) vs what the reference requires; pin down the gap named in the box above; list what each state looks like with and without `CHCAVAIL` / `CHCUNAVAIL` / `CHCSLT`; note that the cursor-restriction values only apply to an enhanced-interface controller. | - | Open | - |
+| E10a | **Audit and scope.** What `CHCCTL` and `SFLCHCCTL` already have (spec entries, panel rows, guards such as the I-171 family) vs what the reference requires; pin down the gap named in the box above; list what each state looks like with and without `CHCAVAIL` / `CHCUNAVAIL` / `CHCSLT`; note that the cursor-restriction values only apply to an enhanced-interface controller. | - | In progress | — |
 | E10b | **Panel and guards.** A `CHCCTL` row (choice number plus `&field`) on choice fields, with the field-existence and type checks the reference requires, for both the panel and the raw editor. | E10a | Open | - |
 | E10c | **Preview.** Render a choice in the state given by its control field's value from the E3f store; default state when no value is set; unit tests for `0` - `4`. | E10a, E3f | Open | - |
 | E10d | **`SFLCHCCTL`.** The same for subfile choice lists (`SFLSNGCHC` / `SFLMLTCHC`), including the structural requirements already in the spec. | E10c | Open | - |
