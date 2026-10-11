@@ -47,7 +47,7 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-0 of 10 epics done; 7 sub-tasks done (E7a, E7c, E7g, E7i, E7j, E7k, E7l). Current version: **v0.11.4**.
+0 of 10 epics done; 12 sub-tasks done (E7a, E7b, E7c, E7d, E7g, E7h, E7i, E7j, E7k, E7l, E7m; E7e shipped in part). Current version: **v0.11.9**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
@@ -255,7 +255,7 @@ and after are identical; a quick tier exists for the edit loop; a CI workflow ru
 | E7j | **Parity check and opt-out marker.** `// @isda-test: isolate` in a test file's first lines keeps that file in its own process in shared mode. A script (`npm run test:parity`) runs both modes and fails if any file's ok count, failed count or exit code differs; used by CI and by hand before the reset list changes. Results: [E7j results](#e7j-results). | E7i | Done | v0.11.2 |
 | E7k | **Worker recycling.** Replace a shared worker with a fresh one after 60 files or when its resident memory (measured after a garbage collection) reaches 1,536 MB, both configurable (`--recycle-files`, `--recycle-mb`, 0 = off); keep per-file output ordering; a worker that dies fails only its current file and the run goes on with a new one. Results: [E7k results](#e7k-results). The pool scheduling that was part of this row's first wording moved to E7m, because it needs E7b. | E7i | Done | v0.11.3 |
 | E7l | **Make shared mode the default.** After E7j's parity run is clean on the full suite: `--shared` becomes the default and `--isolate` the escape hatch; update the `run.js` header, `README.md` and `ways-of-working` notes; record the A/B against a same-session control run. Results: [E7l results](#e7l-results). | E7j, E7k | Done | v0.11.4 |
-| E7m | **Pool integration.** Make the E7b `--jobs` pool schedule files onto shared workers (each worker recycled by E7k's rules), keeping per-file output ordering, the `--isolate` / marker behaviour and the parity guarantee from E7j. | E7b, E7k | Open | - |
+| E7m | **Pool integration.** Make the E7b `--jobs` pool schedule files onto shared workers (each worker recycled by E7k's rules), keeping per-file output ordering, the `--isolate` / marker behaviour and the parity guarantee from E7j. Results: [E7m results](#e7m-results). | E7b, E7k | Done | v0.11.9 |
 
 
 ### E7a baseline results
@@ -636,8 +636,8 @@ at the end of the run. An audit of `src/test` found no test that writes a fixed 
 new fixture files write the same temp name on purpose, and three of four overwrite each other's file when run at
 once without the private directory.
 
-**Scope.** The pool applies to the process-per-file path. The default shared mode still runs one worker, so `--jobs`
-has no effect there and says so; scheduling files onto several shared workers is E7m.
+**Scope.** The pool applied to the process-per-file path only; shared mode took the same flag in E7m
+([E7m results](#e7m-results)).
 
 **Checks.** `e7bParallelRunner.test.js` (13 checks): 1 job against 4 on four 0.8 s files (output identical apart
 from timings, 4 jobs clearly faster, private temp files), a failing file among passing ones in both modes,
@@ -743,6 +743,52 @@ default mode (`npm test`, after the flush fix): 323 files, 21,411 checks, 0 fail
 `main` after this release is the real test; check that the four `Suite, shard I/4` jobs and `Keyword index is up to date`
 go green, and that the repository allows Actions. The speed-up from four parallel jobs also needs that first run to be
 read off (the expected shape is a quarter of the suite per job plus install and compile time, not a measurement).
+
+---
+
+### E7m results
+
+**Shipped as v0.11.9 (tests only).** `node src/test/run.js --jobs N` now also works in the default shared mode: up to N
+shared workers run at once, one per pool slot, and files are handed to whichever slot is free, in file order. `--isolate
+--jobs N` is as in E7b; `--jobs 1` (the default on a one-core machine) is the single worker as before.
+
+**Behaviour.**
+- *Slots.* Each slot owns at most one worker, started when the slot first gets a file. E7k's recycling is per worker: a
+  slot's worker is replaced after 60 of *its own* files or when *its* memory reaches 1,536 MB (`--recycle-files`,
+  `--recycle-mb` as before), and a worker that dies fails only the file it was running; the slot starts a new one for its next file.
+- *Isolate marker.* A file with `// @isda-test: isolate` takes a pool slot like any other file and runs in a process of its own.
+- *Temp directories.* With more than one job each slot's worker is started with its own `TMPDIR`/`TMP`/`TEMP` (the same
+  private directory the isolated pool gives its processes, removed at the end), so two files that write a fixed name in the
+  temp directory cannot meet. The worker resets `process.env` between files to what it started with, so the private
+  directory survives the reset.
+- *Output.* Unchanged from E7b: a file's block is printed when it and every file before it have finished, so blocks are
+  whole and in file order. The summary adds `Jobs: N files at once, on shared workers (one per slot)`; the `Shared workers:` line
+  now counts all slots, and the marker list is sorted by file name because marked files finish out of order.
+- *The old note is gone.* Shared mode used to print that `--jobs` had no effect; it now does something.
+
+**Memory.** N workers hold N times a worker's memory, up to N x 1,536 MB before the recycle limit replaces them. On a
+machine with little memory, lower `--recycle-mb` or `--jobs`.
+
+**Checks.** `e7mPoolIntegration.test.js` (25 checks; a barrier fixture proves the overlap on one core): six files on
+one worker against three (a barrier of three files that wait for each other proves they run at once; same report apart from pids and timings, blocks in order, private
+temp directories); recycling per worker (1-file and 2-file limits, a 1 MB memory limit); the isolate marker (listed, own
+pid, took a slot, report equals the one-job run); a SIGKILLed worker (only that file fails, the other slot's files still
+pass, the crash is counted, the run goes on); a failing file; `--isolate --jobs` unchanged. Five deliberate breakages were
+each caught: every file on slot 0, no private `TMPDIR` for the workers, the file counter never reset, the marker ignored (these four
+as failing checks) and a dead worker left in its slot (caught as a hang that the test's timeout ends). E7b's test was updated:
+its shared-mode check now uses `--jobs 1`, since `--jobs 4` is no longer a no-op.
+
+**Full-suite result and parity.** Full suite through the pool (`--jobs 3`, one shared core): the run was cut short at 316 of 324 files (sandbox
+restart, no summary). Every reported file passed except one check in the new test's first version (a wall-clock comparison that
+a loaded machine can fail; replaced by the barrier fixture, see above). The eight files that had not reported and the
+edited `e7mPoolIntegration.test.js` (25 checks) ran afterwards through the pool: 12 files, 273 checks, 0 failed, exit 0.
+No total check count is claimed for the interrupted run. `parity.js --jobs` was not run on the whole suite. The runner prints a
+stray `ExitSignal { code: 0 }` line after some files; it appears the same way without this change (seen on `e7iSharedWorker`
+before and after), so it is left for a separate task.
+
+**What this does not show.** The machine has one core, so the pool gives no speed-up on the real suite; the speed claim for
+E7m, like E7b's, still needs a timed A/B (`--jobs 1` against `--jobs N`) on a multi-core machine, and that is the number E7f
+should record.
 
 ---
 

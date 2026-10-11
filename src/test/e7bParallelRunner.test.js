@@ -49,8 +49,8 @@ let r = runner(['--isolate', '--jobs', '0', '--dir', fx('runner-jobs')]);
 check('--jobs 0 is refused with exit 2', r.status === 2 && /--jobs needs a whole number of at least 1/.test(r.out));
 r = runner(['--isolate', '--jobs', 'many', '--dir', fx('runner-jobs')]);
 check('--jobs with a word is refused with exit 2', r.status === 2);
-r = runner(['--shared', '--jobs', '4', '--dir', fx('runner-recycle')]);
-check('shared mode runs as before and says --jobs has no effect', r.status === 0 && /--jobs 4 has no effect in shared mode/.test(r.out) && /Shared workers: 1 started/.test(r.out) && !/^Jobs:/m.test(r.out));
+r = runner(['--shared', '--jobs', '1', '--dir', fx('runner-recycle')]);
+check('shared mode with one job runs as before: one worker, no jobs line (the pool in shared mode is E7m)', r.status === 0 && /Shared workers: 1 started/.test(r.out) && !/^Jobs:/m.test(r.out) && !/no effect/.test(r.out));
 
 console.log(failureCount() === 0 ? '\nALL CHECKS PASSED' : '\n' + failureCount() + ' CHECK(S) FAILED');
 process.exit(failureCount() === 0 ? 0 : 1);

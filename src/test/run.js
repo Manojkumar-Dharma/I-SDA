@@ -31,8 +31,10 @@
  *   node src/test/run.js --isolate --jobs N   run up to N files at once, each in a process of its own (E7b); the default
  *                                         is the number of cores minus one (at least 1), --jobs 1 is the sequential run. Each
  *                                         file's output still appears as one block, in file order; each slot gets its own
- *                                         temp directory (TMPDIR). Shared mode keeps one worker until the pool is integrated
- *                                         with it (E7m), so --jobs has no effect there.
+ *                                         temp directory (TMPDIR).
+ *   node src/test/run.js --jobs N         the same pool in shared mode (E7m): up to N shared workers, each recycled by its own
+ *                                         file count and memory; files are handed to whichever worker is free, in file order.
+ *                                         A file with the isolate marker takes a pool slot and runs in a process of its own.
  *
  * A file whose first lines contain `// @isda-test: isolate` always gets a process of its own (E7j).
  * `npm run test:parity` (src/test/parity.js) runs the suite both ways and reports any file whose result differs;
@@ -131,18 +133,23 @@ const root = path.join(__dirname, '..', '..');
 // directory of its own (TMPDIR/TMP/TEMP), so two files that write a fixed name in the temp directory cannot
 // meet; with one job the child's environment is left exactly as it was.
 let tmpRoot = null;
+// The environment for a child that runs in pool slot `slot`: with more than one job its own temp directory.
+function slotEnv(slot) {
+  const env = Object.assign({}, process.env);
+  if (jobs > 1) {
+    if (!tmpRoot) tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'isda-jobs-' + process.pid + '-'));
+    const slotTmp = path.join(tmpRoot, String(slot));
+    fs.mkdirSync(slotTmp, { recursive: true });
+    env.TMPDIR = slotTmp; env.TMP = slotTmp; env.TEMP = slotTmp;
+  }
+  return env;
+}
 function runIsolated(f, slot) {
   return new Promise((resolve) => {
     const t0 = Date.now();
     const outFile = path.join(os.tmpdir(), 'isda-test-' + process.pid + '-' + f + '.log');
     const fd = fs.openSync(outFile, 'w');
-    const env = Object.assign({}, process.env);
-    if (jobs > 1) {
-      if (!tmpRoot) tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'isda-jobs-' + process.pid + '-'));
-      const slotTmp = path.join(tmpRoot, String(slot));
-      fs.mkdirSync(slotTmp, { recursive: true });
-      env.TMPDIR = slotTmp; env.TMP = slotTmp; env.TEMP = slotTmp;
-    }
+    const env = slotEnv(slot);
     let settled = false;
     const finish = (code) => {
       if (settled) return;
@@ -170,48 +177,59 @@ function hasIsolateMarker(f) {
 
 // --shared: one long-lived worker (sharedWorker.js) runs the files in order. The worker writes each file's
 // output to a log file itself and only sends a small message over IPC, for the same reason as above.
-let worker = null;
-let workerFiles = 0; // files the current worker has run
+// E7m: one entry per pool slot. A slot's worker is replaced by E7k's rules independently of the others.
+const slotWorkers = []; // slot -> { worker, files }
+const workerStats = { started: 0, byFiles: 0, byMemory: 0, crashed: 0, peak: 0 };
 let nextId = 1;
-const workerStats = { started: 0, byFiles: 0, byMemory: 0, crashed: 0 };
 function stopWorker(w) {
   return new Promise((resolve) => { w.once('exit', resolve); w.send({ type: 'quit' }); });
 }
-function startWorker() {
+function startWorker(slot) {
   return new Promise((resolve, reject) => {
     // --expose-gc lets the worker collect garbage before it reports its memory, so the recycle limit sees real growth.
-    const w = fork(path.join(__dirname, 'sharedWorker.js'), [], { cwd: root, execArgv: ['--expose-gc'], stdio: ['ignore', 'inherit', 'inherit', 'ipc'] });
+    const w = fork(path.join(__dirname, 'sharedWorker.js'), [], { cwd: root, execArgv: ['--expose-gc'], env: slotEnv(slot), stdio: ['ignore', 'inherit', 'inherit', 'ipc'] });
     workerStats.started++;
-    workerFiles = 0;
     const onFirst = (m) => { if (m && m.type === 'ready') { w.removeListener('message', onFirst); resolve(w); } };
     w.on('message', onFirst);
     w.once('error', reject);
     w.once('exit', () => reject(new Error('shared worker exited before it was ready')));
   });
 }
-async function runShared(f) {
-  if (!worker) worker = await startWorker();
-  const w = worker;
+async function runShared(f, slot) {
+  const s = slotWorkers[slot] || (slotWorkers[slot] = { worker: null, files: 0 });
+  if (!s.worker) {
+    s.worker = await startWorker(slot);
+    s.files = 0;
+    workerStats.peak = Math.max(workerStats.peak, slotWorkers.filter((x) => x && x.worker).length);
+  }
+  const w = s.worker;
   const id = nextId++;
   const logPath = path.join(os.tmpdir(), 'isda-test-' + process.pid + '-' + f + '.log');
   const reply = await new Promise((resolve) => {
     const onMsg = (m) => { if (m && m.type === 'done' && m.id === id) { cleanup(); resolve(m); } };
-    const onExit = (code) => { cleanup(); worker = null; workerStats.crashed++; resolve({ crashed: true, exitCode: code === null ? -1 : code, secs: 0 }); };
+    const onExit = (code) => { cleanup(); s.worker = null; workerStats.crashed++; resolve({ crashed: true, exitCode: code === null ? -1 : code, secs: 0 }); };
     const cleanup = () => { w.removeListener('message', onMsg); w.removeListener('exit', onExit); };
     w.on('message', onMsg);
     w.once('exit', onExit);
     w.send({ type: 'run', id, file: path.join(dir, f), logPath });
   });
   if (!reply.crashed) {
-    workerFiles++;
+    s.files++;
     // E7k: a long-lived worker slowly keeps pages and windows alive, so it is replaced by a fresh one.
-    if (recycleFiles > 0 && workerFiles >= recycleFiles) { workerStats.byFiles++; await stopWorker(w); worker = null; }
-    else if (recycleMb > 0 && reply.rssMb >= recycleMb) { workerStats.byMemory++; await stopWorker(w); worker = null; }
+    if (recycleFiles > 0 && s.files >= recycleFiles) { workerStats.byFiles++; s.worker = null; await stopWorker(w); }
+    else if (recycleMb > 0 && reply.rssMb >= recycleMb) { workerStats.byMemory++; s.worker = null; await stopWorker(w); }
   }
   let out = '';
   try { out = fs.readFileSync(logPath, 'utf8'); fs.unlinkSync(logPath); } catch (e) { /* no log when the worker died */ }
   if (reply.crashed) out += '\nshared worker died while running this file (exit ' + reply.exitCode + ')\n';
   return { out, exitCode: reply.exitCode, secs: reply.secs };
+}
+
+// One file in pool slot `slot`: a shared worker, or a process of its own (--isolate, or the isolate marker).
+function runInSlot(f, slot) {
+  if (shared && hasIsolateMarker(f)) isolatedByMarker.push(f);
+  else if (shared) return runShared(f, slot);
+  return runIsolated(f, slot);
 }
 
 // Prints one file's block and records its result. The header is printed by the caller.
@@ -244,33 +262,28 @@ async function runPool() {
   await Promise.all(Array.from({ length: slots }, async (_, slot) => {
     while (next < files.length) {
       const i = next++;
-      const r = await runIsolated(files[i], slot);
+      const r = await runInSlot(files[i], slot);
       finished[i] = r;
       flush();
     }
   }));
-  if (tmpRoot) fs.rmSync(tmpRoot, { recursive: true, force: true });
+}
+
+async function stopWorkers() {
+  await Promise.all(slotWorkers.filter((x) => x && x.worker).map((x) => { const w = x.worker; x.worker = null; return stopWorker(w); }));
 }
 
 async function main() {
-  if (!shared && jobs > 1) {
+  if (jobs > 1) {
     await runPool();
-    summary();
-    return;
+  } else {
+    for (const f of files) {
+      console.log('\n=== ' + f + ' ===');
+      report(f, await runInSlot(f, 0));
+    }
   }
-  if (shared && jobsGiven && jobs > 1) {
-    console.error('note: --jobs ' + jobs + ' has no effect in shared mode (one worker, E7m adds the pool); use --isolate --jobs ' + jobs + ' to run files in parallel');
-  }
-  for (const f of files) {
-    console.log('\n=== ' + f + ' ===');
-    let useWorker = shared;
-    if (shared && hasIsolateMarker(f)) { useWorker = false; isolatedByMarker.push(f); }
-    report(f, await (useWorker ? runShared(f) : runIsolated(f, 0)));
-  }
-  if (worker) {
-    const w = worker;
-    await stopWorker(w);
-  }
+  await stopWorkers();
+  if (tmpRoot) fs.rmSync(tmpRoot, { recursive: true, force: true });
   summary();
 }
 
@@ -292,12 +305,12 @@ function summary() {
   console.log('\n' + '-'.repeat(60));
   console.log('Files: ' + results.length + '   checks passed: ' + totalOk + '   checks failed: ' + totalFail);
   console.log('Wall time: ' + totalSecs.toFixed(1) + ' s');
-  if (!shared && jobs > 1) console.log('Jobs: ' + jobs + ' files at once, one process each');
+  if (jobs > 1) console.log('Jobs: ' + jobs + ' files at once, ' + (shared ? 'on shared workers (one per slot)' : 'one process each'));
   if (shared) {
     console.log('Shared workers: ' + workerStats.started + ' started (replaced: ' + workerStats.byFiles + ' after ' + recycleFiles
       + ' files, ' + workerStats.byMemory + ' at ' + recycleMb + ' MB, ' + workerStats.crashed + ' after a crash)');
   }
-  if (shared && isolatedByMarker.length > 0) console.log('Run in their own process by marker: ' + isolatedByMarker.join(', '));
+  if (shared && isolatedByMarker.length > 0) console.log('Run in their own process by marker: ' + isolatedByMarker.sort().join(', '));
   if (slowCount > 0) {
     const slow = results.slice().sort((a, b) => b.secs - a.secs).slice(0, slowCount);
     console.log('Slowest: ' + slow.map((r) => r.file + ' ' + r.secs.toFixed(1) + 's').join(', '));
