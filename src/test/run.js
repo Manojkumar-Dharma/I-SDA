@@ -29,7 +29,8 @@
  *                                         runner's own tests and by parity.js)
  *   node src/test/run.js --shared         the default since E7l (accepted so older command lines keep working)
  *   node src/test/run.js --isolate --jobs N   run up to N files at once, each in a process of its own (E7b); the default
- *                                         is the number of cores minus one (at least 1), --jobs 1 is the sequential run. Each
+ *                                         is the number of cores minus one (at least 1) or the environment variable ISDA_JOBS,
+ *                                         --jobs 1 is the sequential run. Each
  *                                         file's output still appears as one block, in file order; each slot gets its own
  *                                         temp directory (TMPDIR).
  *   node src/test/run.js --jobs N         the same pool in shared mode (E7m): up to N shared workers, each recycled by its own
@@ -55,7 +56,14 @@ let listOnly = false;
 let shared = true; // E7l: the shared worker is the default; --isolate turns it off
 let recycleFiles = 60;
 let recycleMb = 1536;
-let jobs = Math.max(1, os.cpus().length - 1); // E7b
+// E7b. The default is cores minus one; ISDA_JOBS=N overrides it (the runner tests set ISDA_JOBS=1 so that what they expect
+// of a nested run does not depend on the machine they run on - on a four-core CI runner the default is 3).
+let jobs = Math.max(1, os.cpus().length - 1);
+if (process.env.ISDA_JOBS !== undefined && process.env.ISDA_JOBS !== '') {
+  const n = Number(process.env.ISDA_JOBS);
+  if (!Number.isInteger(n) || n < 1) { console.error('ISDA_JOBS needs a whole number of at least 1'); process.exit(2); }
+  jobs = n;
+}
 let jobsGiven = false;
 let shardI = 0; // E7e: 0 = no sharding
 let shardN = 0;

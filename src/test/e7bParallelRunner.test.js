@@ -52,5 +52,15 @@ check('--jobs with a word is refused with exit 2', r.status === 2);
 r = runner(['--shared', '--jobs', '1', '--dir', fx('runner-recycle')]);
 check('shared mode with one job runs as before: one worker, no jobs line (the pool in shared mode is E7m)', r.status === 0 && /Shared workers: 1 started/.test(r.out) && !/^Jobs:/m.test(r.out) && !/no effect/.test(r.out));
 
+// 4. ISDA_JOBS sets the default job count (the runner tests use it to stay independent of the machine's core count).
+function runnerEnv(args, env) {
+  const r = spawnSync(process.execPath, [path.join(__dirname, 'run.js'), ...args], { cwd: root, encoding: 'utf8', env: Object.assign({}, process.env, env) });
+  return { out: (r.stdout || '') + (r.stderr || ''), status: r.status };
+}
+r = runnerEnv(['--isolate', '--dir', fx('runner-jobs-fail')], { ISDA_JOBS: '2' });
+check('ISDA_JOBS=2 is the default job count (and --jobs still wins over it)', /^Jobs: 2 files at once/m.test(r.out) && /^Jobs: 3 files at once/m.test(runnerEnv(['--isolate', '--jobs', '3', '--dir', fx('runner-jobs-fail')], { ISDA_JOBS: '2' }).out));
+r = runnerEnv(['--isolate', '--dir', fx('runner-jobs')], { ISDA_JOBS: '0' });
+check('ISDA_JOBS=0 is refused with exit 2', r.status === 2 && /ISDA_JOBS needs a whole number/.test(r.out));
+
 console.log(failureCount() === 0 ? '\nALL CHECKS PASSED' : '\n' + failureCount() + ' CHECK(S) FAILED');
 process.exit(failureCount() === 0 ? 0 : 1);

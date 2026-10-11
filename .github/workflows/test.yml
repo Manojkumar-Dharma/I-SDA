@@ -46,7 +46,14 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run compile
-      - run: node src/test/run.js --shard ${{ matrix.shard }}
+      - name: Run shard ${{ matrix.shard }}
+        shell: bash
+        run: node src/test/run.js --shard ${{ matrix.shard }} 2>&1 | tee shard.log
+      # The job log is not readable from outside GitHub; annotations are, so say which files failed there too.
+      - name: Say which files failed
+        if: failure()
+        shell: bash
+        run: grep -E '^\*\*\* |^FAIL ' shard.log | head -30 | while IFS= read -r line; do echo "::error::${line}"; done
 
   parity:
     name: Shared worker and one process per file agree

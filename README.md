@@ -142,7 +142,7 @@ npm test          # pure-Node tests, no framework; UI tests run the real webview
   files join only when the webview code changed. `--explain` shows the selection without running it. It is for the
   edit loop and can miss a test: **run `npm test` before you push.** Timings come from `.isda-test-times.json`,
   refreshed by every full run (git-ignored).
-- `node src/test/run.js --isolate --jobs N` runs N files at once, each in its own process (E7b).
+- `node src/test/run.js --isolate --jobs N` runs N files at once, each in its own process (E7b). The default job count is the machine's cores minus one; `ISDA_JOBS=N` sets it.
 - `node src/test/run.js --jobs N` runs N files at once on N shared workers, each recycled on its own count and memory (E7m); with
   `--isolate` each file gets a process of its own instead. The default is the number of cores minus one; `--jobs 1` is one worker.
 - `node src/test/run.js --shard I/N` runs slice I of N (1-based) of the sorted test files, round-robin, so the N slices are

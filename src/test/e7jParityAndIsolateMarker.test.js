@@ -10,6 +10,8 @@
  * alone and fails behind the polluter in the shared worker) and one with it.
  */
 'use strict';
+// Nested runs use one job: their expectations (one worker, same pid, recycling after N files) are about a single worker, and the
+// runner's default job count is the machine's cores minus one (see ISDA_JOBS in run.js).
 
 const fs = require('fs');
 const os = require('os');
@@ -22,7 +24,7 @@ const fixtures = path.join(__dirname, 'fixtures', 'runner');
 const diffFixtures = path.join(__dirname, 'fixtures', 'runner-diff');
 
 function node(script, args, cwd) {
-  const r = spawnSync(process.execPath, [path.join(__dirname, script), ...args], { cwd: cwd || root, encoding: 'utf8' });
+  const r = spawnSync(process.execPath, [path.join(__dirname, script), ...args], { cwd: cwd || root, encoding: 'utf8', env: Object.assign({}, process.env, { ISDA_JOBS: '1' }) });
   return { out: (r.stdout || '') + (r.stderr || ''), status: r.status };
 }
 const lineFor = (out, name) => (out.match(new RegExp('^--- ' + name.replace(/\./g, '\\.') + ': .*$', 'm')) || [''])[0];

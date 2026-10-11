@@ -4,6 +4,8 @@
  * take the run with it. The fixtures print their process id, so a replacement shows as a different pid.
  */
 'use strict';
+// Nested runs use one job: their expectations (one worker, same pid, recycling after N files) are about a single worker, and the
+// runner's default job count is the machine's cores minus one (see ISDA_JOBS in run.js).
 
 const path = require('path');
 const { spawnSync } = require('child_process');
@@ -13,7 +15,7 @@ const root = path.join(__dirname, '..', '..');
 const fx = (name) => path.join(__dirname, 'fixtures', name);
 
 function runner(args) {
-  const r = spawnSync(process.execPath, [path.join(__dirname, 'run.js'), ...args], { cwd: root, encoding: 'utf8' });
+  const r = spawnSync(process.execPath, [path.join(__dirname, 'run.js'), ...args], { cwd: root, encoding: 'utf8', env: Object.assign({}, process.env, { ISDA_JOBS: '1' }) });
   const out = (r.stdout || '') + (r.stderr || '');
   const pids = Array.from(out.matchAll(/^ {2}ok {2}- pid:(\d+)$/gm)).map((m) => m[1]);
   const stats = (out.match(/^Shared workers: (\d+) started \(replaced: (\d+) after (\d+) files, (\d+) at (\d+) MB, (\d+) after a crash\)$/m) || []).slice(1).map(Number);
