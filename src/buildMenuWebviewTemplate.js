@@ -173,6 +173,8 @@ const htmlTemplate = `<!DOCTYPE html>
   .mod-tracking-row .compare-toggle { margin-top: 0; white-space: nowrap; }
   .mod-tracking-row input[type="text"] { flex: 1; min-width: 0; }
   .mod-tracking-row input[type="text"]:disabled { opacity: 0.5; }
+  .mod-tracking-seq-row { margin: -4px 0 12px; }
+  .mod-tracking-seq-row.hidden { display: none; }
   .compare-toggle { display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer; margin-top: 4px; color: var(--ink-dim); }
   .compare-toggle input { accent-color: var(--warn); }
   .options-hint { font-size: 11px; color: var(--ink-dim); line-height: 1.5; margin-bottom: 14px; }
@@ -409,7 +411,9 @@ const htmlTemplate = `<!DOCTYPE html>
   </div>
   <div class="mod-tracking-row">
     <label class="compare-toggle"><input type="checkbox" id="modTrackingToggle" /> Track modifications</label>
-    <input type="text" id="modTrackingTagInput" placeholder="Tag (10 chars)" maxlength="10" autocomplete="off" title="Written to columns 81-90 of every new/changed source line while tracking is on - past what the DDS compiler reads (or to columns 1-5, max 5 characters, when the columns 1-5 toggle is on). Session-only; doesn't change the isda.modificationTag setting." />
+    <input type="text" id="modTrackingTagInput" placeholder="Tag (10 chars)" maxlength="10" autocomplete="off" title="Written to columns 81-90 of every new/changed source line while tracking is on - past what the DDS compiler reads (or to columns 1-5, max 5 characters, when the columns 1-5 toggle below is on). Session-only; doesn't change the isda.modificationTag setting." />
+  </div>
+  <div class="mod-tracking-seq-row hidden" id="modTrackingSeqRow">
     <label class="compare-toggle"><input type="checkbox" id="modTrackingSeqToggle" /> Tag in columns 1-5</label>
   </div>
   <div class="options-hint">Each option's number, text, and command. Drag ⣿ to swap two options.</div>
@@ -553,12 +557,18 @@ const htmlTemplate = `<!DOCTYPE html>
   function syncKeepRemovedLines() {
     DspfWriter.setKeepRemovedLines(keepRemovedLinesSetting && !(modTrackingEnabled && modTrackingTag));
   }
+  // I-208 - the columns 1-5 toggle sits on its own line and shows only while tracking is on. Its
+  // checked state is kept while hidden, so switching tracking back on restores the position.
+  function syncModTrackingSeqRow() {
+    document.getElementById('modTrackingSeqRow').classList.toggle('hidden', !modTrackingEnabled);
+  }
   function applyModTrackingPositionUi() {
     const max = DspfWriter.modTagMaxLength(modTrackingPosition);
     modTrackingTag = DspfWriter.buildModTag(modTrackingTag, modTrackingPosition);
     modTrackingTagInput.maxLength = max;
     modTrackingTagInput.placeholder = 'Tag (' + max + ' chars)';
     modTrackingTagInput.value = modTrackingTag;
+    syncModTrackingSeqRow();
   }
   const cmdStatusEl = document.getElementById('cmdStatus');
   const addOptionNumInput = document.getElementById('addOptionNum');
@@ -608,6 +618,7 @@ const htmlTemplate = `<!DOCTYPE html>
     modTrackingEnabled = modTrackingToggle.checked;
     modTrackingSessionTouched = true;
     syncKeepRemovedLines();
+    syncModTrackingSeqRow();
   });
   modTrackingTagInput.addEventListener('input', () => {
     modTrackingTag = DspfWriter.buildModTag(modTrackingTagInput.value, modTrackingPosition);

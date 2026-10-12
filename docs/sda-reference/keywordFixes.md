@@ -64,7 +64,7 @@ Nothing else goes in the cell. What a task checked, how many tests it added and 
 
 ## Status at a glance
 
-234 of 235 tasks done; 1 open (see [Open work](#open-work)). Current version: **v0.11.0**.
+235 of 235 tasks done; 0 open (see [Open work](#open-work)). Current version: **v0.13.5**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -302,7 +302,7 @@ Nothing else goes in the cell. What a task checked, how many tests it added and 
 | [I-205](#i-205) | Tooling | Status table not formalised: free-text Status cells, Done rows with no Version, section status lines in many shapes, and nothing that checks them | I-198 | Done | v0.10.376 |
 | [I-206](#i-206) | Writer | Lines an edit leaves alone were rewritten: tags past column 80 and an `O` on a first condition were dropped | I-202 | Done | v0.10.377 |
 | [I-207](#i-207) | Writer | Lines an edit removes (keyword dropped, field or record deleted) vanished; new `isda.keepRemovedLines` keeps them as comments | I-206 | Done | v0.10.377 |
-| [I-208](#i-208) | Tracking | "Tag in columns 1-5" toggle crowds the tag box on the Track modifications row; it should sit on its own line and show only while tracking is on, in both designers | I-204 | In progress | — |
+| [I-208](#i-208) | Tracking | "Tag in columns 1-5" toggle crowds the tag box on the Track modifications row; it should sit on its own line and show only while tracking is on, in both designers | I-204 | Done | v0.13.5 |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -314,9 +314,7 @@ keyword index under `docs/sda-reference/keyword-index/`.
 
 Suggested pickup order - roughly smallest and safest first (a real bug with a proven fix shape ahead of spec-fact and tooling work); **not binding** (any task can be picked independently, and the sizes are estimates, not measurements).
 
-| Order | Task | Status | Notes |
-|-------|------|--------|-------|
-| 1 | [I-208](#i-208) | In progress | Small, two templates and one test. |
+No tasks are open.
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The headline there counts the same tasks, so when a task lands or opens, update this table, the headline count and the version together.
 
@@ -8652,8 +8650,12 @@ The second open point after I-202 - I-204: where an edit removes lines (a keywor
 
 ### I-208 — Move the "Tag in columns 1-5" toggle to its own line, shown only while tracking is on
 
-> **Area:** Tracking · **Status:** In progress · **Depends on:** I-204 · **Size (estimate):** Small
+> **Area:** Tracking · **Status:** Done (v0.13.5) · **Depends on:** I-204 · **Size (estimate):** Small
 
 The I-204 toggle shares one row with "Track modifications" and the tag box, which reduces the tag field's width. The toggle moves to a second line and is hidden whenever "Track modifications" is off, in both the display and the menu designer.
+
+**Done (v0.13.5).** In both designers the "Tag in columns 1-5" checkbox now has its own row (`#modTrackingSeqRow`) directly under the Track modifications row, so the tag box has the whole row again. The row is hidden (class `hidden`) while "Track modifications" is off and shown when it is on, whether the change comes from the checkbox, the host's `modTrackingConfig` start value or the display designer's `resetViewState`. The toggle's checked state and the 5-character limit are kept while it is hidden, so switching tracking back on restores the position. The written source is unchanged: tracking off still writes no tag.
+
+Tests: new `i208ModTagSeqRowWebview.test.js` (20 checks, both designers; fails against the old markup).
 
 *Raised by a request to fix the crowded tag row. Size (estimate): Small.*

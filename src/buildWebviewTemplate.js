@@ -579,6 +579,8 @@ const htmlTemplate = `<!DOCTYPE html>
   .mod-tracking-row .compare-toggle { margin-top: 0; white-space: nowrap; }
   .mod-tracking-row input[type="text"] { flex: 1; min-width: 0; }
   .mod-tracking-row input[type="text"]:disabled { opacity: 0.5; }
+  .mod-tracking-seq-row { margin: -4px 0 10px; }
+  .mod-tracking-seq-row.hidden { display: none; }
   .kw-jump-highlight { animation: kwJumpFlash 1.6s ease-out; }
   @keyframes kwJumpFlash {
     0% { background: rgba(var(--chrome-accent-rgb), 0.55); }
@@ -1068,7 +1070,9 @@ const htmlTemplate = `<!DOCTYPE html>
   </div>
   <div class="mod-tracking-row">
     <label class="compare-toggle"><input type="checkbox" id="modTrackingToggle" /> Track modifications</label>
-    <input type="text" id="modTrackingTagInput" placeholder="Tag (10 chars)" maxlength="10" autocomplete="off" title="Written to columns 81-90 of every new/changed source line while tracking is on - past what the DDS compiler reads (or to columns 1-5, max 5 characters, when the columns 1-5 toggle is on). Session-only; doesn't change the isda.modificationTag setting." />
+    <input type="text" id="modTrackingTagInput" placeholder="Tag (10 chars)" maxlength="10" autocomplete="off" title="Written to columns 81-90 of every new/changed source line while tracking is on - past what the DDS compiler reads (or to columns 1-5, max 5 characters, when the columns 1-5 toggle below is on). Session-only; doesn't change the isda.modificationTag setting." />
+  </div>
+  <div class="mod-tracking-seq-row hidden" id="modTrackingSeqRow">
     <label class="compare-toggle"><input type="checkbox" id="modTrackingSeqToggle" /> Tag in columns 1-5</label>
   </div>
   <div class="props-accordion-zone" id="propsAccordionZone">
@@ -1381,12 +1385,18 @@ const htmlTemplate = `<!DOCTYPE html>
   function syncKeepRemovedLines() {
     DspfWriter.setKeepRemovedLines(keepRemovedLinesSetting && !(modTrackingEnabled && modTrackingTag));
   }
+  // I-208 - the columns 1-5 toggle sits on its own line and shows only while tracking is on. Its
+  // checked state is kept while hidden, so switching tracking back on restores the position.
+  function syncModTrackingSeqRow() {
+    document.getElementById('modTrackingSeqRow').classList.toggle('hidden', !modTrackingEnabled);
+  }
   function applyModTrackingPositionUi() {
     const max = DspfWriter.modTagMaxLength(modTrackingPosition);
     modTrackingTag = DspfWriter.buildModTag(modTrackingTag, modTrackingPosition);
     modTrackingTagInput.maxLength = max;
     modTrackingTagInput.placeholder = 'Tag (' + max + ' chars)';
     modTrackingTagInput.value = modTrackingTag;
+    syncModTrackingSeqRow();
   }
   const crosshairV = document.getElementById('crosshairV');
   const crosshairH = document.getElementById('crosshairH');
@@ -2212,6 +2222,7 @@ const htmlTemplate = `<!DOCTYPE html>
     modTrackingEnabled = modTrackingToggle.checked;
     modTrackingSessionTouched = true;
     syncKeepRemovedLines();
+    syncModTrackingSeqRow();
   });
   modTrackingTagInput.addEventListener('input', () => {
     modTrackingTag = DspfWriter.buildModTag(modTrackingTagInput.value, modTrackingPosition);
@@ -7741,6 +7752,7 @@ const htmlTemplate = `<!DOCTYPE html>
     Array.from(document.querySelectorAll('.confirm-overlay')).forEach((el) => el.remove());
     modTrackingEnabled = false; modTrackingTag = ''; modTrackingPosition = 'end'; modTrackingSessionTouched = false;
     modTrackingTagInput.value = '';
+    syncModTrackingSeqRow();
     keepRemovedLinesSetting = false;
     sourceLineMax = undefined;
     DspfEngine.setJobDateFormat(null);
