@@ -7,6 +7,8 @@ const engineJs = fs.readFileSync(path.join(__dirname, 'dspfEngine.js'), 'utf8');
 const keywordSpecJs = fs.readFileSync(path.join(__dirname, 'keywordSpec.js'), 'utf8');
 const writerJs = fs.readFileSync(path.join(__dirname, 'dspfWriter.js'), 'utf8');
 const mnuCmdEngineJs = fs.readFileSync(path.join(__dirname, 'mnuCmdEngine.js'), 'utf8');
+// IndicatorSim (E3, used here by E3g) reads DspfEngine, so it loads right after it.
+const indicatorSimJs = fs.readFileSync(path.join(__dirname, 'indicatorSim.js'), 'utf8');
 const clientHelpersJs = fs.readFileSync(path.join(__dirname, 'webviewClientHelpers.js'), 'utf8');
 const parserBundleJs = fs.readFileSync(path.join(__dirname, '../dist/dspfParser.browser.js'), 'utf8');
 
@@ -257,6 +259,8 @@ const htmlTemplate = `<!DOCTYPE html>
   .kw-cond-body { margin: 4px 0 8px 0; padding-left: 8px; border-left: 2px solid var(--panel-border); }
   .file-attrs-toggle { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-dim); cursor: pointer; user-select: none; margin-top: 20px; padding: 6px 8px; border: 1px solid var(--panel-border); border-radius: 3px; }
   .file-attrs-toggle:hover { color: var(--chrome-accent); border-color: var(--chrome-accent); }
+  .hint-small { font-size: 10px; color: var(--warn); margin-top: 4px; min-height: 0; }
+  .hint-small:empty { display: none; }
   .file-attrs-body { margin-top: 0; padding: 8px; border: 1px solid var(--panel-border); border-top: none; border-radius: 0 0 3px 3px; }
 
   /* ---------------------------------------------------------------------
@@ -372,6 +376,8 @@ const htmlTemplate = `<!DOCTYPE html>
     <button class="rename-btn" id="newRecordBtn">+ Add record</button>
   </div>
   <div class="add-option-error" id="newRecordError"></div>
+  <div class="file-attrs-toggle" id="indicatorSimToggle">Indicator simulator &#x25b4;</div>
+  <div class="file-attrs-body" id="indicatorList"></div>
   <div class="file-attrs-toggle" id="fileAttrsToggle">File attributes &#x25be;</div>
   <div class="file-attrs-body hidden" id="fileAttrsBody"></div>
   <div class="status" id="cmdStatus" style="margin-top:20px;"></div>
@@ -437,6 +443,7 @@ const htmlTemplate = `<!DOCTYPE html>
 <script nonce="${NONCE_TOKEN}">${parserBundleJs}</script>
 <script nonce="${NONCE_TOKEN}">${keywordSpecJs}</script>
 <script nonce="${NONCE_TOKEN}">${engineJs}</script>
+<script nonce="${NONCE_TOKEN}">${indicatorSimJs}</script>
 <script nonce="${NONCE_TOKEN}">${writerJs}</script>
 <script nonce="${NONCE_TOKEN}">${mnuCmdEngineJs}</script>
 <script nonce="${NONCE_TOKEN}">${clientHelpersJs}</script>
@@ -588,6 +595,20 @@ const htmlTemplate = `<!DOCTYPE html>
   const fileAttrsToggle = document.getElementById('fileAttrsToggle');
   const fileAttrsBody = document.getElementById('fileAttrsBody');
   let fileAttrsExpanded = false; // survives renderAll() rebuilding everything else, same convention as expandedOptionConditioning below
+  // Task E3g - the indicator simulator's view state, the menu designer's copy of the DSPF designer's E3b / E3c / E3f
+  // state. Scenarios and stored run-time values are kept by the extension host in workspaceState, one entry per file
+  // (the same entry the DSPF designer uses for this member), and arrive in a simulatorState message; every change
+  // posts saveSimulatorState. Neither is ever written to the DDS source.
+  const indicatorList = document.getElementById('indicatorList');
+  const indicatorSimToggle = document.getElementById('indicatorSimToggle');
+  let indicatorSimExpanded = true;
+  const active = new Set();
+  let indicatorScope = 'screen';
+  let indicatorShowAll = false;
+  let scenarios = [];
+  let selectedScenarioName = '';
+  let fieldValues = IndicatorSim.emptyValues();
+  let simulatorMessage = '';
   const expandedKeywordConditioning = new Set(); // "ownerKey:idx" strings whose per-keyword Conditioning panel is expanded, shared with the DSPF designer's own convention
   const expandedOptionConditioning = new Set(); // numberValues whose "Conditioning" panel is expanded - survives renderOptions() rebuilding all rows
   const expandedOptionStyle = new Set(); // numberValues whose "Style (keywords)" panel is expanded - Task M1, same survives-rerender convention as expandedOptionConditioning above
@@ -869,6 +890,7 @@ const htmlTemplate = `<!DOCTYPE html>
       screenOutput.innerHTML = '<div class="empty-state">No record formats found.</div>';
       recordCopyBtn.disabled = true;
       recordDeleteBtn.disabled = true;
+      renderSimulatorPanel(null);
       return;
     }
     recordSelect.value = recordName;
@@ -877,7 +899,10 @@ const htmlTemplate = `<!DOCTYPE html>
     recordCopyBtn.disabled = !recordEditable;
     recordCopyBtn.title = recordEditable ? '' : 'Multi-group or >3-indicator conditioning - copying this record is disabled to avoid corrupting it.';
     recordDeleteBtn.disabled = false;
-    const screen = DspfEngine.resolveScreen(model, recordName, new Set(), null);
+    // Task E3g - the screen is drawn under the indicators switched on in the simulator panel (none, until one is).
+    model.choicePreviewStates = IndicatorSim.namespaceValues(fieldValues, 'choiceControl');
+    renderSimulatorPanel(recordName);
+    const screen = DspfEngine.resolveScreen(model, recordName, active, null);
     if (screen.error) { screenOutput.innerHTML = '<div class="warn">' + escapeHtml(screen.error) + '</div>'; return; }
     screenOutput.innerHTML = DspfEngine.renderScreenHtml(screen);
   }
@@ -908,6 +933,187 @@ const htmlTemplate = `<!DOCTYPE html>
   fileAttrsToggle.addEventListener('click', () => {
     fileAttrsExpanded = !fileAttrsExpanded;
     renderFileAttrs();
+  });
+
+  // Tasks E3g (E3b / E3c / E3f for the menu designer) - the indicator simulator panel: the scope / show-all controls,
+  // the indicator checkboxes (labelled from INDTXT), the scenario row and the stored-values editor. A menu's option
+  // rows are DDS constants and carry option indicators like any other field, so the preview is drawn under the
+  // indicators switched on here. Every control changes the shared state and redraws the screen; nothing is written
+  // to the DDS source. This is the menu designer's copy of the panel in the DSPF designer (buildWebviewTemplate.js).
+  function escapeSimHtml(text) {
+    return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function persistSimulatorState() {
+    vscode.postMessage({ type: 'saveSimulatorState', scenarios: scenarios, values: fieldValues });
+  }
+
+  function setFieldValue(namespace, key, value) {
+    const result = IndicatorSim.setValue(fieldValues, namespace, key, value);
+    if (result.ok) {
+      fieldValues = result.values;
+      simulatorMessage = '';
+      persistSimulatorState();
+    } else {
+      simulatorMessage = result.error;
+    }
+    renderScreen();
+  }
+
+  function renderSimulatorPanel(recordName) {
+    indicatorSimToggle.textContent = 'Indicator simulator ' + (indicatorSimExpanded ? '\\u25b4' : '\\u25be');
+    indicatorList.classList.toggle('hidden', !indicatorSimExpanded);
+    indicatorList.innerHTML = '';
+    if (!indicatorSimExpanded) return;
+
+    const entries = recordName ? IndicatorSim.indicatorEntries(model, recordName, {
+      scope: indicatorScope,
+      showAll: indicatorShowAll,
+      active: active,
+      activePulldownRecord: null
+    }) : [];
+
+    const controls = document.createElement('div');
+    controls.className = 'sim-controls';
+    controls.style.cssText = 'display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:4px;font-size:11px;';
+    controls.innerHTML =
+      '<select class="sim-scope" title="Which indicators to list"><option value="screen">This screen</option><option value="file">Whole file</option></select>' +
+      '<label class="compare-toggle" style="margin:0;"><input type="checkbox" class="sim-showall" /> Show all 99</label>';
+    controls.querySelector('.sim-scope').value = indicatorScope;
+    controls.querySelector('.sim-showall').checked = indicatorShowAll;
+    controls.querySelector('.sim-scope').addEventListener('change', (e) => { indicatorScope = e.target.value === 'file' ? 'file' : 'screen'; renderScreen(); });
+    controls.querySelector('.sim-showall').addEventListener('change', (e) => { indicatorShowAll = !!e.target.checked; renderScreen(); });
+    indicatorList.appendChild(controls);
+
+    const list = document.createElement('div');
+    list.className = 'sim-ind-list';
+    if (indicatorShowAll) list.style.cssText = 'max-height:220px;overflow-y:auto;';
+    if (entries.length === 0) {
+      list.innerHTML = '<div class="empty-state" style="font-size:11px;">' + (indicatorScope === 'file' ? 'None used in this file' : 'None used on this screen') + '</div>';
+    }
+    entries.forEach((entry) => {
+      const label = document.createElement('label');
+      label.style.cssText = 'display:flex;align-items:center;gap:8px;padding:3px 0;cursor:pointer;font-size:12px;' + (entry.used ? '' : 'opacity:0.55;');
+      label.title = entry.used ? '' : 'Not used ' + (indicatorScope === 'file' ? 'in this file' : 'on this screen');
+      label.innerHTML = '<input type="checkbox" ' + (entry.on ? 'checked' : '') + ' /> <span>Ind ' + entry.number + '</span>' +
+        (entry.label ? ' <span class="ind-text" style="opacity:0.8;">' + escapeSimHtml(entry.label) + '</span>' : '');
+      label.querySelector('input').addEventListener('change', (e) => {
+        if (e.target.checked) active.add(entry.number); else active.delete(entry.number);
+        renderScreen();
+      });
+      list.appendChild(label);
+    });
+    indicatorList.appendChild(list);
+
+    indicatorList.appendChild(buildScenarioRow());
+    const valuesEditor = buildStoredValuesEditor();
+    if (valuesEditor) indicatorList.appendChild(valuesEditor);
+  }
+
+  // Choosing a scenario turns exactly its indicators ON (every other OFF); Save stores the indicators that are ON now
+  // under the typed name (an existing name is overwritten); Rename and Delete act on the chosen one.
+  function buildScenarioRow() {
+    const row = document.createElement('div');
+    row.className = 'sim-scenarios';
+    row.style.cssText = 'margin-top:8px;font-size:11px;';
+    const options = ['<option value="">Scenario...</option>'].concat(scenarios.map((s) =>
+      '<option value="' + escapeSimHtml(s.name) + '">' + escapeSimHtml(s.name) + ' (' + s.indicators.length + ')</option>'));
+    row.innerHTML =
+      '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">' +
+        '<select class="sim-scn-select" title="Apply a saved indicator scenario">' + options.join('') + '</select>' +
+        '<input type="text" class="sim-scn-name" maxlength="' + IndicatorSim.MAX_SCENARIO_NAME + '" placeholder="Scenario name" style="flex:1;min-width:90px;" />' +
+      '</div>' +
+      '<div style="display:flex;gap:6px;margin-top:4px;">' +
+        '<button class="secondary sim-scn-save" title="Save the indicators that are ON now under this name">Save</button>' +
+        '<button class="secondary sim-scn-rename" title="Rename the chosen scenario to this name">Rename</button>' +
+        '<button class="secondary sim-scn-delete" title="Delete the chosen scenario">Delete</button>' +
+      '</div>' +
+      '<div class="hint-small sim-scn-msg"></div>';
+    const select = row.querySelector('.sim-scn-select');
+    const nameInput = row.querySelector('.sim-scn-name');
+    select.value = IndicatorSim.findScenario(scenarios, selectedScenarioName) ? selectedScenarioName : '';
+    nameInput.value = select.value;
+    row.querySelector('.sim-scn-msg').textContent = simulatorMessage;
+    row.querySelector('.sim-scn-rename').disabled = !select.value;
+    row.querySelector('.sim-scn-delete').disabled = !select.value;
+
+    select.addEventListener('change', () => {
+      const scenario = IndicatorSim.findScenario(scenarios, select.value);
+      selectedScenarioName = scenario ? scenario.name : '';
+      simulatorMessage = '';
+      if (scenario) {
+        active.clear();
+        scenario.indicators.forEach((n) => active.add(n));
+      }
+      renderScreen();
+    });
+    row.querySelector('.sim-scn-save').addEventListener('click', () => {
+      const name = nameInput.value || select.value;
+      const result = IndicatorSim.saveScenario(scenarios, name, Array.from(active));
+      if (!result.ok) { simulatorMessage = result.error; renderScreen(); return; }
+      scenarios = result.scenarios;
+      selectedScenarioName = IndicatorSim.findScenario(scenarios, name).name;
+      simulatorMessage = '';
+      persistSimulatorState();
+      renderScreen();
+    });
+    row.querySelector('.sim-scn-rename').addEventListener('click', () => {
+      const result = IndicatorSim.renameScenario(scenarios, select.value, nameInput.value);
+      if (!result.ok) { simulatorMessage = result.error; renderScreen(); return; }
+      scenarios = result.scenarios;
+      selectedScenarioName = IndicatorSim.findScenario(scenarios, nameInput.value).name;
+      simulatorMessage = '';
+      persistSimulatorState();
+      renderScreen();
+    });
+    row.querySelector('.sim-scn-delete').addEventListener('click', () => {
+      const name = select.value;
+      showConfirmDialog('Delete scenario "' + name + '"?', 'The saved indicator set is removed for this file. The DDS source is not affected.', 'Delete', () => {
+        const result = IndicatorSim.deleteScenario(scenarios, name);
+        if (result.ok) { scenarios = result.scenarios; selectedScenarioName = ''; persistSimulatorState(); }
+        simulatorMessage = result.ok ? '' : result.error;
+        renderScreen();
+      });
+    });
+    return row;
+  }
+
+  // The values the program sets at run time, as stored for this file (shared with the DSPF designer, which writes
+  // them): one row per value with a remove button, and a "Clear all". Shown only when something is stored.
+  function buildStoredValuesEditor() {
+    const rows = IndicatorSim.valueRows(fieldValues);
+    if (rows.length === 0) return null;
+    const box = document.createElement('div');
+    box.className = 'sim-values';
+    box.style.cssText = 'margin-top:8px;font-size:11px;';
+    box.innerHTML = '<div class="section-label">Stored run-time values</div>';
+    rows.forEach((r) => {
+      const line = document.createElement('div');
+      line.className = 'sim-value-row';
+      line.style.cssText = 'display:flex;align-items:center;gap:6px;padding:2px 0;';
+      line.title = r.label;
+      line.innerHTML = '<span style="flex:1;">' + escapeSimHtml(IndicatorSim.describeValueKey(r.namespace, r.key)) + ' = <strong>' + escapeSimHtml(r.value) + '</strong></span>' +
+        '<button class="secondary sim-value-remove" title="Remove this stored value" style="padding:0 6px;">&times;</button>';
+      line.querySelector('.sim-value-remove').addEventListener('click', () => setFieldValue(r.namespace, r.key, null));
+      box.appendChild(line);
+    });
+    const clear = document.createElement('button');
+    clear.className = 'secondary sim-values-clear';
+    clear.textContent = 'Clear all stored values';
+    clear.style.cssText = 'margin-top:4px;';
+    clear.addEventListener('click', () => {
+      fieldValues = IndicatorSim.clearValues(fieldValues);
+      simulatorMessage = '';
+      persistSimulatorState();
+      renderScreen();
+    });
+    box.appendChild(clear);
+    return box;
+  }
+
+  indicatorSimToggle.addEventListener('click', () => {
+    indicatorSimExpanded = !indicatorSimExpanded;
+    renderSimulatorPanel((recordSelect.value || (model.records[0] && model.records[0].name)) || null);
   });
 
   function updateOptionLabel(recordName, numberValue, newLabel) {
@@ -1849,6 +2055,15 @@ const htmlTemplate = `<!DOCTYPE html>
       syncKeepRemovedLines();
     } else if (msg.type === 'dirtyState') {
       updateSaveButtonDirtyState(msg.isDirty);
+    } else if (msg.type === 'simulatorState') {
+      // Task E3g - this file's saved scenarios and stored run-time values, from the extension host's workspaceState.
+      // Normalised again here so a hand-edited state can never reach the panel in a bad shape. Not posted back:
+      // loading is not a change.
+      const state = IndicatorSim.normalizeState(msg);
+      scenarios = state.scenarios;
+      fieldValues = state.values;
+      if (!IndicatorSim.findScenario(scenarios, selectedScenarioName)) selectedScenarioName = '';
+      renderScreen();
     }
   });
 

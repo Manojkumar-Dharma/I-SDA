@@ -2023,7 +2023,14 @@ class MenuDesignerEditorProvider implements vscode.CustomTextEditorProvider {
         await this.context.globalState.update(UI_STYLE_KEY, msg.value);
       } else if (msg.type === 'setUiTheme') {
         await this.context.globalState.update(UI_THEME_KEY, msg.value);
+      } else if (msg.type === 'saveSimulatorState') {
+        // Task E3g (E3c / E3f for the menu designer): the file's scenarios and stored run-time values. workspaceState
+        // only - the DDS source is never written. Same entry (keyed by the member's URI) as the DSPF designer's, so a
+        // scenario saved in one designer is there in the other.
+        await IndicatorSim.saveFileState(this.context.workspaceState, document.uri.toString(), { scenarios: msg.scenarios, values: msg.values });
       } else if (msg.type === 'ready') {
+        const simulatorState = IndicatorSim.loadFileState(this.context.workspaceState, document.uri.toString());
+        webviewPanel.webview.postMessage({ type: 'simulatorState', scenarios: simulatorState.scenarios, values: simulatorState.values });
         await sendCodeForIStatus();
         sendModTrackingConfig();
       }

@@ -152,7 +152,7 @@ option indicators; program-to-system field values can be set and are shared with
 | E3d | **Keyword reactivity.** Table of every keyword IBM says accepts option indicators vs whether the engine reacts to it in the preview (`DSPATR`, `COLOR`, `ERRMSG`, `SFLDSP`/`SFLCLR`/`SFLEND`/`SFLDSPCTL`, `PROTECT`, ...); implement the gaps. The table lives in this document's E3d section and is checked by a test against `keywordSpec.js`. | E3a | Done | v0.13.6 |
 | E3e | **Explain panel.** For the selected field/record: each keyword line, whether it is active under the current indicators, and the indicator expression that decided it. | E3b | Done | v0.13.9 |
 | E3f | **Program-to-system field value store.** Design-time values for fields the program sets at run time (choice control fields, `WINDOW` position fields, `SFLSIZ`, message-data fields): a small store keyed by file, record and field, with an editor in the simulator panel. Used by E4c, E8 and E10. Same storage rule as E3c. | E3c (storage decision) | Done | v0.13.4 |
-| E3g | **Menu designer parity.** Offer the panel in the menu designer where menu records carry conditioned content. **Decision first:** may be dropped if E3a shows menus have nothing to simulate. | E3b | In progress | — |
+| E3g | **Menu designer parity.** Offer the panel in the menu designer where menu records carry conditioned content. **Decision first:** may be dropped if E3a shows menus have nothing to simulate. **Decision (Manojkumar): build it, full parity** (see E3g results). | E3b | Done | v0.13.10 |
 | E3h | **Release** (next free minor). | E3a - E3g, E3i - E3l | Open | - |
 | E3i | **`DFTVAL` default value.** Draw the default value in the field on the first output when its option indicator is on or absent (reference: "the specified value is displayed if the option indicator is on or has not been specified"). **Decision (settled):** the value replaces the field name, as on the real first output (the field name stands in for the unknown program value only when `DFTVAL` is not in effect); no "beside it" form. Built in `dspfEngine.js` (`dftvalText`): named `O` / `B` fields outside a subfile format, first instance whose condition holds, quoted value with `''` as one quote, cut to the field length, padded with blanks; an unquoted value (still being typed) keeps the name. Test: `e3iDftvalDefaultValue.test.js`. | E3d | Done | v0.13.8 |
 | E3j | **Menu bar drawing.** `MNUBARSEP` (colour, attribute and character of the separator line under the menu bar) and `MNUBARDSP` (the menu bar of another record shown when this record is written), both honouring their option indicators. | E3d | Done | v0.13.7 |
@@ -335,6 +335,35 @@ groups, the group that holds, or the failing fact of each group).
 - Not done: help-specification and file-level keyword lists have no explain section (the roadmap row says field / record).
 - Tests: `e3eExplainPanel.test.js` (condition text and reasons, owner conditions, first-in-effect, agreement with
   `conditionsSatisfied`, the webview on a record and a field).
+
+### E3g results
+
+**E3g (built, v0.13.10).** The menu designer has the indicator simulator panel, so a menu's option rows can be
+previewed under indicators.
+
+- **Decision (Manojkumar): build it, with full parity.** The roadmap allowed dropping E3g if menus had nothing to
+  simulate. They do: a menu option is a DDS constant and takes option indicators like any other field, the engine
+  already honours them (`resolveScreen` with an active set), and the menu designer always called it with an empty set,
+  so an option conditioned on `10` was never drawn and one conditioned on `N10` always was. The E3a note "the option
+  rows are not drawn conditioned" was about the designer, not the engine. Full parity means everything E3b / E3c / E3f
+  gave the DSPF designer, not just the checkbox list.
+- **Panel.** An **Indicator simulator** section in the left panel of the menu designer (open by default, collapsible,
+  both UI styles): the scope selector (This screen / Whole file), "Show all 99", the indicator checkboxes labelled from
+  `INDTXT` (unused rows dimmed), the scenario row (Save, Rename, Delete) and the stored run-time values list. The
+  screen is drawn under the ticked indicators; the ticked set is kept when the record or the section changes. Scope
+  rules are the DSPF designer's (`IndicatorSim.contextIndicators`); the menu designer has no pull-down state.
+- **Shared storage.** The host handles `saveSimulatorState` / `simulatorState` for the menu designer with the same
+  `workspaceState` entry, keyed by the member's URI, as the DSPF designer. A `.mnudds` member opened in either designer
+  shows the same scenarios and stored values. The DDS source is never written by the panel.
+- **The Options list is unchanged.** It still shows one row per option number (the first constant found), so two
+  variants of option 2 under `10` and `N10` are one row there; the preview is where the variants show. Changing the
+  list to show variants would change what an edit to an option row means (which variant?), so it is not part of this
+  task.
+- **Not done.** The explain panel (E3e) has no menu-designer copy: the menu designer has no field or record keyword
+  panel to put it in. The panel code is a copy of the DSPF designer's (inline in each template); moving both onto one
+  shared builder in `webviewClientHelpers.js` is a possible refactor.
+- Tests: `e3gMenuSimulator.test.js` (the preview under indicators, the list and labels, scope and show-all, record
+  switch, scenarios, what is posted and loaded, stored values, nothing written to the source, the host handlers).
 
 ### E3j results
 
