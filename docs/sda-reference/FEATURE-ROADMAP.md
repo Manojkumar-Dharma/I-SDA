@@ -150,7 +150,7 @@ option indicators; program-to-system field values can be set and are shared with
 | E3b | **Indicator discovery panel.** Scan the file/record for every indicator referenced (including `N` negation and the 01-99 range), list only those, label from `INDTXT`; "show all 99" toggle; per-record vs file-wide view. | E3a | Done | v0.13.4 |
 | E3c | **Scenarios.** Save, rename, delete and recall named indicator sets (for example "error state", "empty subfile"). **Decision first:** storage in VS Code `workspaceState` vs an optional sidecar file; the source is never written. | E3b | Done | v0.13.4 |
 | E3d | **Keyword reactivity.** Table of every keyword IBM says accepts option indicators vs whether the engine reacts to it in the preview (`DSPATR`, `COLOR`, `ERRMSG`, `SFLDSP`/`SFLCLR`/`SFLEND`/`SFLDSPCTL`, `PROTECT`, ...); implement the gaps. The table lives in this document's E3d section and is checked by a test against `keywordSpec.js`. | E3a | Done | v0.13.6 |
-| E3e | **Explain panel.** For the selected field/record: each keyword line, whether it is active under the current indicators, and the indicator expression that decided it. | E3b | In progress | — |
+| E3e | **Explain panel.** For the selected field/record: each keyword line, whether it is active under the current indicators, and the indicator expression that decided it. | E3b | Done | v0.13.9 |
 | E3f | **Program-to-system field value store.** Design-time values for fields the program sets at run time (choice control fields, `WINDOW` position fields, `SFLSIZ`, message-data fields): a small store keyed by file, record and field, with an editor in the simulator panel. Used by E4c, E8 and E10. Same storage rule as E3c. | E3c (storage decision) | Done | v0.13.4 |
 | E3g | **Menu designer parity.** Offer the panel in the menu designer where menu records carry conditioned content. **Decision first:** may be dropped if E3a shows menus have nothing to simulate. | E3b | Open | - |
 | E3h | **Release** (next free minor). | E3a - E3g, E3i - E3l | Open | - |
@@ -203,7 +203,7 @@ reactivity), E3e (explain panel) and E3g (menu designer) are unchanged and still
   simulator panel lists every stored value (`REC.FLD (choice / row n) = v`) with a remove button and "Clear all stored
   values". The extension host loads the file's state on `ready` (`simulatorState` message) and saves on every change
   (`saveSimulatorState`); loading posts nothing back.
-- **Not done (still Open):** E3e explain panel, E3g menu designer parity, E3k, E3l (the gaps E3d found), E3h release. A value
+- **Not done (still Open):** E3g menu designer parity, E3k, E3l (the gaps E3d found), E3h release. A value
   store editor for a new namespace is the job of the feature that adds the namespace.
 - Tests: `e3IndicatorSim.test.js` (pure logic, a fake memento), `e3SimulatorPanel.test.js` (both panel copies,
   messages, reset).
@@ -311,6 +311,30 @@ line. A record without `WINDOW` has no error line to show; that is a limit of th
 `DFTVAL`, `DSPATR`, `DSPMOD`, `DUP`, `HLPPNLGRP`, `PSHBTNCHC`. It is the same shape of finding as I-176 (the
 `optionIndicatorsValid` spelling), one step further: an entry with no fact at all. The E3d test reads the Reference
 for these six and does not depend on the spec for them.
+
+### E3e results
+
+**E3e (built, v0.13.9).** An **Explain (indicators)** accordion on the Keywords tab of the field panel and at the
+bottom of the record panel's keywords (collapsed by default, both UI styles). It lists the selected field's or record's
+keyword lines in source order, and for each: the option-indicator expression as written (`01 AND N02 OR 03`; `*DS3` /
+`N*DS3` for a display-size condition), whether the line is **In effect** or **Not in effect** under the indicators being
+previewed, and what decided it in words (`01 is off`, `N02: 02 is off`, `*DS4 is not the selected size`; with several
+groups, the group that holds, or the failing fact of each group).
+
+- **Same answer as the preview.** The panel is built on `conditionsSatisfied` (`DspfEngine.explainKeywords`,
+  `explainConditions`, `conditionsExpression`), and a test compares the two for every combination of indicators. The
+  panel is rebuilt by every `render()`, so ticking an indicator in the simulator refreshes it.
+- **The owner's own condition comes first.** A field or record whose own conditions do not hold is not drawn, so every
+  line says so ("not drawn: the field's own condition does not hold"); a hidden (`H`) or program-to-system (`P`) field
+  says it is never drawn.
+- **First-in-effect keywords.** `WDWTITLE`, `WDWBORDER`, `MNUBARDSP`, `CNTFLD` and `DFTVAL` are read as the first instance
+  whose condition holds; a later instance that also holds is shown as active but not used ("an earlier DFTVAL is in
+  effect"). Other repeatable keywords (`COLOR`, `DSPATR`, ...) are all listed with their own state.
+- **Decision (Manojkumar).** An accordion in the field and record panels, not a separate pane; fields and records both; the
+  menu designer is left to E3g.
+- Not done: help-specification and file-level keyword lists have no explain section (the roadmap row says field / record).
+- Tests: `e3eExplainPanel.test.js` (condition text and reasons, owner conditions, first-in-effect, agreement with
+  `conditionsSatisfied`, the webview on a record and a field).
 
 ### E3j results
 

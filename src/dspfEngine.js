@@ -69,6 +69,112 @@
     });
   }
 
+  // ---------------------------------------------------------------------
+  // E3e - explain panel. For one field or record: each keyword line, whether it is in effect under the indicators
+  // being previewed, the option-indicator expression written on it, and which indicators decided it. Built on
+  // conditionsSatisfied() itself, so the answer can never disagree with what the preview draws.
+  // ---------------------------------------------------------------------
+
+  // Keywords the preview reads "the first instance whose condition holds" (E3d WDWTITLE / WDWBORDER, E3i DFTVAL,
+  // CNTFLD, and MNUBARDSP - "the first one in effect is used"): a later instance whose own condition also holds
+  // is not used.
+  var FIRST_IN_EFFECT_KEYWORDS = ['WDWTITLE', 'WDWBORDER', 'MNUBARDSP', 'CNTFLD', 'DFTVAL'];
+
+  function conditionGroupText(group) {
+    if (group.displaySizeCondition) return (group.displaySizeCondition.not ? 'N' : '') + group.displaySizeCondition.name;
+    return group.indicators.map(function (i) { return (i.not ? 'N' : '') + i.number; }).join(' AND ');
+  }
+
+  /** "01 AND N02 OR 03" - the conditions as written (AND within a group, OR between groups); '' when there are none. */
+  function conditionsExpression(conditions) {
+    if (!conditions || conditions.length === 0) return '';
+    return conditions.map(conditionGroupText).join(' OR ');
+  }
+
+  // One group's verdict with the facts behind it: [{ text, holds }] per indicator (or the one size condition).
+  function groupFacts(group, activeIndicators, activeSizeName) {
+    if (group.displaySizeCondition) {
+      var selected = !!activeSizeName && group.displaySizeCondition.name.toUpperCase() === activeSizeName.toUpperCase();
+      var nm = group.displaySizeCondition.name;
+      return [{
+        text: group.displaySizeCondition.not
+          ? (selected ? nm + ' is the selected size, so N' + nm + ' fails' : nm + ' is not the selected size')
+          : (selected ? nm + ' is the selected size' : nm + ' is not the selected size'),
+        holds: group.displaySizeCondition.not ? !selected : selected
+      }];
+    }
+    return group.indicators.map(function (ind) {
+      var on = activeIndicators.has(ind.number);
+      return {
+        text: ind.not ? 'N' + ind.number + ': ' + ind.number + ' is ' + (on ? 'on' : 'off') : ind.number + ' is ' + (on ? 'on' : 'off'),
+        holds: ind.not ? !on : on
+      };
+    });
+  }
+
+  /**
+   * @returns {{active:boolean, expression:string, reason:string}} active = conditionsSatisfied(); expression = the
+   *   conditions as written; reason = what decided it, in plain words.
+   */
+  function explainConditions(conditions, activeIndicators, activeSizeName) {
+    var inds = activeIndicators || new Set();
+    var expression = conditionsExpression(conditions);
+    if (!conditions || conditions.length === 0) {
+      return { active: true, expression: '', reason: 'no option indicator: always in effect' };
+    }
+    var groups = conditions.map(function (g) {
+      var facts = groupFacts(g, inds, activeSizeName);
+      return { facts: facts, holds: facts.every(function (f) { return f.holds; }) };
+    });
+    var winner = groups.filter(function (g) { return g.holds; })[0];
+    if (winner) {
+      return { active: true, expression: expression, reason: winner.facts.map(function (f) { return f.text; }).join(', ') };
+    }
+    return {
+      active: false,
+      expression: expression,
+      reason: groups.map(function (g) {
+        var bad = g.facts.filter(function (f) { return !f.holds; })[0];
+        return bad.text;
+      }).join('; ')
+    };
+  }
+
+  /**
+   * @param {{conditions:Array, keywords:Array}} owner a field or a record
+   * @param {{activeIndicators:Set, activeSizeName:?string, notDrawnReason:?string}} ctx
+   *   notDrawnReason: why the owner is never drawn whatever its indicators say (hidden / program-to-system usage)
+   * @returns {{owner:{active:boolean, expression:string, reason:string, notDrawnReason:?string},
+   *   lines:{name:string, text:string, expression:string, active:boolean, inEffect:boolean, reason:string, note:?string}[]}}
+   */
+  function explainKeywords(owner, ctx) {
+    ctx = ctx || {};
+    var inds = ctx.activeIndicators || new Set();
+    var own = explainConditions(owner.conditions, inds, ctx.activeSizeName);
+    var ownerLive = own.active && !ctx.notDrawnReason;
+    var keywords = owner.keywords || [];
+    var seen = {};
+    var inEffectBefore = {};
+    var lines = keywords.map(function (k) {
+      var ex = explainConditions(k.conditions, inds, ctx.activeSizeName);
+      seen[k.name] = (seen[k.name] || 0) + 1;
+      var note = null;
+      var inEffect = ex.active && ownerLive;
+      if (!ownerLive) {
+        note = ctx.notDrawnReason ? ctx.notDrawnReason : 'not drawn: the ' + (ctx.ownerLabel || 'field') + '\'s own condition does not hold';
+      } else if (ex.active && FIRST_IN_EFFECT_KEYWORDS.indexOf(k.name) !== -1) {
+        if (inEffectBefore[k.name]) { note = 'an earlier ' + k.name + ' is in effect, so this one is not used'; inEffect = false; }
+        inEffectBefore[k.name] = true;
+      }
+      var text = k.name + (k.parameters ? '(' + k.parameters + ')' : '');
+      return { name: k.name, text: text, expression: ex.expression, active: ex.active, inEffect: inEffect, reason: ex.reason, note: note };
+    });
+    return {
+      owner: { active: own.active, expression: own.expression, reason: own.reason, notDrawnReason: ctx.notDrawnReason || null },
+      lines: lines
+    };
+  }
+
   /**
    * E3d: whether a record-level keyword that GATES what is shown is in effect under the indicators
    * being previewed. A record that does not carry the keyword at all is not gated (true); one that
@@ -3034,6 +3140,9 @@
 
   return {
     conditionsSatisfied: conditionsSatisfied,
+    conditionsExpression: conditionsExpression,
+    explainConditions: explainConditions,
+    explainKeywords: explainKeywords,
     parseScreenSizes: parseScreenSizes,
     parseMenubarChoice: parseMenubarChoice,
     resolveScreen: resolveScreen,

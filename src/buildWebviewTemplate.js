@@ -4873,6 +4873,13 @@ const htmlTemplate = `<!DOCTYPE html>
     // --- Keywords tab: the dense raw-keyword chip editor + conditioning, each collapsed by default ---
     let keywordsHtml = accordionHtml('field-' + field.sourceLine + '::keywords', 'Keywords', WebviewClientHelpers.keywordEditorHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning), true);
     keywordsHtml += accordionHtml('field-' + field.sourceLine + '::conditioning', 'Conditioning', WebviewClientHelpers.conditionsEditorHtml(field.conditions, 'field', expandedKeywordConditioning), false);
+    // Task E3e - which of this field's keyword lines are in effect under the indicators being previewed, and why.
+    keywordsHtml += accordionHtml('field-' + field.sourceLine + '::explain', 'Explain (indicators)', WebviewClientHelpers.explainPanelHtml(DspfEngine.explainKeywords(field, {
+      activeIndicators: active,
+      activeSizeName: lastScreen ? lastScreen.sizeName : null,
+      ownerLabel: 'field',
+      notDrawnReason: (field.usage === 'H' || field.usage === 'P') ? 'Not drawn: ' + (field.usage === 'H' ? 'hidden' : 'program-to-system') + ' fields are never drawn' : null
+    })), false);
 
     html += tabsHtml([
       { id: 'basic', label: isConstant ? 'Text' : 'Basic', content: basicHtml },
@@ -6203,6 +6210,12 @@ const htmlTemplate = `<!DOCTYPE html>
     }
     keywordsHtml += accordionHtml('record-' + rec.name + '::raw', 'Advanced / raw keywords', WebviewClientHelpers.keywordEditorHtml(rec.keywords, 'record-' + rec.name, expandedKeywordConditioning), false);
     keywordsHtml += accordionHtml('record-' + rec.name + '::conditioning', 'Conditioning', WebviewClientHelpers.conditionsEditorHtml(rec.conditions, 'record', expandedKeywordConditioning), false);
+    // Task E3e - the record's keyword lines under the indicators being previewed.
+    keywordsHtml += accordionHtml('record-' + rec.name + '::explain', 'Explain (indicators)', WebviewClientHelpers.explainPanelHtml(DspfEngine.explainKeywords(rec, {
+      activeIndicators: active,
+      activeSizeName: lastScreen ? lastScreen.sizeName : null,
+      ownerLabel: 'record'
+    })), false);
 
     // --- Command keys tab --- (only this record's own keywords exclude
     // numbers here; a number already used at the file level can still be

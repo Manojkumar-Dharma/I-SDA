@@ -9032,6 +9032,37 @@ html += '<div class="hint-small">SFLROLVAL, SFLSCROLL, and SFLRCDNBR cannot shar
     return { width: width, level: 'ok', short: '', message: '' };
   }
 
+  /**
+   * Task E3e - the explain panel's body: one row per keyword line with whether it is in effect under the indicators
+   * being previewed, the option-indicator expression written on it and what decided it. `explanation` is
+   * DspfEngine.explainKeywords(owner, ctx). Read-only, no wiring: the panel is rebuilt by every render(), so toggling
+   * an indicator refreshes it. Used by the field panel and the record panel (build once, wire everywhere).
+   */
+  function explainPanelHtml(explanation) {
+    var o = explanation.owner;
+    var html = '';
+    if (o.notDrawnReason) {
+      html += '<div class="hint-small warn">' + escapeHtml(o.notDrawnReason) + '</div>';
+    } else if (o.expression) {
+      html += '<div class="hint-small">Own condition <code>' + escapeHtml(o.expression) + '</code>: ' +
+        (o.active ? 'holds (' : 'does not hold (') + escapeHtml(o.reason) + ').' + (o.active ? '' : ' Nothing below is drawn.') + '</div>';
+    } else {
+      html += '<div class="hint-small">No condition of its own: always drawn.</div>';
+    }
+    if (explanation.lines.length === 0) return html + '<div class="hint-small">No keywords.</div>';
+    html += '<table class="explain-table" style="width:100%;border-collapse:collapse;font-size:11px;">' +
+      '<tr style="text-align:left;"><th>Keyword</th><th>Indicators</th><th>State</th></tr>';
+    explanation.lines.forEach(function (l) {
+      var state = l.inEffect ? 'In effect' : 'Not in effect';
+      var why = l.note ? l.note : l.reason;
+      html += '<tr class="explain-row" data-in-effect="' + (l.inEffect ? 'true' : 'false') + '" style="vertical-align:top;border-top:1px solid var(--panel-border);">' +
+        '<td><code>' + escapeHtml(l.text) + '</code></td>' +
+        '<td>' + (l.expression ? '<code>' + escapeHtml(l.expression) + '</code>' : '-') + '</td>' +
+        '<td><strong>' + state + '</strong><div class="hint-small" style="margin:0;">' + escapeHtml(why) + '</div></td></tr>';
+    });
+    return html + '</table>';
+  }
+
   return {
     rebuildRecordSelect: rebuildRecordSelect,
     recordTypeDependentInfo: recordTypeDependentInfo,
@@ -9048,6 +9079,7 @@ html += '<div class="hint-small">SFLROLVAL, SFLSCROLL, and SFLRCDNBR cannot shar
     isValidDdsName: isValidDdsName,
     findLikelyNameReferences: findLikelyNameReferences,
     conditionsEditorHtml: conditionsEditorHtml,
+    explainPanelHtml: explainPanelHtml,
     wireConditionsEditor: wireConditionsEditor,
     keywordEditorHtml: keywordEditorHtml,
     wireKeywordEditor: wireKeywordEditor,
