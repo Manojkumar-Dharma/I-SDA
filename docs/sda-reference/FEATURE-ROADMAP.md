@@ -981,7 +981,7 @@ the reference requires; the limitation entry is rewritten.
 | E10a | **Audit and scope.** What `CHCCTL` and `SFLCHCCTL` already have (spec entries, panel rows, guards such as the I-171 family) vs what the reference requires; pin down the gap named in the box above; list what each state looks like with and without `CHCAVAIL` / `CHCUNAVAIL` / `CHCSLT`; note that the cursor-restriction values only apply to an enhanced-interface controller. | - | Done (no code change) | — |
 | E10b | **Advisory and help line.** The panel row, type check and raw-editor guards already exist (E10a). Add: a non-blocking advisory when a `CHCCTL` control field is not defined in the record (forward references stay accepted while typing), and one help line under the control field giving the 0 - 4 value table from `CHOICE_CONTROL_VALUES` with the enhanced-interface cursor note. Tests in a new `e10` file. | E10a | Done | v0.13.1 |
 | E10c | **Preview states.** Draw a choice as available / selected / unavailable in the preview (radio, checkbox and push button), applying `CHCAVAIL`, `CHCUNAVAIL` and `CHCSLT` colours and attributes under the reference's own conditions; 2, 3 and 4 draw the same. The state comes from a preview-only per-choice selector in the field panel, held in the webview and not saved, defaulting to available so existing previews do not change. Unit tests for `0` - `4`. | E10a | Done | v0.13.2 |
-| E10d | **`SFLCHCCTL`.** The same for subfile choice lists (`SFLSNGCHC` / `SFLMLTCHC`), including the structural requirements already in the spec. | E10c | In progress | — |
+| E10d | **`SFLCHCCTL`.** The same for subfile choice lists (`SFLSNGCHC` / `SFLMLTCHC`), including the structural requirements already in the spec. | E10c | Done | v0.13.3 |
 | E10e | **Release** (next free minor); rewrite the `CHCCTL` entry in `LIMITATIONS-PLAN.md`. | E10a - E10d, E10f | Open | - |
 | E10f | **Control value from the E3f store.** Replace E10c's preview-only selector with the design-time control value kept in the E3f store, keyed by file, record and control field; the selector becomes the editor for that value. Same default (available) when no value is set. | E10c, E3f | Open | - |
 
@@ -1066,6 +1066,18 @@ keywords). The webview holds the values in `choicePreviewStates` (cleared by `re
 (default, 0 - 4) per choice that has a `CHCCTL`. 2, 3 and 4 draw the same. Not done here: the subfile selection
 list (E10d), the stored value (E10f), `CHCSLT` rules for where a selected colour is allowed (the I-171 guard already
 refuses it elsewhere). Tests: `e10cChoicePreviewStates.test.js`.
+
+
+**E10d (built, v0.13.3).** For a control record with `SFLSNGCHC` / `SFLMLTCHC` whose subfile record has an
+`SFLCHCCTL` field, each previewed row takes its control value from `dspfFile.choicePreviewStates`
+(`choiceStateKey(subfileRecord, controlField, row)`, rows numbered from 1), so it reuses E10c's store, state names and
+`choiceStateStyle`. The colour keywords are read from the control record (the reference's own placement) and from the
+subfile record's fields. A row with a state is tagged on its output field(s) (`rowState`); with `*SLTIND` it also gets
+a `data-choice-marker` (`( )` / `(` + `\u25CF` + `)` for single choice, `[ ]` / `[X]` for multiple), drawn by a CSS
+`::before` so the layout does not move. `*NOSLTIND` (the default) draws no marker, as the reference says. The
+selector is on the control record's SFLCTL tab because the hidden control field is never drawn; it has one select per
+previewed row (SFLPAG, at most 24). Only the folded form is affected (`SFLDROP` / `SFLFOLD` are not allowed with a
+selection list). Tests: `e10dSflChoiceStates.test.js`.
 
 ---
 

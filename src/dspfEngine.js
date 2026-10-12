@@ -1465,6 +1465,42 @@
       return (k.name === 'SFLSNGCHC' || k.name === 'SFLMLTCHC') && conditionsSatisfied(k.conditions, activeIndicators, activeSizeName);
     }) || null;
     var selectionList = selListKw ? { kind: selListKw.name === 'SFLSNGCHC' ? 'single' : 'multiple' } : null;
+    // Task E10d - SFLCHCCTL: the subfile record's hidden control field gives each record's state. The
+    // preview takes it per row from dspfFile.choicePreviewStates (see choiceStatesFor; the "choice
+    // number" is the 1-based row), applies the colour keywords (on the control record, or on the
+    // subfile's fields) and, with *SLTIND, draws a radio button / check box before the item.
+    var sflChcCtl = null;
+    if (selectionList) {
+      var ctlField = sflRecord.fields.filter(function (f) {
+        return (f.keywords || []).some(function (k) { return k.name === 'SFLCHCCTL'; });
+      })[0];
+      if (ctlField) {
+        var styleKeywords = record.keywords.slice();
+        sflRecord.fields.forEach(function (f) { styleKeywords = styleKeywords.concat(f.keywords || []); });
+        sflChcCtl = {
+          states: choiceStatesFor(dspfFile, sflRecord, ctlField),
+          keywords: styleKeywords,
+          sltInd: /\*SLTIND/.test(String(selListKw.parameters || '').toUpperCase())
+        };
+        selectionList.sltInd = sflChcCtl.sltInd;
+        selectionList.control = { record: sflRecord.name, field: ctlField.name };
+      }
+    }
+    function applySflRowState(rowFields, rowNumber) {
+      if (!sflChcCtl) return;
+      var value = sflChcCtl.states && Object.prototype.hasOwnProperty.call(sflChcCtl.states, rowNumber) ? sflChcCtl.states[rowNumber] : 0;
+      var stateName = choiceStateName(value);
+      var style = choiceStateStyle(sflChcCtl.keywords, stateName, activeIndicators, activeSizeName);
+      var hasState = !!sflChcCtl.states || !!style;
+      rowFields.forEach(function (f) {
+        if (f.nameType !== 'FIELD' || f.usage === 'H' || f.usage === 'P') return;
+        if (hasState) f.rowState = { stateName: stateName, stateStyle: style };
+        if (sflChcCtl.sltInd) {
+          var marked = value === 1;
+          f.choiceMarker = selectionList.kind === 'single' ? '(' + (marked ? '\u25CF' : ' ') + ')' : (marked ? '[X]' : '[ ]');
+        }
+      });
+    }
 
     // Only fields that actually occupy a VISIBLE row position count toward
     // row height - hidden/program-to-system fields (usage H/P, matching the
@@ -1550,6 +1586,7 @@
       for (var row = 0; row < sflPag; row++) {
         var rowOffset = lineOffset + row * rowHeight;
         var rowFields = resolveRecordFields(sflRecord, activeIndicators, rowOffset, colOffset, 'subfile-edit-row-' + row, activeSizeName, dspfFile);
+        applySflRowState(rowFields, row + 1);
         if (row === 0) firstRowFields = rowFields;
         fields = fields.concat(rowFields);
       }
@@ -2494,6 +2531,12 @@
     if (f.widget) classes.push('dspf-widget-' + f.widget.type);
     if (f.cntfld) classes.push('dspf-cntfld');
     if (f.tag === 'pulldown') classes.push('dspf-pulldown-field');
+    var rowStateStyle = '';
+    if (f.rowState) {
+      var rsm = choiceStateMarkup({ stateName: f.rowState.stateName, stateStyle: f.rowState.stateStyle });
+      if (rsm.classes) classes.push(rsm.classes.replace('dspf-choice-colored', '').trim());
+      rowStateStyle = rsm.style;
+    }
     var recordLabel = f.sourceRecord ? ' [' + f.sourceRecord + ']' : '';
     // Set as a custom property, NOT the `color` property directly: `.dspf-reverse`
     // (below) needs to read the field's ORIGINAL foreground via `currentColor` for
@@ -2504,6 +2547,7 @@
     // would see THAT instead of this field's real color. Routing it through
     // `--dspf-fg` keeps the two independent - see the .dspf-reverse rule.
     var colorStyle = f.style.color ? '--dspf-fg:' + f.style.color + ';' : '';
+    colorStyle += rowStateStyle;
     // Task P14/P15 - stacking layer (multi-record screens only) and, for a windowed
     // record's fields, the window's own background instead of the screen frame's.
     if (f.stackLayer != null) colorStyle += 'z-index:' + f.stackLayer + ';';
@@ -2554,6 +2598,7 @@
       f.column +
       '" data-length="' +
       f.length +
+      (f.choiceMarker ? '" data-choice-marker="' + escapeHtml(f.choiceMarker) : '') +
       '" data-height="' +
       height +
       '" data-tag="' +

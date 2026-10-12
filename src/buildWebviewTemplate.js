@@ -284,6 +284,9 @@ const htmlTemplate = `<!DOCTYPE html>
   .dspf-pshbtn.dspf-choice-unavailable { border-style: dashed; }
   .dspf-pshbtn.dspf-choice-selected { background: #2a4a38; }
   .dspf-choice-nd { visibility: hidden; }
+  /* E10d - the radio button / check box a selection list draws before each item (*SLTIND), kept out of the layout. */
+  .dspf-field[data-choice-marker] { position: relative; overflow: visible; }
+  .dspf-field[data-choice-marker]::before { content: attr(data-choice-marker); position: absolute; right: 100%; margin-right: 1ch; color: var(--dspf-fg, inherit); white-space: pre; }
   .dspf-choice-glyph { color: var(--ink-dim); font-family: var(--mono); }
   .dspf-field.dspf-cntfld {
     display: flex; flex-direction: column; white-space: normal; z-index: 1;
@@ -6172,6 +6175,7 @@ const htmlTemplate = `<!DOCTYPE html>
     // separate "SFL" tab on a control record, which would be confusing.
     const sflCtlPrefix = 'sflctl-' + rec.name;
     const isSflCtl = WebviewClientHelpers.isSflCtlRecord(rec);
+    const sflChoiceInfo = isSflCtl ? sflChoicePreviewInfo(rec) : null;
     let sflCtlPanels = null;
     if (isSflCtl) {
       sflCtlPanels = WebviewClientHelpers.sflCtlPanelsHtml(rec, sflCtlPrefix, expandedKeywordConditioning, model.fileKeywords);
@@ -6226,7 +6230,8 @@ const htmlTemplate = `<!DOCTYPE html>
         accordionHtml('record-' + rec.name + '::sflctl-general', 'General', sflCtlPanels.general, true) +
         accordionHtml('record-' + rec.name + '::sflctl-indicator', 'Indicator', sflCtlPanels.indicator, false) +
         accordionHtml('record-' + rec.name + '::sflctl-layout', 'Display Layout', sflCtlPanels.displayLayout, false) +
-        accordionHtml('record-' + rec.name + '::sflctl-messages', 'Subfile Messages', sflCtlPanels.subfileMessages, false);
+        accordionHtml('record-' + rec.name + '::sflctl-messages', 'Subfile Messages', sflCtlPanels.subfileMessages, false) +
+        (sflChoiceInfo ? accordionHtml('record-' + rec.name + '::sflctl-choice-preview', 'Preview state (SFLCHCCTL)', WebviewClientHelpers.sflRowPreviewStateHtml(sflChoiceInfo.rows, sflCtlPrefix + '-sflchc', (row) => { const v = choicePreviewStates[DspfEngine.choiceStateKey(sflChoiceInfo.record, sflChoiceInfo.field, row)]; return v == null ? '' : v; }), false) : '');
       tabs.push({ id: 'sflctl', label: 'SFLCTL', content: sflCtlHtml });
     }
     if (isMnuBar) {
@@ -6341,6 +6346,7 @@ const htmlTemplate = `<!DOCTYPE html>
       // sflPgmqFieldHtml's own comment) - wired the same way L73 wired it
       // for SFLMSG, a field-level commit rather than a record-keywords one.
       WebviewClientHelpers.wireSflPgmqField(rec, sflCtlPrefix + '-sflpgmq', (field, updates) => commitFieldUpdateKeepingSelection(field, updates));
+      if (sflChoiceInfo) wireSflRowPreviewState(sflChoiceInfo, sflCtlPrefix + '-sflchc');
     }
     if (isMnuBar) {
       WebviewClientHelpers.wireMnuBarPanels(mnuBarPrefix, () => model.records.find((r) => r.name === recordName).keywords, (newKeywords) => commitRecordEdit(recordName, { keywords: newKeywords }), expandedKeywordConditioning, () => renderRecordProps(recordName), () => model.fileKeywords);
@@ -7551,6 +7557,29 @@ const htmlTemplate = `<!DOCTYPE html>
       (id) => { const v = choicePreviewStates[DspfEngine.choiceStateKey(recordName, field.name, id)]; return v == null ? '' : v; }
     );
     return html ? accordionHtml('field-' + field.sourceLine + '::choice-preview-state', 'Preview state (CHCCTL)', html, false) : '';
+  }
+
+  // Task E10d - a selection-list subfile (SFLSNGCHC / SFLMLTCHC on the control record) whose subfile record has an
+  // SFLCHCCTL field: { record, field, rows } (rows = SFLPAG, at most 24), else null. The hidden control field is not
+  // drawn, so its per-row preview-state selector lives on the control record's panel.
+  function sflChoicePreviewInfo(rec) {
+    if (!rec.keywords.some((k) => k.name === 'SFLSNGCHC' || k.name === 'SFLMLTCHC')) return null;
+    const ctlKw = rec.keywords.find((k) => k.name === 'SFLCTL');
+    const sflRec = ctlKw && model.records.find((r) => r.name === String(ctlKw.parameters || '').trim().toUpperCase());
+    const ctlField = sflRec && sflRec.fields.find((f) => (f.keywords || []).some((k) => k.name === 'SFLCHCCTL'));
+    if (!ctlField) return null;
+    const pagKw = rec.keywords.find((k) => k.name === 'SFLPAG');
+    const pag = pagKw ? parseInt(pagKw.parameters, 10) : NaN;
+    return { record: sflRec.name, field: ctlField.name, rows: Math.max(1, Math.min(24, pag > 0 ? pag : 10)) };
+  }
+
+  function wireSflRowPreviewState(info, ownerKey) {
+    WebviewClientHelpers.wireChoicePreviewState(ownerKey, (id, value) => {
+      const key = DspfEngine.choiceStateKey(info.record, info.field, id);
+      if (value == null) delete choicePreviewStates[key];
+      else choicePreviewStates[key] = value;
+      render();
+    });
   }
 
   function wirePreviewState(field, ownerRecordName, ownerKey) {

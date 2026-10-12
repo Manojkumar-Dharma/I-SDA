@@ -3824,6 +3824,23 @@ html += '<div class="hint-small">SFLROLVAL, SFLSCROLL, and SFLRCDNBR cannot shar
     return html;
   }
 
+  /**
+   * E10d: the preview-state selector for a selection-list subfile - one select per previewed row (the row number
+   * is the choice number), same control values and "default" as choicePreviewStateHtml. Preview only.
+   */
+  function sflRowPreviewStateHtml(rowCount, ownerKey, getState) {
+    var opts = DspfWriter.choiceControlOptions();
+    var html = '<div class="hint-small">Preview only, not saved. Sets the SFLCHCCTL control value each previewed row would carry, so the row draws as available, selected or unavailable. 2, 3 and 4 look the same here.</div>';
+    for (var row = 1; row <= rowCount; row++) {
+      var cur = String(getState(row) == null ? '' : getState(row));
+      html += '<div class="field-row"><label>Row ' + row + '</label><select class="' + ownerKey + '-chcstate" data-choice-id="' + row + '">';
+      html += '<option value=""' + (cur === '' ? ' selected' : '') + '>default</option>';
+      opts.forEach(function (o) { html += '<option value="' + o.value + '"' + (cur === String(o.value) ? ' selected' : '') + '>' + escapeHtml(o.label) + '</option>'; });
+      html += '</select></div>';
+    }
+    return html;
+  }
+
   /** Wires choicePreviewStateHtml's selects; onChange(choiceId, value|null) - null for "default". */
   function wireChoicePreviewState(ownerKey, onChange) {
     Array.prototype.forEach.call(document.querySelectorAll('.' + ownerKey + '-chcstate'), function (sel) {
@@ -9097,6 +9114,7 @@ html += '<div class="hint-small">SFLROLVAL, SFLSCROLL, and SFLRCDNBR cannot shar
     choiceKeywordsListHtml: choiceKeywordsListHtml,
     choicePreviewStateHtml: choicePreviewStateHtml,
     wireChoicePreviewState: wireChoicePreviewState,
+    sflRowPreviewStateHtml: sflRowPreviewStateHtml,
     wireChoiceKeywordsListEditor: wireChoiceKeywordsListEditor,
     pshbtnChoiceColorStateKeys: pshbtnChoiceColorStateKeys,
     choiceColorStatesHtml: choiceColorStatesHtml,
