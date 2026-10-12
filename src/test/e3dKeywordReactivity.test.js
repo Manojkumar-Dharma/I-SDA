@@ -71,13 +71,15 @@ const recordKw = (kw) => (ind) => [dds({ t: 'R', name: 'R1' }), dds({ ind, fn: k
 const fileKw = (kw) => (ind) => [dds({ ind, fn: kw }), dds({ t: 'R', name: 'R1' }), F('F1', 3), dds({ line: 7, col: 2, fn: "'Const'" })].join('\n') + '\n';
 const choice = (ind) => [dds({ t: 'R', name: 'R1' }), dds({ name: 'SEL', len: 1, type: 'S', dec: 0, use: 'B', line: 3, col: 2, fn: 'SNGCHCFLD' }), dds({ fn: "CHOICE(1 'One')" }), dds({ ind, fn: "CHOICE(2 'Two')" }), dds({ fn: "CHOICE(3 'Three')" })].join('\n') + '\n';
 const menubar = (ind) => [dds({ t: 'R', name: 'MB', fn: 'MNUBAR' }), dds({ name: 'MBF', len: 2, type: 'Y', dec: 0, use: 'B', line: 1, col: 2, fn: "MNUBARCHC(1 PULLFILE 'File')" }), dds({ ind, fn: "MNUBARCHC(2 PULLEDIT 'Edit')" })].join('\n') + '\n';
+const mbSep = (ind) => [dds({ t: 'R', name: 'MB', fn: 'MNUBAR' }), dds({ name: 'MBF', len: 2, type: 'Y', dec: 0, use: 'B', line: 1, col: 2 }), dds({ ind, fn: "MNUBARSEP((*CHAR '='))" }), dds({ fn: "MNUBARCHC(1 PULLFILE 'File')" })].join('\n') + '\n';
+const mbDsp = (ind) => [dds({ t: 'R', name: 'REC1' }), dds({ ind, fn: 'MNUBARDSP(MB &CH)' }), F('F1', 10), dds({ name: 'CH', len: 2, type: 'Y', dec: 0, use: 'H' }),
+  dds({ t: 'R', name: 'MB', fn: 'MNUBAR' }), dds({ name: 'MBF', len: 2, type: 'Y', dec: 0, use: 'B', line: 1, col: 2 }), dds({ fn: "MNUBARCHC(1 PULLFILE 'File')" })].join('\n') + '\n';
 const pshbtn = (ind) => [dds({ t: 'R', name: 'R1' }), dds({ name: 'PB', len: 1, type: 'S', dec: 0, use: 'B', line: 3, col: 2, fn: 'PSHBTNFLD' }), dds({ fn: "PSHBTNCHC(1 'OK')" }), dds({ ind, fn: "PSHBTNCHC(2 'Cancel')" })].join('\n') + '\n';
 const chcState = (kw) => (ind) => [dds({ t: 'R', name: 'R1' }), dds({ name: 'SEL', len: 1, type: 'S', dec: 0, use: 'B', line: 3, col: 2, fn: 'SNGCHCFLD' }), dds({ fn: "CHOICE(1 'One')" }), dds({ ind, fn: kw })].join('\n') + '\n';
 
 const SAMPLE = {
   CSRLOC: 'CSRLOC(CSRROW CSRCOL)', ERASE: 'ERASE(R1)', ERASEINP: 'ERASEINP(*ALL)', DSPMOD: 'DSPMOD(*DS3)', RETLCKSTS: 'RETLCKSTS(R2)',
-  DFTVAL: "DFTVAL('abc')", ENTFLDATR: 'ENTFLDATR', ERRMSGID: 'ERRMSGID(ABC1234 MSGF)', MNUBARSEP: "MNUBARSEP((*CHAR '-'))",
-  MNUBARDSP: 'MNUBARDSP(MB &CH &IN)', MNUBARSW: 'MNUBARSW(CA03)', MNUCNL: 'MNUCNL(CA12)', CLEAR: 'CLEAR(30)', HELP: 'HELP', HOME: 'HOME(31)',
+  DFTVAL: "DFTVAL('abc')", ENTFLDATR: 'ENTFLDATR', ERRMSGID: 'ERRMSGID(ABC1234 MSGF)', MNUBARSW: 'MNUBARSW(CA03)', MNUCNL: 'MNUCNL(CA12)', CLEAR: 'CLEAR(30)', HELP: 'HELP', HOME: 'HOME(31)',
   PAGEDOWN: 'PAGEDOWN(32)', PAGEUP: 'PAGEUP(33)', PRINT: 'PRINT(34)', INVITE: 'INVITE', LOGOUT: 'LOGOUT(35)', HLPRTN: 'HLPRTN',
   ALARM: 'ALARM', BLINK: 'BLINK', LOCK: 'LOCK', MDTOFF: 'MDTOFF', FRCDTA: 'FRCDTA', INZINP: 'INZINP', OVERLAY: 'OVERLAY', PROTECT: 'PROTECT',
   PUTOVR: 'PUTOVR', PUTRETAIN: 'PUTRETAIN', ALWGPH: 'ALWGPH', CSRINPONLY: 'CSRINPONLY', MSGALARM: 'MSGALARM', DUP: 'DUP', OVRATR: 'OVRATR',
@@ -87,7 +89,7 @@ const REACTIVE = {
   COLOR: [fieldKw('COLOR(RED)'), 'R1'], DSPATR: [fieldKw('DSPATR(RI)'), 'R1'], ERRMSG: [win("ERRMSG('bad')"), 'W1'],
   WDWBORDER: [win('WDWBORDER((*COLOR RED))'), 'W1'], WDWTITLE: [win("WDWTITLE('Hello')"), 'W1'],
   SFLDROP: [sfl('SFLDROP'), 'CTL'], SFLFOLD: [sfl('SFLFOLD'), 'CTL'], SFLDSP: [sfl('SFLDSP'), 'CTL'], SFLDSPCTL: [sfl('SFLDSPCTL'), 'CTL'],
-  CHOICE: [choice, 'R1'], MNUBARCHC: [menubar, 'MB'], PSHBTNCHC: [pshbtn, 'R1'],
+  CHOICE: [choice, 'R1'], MNUBARCHC: [menubar, 'MB'], MNUBARSEP: [mbSep, 'MB'], MNUBARDSP: [mbDsp, 'REC1'], PSHBTNCHC: [pshbtn, 'R1'],
   CHCAVAIL: [chcState('CHCAVAIL(*COLOR RED)'), 'R1'], CHCSLT: [chcState('CHCSLT(*COLOR RED)'), 'R1', { 'R1|SEL|1': 1 }], CHCUNAVAIL: [chcState('CHCUNAVAIL(*COLOR RED)'), 'R1', { 'R1|SEL|1': 2 }],
 };
 const levelBuilder = (levels) => (/record/.test(levels) ? recordKw : /field/.test(levels) ? fieldKw : /file/.test(levels) ? fileKw : null);

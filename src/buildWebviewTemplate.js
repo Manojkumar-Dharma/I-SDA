@@ -357,6 +357,7 @@ const htmlTemplate = `<!DOCTYPE html>
   }
   .dspf-pshbtn-gap { display: block; }
   .dspf-field.dspf-widget-menubar { display: flex; align-items: center; white-space: nowrap; background: #10231a; z-index: 1; }
+  .dspf-menubar-sep { white-space: pre; overflow: hidden; pointer-events: none; line-height: 1.4em; }
   .dspf-menubar-choice {
     display: inline-block; padding: 0 4px; cursor: pointer; color: var(--ink);
     box-sizing: border-box;

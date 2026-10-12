@@ -47,7 +47,7 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-2 of 10 epics done (E7, E9); 28 sub-tasks done (E3a - E3d, E3f, E7a - E7m, E9a - E9e, E10a - E10d, E10f). Current version: **v0.13.6**.
+2 of 10 epics done (E7, E9); 29 sub-tasks done (E3a - E3d, E3f, E3j, E7a - E7m, E9a - E9e, E10a - E10d, E10f). Current version: **v0.13.7**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
@@ -155,7 +155,7 @@ option indicators; program-to-system field values can be set and are shared with
 | E3g | **Menu designer parity.** Offer the panel in the menu designer where menu records carry conditioned content. **Decision first:** may be dropped if E3a shows menus have nothing to simulate. | E3b | Open | - |
 | E3h | **Release** (next free minor). | E3a - E3g, E3i - E3l | Open | - |
 | E3i | **`DFTVAL` default value.** Draw the default value in the field on the first output when its option indicator is on or absent (reference: "the specified value is displayed if the option indicator is on or has not been specified"). **Decision first:** the preview shows the field name inside a named field; a default value would replace it, or show beside it. | E3d | Open | - |
-| E3j | **Menu bar drawing.** `MNUBARSEP` (colour, attribute and character of the separator line under the menu bar) and `MNUBARDSP` (the menu bar of another record shown when this record is written), both honouring their option indicators. | E3d | Open | - |
+| E3j | **Menu bar drawing.** `MNUBARSEP` (colour, attribute and character of the separator line under the menu bar) and `MNUBARDSP` (the menu bar of another record shown when this record is written), both honouring their option indicators. | E3d | Done | v0.13.7 |
 | E3k | **Cursor position (`CSRLOC`).** Place the cursor marker from the two program fields' design-time values in the E3f store (a new `cursorLocation` namespace); an off `CSRLOC` leaves the default cursor. | E3d, E3f | Open | - |
 | E3l | **Record overlay keywords in display mode.** `OVERLAY`, `PROTECT`, `ERASE`, `ERASEINP`, `PUTOVR`, `PUTRETAIN` change what earlier records show, so they can only be drawn when several records are previewed together (the existing display mode); make that mode honour them under the active indicators. **Decision first:** which of the six are worth drawing. | E3d | Open | - |
 
@@ -203,7 +203,7 @@ reactivity), E3e (explain panel) and E3g (menu designer) are unchanged and still
   simulator panel lists every stored value (`REC.FLD (choice / row n) = v`) with a remove button and "Clear all stored
   values". The extension host loads the file's state on `ready` (`simulatorState` message) and saves on every change
   (`saveSimulatorState`); loading posts nothing back.
-- **Not done (still Open):** E3e explain panel, E3g menu designer parity, E3i - E3l (the gaps E3d found), E3h release. A value
+- **Not done (still Open):** E3e explain panel, E3g menu designer parity, E3i, E3k, E3l (the gaps E3d found), E3h release. A value
   store editor for a new namespace is the job of the feature that adds the namespace.
 - Tests: `e3IndicatorSim.test.js` (pure logic, a fake memento), `e3SimulatorPanel.test.js` (both panel copies,
   messages, reset).
@@ -279,8 +279,8 @@ line. A record without `WINDOW` has no error line to show; that is a limit of th
 | LOGOUT | record | Not drawn | sign-off key; no drawn difference |
 | MDTOFF | record | Not drawn | resets the modified-data tags; no drawn difference |
 | MNUBARCHC | field | Reactive | an off choice is dropped and the menu bar compresses (E3d) |
-| MNUBARDSP | record | Gap (E3j) | displays the menu bar of another record when this record is written |
-| MNUBARSEP | field | Gap (E3j) | colour, attribute and character of the separator line under the menu bar |
+| MNUBARDSP | record | Reactive | the menu bar of the named record is drawn with this record when the first instance in effect names it; on the menu-bar record itself an off MNUBARDSP shows no bar (E3j) |
+| MNUBARSEP | field | Reactive | colour, attributes and character of the separator line under the menu bar; the first instance in effect is used; only `ND` hides it (E3j) |
 | MNUBARSW | file, record | Not drawn | assigns the switch-to-menu-bar key; a key assignment is not part of the drawn screen |
 | MNUCNL | file, record | Not drawn | assigns the cancel key for menus; a key assignment is not part of the drawn screen |
 | MSGALARM | file, record | Not drawn | sounds the alarm for a message; nothing on the screen |
@@ -311,6 +311,27 @@ line. A record without `WINDOW` has no error line to show; that is a limit of th
 `DFTVAL`, `DSPATR`, `DSPMOD`, `DUP`, `HLPPNLGRP`, `PSHBTNCHC`. It is the same shape of finding as I-176 (the
 `optionIndicatorsValid` spelling), one step further: an entry with no fact at all. The E3d test reads the Reference
 for these six and does not depend on the spec for them.
+
+### E3j results
+
+**E3j (built, v0.13.7).** The preview now draws the menu bar's separator line and the menu bar a record displays.
+Reference: `MNUBAR`, `MNUBARSEP`, `MNUBARDSP` in DDS for display files (both keywords say "Option indicators are valid
+for this keyword"; `MNUBAR` says they are not).
+
+- **Separator line.** `MNUBAR(*SEPARATOR)` is the default, so a menu-bar record draws one row of the separator character
+  across the whole screen, on the line below the bar field: blue dashes unless `MNUBARSEP` says otherwise. `*NOSEPARATOR`
+  draws none. `MNUBARSEP((*COLOR c) (*DSPATR a) (*CHAR 'x'))` sets colour, attributes (BL blinks, HI bold, UL underlined,
+  RI a reverse-image bar) and character; the first instance whose option indicators hold is used.
+- **`MNUBARDSP(menu-bar-record &choice-field [&pull-down-input])`** on an ordinary record draws the named `MNUBAR` record's
+  bar and separator with it; the first instance in effect is used; a record that does not exist, or has no `MNUBAR`, draws
+  nothing. **`MNUBARDSP[(&pull-down-input)]`** on the `MNUBAR` record decides whether that bar is displayed (an off instance
+  and no other in effect: no bar, no separator; no `MNUBARDSP` at all: not gated). Both work in display mode too.
+- **Decision (Manojkumar, option B).** The Reference says "Display attributes HI, RI, and UL cause a separator line not to
+  be displayed", yet its own example specifies `(*DSPATR RI)` over blanks and describes "pink blanks displayed in reverse
+  image". The example is followed: every attribute only styles the line, and only `ND` hides it. The same section also says
+  "If more than one COLOR keyword is specified", which reads as text copied from `COLOR`.
+- Tests: `e3jMenuBarSeparator.test.js`; the two rows in the E3d table are now Reactive and `e3dKeywordReactivity.test.js`
+  probes them.
 
 ---
 

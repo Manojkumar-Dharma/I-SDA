@@ -84,6 +84,65 @@
     return instances.some(function (k) { return conditionsSatisfied(k.conditions, inds, activeSizeName); });
   }
 
+  /**
+   * E3j: the menu bar a record writes, and the separator line under it.
+   *
+   * A MNUBAR record is the menu bar itself. Any other record can name one with
+   * MNUBARDSP(menu-bar-record &choice-field [&pull-down-input]) ("the menu-bar record that is to be
+   * displayed when this record is written"); "if more than one MNUBARDSP keyword is in effect when the
+   * record is written, the first one in effect is used". On the MNUBAR record itself MNUBARDSP[(&input)]
+   * decides whether that bar is displayed (no instance in effect: it is not), the same gate as SFLDSP.
+   * Returns { fields, separator, suppressOwn }: fields = the referenced bar's fields to add to this
+   * record's, separator = the separator line to draw (or null), suppressOwn = this record's own bar is off.
+   */
+  function resolveMenuBar(record, dspfFile, activeIndicators, activeSizeName, columns) {
+    var inds = activeIndicators || new Set();
+    var out = { fields: [], separator: null, suppressOwn: false, menuRecord: null };
+    var isBar = (record.keywords || []).some(function (k) { return k.name === 'MNUBAR'; });
+    var menuRecord = null;
+    if (isBar) {
+      if (!gatingKeywordInEffect(record, 'MNUBARDSP', inds, activeSizeName)) { out.suppressOwn = true; return out; }
+      menuRecord = record;
+    } else {
+      var dsp = (record.keywords || []).find(function (k) { return k.name === 'MNUBARDSP' && conditionsSatisfied(k.conditions, inds, activeSizeName); });
+      if (!dsp) return out;
+      var target = String(dsp.parameters || '').trim().split(/\s+/)[0];
+      menuRecord = (dspfFile.records || []).find(function (r) {
+        return r.name === target && (r.keywords || []).some(function (k) { return k.name === 'MNUBAR'; });
+      }) || null;
+      if (!menuRecord) return out;
+      out.fields = resolveRecordFields(menuRecord, inds, 0, 0, null, activeSizeName, dspfFile);
+      out.fields.forEach(function (f) { f.sourceRecord = menuRecord.name; f.fromMenuBarDsp = true; });
+    }
+    out.menuRecord = menuRecord;
+    // *SEPARATOR is the default; *NOSEPARATOR means no line (and then MNUBARSEP cannot be specified).
+    var bar = menuRecord.keywords.find(function (k) { return k.name === 'MNUBAR'; });
+    if (/\*NOSEPARATOR/i.test((bar && bar.parameters) || '')) return out;
+    var barFields = (isBar ? resolveRecordFields(menuRecord, inds, 0, 0, null, activeSizeName, dspfFile) : out.fields)
+      .filter(function (f) { return f.widget && f.widget.type === 'menubar'; });
+    if (barFields.length === 0) return out;
+    var bf = barFields[0];
+    var sepKw = null;
+    var barField = menuRecord.fields.find(function (f) { return f.sourceLine === bf.sourceLine; });
+    if (barField) {
+      // First MNUBARSEP in effect: option indicators are valid on it (E3j).
+      sepKw = (barField.keywords || []).find(function (k) { return k.name === 'MNUBARSEP' && conditionsSatisfied(k.conditions, inds, activeSizeName); }) || null;
+    }
+    var text = (sepKw && sepKw.parameters) || '';
+    var sep = { line: bf.line + (bf.height || 1), column: 1, width: columns, color: COLOR_HEX.BLU, attrs: [], char: '-', recordName: menuRecord.name };
+    var colorM = /\*COLOR\s+([A-Z]+)/i.exec(text);
+    if (colorM && COLOR_HEX[colorM[1].toUpperCase()]) sep.color = COLOR_HEX[colorM[1].toUpperCase()];
+    var attrM = /\*DSPATR\s+([^()]*)/i.exec(text);
+    if (attrM) sep.attrs = attrM[1].trim().split(/\s+/).filter(Boolean).map(function (a) { return a.toUpperCase(); });
+    var charM = /\*CHAR\s+'([^']*)'/i.exec(text);
+    if (charM && charM[1].length > 0) sep.char = charM[1].charAt(0);
+    // The Reference sentence "HI, RI and UL cause a separator line not to be displayed" contradicts its own
+    // example (RI over blanks "displayed in reverse image"); the example is followed, so only ND hides it.
+    if (sep.attrs.indexOf('ND') !== -1) return out;
+    if (sep.line > 0) out.separator = sep;
+    return out;
+  }
+
   // ---------------------------------------------------------------------
   // Display-size (DSPSIZ) handling
   //
@@ -2156,6 +2215,10 @@
       // E3d: SFLDSPCTL off - the subfile-control record's fields (constants included) are not displayed.
       if (!gatingKeywordInEffect(record, 'SFLDSPCTL', activeIndicators, size.name)) candidates = [];
     }
+    // E3j: MNUBARDSP / MNUBARSEP - see resolveMenuBar.
+    var menuBar = resolveMenuBar(record, dspfFile, activeIndicators, size.name, size.columns);
+    if (menuBar.suppressOwn) candidates = [];
+    else if (menuBar.fields.length > 0) candidates = candidates.concat(menuBar.fields);
     // Task P15 - fields of a windowed record sit on the window's own background.
     if (windowBox) candidates.forEach(function (f) { f.inWindow = true; });
 
@@ -2260,6 +2323,7 @@
       window: windowBox,
       subfilePreview: subfilePreview,
       pulldown: pulldown,
+      menuBarSeparator: menuBar.separator,
       errorMessage: errorMessage,
       isSflRecord: isSflRecord,
       previewRowCount: previewRowCount,
@@ -2336,6 +2400,7 @@
     var allFields = [];
     var windows = [];
     var errorMessages = [];
+    var menuBarSeparators = [];
     var contributing = 0;
 
     recordNames.forEach(function (recordName, index) {
@@ -2354,6 +2419,10 @@
 
       var fields = resolveRecordFields(record, activeIndicators, lineOffset, colOffset, null, size.name, dspfFile);
       if (!gatingKeywordInEffect(record, 'SFLDSPCTL', activeIndicators, size.name)) fields = []; // E3d
+      var menuBar = resolveMenuBar(record, dspfFile, activeIndicators, size.name, size.columns); // E3j
+      if (menuBar.suppressOwn) fields = [];
+      else fields = fields.concat(menuBar.fields);
+      if (menuBar.separator) menuBarSeparators.push(Object.assign({ stackLayer: layer }, menuBar.separator));
       fields.forEach(function (f) { f.sourceRecord = recordName; f.stackLayer = layer + 1; if (windowBox) f.inWindow = true; });
       allFields = allFields.concat(fields);
       if (windowBox) windows.push(Object.assign({ recordName: recordName, stackLayer: layer }, windowBox));
@@ -2368,7 +2437,7 @@
       if (errorMessage) errorMessages.push(Object.assign({ recordName: recordName, stackLayer: layer + 1 }, errorMessage));
     });
 
-    return { lines: size.lines, columns: size.columns, sizeName: size.name, availableSizes: size.sizes, fields: allFields, windows: windows, errorMessages: errorMessages, stacked: contributing > 1 };
+    return { lines: size.lines, columns: size.columns, sizeName: size.name, availableSizes: size.sizes, fields: allFields, windows: windows, menuBarSeparators: menuBarSeparators, errorMessages: errorMessages, stacked: contributing > 1 };
   }
 
   // ---------------------------------------------------------------------
@@ -2863,6 +2932,21 @@
       })
       .join('\n');
 
+    // E3j: the menu-bar separator line(s), one row of the separator character across the whole screen.
+    var separatorList = screen.menuBarSeparators || (screen.menuBarSeparator ? [screen.menuBarSeparator] : []);
+    var separatorHtml = separatorList
+      .map(function (sp) {
+        var a = sp.attrs || [];
+        var style = 'grid-row:' + sp.line + ';grid-column:1 / span ' + sp.width + ';' +
+          (a.indexOf('RI') !== -1 ? 'background:' + sp.color + ';color:#0a0f0c;' : 'color:' + sp.color + ';') +
+          (a.indexOf('UL') !== -1 ? 'text-decoration:underline;' : '') +
+          (a.indexOf('HI') !== -1 ? 'font-weight:bold;' : '') +
+          (sp.stackLayer != null ? 'z-index:' + sp.stackLayer + ';' : '');
+        return '<div class="dspf-menubar-sep' + (a.indexOf('BL') !== -1 ? ' dspf-blink' : '') + '" style="' + style +
+          '" title="MNUBARSEP (' + escapeHtml(sp.recordName || '') + ')">' + escapeHtml(new Array(sp.width + 1).join(sp.char)) + '</div>';
+      })
+      .join('\n');
+
     return (
       '<div class="dspf-screen' + (screen.stacked ? ' dspf-stacked' : '') + '" style="grid-template-columns:repeat(' +
       screen.columns +
@@ -2873,6 +2957,8 @@
       windowBorderCharsHtml +
       '\n' +
       fieldDivs +
+      '\n' +
+      separatorHtml +
       '\n' +
       subfilePreviewHtml +
       pulldownHtml +
