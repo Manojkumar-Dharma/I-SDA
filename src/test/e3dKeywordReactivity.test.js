@@ -56,7 +56,8 @@ rows.forEach((r) => {
 const norm = (k, v) => (k === 'sourceLine' || k === 'tag' || k === 'anchorLine' ? undefined : v);
 const shot = (src, rec, set, states) => {
   const m = DspfParser.parseDspf(src);
-  if (states) m.choicePreviewStates = states;
+  if (states && states.__cursor) m.cursorLocationValues = states.__cursor;
+  else if (states) m.choicePreviewStates = states;
   return JSON.stringify(DspfEngine.resolveScreen(m, rec, set, null, true), norm);
 };
 const F = (n, l, u) => dds({ name: n, len: 10, type: 'A', use: u || 'B', line: l, col: 2 });
@@ -85,7 +86,9 @@ const SAMPLE = {
   PUTOVR: 'PUTOVR', PUTRETAIN: 'PUTRETAIN', ALWGPH: 'ALWGPH', CSRINPONLY: 'CSRINPONLY', MSGALARM: 'MSGALARM', DUP: 'DUP', OVRATR: 'OVRATR',
   OVRDTA: 'OVRDTA', SFLINZ: 'SFLINZ', SFLNXTCHG: 'SFLNXTCHG', RMVWDW: 'RMVWDW', USRRSTDSP: 'USRRSTDSP', HLPCLR: 'HLPCLR',
 };
+const csrloc = (ind) => [dds({ t: 'R', name: 'R1' }), dds({ ind, fn: 'CSRLOC(CSRROW CSRCOL)' }), F('F1', 3), dds({ name: 'CSRROW', len: 3, type: 'S', dec: 0, use: 'H' }), dds({ name: 'CSRCOL', len: 3, type: 'S', dec: 0, use: 'H' })].join('\n') + '\n';
 const REACTIVE = {
+  CSRLOC: [csrloc, 'R1', { __cursor: { 'R1|CSRROW': 5, 'R1|CSRCOL': 10 } }],
   COLOR: [fieldKw('COLOR(RED)'), 'R1'], DSPATR: [fieldKw('DSPATR(RI)'), 'R1'], ERRMSG: [win("ERRMSG('bad')"), 'W1'],
   WDWBORDER: [win('WDWBORDER((*COLOR RED))'), 'W1'], WDWTITLE: [win("WDWTITLE('Hello')"), 'W1'],
   SFLDROP: [sfl('SFLDROP'), 'CTL'], SFLFOLD: [sfl('SFLFOLD'), 'CTL'], SFLDSP: [sfl('SFLDSP'), 'CTL'], SFLDSPCTL: [sfl('SFLDSPCTL'), 'CTL'],

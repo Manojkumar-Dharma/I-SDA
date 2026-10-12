@@ -894,6 +894,49 @@
   }
 
   // ---------------------------------------------------------------------
+  // E3k - CSRLOC(field-name-1 field-name-2): the cursor location a program sets with two 3-byte zoned hidden fields
+  // (line and position) before an output operation. The preview takes the two values from
+  // dspfFile.cursorLocationValues (set by the webview from the E3f store, never written to the source), keyed by
+  // cursorLocationKey(). "If your program sets the cursor location fields to values outside the range valid for the
+  // display device, this keyword is ignored", and the keyword "overrides any other cursor location specifications,
+  // such as DSPATR(PC)". Not valid on subfile or user-defined records. Specify once per record, so the first
+  // instance whose option indicators hold is the one in effect.
+  // ---------------------------------------------------------------------
+
+  /** The key a CSRLOC field's design-time value is stored under: 'RECORD|FIELD' (upper case). */
+  function cursorLocationKey(recordName, fieldName) {
+    return String(recordName || '').toUpperCase() + '|' + String(fieldName || '').toUpperCase();
+  }
+
+  /** The two field names of a CSRLOC parameter list ('LINNBR POSNBR' or '&LINNBR &POSNBR'), or null. */
+  function cursorLocationFields(parameters) {
+    var parts = String(parameters || '').trim().replace(/^\(|\)$/g, '').split(/\s+/).map(function (p) { return p.replace(/^&/, '').toUpperCase(); }).filter(Boolean);
+    return parts.length === 2 ? { lineField: parts[0], posField: parts[1] } : null;
+  }
+
+  /**
+   * The cursor CSRLOC places for a record, as { line, col, lineField, posField }, or null when the keyword is not
+   * in effect, the record cannot take it, a value is missing or outside the screen (the keyword is then ignored,
+   * which leaves the DSPATR(PC) cursor), or the record is a window (positions inside a window are not modelled).
+   */
+  function resolveCursorLocation(dspfFile, record, activeIndicators, activeSizeName, lines, columns, isWindow) {
+    if (!record || isWindow) return null;
+    var kws = record.keywords || [];
+    if (kws.some(function (k) { return k.name === 'SFL' || k.name === 'USRDFN'; })) return null;
+    var inds = activeIndicators || new Set();
+    var kw = kws.find(function (k) { return k.name === 'CSRLOC' && conditionsSatisfied(k.conditions, inds, activeSizeName); });
+    if (!kw) return null;
+    var names = cursorLocationFields(kw.parameters);
+    var values = dspfFile && dspfFile.cursorLocationValues;
+    if (!names || !values) return null;
+    var line = Number(values[cursorLocationKey(record.name, names.lineField)]);
+    var col = Number(values[cursorLocationKey(record.name, names.posField)]);
+    if (!isFinite(line) || !isFinite(col) || Math.floor(line) !== line || Math.floor(col) !== col) return null;
+    if (line < 1 || line > lines || col < 1 || col > columns) return null;
+    return { line: line, col: col, lineField: names.lineField, posField: names.posField };
+  }
+
+  // ---------------------------------------------------------------------
   // E10c - choice states. CHCCTL / SFLCHCCTL set a choice's state at run time from a control value
   // (0 available, 1 selected, 2 / 3 / 4 unavailable). The preview takes that value from
   // dspfFile.choicePreviewStates (set by the webview, never written to the source), keyed by
@@ -2412,6 +2455,10 @@
     // one of them would ever actually hold the cursor at runtime.
     markFirstCursorField(resolved);
 
+    // E3k: CSRLOC overrides DSPATR(PC) for the output operation, so a CSRLOC cursor replaces the PC marker.
+    var cursor = resolveCursorLocation(dspfFile, record, activeIndicators, size.name, size.lines, size.columns, !!windowBox);
+    if (cursor) resolved.forEach(function (rf) { rf.showCursorIndicator = false; });
+
     // Subfile preview: a SEPARATE, non-interactive layer (see resolveSubfilePreview) -
     // like the pulldown overlay below, it doesn't compete for cells with the base screen.
     var subfilePreview = resolveSubfilePreview(dspfFile, record, activeIndicators, lineOffset, colOffset, size.lines, size.name, size.columns, foldFlipped, sflEndLastPage);
@@ -2454,6 +2501,7 @@
       subfilePreview: subfilePreview,
       pulldown: pulldown,
       menuBarSeparator: menuBar.separator,
+      cursor: cursor,
       errorMessage: errorMessage,
       isSflRecord: isSflRecord,
       previewRowCount: previewRowCount,
@@ -3077,6 +3125,12 @@
       })
       .join('\n');
 
+    // E3k: the cursor CSRLOC places, drawn as the same blinking block the DSPATR(PC) marker uses.
+    var cursorHtml = screen.cursor
+      ? '<div class="dspf-csrloc-cursor" style="grid-row:' + screen.cursor.line + ';grid-column:' + screen.cursor.col +
+        ';" title="CSRLOC(' + escapeHtml(screen.cursor.lineField + ' ' + screen.cursor.posField) + ') - cursor at line ' + screen.cursor.line + ', position ' + screen.cursor.col + '"></div>'
+      : '';
+
     return (
       '<div class="dspf-screen' + (screen.stacked ? ' dspf-stacked' : '') + '" style="grid-template-columns:repeat(' +
       screen.columns +
@@ -3093,6 +3147,7 @@
       subfilePreviewHtml +
       pulldownHtml +
       errorMessageHtml +
+      cursorHtml +
       '\n</div>'
     );
   }
@@ -3147,6 +3202,8 @@
     parseMenubarChoice: parseMenubarChoice,
     resolveScreen: resolveScreen,
     choiceStateKey: choiceStateKey,
+    cursorLocationKey: cursorLocationKey,
+    cursorLocationFields: cursorLocationFields,
     choiceStateName: choiceStateName,
     setJobDateFormat: setJobDateFormat,
     getJobDateFormat: getJobDateFormat,

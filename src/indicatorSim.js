@@ -252,6 +252,16 @@
       kind: 'integer',
       min: 0,
       max: 4
+    },
+    // CSRLOC(line-field position-field): the value one of the two program fields holds when the record is written;
+    // key = DspfEngine.cursorLocationKey(record, field). 3-byte zoned decimal fields, so 0 - 999 (the engine ignores a
+    // value outside the screen, as the Reference says the keyword is then ignored).
+    cursorLocation: {
+      label: 'Cursor location field value (CSRLOC)',
+      keyPattern: /^[^|]+\|[^|]+$/,
+      kind: 'integer',
+      min: 0,
+      max: 999
     }
   };
 
@@ -357,6 +367,7 @@
   function describeValueKey(namespace, key) {
     var parts = String(key).split('|');
     if (namespace === 'choiceControl' && parts.length === 3) return parts[0] + '.' + parts[1] + ' (choice / row ' + parts[2] + ')';
+    if (namespace === 'cursorLocation' && parts.length === 2) return parts[0] + '.' + parts[1] + ' (CSRLOC)';
     return String(key);
   }
 

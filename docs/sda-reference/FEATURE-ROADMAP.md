@@ -156,7 +156,7 @@ option indicators; program-to-system field values can be set and are shared with
 | E3h | **Release** (next free minor). | E3a - E3g, E3i - E3l | Open | - |
 | E3i | **`DFTVAL` default value.** Draw the default value in the field on the first output when its option indicator is on or absent (reference: "the specified value is displayed if the option indicator is on or has not been specified"). **Decision (settled):** the value replaces the field name, as on the real first output (the field name stands in for the unknown program value only when `DFTVAL` is not in effect); no "beside it" form. Built in `dspfEngine.js` (`dftvalText`): named `O` / `B` fields outside a subfile format, first instance whose condition holds, quoted value with `''` as one quote, cut to the field length, padded with blanks; an unquoted value (still being typed) keeps the name. Test: `e3iDftvalDefaultValue.test.js`. | E3d | Done | v0.13.8 |
 | E3j | **Menu bar drawing.** `MNUBARSEP` (colour, attribute and character of the separator line under the menu bar) and `MNUBARDSP` (the menu bar of another record shown when this record is written), both honouring their option indicators. | E3d | Done | v0.13.7 |
-| E3k | **Cursor position (`CSRLOC`).** Place the cursor marker from the two program fields' design-time values in the E3f store (a new `cursorLocation` namespace); an off `CSRLOC` leaves the default cursor. | E3d, E3f | In progress | — |
+| E3k | **Cursor position (`CSRLOC`).** Place the cursor marker from the two program fields' design-time values in the E3f store (a new `cursorLocation` namespace); an off `CSRLOC` leaves the default cursor. | E3d, E3f | Done | v0.13.11 |
 | E3l | **Record overlay keywords in display mode.** `OVERLAY`, `PROTECT`, `ERASE`, `ERASEINP`, `PUTOVR`, `PUTRETAIN` change what earlier records show, so they can only be drawn when several records are previewed together (the existing display mode); make that mode honour them under the active indicators. **Decision first:** which of the six are worth drawing. | E3d | In progress | — |
 
 
@@ -253,7 +253,7 @@ line. A record without `WINDOW` has no error line to show; that is a limit of th
 | CLEAR | file, record | Not drawn | assigns the Clear key; a key assignment is not part of the drawn screen |
 | COLOR | field | Reactive | field colour |
 | CSRINPONLY | file, record | Not drawn | restricts where the cursor may go; no static drawing |
-| CSRLOC | record | Gap (E3k) | cursor position from two program fields; the E3f store can supply them |
+| CSRLOC | record | Reactive | the cursor is drawn at the line and position the two program fields hold (E3f `cursorLocation` values); an off CSRLOC leaves the default cursor (E3k) |
 | DFTVAL | field | Reactive | the default value is drawn in the field in place of the field name while its condition holds (E3i) |
 | DSPATR | field | Reactive | display attributes (HI, RI, UL, ND, PR, ...) |
 | DSPMOD | record | Not drawn | switches the display size at run time; the preview has its own size selector |
@@ -364,6 +364,31 @@ previewed under indicators.
   shared builder in `webviewClientHelpers.js` is a possible refactor.
 - Tests: `e3gMenuSimulator.test.js` (the preview under indicators, the list and labels, scope and show-all, record
   switch, scenarios, what is posted and loaded, stored values, nothing written to the source, the host handlers).
+
+### E3k results
+
+**E3k (built, v0.13.11).** The preview draws the cursor a record's `CSRLOC(line-field position-field)` places.
+Reference: CSRLOC in DDS for display files.
+
+- **Where the values come from.** The two fields are program fields, so their values are design-time values in the E3f
+  store: a new `cursorLocation` namespace, key `RECORD|FIELD` (upper case), integer 0 - 999 (the fields are 3-byte
+  zoned decimal). `dspfFile.cursorLocationValues` carries them to the engine, the way `choicePreviewStates` carries
+  the choice control values; nothing is written to the source. The store is per file, shared with the menu designer.
+- **Editor.** In the simulator panel (aside and toolbar copies), a **Cursor (CSRLOC)** section appears for the
+  previewed record when it names cursor location fields: one number box per field, empty removes the value, over 999
+  is refused with the panel's usual message. The stored-values list shows them as `REC.FLD (CSRLOC)`.
+- **Drawn.** A blinking block (the DSPATR(PC) look) on its own grid cell at the stored line and position
+  (`resolveCursorLocation`, `screen.cursor`). Rules taken from the Reference: the first instance whose option
+  indicators hold is in effect (an off `CSRLOC` leaves the default cursor); values outside the display make the
+  keyword ignored; `CSRLOC` overrides `DSPATR(PC)`, so the PC marker is dropped while a `CSRLOC` cursor is drawn and
+  stays when the keyword is ignored. Names written with `&` are read the same.
+- **Not drawn.** Subfile and user-defined records (the keyword is invalid there); window records (where a position
+  inside a window counts from is not modelled, so nothing is guessed); the several-records display mode, which has
+  no single cursor. A keyword with other than two parameters is ignored.
+- The E3d table row for `CSRLOC` is now Reactive (no `Gap` row is left for E3k).
+- Tests: `e3kCursorLocation.test.js` (values, range, indicators, PC override, records that cannot take it, the store
+  namespace, the editor and the drawn cursor in both panel copies); `e3dKeywordReactivity.test.js` probes `CSRLOC`
+  with stored values.
 
 ### E3j results
 

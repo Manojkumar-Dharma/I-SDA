@@ -215,6 +215,8 @@ const htmlTemplate = `<!DOCTYPE html>
      field's first character that blinks like an actual terminal cursor. Only the one
      candidate resolveScreen's markFirstCursorField() picked (screen's first eligible
      PC field) gets this class, even if several fields in the DDS are marked PC. */
+  /* E3k - the cursor CSRLOC places: the same blinking block as the DSPATR(PC) marker, on its own grid cell. */
+  .dspf-csrloc-cursor { background: var(--accent); animation: dspf-blink 1s steps(1) infinite; pointer-events: none; z-index: 3; }
   .dspf-cursor-pos::before {
     content: '';
     position: absolute;
@@ -3154,10 +3156,52 @@ const htmlTemplate = `<!DOCTYPE html>
       });
       container.appendChild(list);
 
+      const cursorEditor = buildCursorLocationEditor(recordName);
+      if (cursorEditor) container.appendChild(cursorEditor);
       container.appendChild(buildScenarioRow());
       const valuesEditor = buildStoredValuesEditor();
       if (valuesEditor) container.appendChild(valuesEditor);
     });
+  }
+
+  // Task E3k - the CSRLOC editor: for a previewed record that names cursor location fields, one number box per field
+  // (line and position, 0 - 999 like the 3-byte zoned field). A box left empty removes the stored value. Stored in the
+  // E3f 'cursorLocation' namespace, never written to the DDS source; the preview draws the cursor once both are set
+  // and on the screen. Shown for the record being previewed only (the keyword is invalid on SFL / USRDFN records).
+  function cursorLocationFieldNames(recordName) {
+    const record = model.records.find((r) => r.name === recordName);
+    if (!record) return [];
+    const kws = record.keywords || [];
+    if (kws.some((k) => k.name === 'SFL' || k.name === 'USRDFN')) return [];
+    const names = [];
+    kws.filter((k) => k.name === 'CSRLOC').forEach((k) => {
+      const f = DspfEngine.cursorLocationFields(k.parameters);
+      if (f) [f.lineField, f.posField].forEach((n) => { if (names.indexOf(n) === -1) names.push(n); });
+    });
+    return names;
+  }
+
+  function buildCursorLocationEditor(recordName) {
+    const names = cursorLocationFieldNames(recordName);
+    if (names.length === 0) return null;
+    const box = document.createElement('div');
+    box.className = 'sim-cursor';
+    box.style.cssText = 'margin-top:8px;font-size:11px;';
+    box.innerHTML = '<div class="section-label">Cursor (CSRLOC)</div>';
+    names.forEach((name) => {
+      const key = DspfEngine.cursorLocationKey(recordName, name);
+      const stored = IndicatorSim.getValue(fieldValues, 'cursorLocation', key);
+      const line = document.createElement('label');
+      line.style.cssText = 'display:flex;align-items:center;gap:8px;padding:2px 0;';
+      line.innerHTML = '<span style="flex:1;">' + escapeSimHtml(name) + '</span>' +
+        '<input type="number" class="sim-cursor-input" data-key="' + escapeSimHtml(key) + '" min="0" max="999" step="1" style="width:70px;" placeholder="not set" value="' + (stored == null ? '' : stored) + '" />';
+      line.querySelector('input').addEventListener('change', (e) => {
+        const text = String(e.target.value).trim();
+        setFieldValue('cursorLocation', key, text === '' ? null : text);
+      });
+      box.appendChild(line);
+    });
+    return box;
   }
 
   // Task E3c - scenarios: choosing one turns exactly its indicators ON (and every other OFF); Save stores the
@@ -3338,6 +3382,7 @@ const htmlTemplate = `<!DOCTYPE html>
     );
     if (others.length === 0) return;
     model.choicePreviewStates = IndicatorSim.namespaceValues(fieldValues, 'choiceControl');
+    model.cursorLocationValues = IndicatorSim.namespaceValues(fieldValues, 'cursorLocation');
     const backdropScreen = DspfEngine.resolveMultiScreen(model, others, active, selectedSizeIndex);
     // Task P14 - the primary (current) record sits above the backdrop layer, so its
     // fields must overwrite the dimmed cells beneath them rather than let them show through.
@@ -3369,6 +3414,7 @@ const htmlTemplate = `<!DOCTYPE html>
     const included = Array.from(compareSelectedRecords).filter((n) => n !== recordName && model.records.some((r) => r.name === n)).concat([recordName]);
     fkeyLegendEl.innerHTML = '';
     model.choicePreviewStates = IndicatorSim.namespaceValues(fieldValues, 'choiceControl');
+    model.cursorLocationValues = IndicatorSim.namespaceValues(fieldValues, 'cursorLocation');
     const screen = DspfEngine.resolveMultiScreen(model, included, active, selectedSizeIndex);
     lastScreen = screen;
     mainHint.classList.add('hint-readonly');
@@ -3419,6 +3465,7 @@ const htmlTemplate = `<!DOCTYPE html>
     fkeyLegendEl.innerHTML = WebviewClientHelpers.functionKeyLegendHtml(DspfEngine.resolveFunctionKeyLegend(model, currentRecord, active, (DspfEngine.availableScreenSizes(model)[selectedSizeIndex] || {}).name || null));
 
     model.choicePreviewStates = IndicatorSim.namespaceValues(fieldValues, 'choiceControl');
+    model.cursorLocationValues = IndicatorSim.namespaceValues(fieldValues, 'cursorLocation');
     const screen = DspfEngine.resolveScreen(model, recordName, active, activePulldown, previewMultipleRows, selectedSizeIndex, sflFoldFlipped, sflEndLastPage);
     if (!(screen.subfilePreview && screen.subfilePreview.foldDrop && screen.subfilePreview.foldDrop.canToggle)) sflFoldFlipped = false;
     if (!(screen.subfilePreview && screen.subfilePreview.sflEnd && screen.subfilePreview.sflEnd.canShowLastPage)) sflEndLastPage = false;
