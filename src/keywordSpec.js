@@ -6723,6 +6723,11 @@
     });
     return { rows: rows, cursorNote: !!e.cursorRestrictionsNeedEnhancedInterfaceController };
   }
+  /* The colour a choice state keyword draws in when it gives none ('GRN' for CHCAVAIL, 'BLU' for CHCUNAVAIL, 'WHT' for CHCSLT), or null. */
+  function choiceStateDefaultColor(name) {
+    var e = i121lEntry(name);
+    return e && e.color ? e.color.default : null;
+  }
   /**
    * CHCAVAIL / CHCUNAVAIL / CHCSLT value rules, read from each entry (copies): { minParameters
    * (\"one parameter must be specified\"), colors, displayAttributes }, or null.
@@ -6979,6 +6984,7 @@
     choiceCompanionRules: choiceCompanionRules,
     chcctlRules: chcctlRules,
     choiceControlValues: choiceControlValues,
+    choiceStateDefaultColor: choiceStateDefaultColor,
     sflChoiceRules: sflChoiceRules,
     choiceStateValueRules: choiceStateValueRules,
     choiceNumberRange: choiceNumberRange,

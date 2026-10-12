@@ -3801,6 +3801,38 @@ html += '<div class="hint-small">SFLROLVAL, SFLSCROLL, and SFLRCDNBR cannot shar
     );
   }
 
+  /**
+   * E10c: the preview-state selector for the choices that carry a CHCCTL - one row per choice, a select of
+   * the control values 0 - 4 (and "default" = not set). Preview only, never written to the source.
+   * `getState(choiceId)` returns the stored value or '' for none. Returns '' when no choice has a CHCCTL.
+   */
+  function choicePreviewStateHtml(keywords, ownerKey, getState) {
+    var ids = {};
+    DspfWriter.getChoiceControls(keywords).forEach(function (c) { if (c.id) ids[c.id] = true; });
+    var list = Object.keys(ids).sort(function (a, b) { return parseInt(a, 10) - parseInt(b, 10); });
+    if (list.length === 0) return '';
+    var opts = DspfWriter.choiceControlOptions();
+    var html = '<div class="section-label">Preview state (CHCCTL)</div>';
+    html += '<div class="hint-small">Preview only, not saved. Shows each choice as the program would draw it for that control value. 2, 3 and 4 look the same here.</div>';
+    list.forEach(function (id) {
+      var cur = String(getState(id) == null ? '' : getState(id));
+      html += '<div class="field-row"><label>Choice ' + escapeHtml(id) + '</label><select class="' + ownerKey + '-chcstate" data-choice-id="' + escapeHtml(id) + '">';
+      html += '<option value=""' + (cur === '' ? ' selected' : '') + '>default</option>';
+      opts.forEach(function (o) { html += '<option value="' + o.value + '"' + (cur === String(o.value) ? ' selected' : '') + '>' + escapeHtml(o.label) + '</option>'; });
+      html += '</select></div>';
+    });
+    return html;
+  }
+
+  /** Wires choicePreviewStateHtml's selects; onChange(choiceId, value|null) - null for "default". */
+  function wireChoicePreviewState(ownerKey, onChange) {
+    Array.prototype.forEach.call(document.querySelectorAll('.' + ownerKey + '-chcstate'), function (sel) {
+      sel.addEventListener('change', function () {
+        onChange(sel.getAttribute('data-choice-id'), sel.value === '' ? null : Number(sel.value));
+      });
+    });
+  }
+
   /** E10b: the control-value help line plus a warning per CHCCTL control field not defined in the record yet. */
   function chcctlAdvisoryHtml(keywords, recordFields, keywordName) {
     var html = '';
@@ -9063,6 +9095,8 @@ html += '<div class="hint-small">SFLROLVAL, SFLSCROLL, and SFLRCDNBR cannot shar
     wirePshbtnChoiceControl: wirePshbtnChoiceControl,
     wirePshbtnfldPanel: wirePshbtnfldPanel,
     choiceKeywordsListHtml: choiceKeywordsListHtml,
+    choicePreviewStateHtml: choicePreviewStateHtml,
+    wireChoicePreviewState: wireChoicePreviewState,
     wireChoiceKeywordsListEditor: wireChoiceKeywordsListEditor,
     pshbtnChoiceColorStateKeys: pshbtnChoiceColorStateKeys,
     choiceColorStatesHtml: choiceColorStatesHtml,

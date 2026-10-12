@@ -276,6 +276,14 @@ const htmlTemplate = `<!DOCTYPE html>
     display: flex; flex-direction: column; justify-content: center; white-space: normal; z-index: 1;
   }
   .dspf-choice-row { display: flex; align-items: center; gap: 4px; line-height: 1.3em; }
+  /* E10c - a choice drawn in the state its control value gives (CHCAVAIL / CHCUNAVAIL / CHCSLT colours). */
+  .dspf-choice-colored { color: var(--dspf-fg); }
+  .dspf-choice-colored .dspf-choice-glyph { color: inherit; }
+  .dspf-choice-unavailable { opacity: 0.85; }
+  .dspf-pshbtn.dspf-choice-colored { color: var(--dspf-fg); border-color: var(--dspf-fg); }
+  .dspf-pshbtn.dspf-choice-unavailable { border-style: dashed; }
+  .dspf-pshbtn.dspf-choice-selected { background: #2a4a38; }
+  .dspf-choice-nd { visibility: hidden; }
   .dspf-choice-glyph { color: var(--ink-dim); font-family: var(--mono); }
   .dspf-field.dspf-cntfld {
     display: flex; flex-direction: column; white-space: normal; z-index: 1;
@@ -1225,6 +1233,8 @@ const htmlTemplate = `<!DOCTYPE html>
   let previewMultipleRows = false;
   // Task P6 - design-time "user pressed the SFLDROP/SFLFOLD key" toggle; resets on record change.
   let sflFoldFlipped = false;
+  // Task E10c - design-time control values for CHCCTL choices, keyed by DspfEngine.choiceStateKey; never written to the source.
+  let choicePreviewStates = {};
   // Task P11 - design-time "show the last page" toggle for an UNCONDITIONED SFLEND (no indicator drives Bottom).
   let sflEndLastPage = false;
   // Ruler overlay (Task L11): session-only, matching real SDA's own F14
@@ -3209,6 +3219,7 @@ const htmlTemplate = `<!DOCTYPE html>
       (name) => name !== currentRecordName && model.records.some((r) => r.name === name)
     );
     if (others.length === 0) return;
+    model.choicePreviewStates = choicePreviewStates;
     const backdropScreen = DspfEngine.resolveMultiScreen(model, others, active, selectedSizeIndex);
     // Task P14 - the primary (current) record sits above the backdrop layer, so its
     // fields must overwrite the dimmed cells beneath them rather than let them show through.
@@ -3239,6 +3250,7 @@ const htmlTemplate = `<!DOCTYPE html>
     // current record LAST so it is drawn on top (resolveMultiScreen stacks in list order).
     const included = Array.from(compareSelectedRecords).filter((n) => n !== recordName && model.records.some((r) => r.name === n)).concat([recordName]);
     fkeyLegendEl.innerHTML = '';
+    model.choicePreviewStates = choicePreviewStates;
     const screen = DspfEngine.resolveMultiScreen(model, included, active, selectedSizeIndex);
     lastScreen = screen;
     mainHint.classList.add('hint-readonly');
@@ -3288,6 +3300,7 @@ const htmlTemplate = `<!DOCTYPE html>
     const currentRecord = model.records.find((r) => r.name === recordName);
     fkeyLegendEl.innerHTML = WebviewClientHelpers.functionKeyLegendHtml(DspfEngine.resolveFunctionKeyLegend(model, currentRecord, active));
 
+    model.choicePreviewStates = choicePreviewStates;
     const screen = DspfEngine.resolveScreen(model, recordName, active, activePulldown, previewMultipleRows, selectedSizeIndex, sflFoldFlipped, sflEndLastPage);
     if (!(screen.subfilePreview && screen.subfilePreview.foldDrop && screen.subfilePreview.foldDrop.canToggle)) sflFoldFlipped = false;
     if (!(screen.subfilePreview && screen.subfilePreview.sflEnd && screen.subfilePreview.sflEnd.canShowLastPage)) sflEndLastPage = false;
@@ -4727,12 +4740,14 @@ const htmlTemplate = `<!DOCTYPE html>
       // the choice-field editors' own.
       if (DspfWriter.getPshbtnfld(field.keywords).present) {
         attrsHtml += accordionHtml('field-' + field.sourceLine + '::pshbtn-choice-control', 'Push-button choice control (CHCCTL)', WebviewClientHelpers.pshbtnChoiceControlHtml(field.keywords, 'field-' + field.sourceLine + '-pbx', ownerRecord ? ownerRecord.fields : undefined), false);
+        attrsHtml += previewStateAccordion(field, 'field-' + field.sourceLine + '-pbx', ownerRecord ? ownerRecord.name : '');
         attrsHtml += accordionHtml('field-' + field.sourceLine + '::pshbtn-choice-colors', 'Push-button colors & attributes (CHCAVAIL/CHCUNAVAIL)', WebviewClientHelpers.choiceColorStatesHtml(field.keywords, 'field-' + field.sourceLine + '-pbx', expandedKeywordConditioning, WebviewClientHelpers.pshbtnChoiceColorStateKeys(), ownerRecord.keywords), false);
       }
       attrsHtml += accordionHtml('field-' + field.sourceLine + '::choice-selection-type', 'Choice selection type', WebviewClientHelpers.choiceSelectionTypeHtml(field.keywords, 'field-' + field.sourceLine), false);
       const isChoiceField = DspfWriter.getChoiceSelectionType(field.keywords).kind !== '';
       if (isChoiceField) {
         attrsHtml += accordionHtml('field-' + field.sourceLine + '::choice-keywords', 'Choice keywords (CHOICE/CHCCTL/CHCACCEL)', WebviewClientHelpers.choiceKeywordsListHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning, ownerRecord.keywords, ownerRecord.fields), false);
+        attrsHtml += previewStateAccordion(field, 'field-' + field.sourceLine, ownerRecord ? ownerRecord.name : '');
         attrsHtml += accordionHtml('field-' + field.sourceLine + '::choice-colors-attrs', 'Choice colors & attributes', WebviewClientHelpers.choiceColorStatesHtml(field.keywords, 'field-' + field.sourceLine, expandedKeywordConditioning, undefined, ownerRecord.keywords), false);
       }
     }
@@ -5040,10 +5055,12 @@ const htmlTemplate = `<!DOCTYPE html>
       );
       if (DspfWriter.getPshbtnfld(field.keywords).present) {
         WebviewClientHelpers.wirePshbtnChoiceControl(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine + '-pbx');
+        wirePreviewState(field, ownerRecordName, 'field-' + field.sourceLine + '-pbx');
         WebviewClientHelpers.wireChoiceColorStatesEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine + '-pbx', expandedKeywordConditioning, () => renderFieldProps(recordName), WebviewClientHelpers.pshbtnChoiceColorStateKeys(), ownerRecord.keywords);
       }
       WebviewClientHelpers.wireChoiceSelectionTypeEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, (kind) => DspfWriter.pshbtnfldConflictReason(kind, '', field.keywords));
       if (DspfWriter.getChoiceSelectionType(field.keywords).kind !== '') {
+        wirePreviewState(field, ownerRecordName, 'field-' + field.sourceLine);
         WebviewClientHelpers.wireChoiceKeywordsListEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), ownerRecord.keywords);
         WebviewClientHelpers.wireChoiceColorStatesEditor(field.keywords, (newKeywords) => commitEdit(ownerRecordName, field, { keywords: newKeywords }), 'field-' + field.sourceLine, expandedKeywordConditioning, () => renderFieldProps(recordName), undefined, ownerRecord.keywords);
       }
@@ -7525,6 +7542,26 @@ const htmlTemplate = `<!DOCTYPE html>
     else commitDeleteSelection();
   });
 
+  // Task E10c - the CHCCTL preview-state selector. previewStateAccordion renders it for a choice field, wirePreviewState
+  // stores a picked value (or clears it for "default") and redraws; nothing is written to the DDS source.
+  function previewStateAccordion(field, ownerKey, recordName) {
+    const html = WebviewClientHelpers.choicePreviewStateHtml(
+      field.keywords,
+      ownerKey,
+      (id) => { const v = choicePreviewStates[DspfEngine.choiceStateKey(recordName, field.name, id)]; return v == null ? '' : v; }
+    );
+    return html ? accordionHtml('field-' + field.sourceLine + '::choice-preview-state', 'Preview state (CHCCTL)', html, false) : '';
+  }
+
+  function wirePreviewState(field, ownerRecordName, ownerKey) {
+    WebviewClientHelpers.wireChoicePreviewState(ownerKey, (id, value) => {
+      const key = DspfEngine.choiceStateKey(ownerRecordName, field.name, id);
+      if (value == null) delete choicePreviewStates[key];
+      else choicePreviewStates[key] = value;
+      render();
+    });
+  }
+
   // Task E7h - resetViewState: puts every piece of session-only view state back to what a freshly
   // opened page has, then loads msg.text as the source, so the test suite can build one page per group
   // of scenarios instead of one per scenario (jsdom page construction is the cost - see FEATURE-ROADMAP.md).
@@ -7563,7 +7600,7 @@ const htmlTemplate = `<!DOCTYPE html>
     codeForIInitial.gated.forEach((g) => { if (g) g.btn.classList.toggle('hidden', g.hidden); });
     selectedHelpSourceLine = null; showFileProps = false; activePulldown = null;
     compareFullOverlay = false; compareSelectedRecords.clear();
-    previewMultipleRows = false; sflFoldFlipped = false; sflEndLastPage = false;
+    previewMultipleRows = false; sflFoldFlipped = false; sflEndLastPage = false; choicePreviewStates = {};
     rulerEnabled = false; crosshairEnabled = false;
     selectedSizeIndex = 0; lastScreen = null;
     active.clear(); expandedKeywordConditioning.clear(); accordionOpenState.clear();

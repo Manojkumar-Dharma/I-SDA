@@ -6380,6 +6380,11 @@
    * the spec's value table: '0 available (input: unselected); 1 selected; 2 / 3 / 4 unavailable ...'.
    * Returns '' for a keyword with no table.
    */
+  function choiceControlOptions() {
+    var t = KeywordSpec.choiceControlValues('CHCCTL');
+    return t ? t.rows.map(function (r) { return { value: r.value, label: r.value + ' - ' + String(r.onOutput).split(' (')[0] }; }) : [];
+  }
+
   function choiceControlValueHelp(keywordName) {
     var t = KeywordSpec.choiceControlValues(keywordName);
     if (!t) return '';
@@ -12870,6 +12875,7 @@
     usrdspmgtSystem36ExtrasNote: usrdspmgtSystem36ExtrasNote,
     chcctlUndefinedControlFieldNotes: chcctlUndefinedControlFieldNotes,
     choiceControlValueHelp: choiceControlValueHelp,
+    choiceControlOptions: choiceControlOptions,
     windowHelpMenuNewConflictReason: windowHelpMenuNewConflictReason,
     initRetainReturnNewConflictReason: initRetainReturnNewConflictReason,
     fileLevelDisplayNewConflictReason: fileLevelDisplayNewConflictReason,

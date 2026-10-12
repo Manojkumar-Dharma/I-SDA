@@ -980,7 +980,7 @@ the reference requires; the limitation entry is rewritten.
 |----|--------------------|------------|--------|---------|
 | E10a | **Audit and scope.** What `CHCCTL` and `SFLCHCCTL` already have (spec entries, panel rows, guards such as the I-171 family) vs what the reference requires; pin down the gap named in the box above; list what each state looks like with and without `CHCAVAIL` / `CHCUNAVAIL` / `CHCSLT`; note that the cursor-restriction values only apply to an enhanced-interface controller. | - | Done (no code change) | — |
 | E10b | **Advisory and help line.** The panel row, type check and raw-editor guards already exist (E10a). Add: a non-blocking advisory when a `CHCCTL` control field is not defined in the record (forward references stay accepted while typing), and one help line under the control field giving the 0 - 4 value table from `CHOICE_CONTROL_VALUES` with the enhanced-interface cursor note. Tests in a new `e10` file. | E10a | Done | v0.13.1 |
-| E10c | **Preview states.** Draw a choice as available / selected / unavailable in the preview (radio, checkbox and push button), applying `CHCAVAIL`, `CHCUNAVAIL` and `CHCSLT` colours and attributes under the reference's own conditions; 2, 3 and 4 draw the same. The state comes from a preview-only per-choice selector in the field panel, held in the webview and not saved, defaulting to available so existing previews do not change. Unit tests for `0` - `4`. | E10a | In progress | — |
+| E10c | **Preview states.** Draw a choice as available / selected / unavailable in the preview (radio, checkbox and push button), applying `CHCAVAIL`, `CHCUNAVAIL` and `CHCSLT` colours and attributes under the reference's own conditions; 2, 3 and 4 draw the same. The state comes from a preview-only per-choice selector in the field panel, held in the webview and not saved, defaulting to available so existing previews do not change. Unit tests for `0` - `4`. | E10a | Done | v0.13.2 |
 | E10d | **`SFLCHCCTL`.** The same for subfile choice lists (`SFLSNGCHC` / `SFLMLTCHC`), including the structural requirements already in the spec. | E10c | Open | - |
 | E10e | **Release** (next free minor); rewrite the `CHCCTL` entry in `LIMITATIONS-PLAN.md`. | E10a - E10d, E10f | Open | - |
 | E10f | **Control value from the E3f store.** Replace E10c's preview-only selector with the design-time control value kept in the E3f store, keyed by file, record and control field; the selector becomes the editor for that value. Same default (available) when no value is set. | E10c, E3f | Open | - |
@@ -1052,6 +1052,20 @@ note per `CHCCTL` whose control field is named but not defined in the record; th
 `DspfWriter.choiceControlValueHelp(name)` turns it into the help line, with the enhanced-interface note and the
 remark that the preview draws 2, 3 and 4 the same. Both panels take the record's fields as a new last argument; with
 none given there is no warning, so other callers are unchanged. Tests: `e10bControlFieldAdvisory.test.js`.
+
+
+**E10c (built, v0.13.2).** `DspfEngine` reads `dspfFile.choicePreviewStates` (`{ 'RECORD|FIELD|number': value }`, keys
+from `DspfEngine.choiceStateKey`) and gives each radio, checkbox and push-button choice a `stateValue`, `stateName`
+(`available` / `selected` / `unavailable`) and `stateStyle` from `CHCAVAIL` / `CHCSLT` / `CHCUNAVAIL`, honouring their
+option indicators; an unavailable choice with no `CHCUNAVAIL` takes the spec's default blue
+(`KeywordSpec.choiceStateDefaultColor`). With no state set a single-choice list still marks its first entry and a
+checkbox list stays empty; once a field has any state set, a choice is marked exactly when its value is 1. A choice
+that is available with a `CHCAVAIL` is now drawn in that colour even with no state set (before, nothing drew these
+keywords). The webview holds the values in `choicePreviewStates` (cleared by `resetViewState`), sets
+`model.choicePreviewStates` before each engine call, and shows a "Preview state (CHCCTL)" accordion with one select
+(default, 0 - 4) per choice that has a `CHCCTL`. 2, 3 and 4 draw the same. Not done here: the subfile selection
+list (E10d), the stored value (E10f), `CHCSLT` rules for where a selected colour is allowed (the I-171 guard already
+refuses it elsewhere). Tests: `e10cChoicePreviewStates.test.js`.
 
 ---
 

@@ -689,7 +689,99 @@
     return { id: parameters.trim(), pulldownRecord: null, text: parameters.trim(), returnField: null };
   }
 
-  function widgetFromKeywords(field, activeIndicators, activeSizeName) {
+  // ---------------------------------------------------------------------
+  // E10c - choice states. CHCCTL / SFLCHCCTL set a choice's state at run time from a control value
+  // (0 available, 1 selected, 2 / 3 / 4 unavailable). The preview takes that value from
+  // dspfFile.choicePreviewStates (set by the webview, never written to the source), keyed by
+  // choiceStateKey(). A choice with no value is available and, on a single-choice list, the first
+  // is marked, exactly as before. 2, 3 and 4 draw the same: the cursor restrictions that tell them
+  // apart need a controller the preview does not model.
+  // ---------------------------------------------------------------------
+
+  /** The key a choice's preview state is stored under. */
+  function choiceStateKey(recordName, fieldName, choiceId) {
+    return String(recordName || '').toUpperCase() + '|' + String(fieldName || '').toUpperCase() + '|' + (parseInt(choiceId, 10) || 0);
+  }
+
+  /** 'available' | 'selected' | 'unavailable' for a control value (anything but 1 - 4 is available). */
+  function choiceStateName(value) {
+    var n = Number(value);
+    if (n === 1) return 'selected';
+    if (n >= 2 && n <= 4) return 'unavailable';
+    return 'available';
+  }
+
+  /** The preview states of one field's choices as { choiceNumber: value }, or null when none is set. */
+  function choiceStatesFor(dspfFile, record, field) {
+    var all = dspfFile && dspfFile.choicePreviewStates;
+    if (!all || !field || !field.name) return null;
+    var prefix = choiceStateKey(record && record.name, field.name, 0).replace(/0$/, '');
+    var out = null;
+    Object.keys(all).forEach(function (k) {
+      if (k.indexOf(prefix) !== 0) return;
+      var id = parseInt(k.slice(prefix.length), 10);
+      if (!id) return;
+      out = out || {};
+      out[id] = Number(all[k]);
+    });
+    return out;
+  }
+
+  /** The colour / attributes CHCAVAIL (available), CHCSLT (selected) or CHCUNAVAIL (unavailable) give,
+   *  as { color, hi, reverse, underline, blink, hidden }, or null when there is nothing to apply.
+   *  An unavailable choice with no CHCUNAVAIL still draws in that keyword's default colour. */
+  function choiceStateStyle(keywords, stateName, activeIndicators, activeSizeName) {
+    var kwName = stateName === 'selected' ? 'CHCSLT' : stateName === 'unavailable' ? 'CHCUNAVAIL' : 'CHCAVAIL';
+    var kw = (keywords || []).filter(function (k) { return k.name === kwName && conditionsSatisfied(k.conditions, activeIndicators, activeSizeName); })[0];
+    var style = { color: null, hi: false, reverse: false, underline: false, blink: false, hidden: false };
+    if (!kw) {
+      if (stateName !== 'unavailable') return null;
+      var d = KeywordSpec.choiceStateDefaultColor('CHCUNAVAIL');
+      if (d && COLOR_HEX[d]) style.color = COLOR_HEX[d];
+      return style;
+    }
+    var params = String(kw.parameters || '').toUpperCase();
+    var cm = /\*COLOR\s+([A-Z]+)/.exec(params);
+    if (cm && COLOR_HEX[cm[1]]) style.color = COLOR_HEX[cm[1]];
+    var am = /\*DSPATR\s+([^)]*)/.exec(params);
+    (am ? am[1].split(/\s+/) : []).forEach(function (a) {
+      if (a === 'HI') style.hi = true;
+      else if (a === 'RI') style.reverse = true;
+      else if (a === 'UL') style.underline = true;
+      else if (a === 'BL') style.blink = true;
+      else if (a === 'ND') style.hidden = true;
+    });
+    return style;
+  }
+
+  /** Adds stateValue / stateName / stateStyle to each choice (see choiceStateStyle). */
+  function applyChoiceStates(choices, field, states, activeIndicators, activeSizeName) {
+    choices.forEach(function (c) {
+      var id = parseInt(c.id, 10) || 0;
+      c.stateValue = states && Object.prototype.hasOwnProperty.call(states, id) ? states[id] : 0;
+      c.stateName = choiceStateName(c.stateValue);
+      c.stateStyle = choiceStateStyle(field.keywords, c.stateName, activeIndicators, activeSizeName);
+    });
+  }
+
+  /** The class list and inline style a styled choice carries, or { classes: '', style: '' }. */
+  function choiceStateMarkup(c) {
+    var classes = [];
+    var style = '';
+    if (c.stateName && c.stateName !== 'available') classes.push('dspf-choice-' + c.stateName);
+    var st = c.stateStyle;
+    if (st) {
+      if (st.color) { style = '--dspf-fg:' + st.color + ';'; classes.push('dspf-choice-colored'); }
+      if (st.hi) classes.push('dspf-hi');
+      if (st.reverse) classes.push('dspf-reverse');
+      if (st.underline) classes.push('dspf-underline');
+      if (st.blink) classes.push('dspf-blink');
+      if (st.hidden) classes.push('dspf-choice-nd');
+    }
+    return { classes: classes.join(' '), style: style };
+  }
+
+  function widgetFromKeywords(field, activeIndicators, activeSizeName, choiceStates) {
     var names = field.keywords.map(function (k) { return k.name; });
     if (names.indexOf('MNUBARCHC') !== -1) {
       var menuChoices = field.keywords
@@ -703,7 +795,8 @@
       var choices = field.keywords
         .filter(function (k) { return k.name === 'CHOICE'; })
         .map(function (k) { return parseChoiceParams(k.parameters); });
-      return { type: kind, choices: choices };
+      applyChoiceStates(choices, field, choiceStates, activeIndicators, activeSizeName);
+      return { type: kind, choices: choices, explicitStates: !!choiceStates };
     }
     if (names.indexOf('PSHBTNFLD') !== -1) {
       // Only PSHBTNCHC instances whose own option indicators are currently
@@ -724,6 +817,7 @@
         return { type: 'button', label: field.constantValue || field.name || 'Button' };
       }
       var pfld = field.keywords.find(function (k) { return k.name === 'PSHBTNFLD'; });
+      applyChoiceStates(btnChoices, field, choiceStates, activeIndicators, activeSizeName);
       var layout = layoutPshbtn(btnChoices, pshbtnfldLayoutParams(pfld ? pfld.parameters : ''));
       return { type: 'pshbtn', choices: btnChoices, layout: layout };
     }
@@ -1044,7 +1138,7 @@
       if (!conditionsSatisfied(field.conditions, activeIndicators, activeSizeName)) return;
       if (field.usage === 'H' || field.usage === 'P') return; // hidden / program-to-system: not drawn
 
-      var widget = widgetFromKeywords(field, activeIndicators, activeSizeName);
+      var widget = widgetFromKeywords(field, activeIndicators, activeSizeName, choiceStatesFor(dspfFile, record, field));
       var len = displayLength(field, record, dspfFile);
       // A bare CONSTANT has no declared DDS LENGTH column - displayLength()
       // falls through to 0 for one, since that column simply isn't there to
@@ -2312,7 +2406,8 @@
           ? 'grid-row:' + ((i % L.rows) + 1) + ';grid-column:' + (Math.floor(i / L.rows) + 1) + ';'
           : '';
         if (!c) return '<span class="dspf-pshbtn-gap" style="' + pos + '"></span>';
-        return '<button type="button" class="dspf-pshbtn" tabindex="-1" style="' + pos + '" data-choice-id="' + escapeHtml(c.id) + '"' +
+        var cm = choiceStateMarkup(c);
+        return '<button type="button" class="dspf-pshbtn' + (cm.classes ? ' ' + cm.classes : '') + '" tabindex="-1" style="' + pos + cm.style + '" data-choice-id="' + escapeHtml(c.id) + '"' +
           (c.commandKey ? ' title="' + escapeHtml(c.commandKey) + '"' : '') + '>' + escapeHtml(c.label) + '</button>';
       }).join('');
       return '<div class="dspf-pshbtn-grid" style="grid-template-columns:repeat(' + L.cols + ',' + L.cellWidth + 'ch);column-gap:' + L.gutter + 'ch;">' + cells + '</div>';
@@ -2338,11 +2433,19 @@
         })
         .join('');
     }
-    var glyph = w.type === 'radio' ? function (i) { return '( ' + (i === 0 ? '\u25CF' : ' ') + ' )'; } : function () { return '[ ]'; };
+    // With no preview state set the first single-choice entry is marked and a checkbox is empty (as always);
+    // once a state is set, a choice is marked exactly when its control value is 1 (selected).
+    var glyph = function (c, i) {
+      var marked = w.explicitStates ? c.stateValue === 1 : (w.type === 'radio' && i === 0);
+      if (w.type === 'radio') return '( ' + (marked ? '\u25CF' : ' ') + ' )';
+      return marked ? '[X]' : '[ ]';
+    };
     var rows = w.choices.length > 0 ? w.choices : [{ id: '', text: '(no CHOICE entries)' }];
     return rows
       .map(function (c, i) {
-        return '<div class="dspf-choice-row"><span class="dspf-choice-glyph">' + glyph(i) + '</span> ' + escapeHtml(c.text) + '</div>';
+        var cm = choiceStateMarkup(c);
+        return '<div class="dspf-choice-row' + (cm.classes ? ' ' + cm.classes : '') + '"' + (cm.style ? ' style="' + cm.style + '"' : '') + (c.id ? ' data-choice-id="' + escapeHtml(c.id) + '"' : '') +
+          '><span class="dspf-choice-glyph">' + glyph(c, i) + '</span> ' + escapeHtml(c.text) + '</div>';
       })
       .join('');
   }
@@ -2745,6 +2848,8 @@
     parseScreenSizes: parseScreenSizes,
     parseMenubarChoice: parseMenubarChoice,
     resolveScreen: resolveScreen,
+    choiceStateKey: choiceStateKey,
+    choiceStateName: choiceStateName,
     setJobDateFormat: setJobDateFormat,
     getJobDateFormat: getJobDateFormat,
     setDateSeparatorSetting: setDateSeparatorSetting,
