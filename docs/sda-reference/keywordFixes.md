@@ -64,7 +64,7 @@ Nothing else goes in the cell. What a task checked, how many tests it added and 
 
 ## Status at a glance
 
-234 of 234 tasks done; 0 open (see [Open work](#open-work)). Current version: **v0.11.0**.
+234 of 235 tasks done; 1 open (see [Open work](#open-work)). Current version: **v0.11.0**.
 
 | ID | Area | Topic | Depends on | Status | Version |
 |----|------|-------|------------|--------|---------|
@@ -302,6 +302,7 @@ Nothing else goes in the cell. What a task checked, how many tests it added and 
 | [I-205](#i-205) | Tooling | Status table not formalised: free-text Status cells, Done rows with no Version, section status lines in many shapes, and nothing that checks them | I-198 | Done | v0.10.376 |
 | [I-206](#i-206) | Writer | Lines an edit leaves alone were rewritten: tags past column 80 and an `O` on a first condition were dropped | I-202 | Done | v0.10.377 |
 | [I-207](#i-207) | Writer | Lines an edit removes (keyword dropped, field or record deleted) vanished; new `isda.keepRemovedLines` keeps them as comments | I-206 | Done | v0.10.377 |
+| [I-208](#i-208) | Tracking | "Tag in columns 1-5" toggle crowds the tag box on the Track modifications row; it should sit on its own line and show only while tracking is on, in both designers | I-204 | In progress | — |
 
 **Areas:** File = file-level keywords · Record = record-level keywords and record types ·
 Field = field-level keywords · Cross-level = spans more than one level · Tooling = the
@@ -313,7 +314,9 @@ keyword index under `docs/sda-reference/keyword-index/`.
 
 Suggested pickup order - roughly smallest and safest first (a real bug with a proven fix shape ahead of spec-fact and tooling work); **not binding** (any task can be picked independently, and the sizes are estimates, not measurements).
 
-No tasks are open.
+| Order | Task | Status | Notes |
+|-------|------|--------|-------|
+| 1 | [I-208](#i-208) | In progress | Small, two templates and one test. |
 
 This table lists open tasks only: a task that lands is removed from it, and its status stays in [Status at a glance](#status-at-a-glance). The headline there counts the same tasks, so when a task lands or opens, update this table, the headline count and the version together.
 
@@ -8646,3 +8649,11 @@ The second open point after I-202 - I-204: where an edit removes lines (a keywor
 **Done (v0.10.377).** New setting `isda.keepRemovedLines` (default on) pushed to both designers with the tracking config (`keepRemoved` on the `modTrackingConfig` message, resent on a live change). With it on, `DspfWriter.setKeepRemovedLines(true)` makes a removed line stay as a comment, with its number and any tag: a keyword dropped by `applyFieldUpdate` / `applyRecordUpdate` (placed where it was, not when its text simply moved onto another line, such as a keyword folded onto the field line), and every line of a field, fields or record removed by `deleteField` / `deleteFields` / `deleteRecord`. An `O` in column 7 is kept by the I-203 rule (`A*O 22 ...`); comment and blank lines stay as they were. While tracking is on with a tag the designers switch it off, because tracking already comments out what it replaces and would otherwise comment the same line twice. The writer's own default is off so existing callers are unchanged. Tests: `i206UntouchedAndRemovedLines.test.js` (writer, and the display designer through a real delete with the setting, with tracking, and without), `extension.test.js` for the setting and its resend. Decision to know about: the default is on, so a delete in the designer now leaves commented lines to clean up by hand; set `isda.keepRemovedLines` to false to restore dropping them.
 
 *Raised by the two open points left after I-202 - I-204. Size (estimate): Medium.*
+
+### I-208 — Move the "Tag in columns 1-5" toggle to its own line, shown only while tracking is on
+
+> **Area:** Tracking · **Status:** In progress · **Depends on:** I-204 · **Size (estimate):** Small
+
+The I-204 toggle shares one row with "Track modifications" and the tag box, which reduces the tag field's width. The toggle moves to a second line and is hidden whenever "Track modifications" is off, in both the display and the menu designer.
+
+*Raised by a request to fix the crowded tag row. Size (estimate): Small.*
