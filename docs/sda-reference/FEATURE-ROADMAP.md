@@ -154,7 +154,7 @@ option indicators; program-to-system field values can be set and are shared with
 | E3f | **Program-to-system field value store.** Design-time values for fields the program sets at run time (choice control fields, `WINDOW` position fields, `SFLSIZ`, message-data fields): a small store keyed by file, record and field, with an editor in the simulator panel. Used by E4c, E8 and E10. Same storage rule as E3c. | E3c (storage decision) | Done | v0.13.4 |
 | E3g | **Menu designer parity.** Offer the panel in the menu designer where menu records carry conditioned content. **Decision first:** may be dropped if E3a shows menus have nothing to simulate. | E3b | Open | - |
 | E3h | **Release** (next free minor). | E3a - E3g, E3i - E3l | Open | - |
-| E3i | **`DFTVAL` default value.** Draw the default value in the field on the first output when its option indicator is on or absent (reference: "the specified value is displayed if the option indicator is on or has not been specified"). **Decision first:** the preview shows the field name inside a named field; a default value would replace it, or show beside it. | E3d | In progress | — |
+| E3i | **`DFTVAL` default value.** Draw the default value in the field on the first output when its option indicator is on or absent (reference: "the specified value is displayed if the option indicator is on or has not been specified"). **Decision (settled):** the value replaces the field name, as on the real first output (the field name stands in for the unknown program value only when `DFTVAL` is not in effect); no "beside it" form. Built in `dspfEngine.js` (`dftvalText`): named `O` / `B` fields outside a subfile format, first instance whose condition holds, quoted value with `''` as one quote, cut to the field length, padded with blanks; an unquoted value (still being typed) keeps the name. Test: `e3iDftvalDefaultValue.test.js`. | E3d | Done | v0.13.8 |
 | E3j | **Menu bar drawing.** `MNUBARSEP` (colour, attribute and character of the separator line under the menu bar) and `MNUBARDSP` (the menu bar of another record shown when this record is written), both honouring their option indicators. | E3d | Done | v0.13.7 |
 | E3k | **Cursor position (`CSRLOC`).** Place the cursor marker from the two program fields' design-time values in the E3f store (a new `cursorLocation` namespace); an off `CSRLOC` leaves the default cursor. | E3d, E3f | Open | - |
 | E3l | **Record overlay keywords in display mode.** `OVERLAY`, `PROTECT`, `ERASE`, `ERASEINP`, `PUTOVR`, `PUTRETAIN` change what earlier records show, so they can only be drawn when several records are previewed together (the existing display mode); make that mode honour them under the active indicators. **Decision first:** which of the six are worth drawing. | E3d | Open | - |
@@ -203,7 +203,7 @@ reactivity), E3e (explain panel) and E3g (menu designer) are unchanged and still
   simulator panel lists every stored value (`REC.FLD (choice / row n) = v`) with a remove button and "Clear all stored
   values". The extension host loads the file's state on `ready` (`simulatorState` message) and saves on every change
   (`saveSimulatorState`); loading posts nothing back.
-- **Not done (still Open):** E3e explain panel, E3g menu designer parity, E3i, E3k, E3l (the gaps E3d found), E3h release. A value
+- **Not done (still Open):** E3e explain panel, E3g menu designer parity, E3k, E3l (the gaps E3d found), E3h release. A value
   store editor for a new namespace is the job of the feature that adds the namespace.
 - Tests: `e3IndicatorSim.test.js` (pure logic, a fake memento), `e3SimulatorPanel.test.js` (both panel copies,
   messages, reset).
@@ -254,7 +254,7 @@ line. A record without `WINDOW` has no error line to show; that is a limit of th
 | COLOR | field | Reactive | field colour |
 | CSRINPONLY | file, record | Not drawn | restricts where the cursor may go; no static drawing |
 | CSRLOC | record | Gap (E3k) | cursor position from two program fields; the E3f store can supply them |
-| DFTVAL | field | Gap (E3i) | the default value shows in the field on the first output; the preview shows the field name |
+| DFTVAL | field | Reactive | the default value is drawn in the field in place of the field name while its condition holds (E3i) |
 | DSPATR | field | Reactive | display attributes (HI, RI, UL, ND, PR, ...) |
 | DSPMOD | record | Not drawn | switches the display size at run time; the preview has its own size selector |
 | DUP | field | Not drawn | the Dup key behaviour for the field; no drawn difference |

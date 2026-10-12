@@ -508,6 +508,30 @@
     return len;
   }
 
+  // E3i - DFTVAL('value') on an output-capable (O / B) named field: "On the first
+  // output operation, the specified value is displayed if the option indicator is on
+  // or has not been specified. Otherwise, the program value is used." The preview is
+  // the first output, and the program value is unknown at design time (the field name
+  // stands in for it), so a DFTVAL whose condition holds is drawn in the field instead
+  // of the name. Not for a constant field ("not allowed on constant fields"), nor in a
+  // subfile format ("You cannot use this keyword in a subfile format (SFL keyword)").
+  // The value is a quoted string; '' inside it is one quote. Returns null when there is
+  // nothing to draw, so the caller falls back to the field name.
+  function dftvalText(field, record, len, activeIndicators, activeSizeName) {
+    if (!field || field.nameType === 'CONSTANT') return null;
+    if (field.usage !== 'O' && field.usage !== 'B') return null;
+    if (record && (record.keywords || []).some(function (k) { return k.name === 'SFL'; })) return null;
+    var kw = (field.keywords || []).find(function (k) {
+      return k.name === 'DFTVAL' && conditionsSatisfied(k.conditions, activeIndicators, activeSizeName);
+    });
+    if (!kw) return null;
+    var m = String(kw.parameters || '').match(/^'((?:[^']|'')*)'/);
+    if (!m) return null; // not a quoted value (still being typed): keep the field name
+    var value = m[1].replace(/''/g, "'");
+    if (value.length > len) value = value.substring(0, len);
+    return value + repeat(" ", len - value.length);
+  }
+
   function fieldDisplayText(field, len) {
     if (field.nameType === 'CONSTANT') {
       var text = field.constantValue;
@@ -1306,7 +1330,7 @@
         column: startCol,
         length: Math.max(renderLength, 1),
         height: renderHeight,
-        text: fieldDisplayText(field, len),
+        text: dftvalText(field, record, len, activeIndicators, activeSizeName) || fieldDisplayText(field, len),
         style: style,
         widget: widget,
         cntfld: cntfld,
