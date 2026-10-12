@@ -3415,7 +3415,7 @@ const htmlTemplate = `<!DOCTYPE html>
     }
 
     const currentRecord = model.records.find((r) => r.name === recordName);
-    fkeyLegendEl.innerHTML = WebviewClientHelpers.functionKeyLegendHtml(DspfEngine.resolveFunctionKeyLegend(model, currentRecord, active));
+    fkeyLegendEl.innerHTML = WebviewClientHelpers.functionKeyLegendHtml(DspfEngine.resolveFunctionKeyLegend(model, currentRecord, active, (DspfEngine.availableScreenSizes(model)[selectedSizeIndex] || {}).name || null));
 
     model.choicePreviewStates = IndicatorSim.namespaceValues(fieldValues, 'choiceControl');
     const screen = DspfEngine.resolveScreen(model, recordName, active, activePulldown, previewMultipleRows, selectedSizeIndex, sflFoldFlipped, sflEndLastPage);

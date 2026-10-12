@@ -47,13 +47,13 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-2 of 10 epics done (E7, E9); 27 sub-tasks done (E3a, E3b, E3c, E3f, E7a - E7m, E9a - E9e, E10a - E10d, E10f). Current version: **v0.13.4**.
+2 of 10 epics done (E7, E9); 28 sub-tasks done (E3a - E3d, E3f, E7a - E7m, E9a - E9e, E10a - E10d, E10f). Current version: **v0.13.6**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
 | [E1](#e1) | Editor-side DDS language support (diagnostics, hover, completion, outline, quick-fixes) | E1a - E1i | - | Open | - |
 | [E2](#e2) | Compile-error feedback loop | E2a - E2h | E1a, E1b for the shared diagnostics collection | Open | - |
-| [E3](#e3) | Indicator simulator (and program-to-system field values) | E3a - E3h | - | In progress | - |
+| [E3](#e3) | Indicator simulator (and program-to-system field values) | E3a - E3l | - | In progress | - |
 | [E4](#e4) | Message-file integration (`MSGID` / `ERRMSGID` / `CHKMSGID` / `SFLMSGID`) | E4a - E4g | E3f (soft) | Open | - |
 | [E5](#e5) | Preview export (PNG / SVG / HTML / text) | E5a - E5g | E3 (soft, for indicator state) | Open | - |
 | [E6](#e6) | Menu designer: command keys and `TYPE(*UIM)` | E6a - E6h | E2 (soft, for compile errors) | Open | - |
@@ -149,11 +149,15 @@ option indicators; program-to-system field values can be set and are shared with
 | E3a | **Audit what exists.** The engine already takes an active-indicator set and the New UI has a conditioning-indicators preview (P5g). Write down exactly what is there, in both UI styles and the menu designer, and what is missing. Output: a gap list that scopes E3b - E3e. | - | Done (no code change) | — |
 | E3b | **Indicator discovery panel.** Scan the file/record for every indicator referenced (including `N` negation and the 01-99 range), list only those, label from `INDTXT`; "show all 99" toggle; per-record vs file-wide view. | E3a | Done | v0.13.4 |
 | E3c | **Scenarios.** Save, rename, delete and recall named indicator sets (for example "error state", "empty subfile"). **Decision first:** storage in VS Code `workspaceState` vs an optional sidecar file; the source is never written. | E3b | Done | v0.13.4 |
-| E3d | **Keyword reactivity.** Table of every keyword IBM says accepts option indicators vs whether the engine reacts to it in the preview (`DSPATR`, `COLOR`, `ERRMSG`, `SFLDSP`/`SFLCLR`/`SFLEND`/`SFLDSPCTL`, `PROTECT`, ...); implement the gaps. The table lives in this document's E3d section and is checked by a test against `keywordSpec.js`. | E3a | Open | - |
+| E3d | **Keyword reactivity.** Table of every keyword IBM says accepts option indicators vs whether the engine reacts to it in the preview (`DSPATR`, `COLOR`, `ERRMSG`, `SFLDSP`/`SFLCLR`/`SFLEND`/`SFLDSPCTL`, `PROTECT`, ...); implement the gaps. The table lives in this document's E3d section and is checked by a test against `keywordSpec.js`. | E3a | Done | v0.13.6 |
 | E3e | **Explain panel.** For the selected field/record: each keyword line, whether it is active under the current indicators, and the indicator expression that decided it. | E3b | Open | - |
 | E3f | **Program-to-system field value store.** Design-time values for fields the program sets at run time (choice control fields, `WINDOW` position fields, `SFLSIZ`, message-data fields): a small store keyed by file, record and field, with an editor in the simulator panel. Used by E4c, E8 and E10. Same storage rule as E3c. | E3c (storage decision) | Done | v0.13.4 |
 | E3g | **Menu designer parity.** Offer the panel in the menu designer where menu records carry conditioned content. **Decision first:** may be dropped if E3a shows menus have nothing to simulate. | E3b | Open | - |
-| E3h | **Release** (next free minor). | E3a - E3g | Open | - |
+| E3h | **Release** (next free minor). | E3a - E3g, E3i - E3l | Open | - |
+| E3i | **`DFTVAL` default value.** Draw the default value in the field on the first output when its option indicator is on or absent (reference: "the specified value is displayed if the option indicator is on or has not been specified"). **Decision first:** the preview shows the field name inside a named field; a default value would replace it, or show beside it. | E3d | Open | - |
+| E3j | **Menu bar drawing.** `MNUBARSEP` (colour, attribute and character of the separator line under the menu bar) and `MNUBARDSP` (the menu bar of another record shown when this record is written), both honouring their option indicators. | E3d | Open | - |
+| E3k | **Cursor position (`CSRLOC`).** Place the cursor marker from the two program fields' design-time values in the E3f store (a new `cursorLocation` namespace); an off `CSRLOC` leaves the default cursor. | E3d, E3f | Open | - |
+| E3l | **Record overlay keywords in display mode.** `OVERLAY`, `PROTECT`, `ERASE`, `ERASEINP`, `PUTOVR`, `PUTRETAIN` change what earlier records show, so they can only be drawn when several records are previewed together (the existing display mode); make that mode honour them under the active indicators. **Decision first:** which of the six are worth drawing. | E3d | Open | - |
 
 
 ### E3a results
@@ -199,10 +203,114 @@ reactivity), E3e (explain panel) and E3g (menu designer) are unchanged and still
   simulator panel lists every stored value (`REC.FLD (choice / row n) = v`) with a remove button and "Clear all stored
   values". The extension host loads the file's state on `ready` (`simulatorState` message) and saves on every change
   (`saveSimulatorState`); loading posts nothing back.
-- **Not done (still Open):** E3d keyword reactivity, E3e explain panel, E3g menu designer parity, E3h release. A value
+- **Not done (still Open):** E3e explain panel, E3g menu designer parity, E3i - E3l (the gaps E3d found), E3h release. A value
   store editor for a new namespace is the job of the feature that adds the namespace.
 - Tests: `e3IndicatorSim.test.js` (pure logic, a fake memento), `e3SimulatorPanel.test.js` (both panel copies,
   messages, reset).
+
+### E3d results
+
+**E3d (built, v0.13.6).** Every keyword IBM says takes option indicators is in the table below, with whether the
+preview reacts to its indicator. The list is the union of the DDS Reference sections that say "Option indicators are
+valid for this keyword" and the keywords whose `keywordSpec.js` entry says so (`optionIndicators: 'valid'` /
+`optionIndicatorsValid`); `e3dKeywordReactivity.test.js` fails when a keyword is in one of them and not in the table, when
+a row names a keyword neither says takes option indicators, and when a row's status disagrees with what the engine does.
+
+Three statuses, nothing else:
+
+- **Reactive** - the engine output changes with the indicator (the test turns the indicator on and off).
+- **Not drawn** - the effect is not part of a static screen: a key assignment, an alarm, a run-time value, or a state
+  that exists only while the cursor moves. The reason is in the row. The test checks the engine really does not change.
+- **Gap (E3x)** - the effect can be drawn and the preview does not draw it yet; the sub-task that will is named.
+
+The acceptance rule for the release (E3h) is: no `Gap` row left.
+
+What E3d changed in the engine. Each of these read the keyword but ignored its condition before:
+
+| Keyword | Before | Now |
+|---------|--------|-----|
+| `WDWTITLE`, `WDWBORDER` | the first instance was used whatever its indicator (the file-level `WDWBORDER` too) | the first instance whose condition holds; with none, the documented default |
+| `CAnn`, `CFnn` | the legend listed every key | a key whose own condition does not hold is not listed and does not claim its number from a later instance |
+| `CHOICE` (selection fields) | every choice was drawn | an off `CHOICE` is dropped and the list compresses ("When a CHOICE keyword is turned off, the list of choices is compressed") |
+| `MNUBARCHC` | every choice was drawn | an off choice is dropped and the menu bar compresses |
+| `SFLDSP` | the page of subfile records was always drawn | an off `SFLDSP` draws no subfile page |
+| `SFLDSPCTL` | the control record was always drawn | an off `SFLDSPCTL` draws none of the control record (constants included) |
+
+`ERRMSG` is reactive only on a window record: the preview draws an error line only inside a window's reserved message
+line. A record without `WINDOW` has no error line to show; that is a limit of the preview, not a gap in the table.
+
+| Keyword | IBM levels | Preview | Notes |
+|---------|------------|---------|-------|
+| ALARM | record | Not drawn | sounds the terminal alarm; nothing on the screen |
+| ALWGPH | file, record | Not drawn | lets the device use graphics characters; no drawn difference |
+| BLINK | record | Not drawn | the cursor flashes while the record is displayed; the preview draws no blinking cursor |
+| CA01-CA24 | file, record | Reactive | the function-key legend drops a key whose own condition does not hold (E3d) |
+| CF01-CF24 | file, record | Reactive | same as CAnn (E3d) |
+| CHCAVAIL | field | Reactive | choice-state colours and attributes (E10c/E10d) |
+| CHCSLT | field | Reactive | choice-state colours and attributes (E10c/E10d) |
+| CHCUNAVAIL | field | Reactive | choice-state colours and attributes (E10c/E10d) |
+| CHOICE | field | Reactive | an off CHOICE is dropped and the list compresses (E3d) |
+| CLEAR | file, record | Not drawn | assigns the Clear key; a key assignment is not part of the drawn screen |
+| COLOR | field | Reactive | field colour |
+| CSRINPONLY | file, record | Not drawn | restricts where the cursor may go; no static drawing |
+| CSRLOC | record | Gap (E3k) | cursor position from two program fields; the E3f store can supply them |
+| DFTVAL | field | Gap (E3i) | the default value shows in the field on the first output; the preview shows the field name |
+| DSPATR | field | Reactive | display attributes (HI, RI, UL, ND, PR, ...) |
+| DSPMOD | record | Not drawn | switches the display size at run time; the preview has its own size selector |
+| DUP | field | Not drawn | the Dup key behaviour for the field; no drawn difference |
+| ENTFLDATR | field, record, file | Not drawn | the field changes attribute while the cursor is in it; an interaction state with no static form |
+| ERASE | record | Gap (E3l) | erases other records at output; shows only when records are previewed together |
+| ERASEINP | record | Gap (E3l) | erases input fields at output; shows only when records are previewed together |
+| ERRMSG | field | Reactive | the error line of a window (E3d probes it; a record without WINDOW has no error line in the preview) |
+| ERRMSGID | field | Gap (E4c) | the message text comes from the message file; E4c draws it |
+| FRCDTA | record | Not drawn | forces data to the display at output; no drawn difference |
+| HELP | file, record | Not drawn | assigns the Help key; a key assignment is not part of the drawn screen |
+| HLPBDY | help | Not drawn | help text area; online help is not previewed |
+| HLPCLR | record | Not drawn | help text clearing; online help is not previewed |
+| HLPDOC | file, help | Not drawn | help document; online help is not previewed |
+| HLPEXCLD | help | Not drawn | help exclusion; online help is not previewed |
+| HLPPNLGRP | file, help | Not drawn | help panel group; online help is not previewed |
+| HLPRCD | file, help | Not drawn | help record; online help is not previewed |
+| HLPRTN | file, record | Not drawn | assigns the Help-return key; a key assignment is not part of the drawn screen |
+| HOME | file, record | Not drawn | assigns the Home key; a key assignment is not part of the drawn screen |
+| INVITE | file, record | Not drawn | invites a device for input; no drawn difference |
+| INZINP | record | Not drawn | initializes input fields at output; the preview draws no field values |
+| LOCK | record | Not drawn | locks the keyboard; no drawn difference |
+| LOGOUT | record | Not drawn | sign-off key; no drawn difference |
+| MDTOFF | record | Not drawn | resets the modified-data tags; no drawn difference |
+| MNUBARCHC | field | Reactive | an off choice is dropped and the menu bar compresses (E3d) |
+| MNUBARDSP | record | Gap (E3j) | displays the menu bar of another record when this record is written |
+| MNUBARSEP | field | Gap (E3j) | colour, attribute and character of the separator line under the menu bar |
+| MNUBARSW | file, record | Not drawn | assigns the switch-to-menu-bar key; a key assignment is not part of the drawn screen |
+| MNUCNL | file, record | Not drawn | assigns the cancel key for menus; a key assignment is not part of the drawn screen |
+| MSGALARM | file, record | Not drawn | sounds the alarm for a message; nothing on the screen |
+| OVERLAY | record | Gap (E3l) | keeps the screen as it is when the record is written; shows only when records are previewed together |
+| OVRATR | record, field | Not drawn | the program overrides the field attribute at run time |
+| OVRDTA | record, field | Not drawn | the program overrides the field data at run time |
+| PAGEDOWN | file, record | Not drawn | assigns the Page Down key (ROLLUP); a key assignment is not part of the drawn screen |
+| PAGEUP | file, record | Not drawn | assigns the Page Up key (ROLLDOWN); a key assignment is not part of the drawn screen |
+| PRINT | file, record | Not drawn | assigns the Print key; a key assignment is not part of the drawn screen |
+| PROTECT | record | Gap (E3l) | makes input fields of the records already shown output only; shows only when records are previewed together |
+| PSHBTNCHC | field | Reactive | an off push button is dropped and the buttons compress (I-57) |
+| PUTOVR | record | Gap (E3l) | output overrides at the field level; shows only when records are previewed together |
+| PUTRETAIN | record, field | Gap (E3l) | retains the override across output operations; shows only when records are previewed together |
+| RETLCKSTS | record | Not drawn | returns the record-lock status to the program |
+| RMVWDW | record | Not drawn | removes the window when the record is written; the preview shows one record |
+| SFLDROP | record | Reactive | the subfile starts truncated (P6) |
+| SFLDSP | record | Reactive | an off SFLDSP shows no page of subfile records (E3d) |
+| SFLDSPCTL | record | Reactive | an off SFLDSPCTL shows none of the control record (E3d) |
+| SFLFOLD | record | Reactive | the subfile starts folded (P6) |
+| SFLINZ | record | Not drawn | initializes the subfile at output; the preview draws no record contents |
+| SFLNXTCHG | record | Not drawn | marks the next record as changed; no drawn difference |
+| USRRSTDSP | record | Not drawn | keeps the window from restoring the display under it; the preview shows one record |
+| WDWBORDER | file, record | Reactive | window border colour, attributes and characters (E3d: honours the condition) |
+| WDWTITLE | record | Reactive | window title (E3d: honours the condition) |
+
+**Finding (not fixed here).** Six keywords the Reference says take option indicators have no `optionIndicators` /
+`optionIndicatorsValid` fact in their `keywordSpec.js` entry, so `optionIndicatorsAllowed` answers false for them:
+`DFTVAL`, `DSPATR`, `DSPMOD`, `DUP`, `HLPPNLGRP`, `PSHBTNCHC`. It is the same shape of finding as I-176 (the
+`optionIndicatorsValid` spelling), one step further: an entry with no fact at all. The E3d test reads the Reference
+for these six and does not depend on the spec for them.
 
 ---
 

@@ -69,6 +69,21 @@
     });
   }
 
+  /**
+   * E3d: whether a record-level keyword that GATES what is shown is in effect under the indicators
+   * being previewed. A record that does not carry the keyword at all is not gated (true); one that
+   * carries it (once or conditioned several times) is gated by it: in effect only while one of its
+   * instances' conditions holds. SFLDSP and SFLDSPCTL are the two: "if you do not use an option
+   * indicator with this keyword, [the page / the control record] is displayed on every output
+   * operation", so with an option indicator that is off, it is not displayed.
+   */
+  function gatingKeywordInEffect(record, name, activeIndicators, activeSizeName) {
+    var inds = activeIndicators || new Set();
+    var instances = (record.keywords || []).filter(function (k) { return k.name === name; });
+    if (instances.length === 0) return true;
+    return instances.some(function (k) { return conditionsSatisfied(k.conditions, inds, activeSizeName); });
+  }
+
   // ---------------------------------------------------------------------
   // Display-size (DSPSIZ) handling
   //
@@ -785,7 +800,9 @@
     var names = field.keywords.map(function (k) { return k.name; });
     if (names.indexOf('MNUBARCHC') !== -1) {
       var menuChoices = field.keywords
-        .filter(function (k) { return k.name === 'MNUBARCHC'; })
+        // E3d: "If option indicator 01 is off ... the Edit choice is not displayed", and the list of
+        // choices is compressed - only the MNUBARCHC instances whose condition holds are drawn.
+        .filter(function (k) { return k.name === 'MNUBARCHC' && conditionsSatisfied(k.conditions, activeIndicators, activeSizeName); })
         .map(function (k) { return parseMenubarChoice(k.parameters); })
         .sort(function (a, b) { return parseInt(a.id, 10) - parseInt(b.id, 10); }); // "displayed in ascending numeric order"
       return { type: 'menubar', choices: menuChoices };
@@ -793,7 +810,9 @@
     if (names.indexOf('MLTCHCFLD') !== -1 || names.indexOf('SNGCHCFLD') !== -1) {
       var kind = names.indexOf('MLTCHCFLD') !== -1 ? 'checkbox' : 'radio';
       var choices = field.keywords
-        .filter(function (k) { return k.name === 'CHOICE'; })
+        // E3d: "When a CHOICE keyword is turned off, the list of choices is compressed" - the same
+        // rule PSHBTNCHC already follows below.
+        .filter(function (k) { return k.name === 'CHOICE' && conditionsSatisfied(k.conditions, activeIndicators, activeSizeName); })
         .map(function (k) { return parseChoiceParams(k.parameters); });
       applyChoiceStates(choices, field, choiceStates, activeIndicators, activeSizeName);
       return { type: kind, choices: choices, explicitStates: !!choiceStates };
@@ -867,8 +886,11 @@
   var PLACEHOLDER_WINDOW_STAGGER_LINE = 2;
   var PLACEHOLDER_WINDOW_STAGGER_COL = 4;
 
-  function resolveWindowTitle(record) {
-    var titleKw = record.keywords.find(function (k) { return k.name === 'WDWTITLE'; });
+  function resolveWindowTitle(record, activeIndicators, activeSizeName) {
+    // E3d: WDWTITLE takes option indicators, so the title is the first instance whose condition
+    // holds under the indicators being previewed (an unconditioned instance always holds).
+    var inds = activeIndicators || new Set();
+    var titleKw = record.keywords.find(function (k) { return k.name === 'WDWTITLE' && conditionsSatisfied(k.conditions, inds, activeSizeName); });
     if (!titleKw) return null;
     var m = titleKw.parameters.match(/'((?:[^']|'')*)'/);
     return m ? m[1].replace(/''/g, "'") : null;
@@ -898,9 +920,12 @@
    *   anywhere in scope; attrs is the DSPATR code list (possibly empty);
    *   chars is always length 8, '' for any position not set/blank.
    */
-  function resolveWdwBorder(record, dspfFile) {
+  function resolveWdwBorder(record, dspfFile, activeIndicators, activeSizeName) {
+    // E3d: WDWBORDER takes option indicators, at record and at file level alike: only an instance
+    // whose condition holds under the indicators being previewed is in effect.
+    var inds = activeIndicators || new Set();
     function parse(keywords) {
-      var kw = (keywords || []).find(function (k) { return k.name === 'WDWBORDER'; });
+      var kw = (keywords || []).find(function (k) { return k.name === 'WDWBORDER' && conditionsSatisfied(k.conditions, inds, activeSizeName); });
       if (!kw) return null;
       var text = kw.parameters || '';
       var result = { color: null, attrs: [], chars: ['', '', '', '', '', '', '', ''] };
@@ -995,7 +1020,7 @@
    *   caller that doesn't pass this keeps the prior behavior exactly.
    * @returns {{line:number, col:number, height:number, width:number, title:string|null, positionIsDefault:boolean, inheritedFrom:string|null}|null}
    */
-  function resolveWindow(record, dspfFile, depth, placeholderIndex) {
+  function resolveWindow(record, dspfFile, depth, placeholderIndex, activeIndicators, activeSizeName) {
     depth = depth || 0;
     if (depth > 5) return null; // guard against a reference cycle between records
 
@@ -1009,19 +1034,19 @@
     if (parts.length === 1 && !/^[+-]?\d+$/.test(parts[0]) && parts[0].toUpperCase() !== '*DFT') {
       var refRecord = dspfFile && dspfFile.records.find(function (r) { return r.name === parts[0]; });
       if (!refRecord) return null;
-      var inherited = resolveWindow(refRecord, dspfFile, depth + 1, placeholderIndex);
+      var inherited = resolveWindow(refRecord, dspfFile, depth + 1, placeholderIndex, activeIndicators, activeSizeName);
       if (!inherited) return null;
       // WDWTITLE, if present, is still read from THIS record, not the referenced one.
       // *MSGLIN/*NOMSGLIN isn't an option this bare form can carry itself
       // (there's no room for one alongside the single record-name token), so
       // it's always inherited from the referenced window's own WINDOW keyword.
-      var ownTitle = resolveWindowTitle(record);
+      var ownTitle = resolveWindowTitle(record, activeIndicators, activeSizeName);
       // Border resolution is scoped to THIS record first (same "own record
       // beats referenced/file default" precedence resolveWdwBorder already
       // gives record-vs-file) - only falls through to the inherited
       // window's own resolved border if this record has neither its own
       // WDWBORDER nor a file-level default to fall back to.
-      var ownBorder = resolveWdwBorder(record, dspfFile);
+      var ownBorder = resolveWdwBorder(record, dspfFile, activeIndicators, activeSizeName);
       return {
         line: inherited.line,
         col: inherited.col,
@@ -1074,7 +1099,7 @@
       }
     }
 
-    return { line: line, col: col, height: height, width: width, title: resolveWindowTitle(record), positionIsDefault: positionIsDefault, inheritedFrom: null, msgLine: msgLine, border: resolveWdwBorder(record, dspfFile) };
+    return { line: line, col: col, height: height, width: width, title: resolveWindowTitle(record, activeIndicators, activeSizeName), positionIsDefault: positionIsDefault, inheritedFrom: null, msgLine: msgLine, border: resolveWdwBorder(record, dspfFile, activeIndicators, activeSizeName) };
   }
 
   // ---------------------------------------------------------------------
@@ -1431,6 +1456,8 @@
     var sflName = sflCtlKw.parameters.trim();
     var sflRecord = dspfFile.records.find(function (r) { return r.name === sflName; });
     if (!sflRecord || sflRecord.fields.length === 0) return null;
+    // E3d: SFLDSP off - no page of subfile records is displayed.
+    if (!gatingKeywordInEffect(record, 'SFLDSP', activeIndicators, activeSizeName)) return null;
 
     var declaredSflPag = 5; // sensible fallback if SFLPAG is missing or non-numeric (e.g. driven by a variable)
     var pagKw = record.keywords.find(function (k) { return k.name === 'SFLPAG'; });
@@ -2095,7 +2122,7 @@
       return { lines: size.lines, columns: size.columns, recordName: recordName, fields: [], suppressed: true, availableSizes: size.sizes };
     }
 
-    var windowBox = resolveWindow(record, dspfFile);
+    var windowBox = resolveWindow(record, dspfFile, 0, 0, activeIndicators, size.name);
     var lineOffset = windowBox ? windowBox.line - 1 : 0;
     var colOffset = windowBox ? windowBox.col - 1 : 0;
 
@@ -2126,6 +2153,8 @@
       declaredPreviewRowCount = declaredSflPag;
     } else {
       candidates = resolveRecordFields(record, activeIndicators, lineOffset, colOffset, null, size.name, dspfFile);
+      // E3d: SFLDSPCTL off - the subfile-control record's fields (constants included) are not displayed.
+      if (!gatingKeywordInEffect(record, 'SFLDSPCTL', activeIndicators, size.name)) candidates = [];
     }
     // Task P15 - fields of a windowed record sit on the window's own background.
     if (windowBox) candidates.forEach(function (f) { f.inWindow = true; });
@@ -2319,11 +2348,12 @@
       var layer = contributing * 2;
       contributing++;
 
-      var windowBox = resolveWindow(record, dspfFile, 0, index);
+      var windowBox = resolveWindow(record, dspfFile, 0, index, activeIndicators, size.name);
       var lineOffset = windowBox ? windowBox.line - 1 : 0;
       var colOffset = windowBox ? windowBox.col - 1 : 0;
 
       var fields = resolveRecordFields(record, activeIndicators, lineOffset, colOffset, null, size.name, dspfFile);
+      if (!gatingKeywordInEffect(record, 'SFLDSPCTL', activeIndicators, size.name)) fields = []; // E3d
       fields.forEach(function (f) { f.sourceRecord = recordName; f.stackLayer = layer + 1; if (windowBox) f.inWindow = true; });
       allFields = allFields.concat(fields);
       if (windowBox) windows.push(Object.assign({ recordName: recordName, stackLayer: layer }, windowBox));
@@ -2363,7 +2393,7 @@
    * @returns {{type:'CA'|'CF', number:string, indicator:?string, text:?string, active:boolean}[]}
    *   sorted CA before CF, then by number.
    */
-  function resolveFunctionKeyLegend(dspfFile, record, activeIndicators) {
+  function resolveFunctionKeyLegend(dspfFile, record, activeIndicators, activeSizeName) {
     activeIndicators = activeIndicators || new Set();
     var seen = {};
     var keys = [];
@@ -2373,6 +2403,10 @@
         var ck = KeywordSpec.parseCommandKey(k.name);
         var m = ck ? [k.name, ck.type, ck.number] : null;
         if (!m) return;
+        // E3d: CAnn / CFnn take option indicators (and display size names). A key whose own
+        // condition does not hold under the indicators being previewed is not enabled, so it is
+        // not in the legend and does not claim its number from a later instance of the same key.
+        if (!conditionsSatisfied(k.conditions, activeIndicators, activeSizeName)) return;
         if (seen[m[2]]) return; // a more-specific scope (record, collected first) already claimed this number
         seen[m[2]] = true;
 
