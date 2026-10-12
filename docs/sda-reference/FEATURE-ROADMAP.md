@@ -47,13 +47,13 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-2 of 10 epics done (E7, E9); 18 sub-tasks done (E7a - E7m, E9a - E9e). Current version: **v0.13.0**.
+2 of 10 epics done (E7, E9); 27 sub-tasks done (E3a, E3b, E3c, E3f, E7a - E7m, E9a - E9e, E10a - E10d, E10f). Current version: **v0.13.4**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
 | [E1](#e1) | Editor-side DDS language support (diagnostics, hover, completion, outline, quick-fixes) | E1a - E1i | - | Open | - |
 | [E2](#e2) | Compile-error feedback loop | E2a - E2h | E1a, E1b for the shared diagnostics collection | Open | - |
-| [E3](#e3) | Indicator simulator (and program-to-system field values) | E3a - E3h | - | Open | - |
+| [E3](#e3) | Indicator simulator (and program-to-system field values) | E3a - E3h | - | In progress | - |
 | [E4](#e4) | Message-file integration (`MSGID` / `ERRMSGID` / `CHKMSGID` / `SFLMSGID`) | E4a - E4g | E3f (soft) | Open | - |
 | [E5](#e5) | Preview export (PNG / SVG / HTML / text) | E5a - E5g | E3 (soft, for indicator state) | Open | - |
 | [E6](#e6) | Menu designer: command keys and `TYPE(*UIM)` | E6a - E6h | E2 (soft, for compile errors) | Open | - |
@@ -146,14 +146,63 @@ option indicators; program-to-system field values can be set and are shared with
 
 | ID | Sub-task and scope | Depends on | Status | Version |
 |----|--------------------|------------|--------|---------|
-| E3a | **Audit what exists.** The engine already takes an active-indicator set and the New UI has a conditioning-indicators preview (P5g). Write down exactly what is there, in both UI styles and the menu designer, and what is missing. Output: a gap list that scopes E3b - E3e. | - | Open | - |
-| E3b | **Indicator discovery panel.** Scan the file/record for every indicator referenced (including `N` negation and the 01-99 range), list only those, label from `INDTXT`; "show all 99" toggle; per-record vs file-wide view. | E3a | Open | - |
-| E3c | **Scenarios.** Save, rename, delete and recall named indicator sets (for example "error state", "empty subfile"). **Decision first:** storage in VS Code `workspaceState` vs an optional sidecar file; the source is never written. | E3b | Open | - |
+| E3a | **Audit what exists.** The engine already takes an active-indicator set and the New UI has a conditioning-indicators preview (P5g). Write down exactly what is there, in both UI styles and the menu designer, and what is missing. Output: a gap list that scopes E3b - E3e. | - | Done (no code change) | — |
+| E3b | **Indicator discovery panel.** Scan the file/record for every indicator referenced (including `N` negation and the 01-99 range), list only those, label from `INDTXT`; "show all 99" toggle; per-record vs file-wide view. | E3a | Done | v0.13.4 |
+| E3c | **Scenarios.** Save, rename, delete and recall named indicator sets (for example "error state", "empty subfile"). **Decision first:** storage in VS Code `workspaceState` vs an optional sidecar file; the source is never written. | E3b | Done | v0.13.4 |
 | E3d | **Keyword reactivity.** Table of every keyword IBM says accepts option indicators vs whether the engine reacts to it in the preview (`DSPATR`, `COLOR`, `ERRMSG`, `SFLDSP`/`SFLCLR`/`SFLEND`/`SFLDSPCTL`, `PROTECT`, ...); implement the gaps. The table lives in this document's E3d section and is checked by a test against `keywordSpec.js`. | E3a | Open | - |
 | E3e | **Explain panel.** For the selected field/record: each keyword line, whether it is active under the current indicators, and the indicator expression that decided it. | E3b | Open | - |
-| E3f | **Program-to-system field value store.** Design-time values for fields the program sets at run time (choice control fields, `WINDOW` position fields, `SFLSIZ`, message-data fields): a small store keyed by file, record and field, with an editor in the simulator panel. Used by E4c, E8 and E10. Same storage rule as E3c. | E3c (storage decision) | Open | - |
+| E3f | **Program-to-system field value store.** Design-time values for fields the program sets at run time (choice control fields, `WINDOW` position fields, `SFLSIZ`, message-data fields): a small store keyed by file, record and field, with an editor in the simulator panel. Used by E4c, E8 and E10. Same storage rule as E3c. | E3c (storage decision) | Done | v0.13.4 |
 | E3g | **Menu designer parity.** Offer the panel in the menu designer where menu records carry conditioned content. **Decision first:** may be dropped if E3a shows menus have nothing to simulate. | E3b | Open | - |
 | E3h | **Release** (next free minor). | E3a - E3g | Open | - |
+
+
+### E3a results
+
+**E3a (audit, no code change).** What the designer had before E3b - E3f, read from `buildWebviewTemplate.js`,
+`dspfEngine.js` and `buildMenuWebviewTemplate.js`.
+
+| Area | What exists | Gap |
+|------|-------------|-----|
+| Engine | Every resolver takes one active-indicator set (`conditionsSatisfied`); `resolveScreen`, `resolveMultiScreen`, the function-key legend, SFLEND, fold / drop and the choice states all use it. | Nothing for program-to-system values except the E10c / E10d `choicePreviewStates` object. |
+| Designer, both UI styles | One `active` set; a checkbox list (P5g) built into the aside `#indicatorList` and the toolbar `#toolbarIndicatorList`, scoped to the previewed record (the SFL side only when the SFLCTL side is on screen, an open pulldown, and the file-level keywords). | No `INDTXT` label; no way to turn on an indicator the screen does not use; no whole-file view; the set is lost when the designer closes; no saved scenarios; no list of what is stored. |
+| Menu designer | Option rows carry a conditioning editor; nothing previews indicators. | Nothing to simulate yet: the option rows are not drawn conditioned (E3g decides). |
+| `INDTXT` | In the spec (file, record and field level, `INDTXT(indicator 'text')`, text up to 50 characters) and in the writer's allowed-keyword lists; the engine never read it. | Needed for the labels (E3b). |
+| Storage | `globalState` keeps only the UI style and theme. | No per-file storage (E3c decision). |
+
+The gap list scoped E3b (labels, show all, scope), E3c (storage and scenarios) and E3f (the value store); E3d (keyword
+reactivity), E3e (explain panel) and E3g (menu designer) are unchanged and still Open.
+
+### E3b / E3c / E3f results
+
+**E3b, E3c, E3f (built, v0.13.4).** One new pure module, `src/indicatorSim.js` (no `vscode`, no DOM; loads after
+`dspfEngine.js` in both builds and is in the `dist` copy list), and one panel in the designer.
+
+- **E3b, discovery.** `contextIndicators` (the P5g scoping rules, moved out of the webview and now unit-tested),
+  `fileIndicators` (everything the file uses), `indicatorLabels` (from `INDTXT` at file, record, field and help
+  level; the first text for an indicator wins; a doubled quote is one quote) and `indicatorEntries`
+  (`{ number, label, used, on }`). The list in both copies of the panel has a scope selector (This screen / Whole
+  file) and a "Show all 99" box; rows the scope does not use are dimmed. Each row keeps its `Ind NN` span; the label
+  is a second span.
+- **E3c, scenarios.** *Decision: VS Code `workspaceState`, one entry per file under `isda.simulatorState`, not a sidecar
+  file.* The state is a design aid, not part of the project: nothing is added to the repository or beside the member
+  (a remote IBM i member has no sibling files at all) and nothing but the extension can leave it stale. The cost is that
+  it does not follow the project to another machine; a sidecar can be added later behind `loadFileState` /
+  `saveFileState`. A scenario is `{ name, indicators }`: choosing one turns exactly its indicators on; Save stores the
+  indicators that are on now under the typed name (an existing name, any case, is overwritten in place); Rename and
+  Delete (confirmed) act on the chosen one. Names are at most 40 characters, case-insensitively unique, at most 50 per
+  file; the 200 most recently saved files are kept.
+- **E3f, the value store.** `{ namespace: { key: value } }`; a namespace belongs to one feature and states what a valid
+  key and value are (`IndicatorSim.VALUE_NAMESPACES`), so a stored value is never a shape its reader does not expect.
+  Values under an unknown namespace, a malformed key or an out-of-range value are dropped on load. First namespace:
+  `choiceControl` (key `DspfEngine.choiceStateKey(record, field, choice or row)`, integer 0 - 4). **E4c (message data)
+  and E8 (window position and size) register their own namespace here** instead of adding a second store. The
+  simulator panel lists every stored value (`REC.FLD (choice / row n) = v`) with a remove button and "Clear all stored
+  values". The extension host loads the file's state on `ready` (`simulatorState` message) and saves on every change
+  (`saveSimulatorState`); loading posts nothing back.
+- **Not done (still Open):** E3d keyword reactivity, E3e explain panel, E3g menu designer parity, E3h release. A value
+  store editor for a new namespace is the job of the feature that adds the namespace.
+- Tests: `e3IndicatorSim.test.js` (pure logic, a fake memento), `e3SimulatorPanel.test.js` (both panel copies,
+  messages, reset).
 
 ---
 
@@ -983,7 +1032,7 @@ the reference requires; the limitation entry is rewritten.
 | E10c | **Preview states.** Draw a choice as available / selected / unavailable in the preview (radio, checkbox and push button), applying `CHCAVAIL`, `CHCUNAVAIL` and `CHCSLT` colours and attributes under the reference's own conditions; 2, 3 and 4 draw the same. The state comes from a preview-only per-choice selector in the field panel, held in the webview and not saved, defaulting to available so existing previews do not change. Unit tests for `0` - `4`. | E10a | Done | v0.13.2 |
 | E10d | **`SFLCHCCTL`.** The same for subfile choice lists (`SFLSNGCHC` / `SFLMLTCHC`), including the structural requirements already in the spec. | E10c | Done | v0.13.3 |
 | E10e | **Release** (next free minor); rewrite the `CHCCTL` entry in `LIMITATIONS-PLAN.md`. | E10a - E10d, E10f | Open | - |
-| E10f | **Control value from the E3f store.** Replace E10c's preview-only selector with the design-time control value kept in the E3f store, keyed by file, record and control field; the selector becomes the editor for that value. Same default (available) when no value is set. | E10c, E3f | Open | - |
+| E10f | **Control value from the E3f store.** Replace E10c's preview-only selector with the design-time control value kept in the E3f store, keyed by file, record and control field; the selector becomes the editor for that value. Same default (available) when no value is set. | E10c, E3f | Done | v0.13.4 |
 
 
 ### E10a results
@@ -1078,6 +1127,16 @@ a `data-choice-marker` (`( )` / `(` + `\u25CF` + `)` for single choice, `[ ]` / 
 selector is on the control record's SFLCTL tab because the hidden control field is never drawn; it has one select per
 previewed row (SFLPAG, at most 24). Only the folded form is affected (`SFLDROP` / `SFLFOLD` are not allowed with a
 selection list). Tests: `e10dSflChoiceStates.test.js`.
+
+
+**E10f (built, v0.13.4).** The control value is the E3f store's `choiceControl` namespace instead of a webview-only
+object: the per-choice and per-row selectors (E10c / E10d) now write it through `setFieldValue`, which validates (0 - 4),
+persists the file's state to the extension host (workspaceState) and redraws; the engine still reads it as
+`dspfFile.choicePreviewStates` (`IndicatorSim.namespaceValues`), so the drawing, the keys and the defaults are
+unchanged. A value therefore survives closing and reopening the designer, can be removed from the simulator panel's
+stored-values list, and is dropped by `resetViewState` on the page only (the stored state is not touched by it). The
+value is never written to the DDS source. Not done: E10e (release and the `CHCCTL` entry in `LIMITATIONS-PLAN.md`).
+Tests: `e10fStoredControlValue.test.js`.
 
 ---
 

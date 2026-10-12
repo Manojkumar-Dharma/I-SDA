@@ -7,6 +7,8 @@ const engineJs = fs.readFileSync(path.join(__dirname, 'dspfEngine.js'), 'utf8');
 // factory now takes both as globals in the browser).
 const keywordSpecJs = fs.readFileSync(path.join(__dirname, 'keywordSpec.js'), 'utf8');
 const writerJs = fs.readFileSync(path.join(__dirname, 'dspfWriter.js'), 'utf8');
+// IndicatorSim (E3) reads DspfEngine, so it loads right after it.
+const indicatorSimJs = fs.readFileSync(path.join(__dirname, 'indicatorSim.js'), 'utf8');
 const clientHelpersJs = fs.readFileSync(path.join(__dirname, 'webviewClientHelpers.js'), 'utf8');
 const parserBundleJs = fs.readFileSync(path.join(__dirname, '../dist/dspfParser.browser.js'), 'utf8');
 
@@ -1111,6 +1113,7 @@ const htmlTemplate = `<!DOCTYPE html>
 <script nonce="${NONCE_TOKEN}">${parserBundleJs}</script>
 <script nonce="${NONCE_TOKEN}">${keywordSpecJs}</script>
 <script nonce="${NONCE_TOKEN}">${engineJs}</script>
+<script nonce="${NONCE_TOKEN}">${indicatorSimJs}</script>
 <script nonce="${NONCE_TOKEN}">${writerJs}</script>
 <script nonce="${NONCE_TOKEN}">${clientHelpersJs}</script>
 <script nonce="${NONCE_TOKEN}">
@@ -1236,8 +1239,18 @@ const htmlTemplate = `<!DOCTYPE html>
   let previewMultipleRows = false;
   // Task P6 - design-time "user pressed the SFLDROP/SFLFOLD key" toggle; resets on record change.
   let sflFoldFlipped = false;
-  // Task E10c - design-time control values for CHCCTL choices, keyed by DspfEngine.choiceStateKey; never written to the source.
-  let choicePreviewStates = {};
+  // Tasks E3b / E3c / E3f - the indicator simulator's view state and the per-file stored state. Scenarios (named
+  // indicator sets) and fieldValues (design-time values for fields the program sets at run time, a namespaced store -
+  // see IndicatorSim.VALUE_NAMESPACES) are kept by the extension host in workspaceState, one entry per file, and
+  // arrive in a 'simulatorState' message; every change posts 'saveSimulatorState'. Neither is ever written to the
+  // DDS source. E10f: the CHCCTL / SFLCHCCTL control values live in fieldValues.choiceControl, keyed by
+  // DspfEngine.choiceStateKey, and are what the engine reads as dspfFile.choicePreviewStates.
+  let indicatorScope = 'screen';   // 'screen' (what the previewed record uses) | 'file' (everything the file uses)
+  let indicatorShowAll = false;    // list 01 - 99 instead of only the ones in use
+  let scenarios = [];
+  let fieldValues = {};
+  let selectedScenarioName = '';
+  let simulatorMessage = '';
   // Task P11 - design-time "show the last page" toggle for an UNCONDITIONED SFLEND (no indicator drives Bottom).
   let sflEndLastPage = false;
   // Ruler overlay (Task L11): session-only, matching real SDA's own F14
@@ -1288,7 +1301,7 @@ const htmlTemplate = `<!DOCTYPE html>
   const toolbarTitle = document.getElementById('toolbarTitle');
   const indicatorList = document.getElementById('indicatorList');
   // Task P5g - genuine duplicate in the pinned toolbar's new "View"
-  // accordion (P5a's persistent accordion zone); rebuildIndicatorListFromSet
+  // accordion (P5a's persistent accordion zone); rebuildSimulatorPanel
   // below now builds into both containers from the same active Set, same
   // "one function, two visible copies" reasoning P5c/d already established
   // - not a relocation, since classic UI never shows the accordion zone at
@@ -2884,52 +2897,8 @@ const htmlTemplate = `<!DOCTYPE html>
    *  this screen, and mixed one record format's indicators into another's
    *  list, which is what this now avoids. */
   function indicatorsForContext(recordName) {
-    const set = new Set();
-    const collect = (conds) => (conds || []).forEach((g) => g.indicators.forEach((i) => set.add(i.number)));
-
-    // File-level keywords (CAxx/CFxx command keys, ALARM, INDARA-family
-    // flags, etc. - see renderFileProps/fileKeywordsPanelsHtml) can carry
-    // their own conditioning indicator(s) too, and unlike record-level
-    // conditioning they apply across the WHOLE display file, not just one
-    // record - so, unlike everything else this function scopes to the
-    // currently-previewed record, file-level indicators are always
-    // included here regardless of which record is on screen. Previously
-    // these were skipped entirely: an indicator ONLY used to condition a
-    // file-level keyword never appeared in this list to toggle, even
-    // though it's genuinely "used on this screen" from real SDA's own
-    // point of view (file-level keywords apply to every record).
-    (model.fileKeywords || []).forEach((k) => collect(k.conditions));
-
-    const collectRecord = (rec) => {
-      if (!rec) return;
-      collect(rec.conditions);
-      // Record-level keywords (SFL, SFLCTL, WINDOW, ALARM, ERRMSG, etc.) can each
-      // carry their own conditioning indicator(s) independent of any field - these
-      // were previously skipped entirely, so an indicator ONLY used to condition a
-      // record-level keyword never showed up here to toggle. See also help entries
-      // below, which have the same field-like shape (conditions + keywords) but
-      // live in their own array rather than rec.fields.
-      rec.keywords.forEach((k) => collect(k.conditions));
-      rec.fields.forEach((f) => { collect(f.conditions); f.keywords.forEach((k) => collect(k.conditions)); });
-      (rec.helpEntries || []).forEach((f) => { collect(f.conditions); f.keywords.forEach((k) => collect(k.conditions)); });
-    };
-
-    collectRecord(model.records.find((r) => r.name === recordName));
-
-    const sflInfo = DspfEngine.findSflPairing(model, recordName);
-    if (sflInfo && sflInfo.sflCtlRecord && sflInfo.sflCtlRecord.name === recordName) {
-      // Currently viewing the SFLCTL side - it draws the SFL record's own
-      // fields too, so that record's indicators belong in this list.
-      collectRecord(sflInfo.sflRecord);
-    }
-    // Currently viewing the SFL side on its own: the paired SFLCTL record's
-    // fields never render here, so its indicators are correctly left out.
-
-    if (activePulldown && activePulldown.pulldownRecord) {
-      collectRecord(model.records.find((r) => r.name === activePulldown.pulldownRecord));
-    }
-
-    return Array.from(set).sort();
+    // The scoping rules above live in IndicatorSim.contextIndicators (E3b), where they are unit-tested without a page.
+    return IndicatorSim.contextIndicators(model, recordName, activePulldown && activePulldown.pulldownRecord);
   }
 
   // Task P5d - Record select duplicated into the pinned toolbar
@@ -3115,37 +3084,171 @@ const htmlTemplate = `<!DOCTYPE html>
   }
 
   function rebuildIndicatorList(recordName) {
-    rebuildIndicatorListFromSet(indicatorsForContext(recordName));
+    rebuildSimulatorPanel(recordName);
   }
 
-  // Task P5g - builds into BOTH the aside's #indicatorList and the pinned
-  // toolbar's #toolbarIndicatorList (its "View" accordion duplicate) from
-  // the same active Set - one function, two visible copies, same
-  // reasoning P5c/d/f already established for their own migrated controls.
-  // Each container's own checkboxes mutate active and call render()
-  // independently rather than one forwarding to the other, since both are
-  // built fresh from the identical data on every call anyway - there is no
-  // separate "source of truth" element to keep in sync with here, unlike a
-  // single toggle/select.
-  function rebuildIndicatorListFromSet(indicators) {
+  // Tasks E3b / E3c / E3f - the indicator simulator panel, built into BOTH the aside's #indicatorList and the pinned
+  // toolbar's #toolbarIndicatorList (P5g: one function, two visible copies). Each copy has: the scope / show-all
+  // controls, the indicator checkboxes (labelled from INDTXT), the scenario row and the stored-values editor. Every
+  // control mutates the shared state and calls render(), so the two copies are rebuilt identically each time.
+  function escapeSimHtml(text) {
+    return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function indicatorEntriesFor(recordName) {
+    return IndicatorSim.indicatorEntries(model, recordName, {
+      scope: indicatorScope,
+      showAll: indicatorShowAll,
+      active: active,
+      activePulldownRecord: activePulldown && activePulldown.pulldownRecord
+    });
+  }
+
+  function rebuildSimulatorPanel(recordName) {
+    const entries = indicatorEntriesFor(recordName);
     [indicatorList, toolbarIndicatorList].forEach((container) => {
       if (!container) return;
       container.innerHTML = '';
-      if (indicators.length === 0) {
-        container.innerHTML = '<div class="empty-state" style="font-size:11px;">None used on this screen</div>';
-        return;
+
+      const controls = document.createElement('div');
+      controls.className = 'sim-controls';
+      controls.style.cssText = 'display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:4px;font-size:11px;';
+      controls.innerHTML =
+        '<select class="sim-scope" title="Which indicators to list"><option value="screen">This screen</option><option value="file">Whole file</option></select>' +
+        '<label class="compare-toggle" style="margin:0;"><input type="checkbox" class="sim-showall" /> Show all 99</label>';
+      controls.querySelector('.sim-scope').value = indicatorScope;
+      controls.querySelector('.sim-showall').checked = indicatorShowAll;
+      controls.querySelector('.sim-scope').addEventListener('change', (e) => { indicatorScope = e.target.value === 'file' ? 'file' : 'screen'; render(); });
+      controls.querySelector('.sim-showall').addEventListener('change', (e) => { indicatorShowAll = !!e.target.checked; render(); });
+      container.appendChild(controls);
+
+      const list = document.createElement('div');
+      list.className = 'sim-ind-list';
+      if (indicatorShowAll) list.style.cssText = 'max-height:220px;overflow-y:auto;';
+      if (entries.length === 0) {
+        list.innerHTML = '<div class="empty-state" style="font-size:11px;">' + (indicatorScope === 'file' ? 'None used in this file' : 'None used on this screen') + '</div>';
       }
-      indicators.forEach((num) => {
+      entries.forEach((entry) => {
         const label = document.createElement('label');
-        label.style.cssText = 'display:flex;align-items:center;gap:8px;padding:3px 0;cursor:pointer;font-size:12px;';
-        label.innerHTML = '<input type="checkbox" ' + (active.has(num) ? 'checked' : '') + ' /> <span>Ind ' + num + '</span>';
+        label.style.cssText = 'display:flex;align-items:center;gap:8px;padding:3px 0;cursor:pointer;font-size:12px;' + (entry.used ? '' : 'opacity:0.55;');
+        label.title = entry.used ? '' : 'Not used ' + (indicatorScope === 'file' ? 'in this file' : 'on this screen');
+        label.innerHTML = '<input type="checkbox" ' + (entry.on ? 'checked' : '') + ' /> <span>Ind ' + entry.number + '</span>' +
+          (entry.label ? ' <span class="ind-text" style="opacity:0.8;">' + escapeSimHtml(entry.label) + '</span>' : '');
         label.querySelector('input').addEventListener('change', (e) => {
-          if (e.target.checked) active.add(num); else active.delete(num);
+          if (e.target.checked) active.add(entry.number); else active.delete(entry.number);
           render();
         });
-        container.appendChild(label);
+        list.appendChild(label);
+      });
+      container.appendChild(list);
+
+      container.appendChild(buildScenarioRow());
+      const valuesEditor = buildStoredValuesEditor();
+      if (valuesEditor) container.appendChild(valuesEditor);
+    });
+  }
+
+  // Task E3c - scenarios: choosing one turns exactly its indicators ON (and every other OFF); Save stores the
+  // indicators that are ON now under the typed name (an existing name is overwritten); Rename and Delete act on the
+  // chosen one. Kept per file in workspaceState; the DDS source is never written.
+  function buildScenarioRow() {
+    const row = document.createElement('div');
+    row.className = 'sim-scenarios';
+    row.style.cssText = 'margin-top:8px;font-size:11px;';
+    const options = ['<option value="">Scenario...</option>'].concat(scenarios.map((s) =>
+      '<option value="' + escapeSimHtml(s.name) + '">' + escapeSimHtml(s.name) + ' (' + s.indicators.length + ')</option>'));
+    row.innerHTML =
+      '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">' +
+        '<select class="sim-scn-select" title="Apply a saved indicator scenario">' + options.join('') + '</select>' +
+        '<input type="text" class="sim-scn-name" maxlength="' + IndicatorSim.MAX_SCENARIO_NAME + '" placeholder="Scenario name" style="flex:1;min-width:90px;" />' +
+      '</div>' +
+      '<div style="display:flex;gap:6px;margin-top:4px;">' +
+        '<button class="secondary sim-scn-save" title="Save the indicators that are ON now under this name">Save</button>' +
+        '<button class="secondary sim-scn-rename" title="Rename the chosen scenario to this name">Rename</button>' +
+        '<button class="secondary sim-scn-delete" title="Delete the chosen scenario">Delete</button>' +
+      '</div>' +
+      '<div class="hint-small sim-scn-msg"></div>';
+    const select = row.querySelector('.sim-scn-select');
+    const nameInput = row.querySelector('.sim-scn-name');
+    select.value = IndicatorSim.findScenario(scenarios, selectedScenarioName) ? selectedScenarioName : '';
+    nameInput.value = select.value;
+    row.querySelector('.sim-scn-msg').textContent = simulatorMessage;
+    row.querySelector('.sim-scn-rename').disabled = !select.value;
+    row.querySelector('.sim-scn-delete').disabled = !select.value;
+
+    select.addEventListener('change', () => {
+      const scenario = IndicatorSim.findScenario(scenarios, select.value);
+      selectedScenarioName = scenario ? scenario.name : '';
+      simulatorMessage = '';
+      if (scenario) {
+        active.clear();
+        scenario.indicators.forEach((n) => active.add(n));
+      }
+      render();
+    });
+    row.querySelector('.sim-scn-save').addEventListener('click', () => {
+      const name = nameInput.value || select.value;
+      const result = IndicatorSim.saveScenario(scenarios, name, Array.from(active));
+      if (!result.ok) { simulatorMessage = result.error; render(); return; }
+      scenarios = result.scenarios;
+      selectedScenarioName = IndicatorSim.findScenario(scenarios, name).name;
+      simulatorMessage = '';
+      persistSimulatorState();
+      render();
+    });
+    row.querySelector('.sim-scn-rename').addEventListener('click', () => {
+      const result = IndicatorSim.renameScenario(scenarios, select.value, nameInput.value);
+      if (!result.ok) { simulatorMessage = result.error; render(); return; }
+      scenarios = result.scenarios;
+      selectedScenarioName = IndicatorSim.findScenario(scenarios, nameInput.value).name;
+      simulatorMessage = '';
+      persistSimulatorState();
+      render();
+    });
+    row.querySelector('.sim-scn-delete').addEventListener('click', () => {
+      const name = select.value;
+      showConfirmDialog('Delete scenario "' + name + '"?', 'The saved indicator set is removed for this file. The DDS source is not affected.', 'Delete', () => {
+        const result = IndicatorSim.deleteScenario(scenarios, name);
+        if (result.ok) { scenarios = result.scenarios; selectedScenarioName = ''; persistSimulatorState(); }
+        simulatorMessage = result.ok ? '' : result.error;
+        render();
       });
     });
+    return row;
+  }
+
+  // Task E3f - the values the program sets at run time, as stored for this file: one row per value with a remove
+  // button, and a "Clear all". The per-field editors (for now the CHCCTL / SFLCHCCTL control value, E10f) write
+  // here; this list is how a stored value is found again and removed.
+  function buildStoredValuesEditor() {
+    const rows = IndicatorSim.valueRows(fieldValues);
+    if (rows.length === 0) return null;
+    const box = document.createElement('div');
+    box.className = 'sim-values';
+    box.style.cssText = 'margin-top:8px;font-size:11px;';
+    box.innerHTML = '<div class="section-label">Stored run-time values</div>';
+    rows.forEach((r) => {
+      const line = document.createElement('div');
+      line.className = 'sim-value-row';
+      line.style.cssText = 'display:flex;align-items:center;gap:6px;padding:2px 0;';
+      line.title = r.label;
+      line.innerHTML = '<span style="flex:1;">' + escapeSimHtml(IndicatorSim.describeValueKey(r.namespace, r.key)) + ' = <strong>' + escapeSimHtml(r.value) + '</strong></span>' +
+        '<button class="secondary sim-value-remove" title="Remove this stored value" style="padding:0 6px;">&times;</button>';
+      line.querySelector('.sim-value-remove').addEventListener('click', () => setFieldValue(r.namespace, r.key, null));
+      box.appendChild(line);
+    });
+    const clear = document.createElement('button');
+    clear.className = 'secondary sim-values-clear';
+    clear.textContent = 'Clear all stored values';
+    clear.style.cssText = 'margin-top:4px;';
+    clear.addEventListener('click', () => {
+      fieldValues = IndicatorSim.clearValues(fieldValues);
+      simulatorMessage = '';
+      persistSimulatorState();
+      render();
+    });
+    box.appendChild(clear);
+    return box;
   }
 
   /** Read-only comparison mode: preview several record formats together, purely
@@ -3163,7 +3266,7 @@ const htmlTemplate = `<!DOCTYPE html>
   // needing its own special-case. Task P5g - builds into BOTH the aside's
   // #compareRecordList and the toolbar's #toolbarCompareRecordList, same
   // "one function, two visible copies, both mutate the same Set directly"
-  // reasoning as rebuildIndicatorListFromSet above.
+  // reasoning as rebuildSimulatorPanel above.
   function renderCompareRecordList(currentRecordName) {
     [compareRecordList, toolbarCompareRecordList].forEach((container) => {
       if (!container) return;
@@ -3222,7 +3325,7 @@ const htmlTemplate = `<!DOCTYPE html>
       (name) => name !== currentRecordName && model.records.some((r) => r.name === name)
     );
     if (others.length === 0) return;
-    model.choicePreviewStates = choicePreviewStates;
+    model.choicePreviewStates = IndicatorSim.namespaceValues(fieldValues, 'choiceControl');
     const backdropScreen = DspfEngine.resolveMultiScreen(model, others, active, selectedSizeIndex);
     // Task P14 - the primary (current) record sits above the backdrop layer, so its
     // fields must overwrite the dimmed cells beneath them rather than let them show through.
@@ -3253,7 +3356,7 @@ const htmlTemplate = `<!DOCTYPE html>
     // current record LAST so it is drawn on top (resolveMultiScreen stacks in list order).
     const included = Array.from(compareSelectedRecords).filter((n) => n !== recordName && model.records.some((r) => r.name === n)).concat([recordName]);
     fkeyLegendEl.innerHTML = '';
-    model.choicePreviewStates = choicePreviewStates;
+    model.choicePreviewStates = IndicatorSim.namespaceValues(fieldValues, 'choiceControl');
     const screen = DspfEngine.resolveMultiScreen(model, included, active, selectedSizeIndex);
     lastScreen = screen;
     mainHint.classList.add('hint-readonly');
@@ -3303,7 +3406,7 @@ const htmlTemplate = `<!DOCTYPE html>
     const currentRecord = model.records.find((r) => r.name === recordName);
     fkeyLegendEl.innerHTML = WebviewClientHelpers.functionKeyLegendHtml(DspfEngine.resolveFunctionKeyLegend(model, currentRecord, active));
 
-    model.choicePreviewStates = choicePreviewStates;
+    model.choicePreviewStates = IndicatorSim.namespaceValues(fieldValues, 'choiceControl');
     const screen = DspfEngine.resolveScreen(model, recordName, active, activePulldown, previewMultipleRows, selectedSizeIndex, sflFoldFlipped, sflEndLastPage);
     if (!(screen.subfilePreview && screen.subfilePreview.foldDrop && screen.subfilePreview.foldDrop.canToggle)) sflFoldFlipped = false;
     if (!(screen.subfilePreview && screen.subfilePreview.sflEnd && screen.subfilePreview.sflEnd.canShowLastPage)) sflEndLastPage = false;
@@ -6231,7 +6334,7 @@ const htmlTemplate = `<!DOCTYPE html>
         accordionHtml('record-' + rec.name + '::sflctl-indicator', 'Indicator', sflCtlPanels.indicator, false) +
         accordionHtml('record-' + rec.name + '::sflctl-layout', 'Display Layout', sflCtlPanels.displayLayout, false) +
         accordionHtml('record-' + rec.name + '::sflctl-messages', 'Subfile Messages', sflCtlPanels.subfileMessages, false) +
-        (sflChoiceInfo ? accordionHtml('record-' + rec.name + '::sflctl-choice-preview', 'Preview state (SFLCHCCTL)', WebviewClientHelpers.sflRowPreviewStateHtml(sflChoiceInfo.rows, sflCtlPrefix + '-sflchc', (row) => { const v = choicePreviewStates[DspfEngine.choiceStateKey(sflChoiceInfo.record, sflChoiceInfo.field, row)]; return v == null ? '' : v; }), false) : '');
+        (sflChoiceInfo ? accordionHtml('record-' + rec.name + '::sflctl-choice-preview', 'Preview state (SFLCHCCTL)', WebviewClientHelpers.sflRowPreviewStateHtml(sflChoiceInfo.rows, sflCtlPrefix + '-sflchc', (row) => choiceControlValue(DspfEngine.choiceStateKey(sflChoiceInfo.record, sflChoiceInfo.field, row))), false) : '');
       tabs.push({ id: 'sflctl', label: 'SFLCTL', content: sflCtlHtml });
     }
     if (isMnuBar) {
@@ -7548,13 +7651,38 @@ const htmlTemplate = `<!DOCTYPE html>
     else commitDeleteSelection();
   });
 
-  // Task E10c - the CHCCTL preview-state selector. previewStateAccordion renders it for a choice field, wirePreviewState
-  // stores a picked value (or clears it for "default") and redraws; nothing is written to the DDS source.
+  // Task E10c / E10f - the CHCCTL / SFLCHCCTL control-value editor. previewStateAccordion renders it for a choice field,
+  // wirePreviewState stores a picked value (or clears it for "default") in the E3f store and redraws; nothing is written
+  // to the DDS source. The value is kept per file in workspaceState (see persistSimulatorState).
+  function choiceControlValue(key) {
+    const v = IndicatorSim.getValue(fieldValues, 'choiceControl', key);
+    return v == null ? '' : v;
+  }
+
+  // Task E3f - sets (or, for null, removes) one stored program-to-system value, persists the store and redraws.
+  function setFieldValue(namespace, key, value) {
+    const result = IndicatorSim.setValue(fieldValues, namespace, key, value);
+    if (result.ok) {
+      fieldValues = result.values;
+      simulatorMessage = '';
+      persistSimulatorState();
+    } else {
+      simulatorMessage = result.error;
+    }
+    render();
+  }
+
+  // Tasks E3c / E3f - hands the file's scenarios and stored values to the extension host, which keeps them in
+  // workspaceState. Never touches the DDS source.
+  function persistSimulatorState() {
+    vscode.postMessage({ type: 'saveSimulatorState', scenarios: scenarios, values: fieldValues });
+  }
+
   function previewStateAccordion(field, ownerKey, recordName) {
     const html = WebviewClientHelpers.choicePreviewStateHtml(
       field.keywords,
       ownerKey,
-      (id) => { const v = choicePreviewStates[DspfEngine.choiceStateKey(recordName, field.name, id)]; return v == null ? '' : v; }
+      (id) => choiceControlValue(DspfEngine.choiceStateKey(recordName, field.name, id))
     );
     return html ? accordionHtml('field-' + field.sourceLine + '::choice-preview-state', 'Preview state (CHCCTL)', html, false) : '';
   }
@@ -7575,19 +7703,13 @@ const htmlTemplate = `<!DOCTYPE html>
 
   function wireSflRowPreviewState(info, ownerKey) {
     WebviewClientHelpers.wireChoicePreviewState(ownerKey, (id, value) => {
-      const key = DspfEngine.choiceStateKey(info.record, info.field, id);
-      if (value == null) delete choicePreviewStates[key];
-      else choicePreviewStates[key] = value;
-      render();
+      setFieldValue('choiceControl', DspfEngine.choiceStateKey(info.record, info.field, id), value);
     });
   }
 
   function wirePreviewState(field, ownerRecordName, ownerKey) {
     WebviewClientHelpers.wireChoicePreviewState(ownerKey, (id, value) => {
-      const key = DspfEngine.choiceStateKey(ownerRecordName, field.name, id);
-      if (value == null) delete choicePreviewStates[key];
-      else choicePreviewStates[key] = value;
-      render();
+      setFieldValue('choiceControl', DspfEngine.choiceStateKey(ownerRecordName, field.name, id), value);
     });
   }
 
@@ -7629,7 +7751,7 @@ const htmlTemplate = `<!DOCTYPE html>
     codeForIInitial.gated.forEach((g) => { if (g) g.btn.classList.toggle('hidden', g.hidden); });
     selectedHelpSourceLine = null; showFileProps = false; activePulldown = null;
     compareFullOverlay = false; compareSelectedRecords.clear();
-    previewMultipleRows = false; sflFoldFlipped = false; sflEndLastPage = false; choicePreviewStates = {};
+    previewMultipleRows = false; sflFoldFlipped = false; sflEndLastPage = false; fieldValues = {}; scenarios = []; selectedScenarioName = ''; simulatorMessage = ''; indicatorScope = 'screen'; indicatorShowAll = false;
     rulerEnabled = false; crosshairEnabled = false;
     selectedSizeIndex = 0; lastScreen = null;
     active.clear(); expandedKeywordConditioning.clear(); accordionOpenState.clear();
@@ -7677,6 +7799,15 @@ const htmlTemplate = `<!DOCTYPE html>
       // isda.previewDateSeparator (Task E9b): the offline fallback for the
       // Y / W edit-code separator; the connected job's DATSEP wins when known.
       DspfEngine.setDateSeparatorSetting(msg.value);
+      render();
+    } else if (msg.type === 'simulatorState') {
+      // Tasks E3c / E3f - this file's saved scenarios and stored run-time values, from the extension host's
+      // workspaceState. Normalised again here so a hand-edited state can never reach the panel in a bad shape.
+      // Not posted back: loading is not a change.
+      const state = IndicatorSim.normalizeState(msg);
+      scenarios = state.scenarios;
+      fieldValues = state.values;
+      if (!IndicatorSim.findScenario(scenarios, selectedScenarioName)) selectedScenarioName = '';
       render();
     } else if (msg.type === 'sourceLineWidth') {
       // See sourceLineMax. A missing / non-positive maxLength means "no limit".

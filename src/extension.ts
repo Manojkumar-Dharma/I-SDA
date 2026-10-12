@@ -62,6 +62,12 @@ const SourceLineWidth: {
   DEFAULT_WIDTH: number;
   fetchSourceLineMax(connection: any, member: { library: string; file: string }): Promise<{ maxLength: number; source: 'member' | 'default' }>;
 } = require('./sourceLineWidth.js');
+// Indicator simulator (E3): scenarios and stored run-time values, kept per file in workspaceState. Pure JS
+// shared with the webview; the load / save functions take anything with get / update (a vscode.Memento here).
+const IndicatorSim: {
+  loadFileState(memento: any, fileKey: string): { scenarios: any[]; values: any };
+  saveFileState(memento: any, fileKey: string, state: { scenarios?: any; values?: any }): Thenable<void>;
+} = require('./indicatorSim.js');
 // Same reasoning as MnuCmdEngine/DspfEngine above: plain dependency-free JS
 // shared verbatim with the webview. buildTypedRecordPlan is the "+ Add
 // record" wizard's own record-type decision table (what keywords/companion
@@ -1739,10 +1745,15 @@ class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
         await this.context.globalState.update(UI_STYLE_KEY, msg.value);
       } else if (msg.type === 'setUiTheme') {
         await this.context.globalState.update(UI_THEME_KEY, msg.value);
+      } else if (msg.type === 'saveSimulatorState') {
+        // Tasks E3c / E3f: the file's scenarios and stored run-time values. workspaceState only - the DDS source is never written.
+        await IndicatorSim.saveFileState(this.context.workspaceState, document.uri.toString(), { scenarios: msg.scenarios, values: msg.values });
       } else if (msg.type === 'ready') {
         // A (re)loaded webview starts with no line width, so the next answer is always posted.
         lastSourceLineWidth = undefined;
         sourceLineWidthSent = false;
+        const simulatorState = IndicatorSim.loadFileState(this.context.workspaceState, document.uri.toString());
+        webviewPanel.webview.postMessage({ type: 'simulatorState', scenarios: simulatorState.scenarios, values: simulatorState.values });
         await sendCodeForIStatus();
         sendModTrackingConfig();
         sendPreviewDateSeparator();
