@@ -47,7 +47,7 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-5 of 10 epics done (E3, E7, E8, E9, E10); 43 sub-tasks done (E3a - E3l, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.15.0**.
+5 of 10 epics done (E3, E7, E8, E9, E10); 44 sub-tasks done (E3a - E3l, E4a, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.15.0**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
@@ -488,13 +488,32 @@ degrades to today's behaviour with a visible note.
 
 | ID | Sub-task and scope | Depends on | Status | Version |
 |----|--------------------|------------|--------|---------|
-| E4a | **Source of message text. Decision first.** Options: SQL (`QSYS2` message-file service, to be **verified to exist on V7R3**), `RTVMSG` per ID, `DSPMSGD` to an outfile. Also decide offline behaviour: none, or an importable cache file. | - | In progress | - |
+| E4a | **Source of message text. Decision first.** Options: SQL (`QSYS2` message-file service, to be **verified to exist on V7R3**), `RTVMSG` per ID, `DSPMSGD` to an outfile. Also decide offline behaviour: none, or an importable cache file. | - | Done (no code change) | — |
 | E4b | **Resolver module.** `src/messageFile.js` with a fake-connection test seam (as `jobDateFormat.js` does): `*LIBL` and `lib/name` resolution, per-session cache, never throws. | E4a | Open | - |
 | E4c | **Preview.** Show resolved text for the keywords above in the right place on the screen; `&1`-style substitution from E3f values or a placeholder; severity-colour only if the reference says it affects display. | E4b, E3f (soft) | Open | - |
 | E4d | **Picker and validation.** Message-ID picker with text in the `ERRMSGID`, `MSGID`, `SFLMSGID`, `CHKMSGID` panels; an "ID not found in `<msgf>`" diagnostic through the E1 hub when available. | E4b | Open | - |
 | E4e | **Menu designer.** Compile Menu already creates the `USRnnnn` messages with `ADDMSGD`; show the existing messages for a menu's options and flag drift between the menu text and the message. | E4b | Open | - |
-| E4f | **Settings and degradation.** `isda.messageFiles` (default message files to search), cache location, a clear "message text unavailable (not connected)" state in the panels. | E4b | Open | - |
+| E4f | **Settings and degradation.** `isda.messageFiles` (default message files to search), a clear "message text unavailable (not connected)" state in the panels. | E4b | Open | - |
 | E4g | **Release** (next free minor). | E4a - E4f | Open | - |
+
+### E4a results
+
+Decision (Manojkumar, v0.15.0 tree, docs only):
+
+- **Source of text: SQL view first, `RTVMSG` per ID as the fallback.** `QSYS2.MESSAGE_FILE_DATA` (system name `MSGF_DATA`)
+  has `MESSAGE_FILE`, `MESSAGE_FILE_LIBRARY`, `MESSAGE_ID`, `MESSAGE_TEXT` (first level), `MESSAGE_SECOND_LEVEL_TEXT`,
+  `SEVERITY` and `MESSAGE_DATA`. One query by file and library returns every message, which is what the E4d picker needs.
+  **Release floor: IBM i 7.3 TR6** (a 2019 write-up of the view says "only available for 7.3 TR6 and up"; IBM's page does
+  not state the level, so E4b must detect absence at run time and not assume it). Below that, E4b falls back to
+  `RTVMSG MSGID(...) MSGF(...)` per ID. The fallback gives text for the preview (E4c) but no list, so the picker (E4d)
+  shows the "list unavailable on this release" state and still accepts a typed ID.
+- **Not chosen:** `DSPMSGD` to an outfile (works everywhere, but writes a temp file into the user's library); SQL only
+  (nothing below 7.3 TR6); `RTVMSG` only (no picker list).
+- **Offline: per-session cache only.** No importable cache file. With no connection the panels show the existing
+  behaviour plus a visible "message text unavailable (not connected)" note (E4f). Nothing is written to disk.
+- **Effect on later rows:** E4b exposes `getText(id, msgf)` and `listMessages(msgf)`, and records which path (SQL or
+  `RTVMSG`) answered; `listMessages` returns "unsupported" on the fallback path. E4f's cache location setting is dropped
+  (memory only); `isda.messageFiles` stays.
 
 ---
 
