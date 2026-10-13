@@ -142,7 +142,9 @@ would produce, with an explanation of why each keyword is or is not in effect.
 **Acceptance for the release.** A panel lists the indicators actually used in the file, labelled from `INDTXT`
 where present; toggling one re-renders the preview; named scenarios can be saved and recalled without touching
 the source; the keyword-reactivity table (E3d) has no `not reactive` row for a keyword that IBM says takes
-option indicators; program-to-system field values can be set and are shared with other features.
+option indicators and no `Gap` row owned by an E3 sub-task (a `Gap` that names a sub-task of another epic stays
+open until that epic's release; at the E3 release that is `ERRMSGID`, `Gap (E4c)`); program-to-system field values
+can be set and are shared with other features.
 
 | ID | Sub-task and scope | Depends on | Status | Version |
 |----|--------------------|------------|--------|---------|
@@ -153,7 +155,7 @@ option indicators; program-to-system field values can be set and are shared with
 | E3e | **Explain panel.** For the selected field/record: each keyword line, whether it is active under the current indicators, and the indicator expression that decided it. | E3b | Done | v0.13.9 |
 | E3f | **Program-to-system field value store.** Design-time values for fields the program sets at run time (choice control fields, `WINDOW` position fields, `SFLSIZ`, message-data fields): a small store keyed by file, record and field, with an editor in the simulator panel. Used by E4c, E8 and E10. Same storage rule as E3c. | E3c (storage decision) | Done | v0.13.4 |
 | E3g | **Menu designer parity.** Offer the panel in the menu designer where menu records carry conditioned content. **Decision first:** may be dropped if E3a shows menus have nothing to simulate. **Decision (Manojkumar): build it, full parity** (see E3g results). | E3b | Done | v0.13.10 |
-| E3h | **Release** (next free minor). | E3a - E3g, E3i - E3l | In progress | — |
+| E3h | **Release** (next free version; Manojkumar chose a patch number). Results against the acceptance paragraph: [E3h results](#e3h-results). | E3a - E3g, E3i - E3l | Done | v0.14.1 |
 | E3i | **`DFTVAL` default value.** Draw the default value in the field on the first output when its option indicator is on or absent (reference: "the specified value is displayed if the option indicator is on or has not been specified"). **Decision (settled):** the value replaces the field name, as on the real first output (the field name stands in for the unknown program value only when `DFTVAL` is not in effect); no "beside it" form. Built in `dspfEngine.js` (`dftvalText`): named `O` / `B` fields outside a subfile format, first instance whose condition holds, quoted value with `''` as one quote, cut to the field length, padded with blanks; an unquoted value (still being typed) keeps the name. Test: `e3iDftvalDefaultValue.test.js`. | E3d | Done | v0.13.8 |
 | E3j | **Menu bar drawing.** `MNUBARSEP` (colour, attribute and character of the separator line under the menu bar) and `MNUBARDSP` (the menu bar of another record shown when this record is written), both honouring their option indicators. | E3d | Done | v0.13.7 |
 | E3k | **Cursor position (`CSRLOC`).** Place the cursor marker from the two program fields' design-time values in the E3f store (a new `cursorLocation` namespace); an off `CSRLOC` leaves the default cursor. | E3d, E3f | Done | v0.13.11, v0.13.13 |
@@ -223,7 +225,7 @@ Three statuses, nothing else:
   that exists only while the cursor moves. The reason is in the row. The test checks the engine really does not change.
 - **Gap (E3x)** - the effect can be drawn and the preview does not draw it yet; the sub-task that will is named.
 
-The acceptance rule for the release (E3h) is: no `Gap` row left.
+The acceptance rule for the release (E3h) is: no `Gap` row owned by an E3 sub-task left (see the acceptance paragraph; the one `Gap` row that names another epic is `ERRMSGID`, `Gap (E4c)`).
 
 What E3d changed in the engine. Each of these read the keyword but ignored its condition before:
 
@@ -364,6 +366,32 @@ previewed under indicators.
   shared builder in `webviewClientHelpers.js` is a possible refactor.
 - Tests: `e3gMenuSimulator.test.js` (the preview under indicators, the list and labels, scope and show-all, record
   switch, scenarios, what is posted and loaded, stored values, nothing written to the source, the host handlers).
+
+### E3h results
+
+**Released as v0.14.1** (Manojkumar chose a patch number, 0.13.14, but E10e released v0.14.0 in a parallel session first, so the next
+free number was used; the E3 work shipped as v0.13.4 - v0.13.13 and this entry rolls it up). Every sub-task E3a - E3l is Done. The acceptance paragraph, one criterion at a time:
+
+| Acceptance criterion | Met by | Evidence |
+|----------------------|--------|----------|
+| A panel lists the indicators actually used in the file, labelled from `INDTXT` where present | E3b (v0.13.4), menu designer E3g (v0.13.10) | `e3IndicatorSim.test.js`, `e3SimulatorPanel.test.js`, `e3gMenuSimulator.test.js` |
+| Toggling one re-renders the preview | E3b; the engine honours the indicator on every keyword in the table (E3d, E3i, E3j, E3k, E3l) | the same panel tests; `e3dKeywordReactivity.test.js` turns each indicator on and off against the engine |
+| Named scenarios can be saved and recalled without touching the source | E3c (v0.13.4) | scenario checks in `e3SimulatorPanel.test.js`; both designers assert that no `applyEdit` is posted |
+| The keyword-reactivity table has no `not reactive` row and no `Gap` row owned by E3 | E3d, E3i, E3j, E3k, E3l | the table's three statuses are checked against `keywordSpec.js` and the engine; the rows that were `Gap (E3k)` and `Gap (E3l)` are now Reactive or Not drawn with a reason |
+| Program-to-system field values can be set and are shared with other features | E3f (v0.13.4), `cursorLocation` (E3k) | two namespaces in the store (`choiceControl` for E10, `cursorLocation` for `CSRLOC`); the menu designer reads and writes the same per-file entry |
+
+**What E3 leaves open, by decision.**
+- **`ERRMSGID` is `Gap (E4c)`** in the E3d table. Its text comes from a message file, which is the E4 epic (all of E4 is Open).
+  Manojkumar chose to release E3 with that row owned by E4c, and the acceptance paragraph says so; E4g's release closes it.
+- **`PROTECT`, `PUTOVR`, `PUTRETAIN`** are Not drawn on purpose (E3l decision): they change nothing that is drawn.
+- **No explain panel in the menu designer** (E3g: the menu designer has no field or record keyword panel to host it), and the
+  help-specification and file-level keyword lists have no explain section (E3e).
+- **Window records and `CSRLOC`** count from the window (v0.13.13); subfile and user-defined records cannot take the keyword.
+- **Stored state does not follow the project to another machine** (E3c decision: `workspaceState`); a sidecar can be added
+  behind `loadFileState` / `saveFileState`.
+
+**Consumers of the store that are still to come:** E8 (window position and size) and E4c (message data) register their own
+namespace in `IndicatorSim.VALUE_NAMESPACES`; they do not add a second store.
 
 ### E3l results
 
