@@ -916,11 +916,13 @@
 
   /**
    * The cursor CSRLOC places for a record, as { line, col, lineField, posField }, or null when the keyword is not
-   * in effect, the record cannot take it, a value is missing or outside the screen (the keyword is then ignored,
-   * which leaves the DSPATR(PC) cursor), or the record is a window (positions inside a window are not modelled).
+   * in effect, the record cannot take it, or a value is missing or outside the display (the keyword is then
+   * ignored, which leaves the DSPATR(PC) cursor). On a window record the line and position count from the window
+   * (1, 1 is the window's first usable cell, as for its fields), so the value must lie inside the window and the
+   * returned line / col are screen coordinates.
    */
-  function resolveCursorLocation(dspfFile, record, activeIndicators, activeSizeName, lines, columns, isWindow) {
-    if (!record || isWindow) return null;
+  function resolveCursorLocation(dspfFile, record, activeIndicators, activeSizeName, lines, columns, windowBox) {
+    if (!record) return null;
     var kws = record.keywords || [];
     if (kws.some(function (k) { return k.name === 'SFL' || k.name === 'USRDFN'; })) return null;
     var inds = activeIndicators || new Set();
@@ -932,8 +934,13 @@
     var line = Number(values[cursorLocationKey(record.name, names.lineField)]);
     var col = Number(values[cursorLocationKey(record.name, names.posField)]);
     if (!isFinite(line) || !isFinite(col) || Math.floor(line) !== line || Math.floor(col) !== col) return null;
-    if (line < 1 || line > lines || col < 1 || col > columns) return null;
-    return { line: line, col: col, lineField: names.lineField, posField: names.posField };
+    var maxLine = windowBox ? windowBox.height : lines;
+    var maxCol = windowBox ? windowBox.width : columns;
+    if (line < 1 || line > maxLine || col < 1 || col > maxCol) return null;
+    var screenLine = windowBox ? windowBox.line + line - 1 : line;
+    var screenCol = windowBox ? windowBox.col + col - 1 : col;
+    if (screenLine > lines || screenCol > columns) return null;
+    return { line: screenLine, col: screenCol, lineField: names.lineField, posField: names.posField, relativeLine: line, relativeCol: col, inWindow: !!windowBox };
   }
 
   // ---------------------------------------------------------------------
@@ -2456,7 +2463,7 @@
     markFirstCursorField(resolved);
 
     // E3k: CSRLOC overrides DSPATR(PC) for the output operation, so a CSRLOC cursor replaces the PC marker.
-    var cursor = resolveCursorLocation(dspfFile, record, activeIndicators, size.name, size.lines, size.columns, !!windowBox);
+    var cursor = resolveCursorLocation(dspfFile, record, activeIndicators, size.name, size.lines, size.columns, windowBox);
     if (cursor) resolved.forEach(function (rf) { rf.showCursorIndicator = false; });
 
     // Subfile preview: a SEPARATE, non-interactive layer (see resolveSubfilePreview) -
@@ -3219,7 +3226,7 @@
     // E3k: the cursor CSRLOC places, drawn as the same blinking block the DSPATR(PC) marker uses.
     var cursorHtml = screen.cursor
       ? '<div class="dspf-csrloc-cursor" style="grid-row:' + screen.cursor.line + ';grid-column:' + screen.cursor.col +
-        ';" title="CSRLOC(' + escapeHtml(screen.cursor.lineField + ' ' + screen.cursor.posField) + ') - cursor at line ' + screen.cursor.line + ', position ' + screen.cursor.col + '"></div>'
+        ';" title="CSRLOC(' + escapeHtml(screen.cursor.lineField + ' ' + screen.cursor.posField) + ') - cursor at line ' + (screen.cursor.inWindow ? screen.cursor.relativeLine + ', position ' + screen.cursor.relativeCol + ' of the window' : screen.cursor.line + ', position ' + screen.cursor.col) + '"></div>'
       : '';
 
     return (

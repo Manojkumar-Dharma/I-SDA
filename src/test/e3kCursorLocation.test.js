@@ -71,7 +71,15 @@ console.log('E3k: records that cannot take it');
   const usr = build([dds({ t: 'R', name: 'R1' }), dds({ fn: 'USRDFN' }), dds({ fn: 'CSRLOC(LINNBR POSNBR)' }), hidden('LINNBR'), hidden('POSNBR')]);
   check('a user-defined record: no cursor', cursorOf(usr, [], vals(5, 5)) == null);
   const win = build([dds({ t: 'R', name: 'R1' }), dds({ fn: 'WINDOW(5 10 8 40)' }), dds({ fn: 'CSRLOC(LINNBR POSNBR)' }), dds({ name: 'F1', len: 5, type: 'A', use: 'B', line: 2, col: 2 }), hidden('LINNBR'), hidden('POSNBR')]);
-  check('a window record: not drawn (positions inside a window are not modelled)', cursorOf(win, [], vals(2, 2)) == null);
+  const wc = cursorOf(win, [], vals(2, 3));
+  check('a window record: the position counts from the window (WINDOW(5 10 ...): 2 / 3 is screen 6 / 12)', !!wc && wc.line === 6 && wc.col === 12 && wc.inWindow === true);
+  check('a window record: 1 / 1 is the window\'s first cell (screen 5 / 10)', cursorOf(win, [], vals(1, 1)).line === 5 && cursorOf(win, [], vals(1, 1)).col === 10);
+  check('a window record: the last cell of an 8 x 40 window is inside', !!cursorOf(win, [], vals(8, 40)));
+  check('a window record: past the window (line 9 or position 41) is ignored even though the screen has room', cursorOf(win, [], vals(9, 1)) == null && cursorOf(win, [], vals(1, 41)) == null);
+  check('a window record: drawn at the screen cell, titled with the window position', /grid-row:6;grid-column:12;[^>]*title="CSRLOC\(LINNBR POSNBR\) - cursor at line 2, position 3 of the window"/.test(DspfEngine.renderScreenHtml(DspfEngine.resolveScreen(Object.assign(win, { cursorLocationValues: vals(2, 3) }), 'R1', new Set(), null))));
+  const wpc = build([dds({ t: 'R', name: 'R1' }), dds({ fn: 'WINDOW(5 10 8 40)' }), dds({ fn: 'CSRLOC(LINNBR POSNBR)' }), dds({ name: 'F1', len: 5, type: 'A', use: 'B', line: 2, col: 2, fn: 'DSPATR(PC)' }), hidden('LINNBR'), hidden('POSNBR')]);
+  wpc.cursorLocationValues = vals(3, 3);
+  check('a window record: the CSRLOC cursor replaces the PC marker there too', DspfEngine.resolveScreen(wpc, 'R1', new Set(), null).fields.every((f) => !f.showCursorIndicator));
   const malformed = build(base([dds({ fn: 'CSRLOC(LINNBR)' })]));
   check('one parameter only: no cursor', cursorOf(malformed, [], vals(5, 5)) == null);
 }

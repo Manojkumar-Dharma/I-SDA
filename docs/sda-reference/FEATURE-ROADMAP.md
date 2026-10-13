@@ -156,7 +156,7 @@ option indicators; program-to-system field values can be set and are shared with
 | E3h | **Release** (next free minor). | E3a - E3g, E3i - E3l | Open | - |
 | E3i | **`DFTVAL` default value.** Draw the default value in the field on the first output when its option indicator is on or absent (reference: "the specified value is displayed if the option indicator is on or has not been specified"). **Decision (settled):** the value replaces the field name, as on the real first output (the field name stands in for the unknown program value only when `DFTVAL` is not in effect); no "beside it" form. Built in `dspfEngine.js` (`dftvalText`): named `O` / `B` fields outside a subfile format, first instance whose condition holds, quoted value with `''` as one quote, cut to the field length, padded with blanks; an unquoted value (still being typed) keeps the name. Test: `e3iDftvalDefaultValue.test.js`. | E3d | Done | v0.13.8 |
 | E3j | **Menu bar drawing.** `MNUBARSEP` (colour, attribute and character of the separator line under the menu bar) and `MNUBARDSP` (the menu bar of another record shown when this record is written), both honouring their option indicators. | E3d | Done | v0.13.7 |
-| E3k | **Cursor position (`CSRLOC`).** Place the cursor marker from the two program fields' design-time values in the E3f store (a new `cursorLocation` namespace); an off `CSRLOC` leaves the default cursor. | E3d, E3f | Done | v0.13.11 |
+| E3k | **Cursor position (`CSRLOC`).** Place the cursor marker from the two program fields' design-time values in the E3f store (a new `cursorLocation` namespace); an off `CSRLOC` leaves the default cursor. | E3d, E3f | Done | v0.13.11, v0.13.13 |
 | E3l | **Record overlay keywords in display mode.** `OVERLAY`, `PROTECT`, `ERASE`, `ERASEINP`, `PUTOVR`, `PUTRETAIN` change what earlier records show, so they can only be drawn when several records are previewed together (the existing display mode); make that mode honour them under the active indicators. **Decision (settled):** draw `OVERLAY`, `ERASE`, `ERASEINP`; `PROTECT`, `PUTOVR`, `PUTRETAIN` stay Not drawn (see E3l results). | E3d | Done | v0.13.12 |
 
 
@@ -396,7 +396,7 @@ view and any caller that passes no option are unchanged.
 
 ### E3k results
 
-**E3k (built, v0.13.11).** The preview draws the cursor a record's `CSRLOC(line-field position-field)` places.
+**E3k (built, v0.13.11; window records v0.13.13).** The preview draws the cursor a record's `CSRLOC(line-field position-field)` places.
 Reference: CSRLOC in DDS for display files.
 
 - **Where the values come from.** The two fields are program fields, so their values are design-time values in the E3f
@@ -411,9 +411,13 @@ Reference: CSRLOC in DDS for display files.
   indicators hold is in effect (an off `CSRLOC` leaves the default cursor); values outside the display make the
   keyword ignored; `CSRLOC` overrides `DSPATR(PC)`, so the PC marker is dropped while a `CSRLOC` cursor is drawn and
   stays when the keyword is ignored. Names written with `&` are read the same.
-- **Not drawn.** Subfile and user-defined records (the keyword is invalid there); window records (where a position
-  inside a window counts from is not modelled, so nothing is guessed); the several-records display mode, which has
-  no single cursor. A keyword with other than two parameters is ignored.
+- **Window records (v0.13.13).** The line and position count from the window (Manojkumar): 1 / 1 is the window's
+  first usable cell, the same origin its fields use, so `WINDOW(5 10 8 40)` with 2 / 3 draws at screen 6 / 12. The
+  value must lie inside the window (1 - height, 1 - width); a value past the window is ignored even when the screen
+  has room, and the cursor's tooltip says "of the window". v0.13.11 left window records undrawn because the origin was
+  not known.
+- **Not drawn.** Subfile and user-defined records (the keyword is invalid there); the several-records display mode,
+  which has no single cursor. A keyword with other than two parameters is ignored.
 - The E3d table row for `CSRLOC` is now Reactive (no `Gap` row is left for E3k).
 - Tests: `e3kCursorLocation.test.js` (values, range, indicators, PC override, records that cannot take it, the store
   namespace, the editor and the drawn cursor in both panel copies); `e3dKeywordReactivity.test.js` probes `CSRLOC`
