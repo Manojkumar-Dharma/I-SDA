@@ -58,7 +58,7 @@ never in columns 1-80 or the tag area.
 | [E5](#e5) | Preview export (PNG / SVG / HTML / text) | E5a - E5g | E3 (soft, for indicator state) | Open | - |
 | [E6](#e6) | Menu designer: command keys and `TYPE(*UIM)` | E6a - E6h | E2 (soft, for compile errors) | Open | - |
 | [E7](#e7) | Faster test suite | E7a - E7m | - | Done | v0.12.2 |
-| [E8](#e8) | `WINDOW(*DFT)` and runtime-valued window parameters | E8a - E8f | E3f | Open | - |
+| [E8](#e8) | `WINDOW(*DFT)` and runtime-valued window parameters | E8a - E8g | E3f | Open | - |
 | [E9](#e9) | `EDTCDE(Y/W)` separator width | E9a - E9e | - | Done | v0.13.0 |
 | [E10](#e10) | `CHCCTL` / `SFLCHCCTL` choice control values | E10a - E10f | E3f (E10f only) | Done | v0.14.0 |
 
@@ -1210,12 +1210,68 @@ values instead of staggering placeholders; the accepted-limitation entry is rewr
 
 | ID | Sub-task and scope | Depends on | Status | Version |
 |----|--------------------|------------|--------|---------|
-| E8a | **Inventory.** From the `WINDOW` section of the DDS Reference: exactly which parameters can be `*DFT` or a program-to-system field (reference line, reference column, lines, columns, and the `WDWBORDER` interaction), and what IBM says `*DFT` means at run time. | - | In progress | — |
+| E8a | **Inventory.** From the `WINDOW` section of the DDS Reference: exactly which parameters can be `*DFT` or a program-to-system field (reference line, reference column, lines, columns, and the `WDWBORDER` interaction), and what IBM says `*DFT` means at run time. | - | Done (no code change) | — |
 | E8b | **Preview value model.** Per-window design-time values in the E3f store; default behaviour unchanged when none is set. | E8a, E3f | Open | - |
 | E8c | **Engine.** Geometry resolution accepts the preview values; the dashed border stays for unset parameters only; unit tests for every form in E8a. | E8b | Open | - |
 | E8d | **UI. Decision first.** A "Set preview position" control on a placeholder window; whether drag/resize is allowed on a runtime-valued window and what it changes (preview value only, never source). | E8c | Open | - |
 | E8e | **Compare mode.** Replace the per-window stagger with the chosen values where set. | E8c | Open | - |
-| E8f | **Release** (next free minor); rewrite the `WINDOW` entry in `LIMITATIONS-PLAN.md`. | E8a - E8e | Open | - |
+| E8g | **Resize keeps the trailing options.** `DspfWriter.setWindowGeometry` rebuilds the parameter text from the numbers only, so resizing a window from the preview drops a trailing `*NOMSGLIN` / `*NORSTCSR` (found in E8a). Keep every token after the four numbers (three for `*DFT`); test both forms. | - | Open | - |
+| E8f | **Release** (next free minor); rewrite the `WINDOW` entry in `LIMITATIONS-PLAN.md`. | E8a - E8e, E8g | Open | - |
+
+### E8a results
+
+**E8a (inventory, no code change).** Read against `DDS_Keyword_V7r6.txt` (`WINDOW` ~line 13583, `WDWBORDER` ~line 13293)
+and `dspfEngine.resolveWindow` (~line 1262).
+
+**The three forms.**
+
+| Form | Position | Size | Resolved today |
+|------|----------|------|----------------|
+| `WINDOW(line pos lines positions [*MSGLIN\|*NOMSGLIN] [*RSTCSR\|*NORSTCSR])` | each of line and position is a number **or** `&field` | numbers | numbers: exact; any `&field`: placeholder |
+| `WINDOW(*DFT lines positions [...])` | `*DFT` replaces **both** line and position as one token | numbers | placeholder |
+| `WINDOW(record-format-name)` | inherited | inherited | exact, or the same placeholder as the record it names |
+
+**Which parameters can be runtime-valued.**
+
+| Parameter | Literal | `&field` | `*DFT` |
+|-----------|---------|----------|--------|
+| start line | yes | yes, **independently of the position** | yes (shared token) |
+| start position | yes | yes, **independently of the line** | yes (shared token) |
+| window lines | yes | no | no |
+| window positions | yes | no | no |
+| `*MSGLIN`/`*NOMSGLIN`, `*RSTCSR`/`*NORSTCSR` | yes | no | no |
+
+So size is always known at design time; only the upper-left corner can be unknown. The field in a `&field` form must
+exist in the record, be signed numeric (type S), usage P, length 3 or less (reference text). A search of
+`keywordSpec.js` and `dspfWriter.js` found no guard for that; E8b should confirm and, if so, open it as its own task.
+
+**What `*DFT` means at run time.** The system picks the start line and position, relative to the cursor location, like
+an application help window. The exact rules are in IBM's *Application Display Programming* book, which is not part of
+`DDS_Keyword_V7r6.txt`, so the preview cannot reproduce them. A design-time value is therefore a stand-in the designer
+chooses, not a prediction.
+
+**`WDWBORDER` interaction.** None on geometry. When both are on a record, the geometry stays on `WINDOW`, which must not
+use the record-name form (reference: a warning is issued otherwise). The border ring is drawn around the window box
+either way, so a preview position moves the border with the window.
+
+**What the preview does today.** `resolveWindow` gives every runtime-valued window the fixed origin line 2, column 2
+(`positionIsDefault`), staggered by 2 lines and 4 columns per window in compare mode, with a dashed border and
+"position set at runtime" in the title. Two gaps:
+
+1. **Mixed form loses the literal.** `WINDOW(4 &POS 9 30)` and `WINDOW(&LINE 20 9 30)` fall back to the placeholder
+   for **both** coordinates, because the code tests the pair together. The model must hold line and position separately:
+   a literal stays exact, only the runtime part takes a preview value. The dashed border stays while either part is unset.
+2. **Resize drops options.** `setWindowGeometry` rewrites the text from the numbers only; a resize of
+   `WINDOW(4 20 9 30 *NOMSGLIN *NORSTCSR)` gives `WINDOW(4 20 10 30)`. Opened as **E8g**. Moving or resizing is already
+   refused for `&field` positions and for a position that is `*DFT` (height and width only), which E8d must decide about.
+
+**Cases E8c must cover.** `*DFT`; both `&field`; `&field` line with literal position; literal line with `&field`
+position; each with and without a stored preview value; record-name form inheriting from each of those; compare mode
+with two or more runtime-valued windows.
+
+**For E8b.** A namespace (for example `windowPosition`) in `IndicatorSim.VALUE_NAMESPACES`, keyed by record name, value
+a line and a position that fit the display size (window must fit: line + lines + 1 within the rows, position +
+positions + 3 within the columns). A record that names another window takes the stored value of the record it names.
 
 ---
 
