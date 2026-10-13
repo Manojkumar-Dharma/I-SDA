@@ -47,7 +47,7 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-2 of 10 epics done (E7, E9); 29 sub-tasks done (E3a - E3d, E3f, E3j, E7a - E7m, E9a - E9e, E10a - E10d, E10f). Current version: **v0.13.7**.
+3 of 10 epics done (E7, E9, E10); 35 sub-tasks done (E3a - E3g, E3i - E3l, E7a - E7m, E9a - E9e, E10a - E10f). Current version: **v0.14.0**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
@@ -60,7 +60,7 @@ never in columns 1-80 or the tag area.
 | [E7](#e7) | Faster test suite | E7a - E7m | - | Done | v0.12.2 |
 | [E8](#e8) | `WINDOW(*DFT)` and runtime-valued window parameters | E8a - E8f | E3f | Open | - |
 | [E9](#e9) | `EDTCDE(Y/W)` separator width | E9a - E9e | - | Done | v0.13.0 |
-| [E10](#e10) | `CHCCTL` / `SFLCHCCTL` choice control values | E10a - E10f | E3f (E10f only) | Open | - |
+| [E10](#e10) | `CHCCTL` / `SFLCHCCTL` choice control values | E10a - E10f | E3f (E10f only) | Done | v0.14.0 |
 
 ### Suggested order
 
@@ -1271,7 +1271,7 @@ the reference requires; the limitation entry is rewritten.
 | E10b | **Advisory and help line.** The panel row, type check and raw-editor guards already exist (E10a). Add: a non-blocking advisory when a `CHCCTL` control field is not defined in the record (forward references stay accepted while typing), and one help line under the control field giving the 0 - 4 value table from `CHOICE_CONTROL_VALUES` with the enhanced-interface cursor note. Tests in a new `e10` file. | E10a | Done | v0.13.1 |
 | E10c | **Preview states.** Draw a choice as available / selected / unavailable in the preview (radio, checkbox and push button), applying `CHCAVAIL`, `CHCUNAVAIL` and `CHCSLT` colours and attributes under the reference's own conditions; 2, 3 and 4 draw the same. The state comes from a preview-only per-choice selector in the field panel, held in the webview and not saved, defaulting to available so existing previews do not change. Unit tests for `0` - `4`. | E10a | Done | v0.13.2 |
 | E10d | **`SFLCHCCTL`.** The same for subfile choice lists (`SFLSNGCHC` / `SFLMLTCHC`), including the structural requirements already in the spec. | E10c | Done | v0.13.3 |
-| E10e | **Release** (next free minor); rewrite the `CHCCTL` entry in `LIMITATIONS-PLAN.md`. | E10a - E10d, E10f | Open | - |
+| E10e | **Release** (next free minor); rewrite the `CHCCTL` entry in `LIMITATIONS-PLAN.md`. Results against the acceptance rule: [E10e results](#e10e-results). | E10a - E10d, E10f | Done | v0.14.0 |
 | E10f | **Control value from the E3f store.** Replace E10c's preview-only selector with the design-time control value kept in the E3f store, keyed by file, record and control field; the selector becomes the editor for that value. Same default (available) when no value is set. | E10c, E3f | Done | v0.13.4 |
 
 
@@ -1375,8 +1375,36 @@ persists the file's state to the extension host (workspaceState) and redraws; th
 `dspfFile.choicePreviewStates` (`IndicatorSim.namespaceValues`), so the drawing, the keys and the defaults are
 unchanged. A value therefore survives closing and reopening the designer, can be removed from the simulator panel's
 stored-values list, and is dropped by `resetViewState` on the page only (the stored state is not touched by it). The
-value is never written to the DDS source. Not done: E10e (release and the `CHCCTL` entry in `LIMITATIONS-PLAN.md`).
-Tests: `e10fStoredControlValue.test.js`.
+value is never written to the DDS source. Tests: `e10fStoredControlValue.test.js`.
+
+
+### E10e results
+
+**Released as v0.14.0.** The acceptance rule for the epic, checked against the code and the tests of the tree it ships in
+(v0.13.13 plus the E10e claim):
+
+1. *A choice field with `CHCCTL` can be previewed in each state of the value table.* **Met.** The field panel's per-choice
+   selector (E10c) writes the control value 0 - 4 into the E3f store (E10f); the engine draws 0 as available, 1 as selected
+   and 2, 3 and 4 as unavailable, applying `CHCAVAIL`, `CHCSLT` and `CHCUNAVAIL` colours and attributes, for radio buttons,
+   check boxes and push buttons. `e10cChoicePreviewStates.test.js` (31 checks).
+2. *A subfile choice with `SFLCHCCTL` can be previewed in each state.* **Met.** A selection-list subfile
+   (`SFLSNGCHC` / `SFLMLTCHC`) previews each row in the state its control value gives, with the `*SLTIND` markers; one
+   selector per previewed row on the control record's SFLCTL tab (E10d). `e10dSflChoiceStates.test.js` (27 checks).
+3. *The panel exposes the control field and choice number with the structural guards the reference requires.* **Met.** The
+   panel row, type check and raw-editor guards were already there (E10a: the I-65, I-79, I-86, I-87 and I-171 families);
+   E10b added the non-blocking advisory for a control field that is not defined in the record and the help line with the
+   0 - 4 table. `e10bControlFieldAdvisory.test.js` (28 checks) and `i122gChoiceFamily.test.js` (154 checks).
+4. *The limitation entry is rewritten.* **Done.** The `CHCCTL` entry in `LIMITATIONS-PLAN.md` no longer says there is no
+   visual representation; it says what the preview does and what it cannot know.
+
+**What the preview does not do (kept in the limitation entry).** The value is a program-to-system value at run time, so the
+designer holds a design-time stand-in (per file, record and control field, workspace storage) that is never written to the DDS
+source, and defaults to available. Values 2, 3 and 4 draw alike: they differ only in whether the cursor may be placed on the
+choice, and that is not drawn (the reference says these cursor-restriction values apply only to an enhanced-interface
+controller).
+
+**Original question for E10a** ("the missing field-level indicator for `CHCCTL`"): settled in E10a - the reference describes
+a control field value, not an option indicator, and the gap was the preview state, which E10c - E10f fill.
 
 ---
 

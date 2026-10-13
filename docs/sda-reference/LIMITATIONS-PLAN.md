@@ -38,8 +38,18 @@ one for genuinely fixable, tracked work.
   overlap). `WINDOW(record-format-name)` (inheriting another record's
   geometry) is fully resolved, as is every other `WINDOW`/`WDWBORDER`
   form.
-- `CHCCTL` (per-choice runtime field-setting logic) has no visual
-  representation - it's a logic construct, not a layout one.
+- `CHCCTL` and `SFLCHCCTL` take their value from a program-to-system
+  field at run time, so the DDS source cannot say which state a choice
+  will be in. The preview draws a design-time stand-in instead: a control
+  value (0 available, 1 selected, 2 - 4 unavailable) set per choice in
+  the field panel, or per previewed row for a selection-list subfile, kept
+  per file in workspace storage and never written to the source. A choice
+  with no value set is drawn available, and the `CHCAVAIL`, `CHCSLT` and
+  `CHCUNAVAIL` colours and attributes apply under the reference's own
+  conditions. The values 2, 3 and 4 draw alike: they differ only in where
+  the cursor may go, which is not drawn (and applies only to an
+  enhanced-interface controller). The preview shows the state a value
+  gives; it does not know what value the program will really set.
 - Deleting a named field that something else in the source looks like it
   references by name (e.g. `REFFLD`) is blocked on a confirmation dialog
   naming those lines, but confirming still doesn't rewrite the reference
