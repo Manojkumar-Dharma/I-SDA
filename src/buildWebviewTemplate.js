@@ -1288,6 +1288,7 @@ const htmlTemplate = `<!DOCTYPE html>
   let sourceLineMax;
   function commentHardMax() { return typeof sourceLineMax === 'number' && isFinite(sourceLineMax) ? sourceLineMax : null; }
   let selectedSizeIndex = 0; // which DSPSIZ-declared size is being viewed/edited (0 = first/default)
+  let windowStartMessage = ''; // E8d: the reason a typed preview start was refused (shown under the boxes)
   let lastScreen = null; // most recently resolved screen ({lines, columns, ...}) - kept around so the props
                           // panel's "Center on screen" action knows the current record's width without
                           // re-resolving it itself (render() already does that work every call).
@@ -3769,12 +3770,17 @@ const htmlTemplate = `<!DOCTYPE html>
     const windowEl = primaryScreenEl.querySelector('.dspf-window-border');
     if (windowEl && currentRecord) {
       const windowEditable = DspfWriter.isEditable(currentRecord) && !windowEl.getAttribute('data-window-inherited');
-      const windowMovable = windowEditable && !windowEl.getAttribute('data-window-position-default');
+      // E8d: a runtime-valued window (*DFT / &field start) is movable too, but a drag then changes only the stored
+      // preview position (never the source) and only on the coordinates that are runtime-valued.
+      const startInfo = !windowEl.getAttribute('data-window-inherited') ? DspfEngine.windowStartParts(currentRecord) : null;
+      const previewMovable = !!(startInfo && startInfo.runtime.length > 0);
+      const windowMovable = previewMovable || (windowEditable && !windowEl.getAttribute('data-window-position-default'));
       if (!windowEditable) windowEl.classList.add('dspf-window-locked');
       const moveHandle = windowEl.querySelector('.dspf-window-move-handle');
       const resizeHandle = windowEl.querySelector('.dspf-window-resize-handle');
       if (moveHandle && windowMovable) {
-        moveHandle.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); startWindowMove(windowEl, currentRecord, e); });
+        moveHandle.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); startWindowMove(windowEl, currentRecord, e, previewMovable ? startInfo : null); });
+        if (previewMovable) moveHandle.title = 'Drag to move the preview position (the source is not changed)';
       }
       if (resizeHandle && windowEditable) {
         resizeHandle.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); startWindowResize(windowEl, currentRecord); });
@@ -4013,7 +4019,7 @@ const htmlTemplate = `<!DOCTYPE html>
   // touched here since fields weren't part of this report and
   // field-dragging has extensive existing test coverage keyed to the
   // current behavior; fixed later as its own task - see Task L33.
-  function startWindowMove(windowEl, record, startEvent) {
+  function startWindowMove(windowEl, record, startEvent, previewInfo) {
     const { colWidth, rowHeight } = gridMetrics();
     const origLine = parseInt(windowEl.getAttribute('data-window-line'), 10);
     const origCol = parseInt(windowEl.getAttribute('data-window-col'), 10);
@@ -4028,6 +4034,11 @@ const htmlTemplate = `<!DOCTYPE html>
       const deltaLine = Math.round((e.clientY - startY) / rowHeight);
       newCol = Math.max(1, origCol + deltaCol);
       newLine = Math.max(1, origLine + deltaLine);
+      if (previewInfo) {
+        // E8d: only the runtime-valued coordinates move, and never past where the whole window still fits.
+        newLine = previewInfo.runtime.indexOf('line') < 0 ? origLine : Math.min(newLine, Math.max(1, windowPreviewStartFits(record, previewInfo, 'line').max));
+        newCol = previewInfo.runtime.indexOf('position') < 0 ? origCol : Math.min(newCol, Math.max(1, windowPreviewStartFits(record, previewInfo, 'position').max));
+      }
       windowEl.style.gridColumn = newCol + ' / span ' + width;
       windowEl.style.gridRow = newLine + ' / span ' + height;
     }
@@ -4036,6 +4047,13 @@ const htmlTemplate = `<!DOCTYPE html>
       window.removeEventListener('mouseup', onUp);
       windowEl.classList.remove('dragging');
       if (newLine !== origLine || newCol !== origCol) {
+        if (previewInfo) {
+          // E8d: preview value only - nothing is posted to the document.
+          windowStartMessage = '';
+          if (newLine !== origLine) setFieldValue('windowStart', DspfEngine.windowStartKey(record.name, 'line'), newLine);
+          if (newCol !== origCol) setFieldValue('windowStart', DspfEngine.windowStartKey(record.name, 'position'), newCol);
+          return;
+        }
         commitSourceChange((lines) => DspfWriter.setWindowGeometry(record, lines, { row: newLine, col: newCol }));
       }
     }
@@ -6210,6 +6228,56 @@ const htmlTemplate = `<!DOCTYPE html>
     }, 'multiselect-colorattr', expandedKeywordConditioning, () => renderMultiFieldProps(recordName));
   }
 
+  // Task E8d - preview position of a runtime-valued WINDOW (WINDOW(*DFT ...) or a &field start). The values live in the
+  // E3f store (namespace windowStart) and are never written to the DDS source; the engine (E8c) draws the window there
+  // when the value fits the window on the display being drawn. Only the runtime coordinates get a box: a literal start
+  // in a mixed form (WINDOW(4 &POS 9 30)) is shown but cannot be changed here.
+  function windowPreviewStartFits(rec, info, coordinate) {
+    const rows = (lastScreen && lastScreen.lines) || 24;
+    const columns = (lastScreen && lastScreen.columns) || 80;
+    return { rows: rows, columns: columns, max: DspfEngine.windowStartMax(coordinate, coordinate === 'position' ? info.positions : info.lines, coordinate === 'position' ? columns : rows) };
+  }
+
+  function buildWindowPreviewStartHtml(rec, info) {
+    let html = '<div class="field-row window-preview-start"><label>Preview position</label>' +
+      '<div class="hint" style="font-size:11px;margin-bottom:4px;">Set at run time, so the preview uses a placeholder. Choose a stand-in to check the screen; the source is not changed.</div>';
+    ['line', 'position'].forEach((coordinate) => {
+      const part = info[coordinate];
+      const label = coordinate === 'line' ? 'Start line' : 'Start position';
+      if (part.kind === 'literal') {
+        html += '<div style="display:flex;align-items:center;gap:8px;padding:2px 0;"><span style="flex:1;">' + label + '</span><span>' + part.value + ' (fixed in the source)</span></div>';
+        return;
+      }
+      const key = DspfEngine.windowStartKey(rec.name, coordinate);
+      const stored = IndicatorSim.getValue(fieldValues, 'windowStart', key);
+      const max = windowPreviewStartFits(rec, info, coordinate).max;
+      html += '<label style="display:flex;align-items:center;gap:8px;padding:2px 0;"><span style="flex:1;">' + label + '</span>' +
+        '<input type="number" class="window-start-input" data-coordinate="' + coordinate + '" min="1" max="' + max + '" step="1" style="width:70px;" placeholder="not set" value="' + (stored == null ? '' : escapeSimHtml(String(stored))) + '" /></label>';
+    });
+    html += '<div class="rename-error" id="p-window-start-error">' + escapeSimHtml(windowStartMessage) + '</div>' +
+      '<button class="rename-btn" id="p-window-start-reset" type="button">Reset to placeholder</button></div>';
+    return html;
+  }
+
+  function wireWindowPreviewStart(rec, info) {
+    propsBody.querySelectorAll('.window-start-input').forEach((input) => {
+      input.addEventListener('change', () => {
+        const coordinate = input.getAttribute('data-coordinate');
+        const text = String(input.value).trim();
+        if (text === '') { windowStartMessage = ''; setFieldValue('windowStart', DspfEngine.windowStartKey(rec.name, coordinate), null); return; }
+        const problem = DspfEngine.windowStartProblem(coordinate, text, info, (lastScreen && lastScreen.lines) || 24, (lastScreen && lastScreen.columns) || 80);
+        if (problem) { windowStartMessage = problem; render(); return; }
+        windowStartMessage = '';
+        setFieldValue('windowStart', DspfEngine.windowStartKey(rec.name, coordinate), text);
+      });
+    });
+    const reset = document.getElementById('p-window-start-reset');
+    if (reset) reset.addEventListener('click', () => {
+      windowStartMessage = '';
+      info.runtime.forEach((coordinate) => setFieldValue('windowStart', DspfEngine.windowStartKey(rec.name, coordinate), null));
+    });
+  }
+
   function renderRecordProps(recordName) {
     const rec = model.records.find((r) => r.name === recordName);
     if (!rec) { propsBody.innerHTML = '<div class="empty-state">No record selected.</div>'; return; }
@@ -6227,6 +6295,9 @@ const htmlTemplate = `<!DOCTYPE html>
       basicHtml += '<div class="field-row"><label>Window title</label>' +
         '<div class="rename-row"><input type="text" class="rename-input" id="p-window-title" value="' + DspfEngine.escapeHtml(DspfWriter.getWindowTitleText(rec.keywords)) + '" /><button class="rename-btn" id="p-window-title-save">Save</button></div></div>';
     }
+    // Task E8d - "Set preview position" for a window whose start is only known at run time (*DFT or &field).
+    const windowStartInfo = hasWindow ? DspfEngine.windowStartParts(rec) : null;
+    if (windowStartInfo && windowStartInfo.runtime.length > 0) basicHtml += buildWindowPreviewStartHtml(rec, windowStartInfo);
 
     // --- Keywords tab: Task R1's SDA-style category subtabs on top (the
     // "Select Record Keywords" picker), raw keyword chip editor + conditioning
@@ -6484,6 +6555,8 @@ const htmlTemplate = `<!DOCTYPE html>
       el.addEventListener('click', () => moveField(recordName, parseInt(el.getAttribute('data-idx'), 10), 1));
     });
 
+    // E8d: the preview position is design-time only (E3f store), so it works on a record that is not editable too.
+    if (windowStartInfo && windowStartInfo.runtime.length > 0) wireWindowPreviewStart(rec, windowStartInfo);
     if (!editable) return;
     if (hasWindow) {
       document.getElementById('p-window-title-save').addEventListener('click', () => {

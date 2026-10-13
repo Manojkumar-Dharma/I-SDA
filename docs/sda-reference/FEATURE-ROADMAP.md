@@ -47,7 +47,7 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-4 of 10 epics done (E3, E7, E9, E10); 39 sub-tasks done (E3a - E3l, E7a - E7m, E8a - E8c, E9a - E9e, E10a - E10f). Current version: **v0.14.3**.
+4 of 10 epics done (E3, E7, E9, E10); 40 sub-tasks done (E3a - E3l, E7a - E7m, E8a - E8d, E9a - E9e, E10a - E10f). Current version: **v0.14.4**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
@@ -1213,7 +1213,7 @@ values instead of staggering placeholders; the accepted-limitation entry is rewr
 | E8a | **Inventory.** From the `WINDOW` section of the DDS Reference: exactly which parameters can be `*DFT` or a program-to-system field (reference line, reference column, lines, columns, and the `WDWBORDER` interaction), and what IBM says `*DFT` means at run time. | - | Done (no code change) | — |
 | E8b | **Preview value model.** Per-window design-time values in the E3f store; default behaviour unchanged when none is set. | E8a, E3f | Done | v0.14.2 |
 | E8c | **Engine.** Geometry resolution accepts the preview values; the dashed border stays for unset parameters only; unit tests for every form in E8a. | E8b | Done | v0.14.3 |
-| E8d | **UI. Decision first.** A "Set preview position" control on a placeholder window; whether drag/resize is allowed on a runtime-valued window and what it changes (preview value only, never source). | E8c | In progress | - |
+| E8d | **UI. Decision first.** A "Set preview position" control on a placeholder window; whether drag/resize is allowed on a runtime-valued window and what it changes (preview value only, never source). | E8c | Done | v0.14.4 |
 | E8e | **Compare mode.** Replace the per-window stagger with the chosen values where set. | E8c | Open | - |
 | E8g | **Resize keeps the trailing options.** `DspfWriter.setWindowGeometry` rebuilds the parameter text from the numbers only, so resizing a window from the preview drops a trailing `*NOMSGLIN` / `*NORSTCSR` (found in E8a). Keep every token after the four numbers (three for `*DFT`); test both forms. | - | Open | - |
 | E8f | **Release** (next free minor); rewrite the `WINDOW` entry in `LIMITATIONS-PLAN.md`. | E8a - E8e, E8g | Open | - |
@@ -1333,6 +1333,31 @@ places it already fills `cursorLocationValues`) each coordinate is resolved on i
   unchanged here (pre-existing, affects literal windows too) and is not part of E8.
 - Tests: `e8cWindowStartPreview.test.js` (37 checks: every form, display sizes, record-name form, markup, compare mode,
   the designer page loading stored values; 20 of them fail without the engine change).
+
+### E8d results
+
+**E8d (built, v0.14.4).** The editor for the E8b/E8c preview values. **Decision (Manoj, accepted the proposed default):**
+
+1. **Set preview position.** A "Preview position" box in the Basic tab of a record whose own `WINDOW` start is runtime-valued
+   (`DspfEngine.windowStartParts(record).runtime` not empty). One number box per runtime coordinate (`*DFT` and two
+   `&field`s give both; a mixed form gives one); a literal start is listed as "fixed in the source". The box's `max` is
+   `windowStartMax` for the display being drawn, a typed value is checked with `windowStartProblem` and a refusal shows its
+   reason under the boxes (the store is not touched), an empty box removes that one value, and "Reset to placeholder" removes
+   both. It works on a record that is not editable too, because it never touches the source.
+2. **Drag.** The move handle is now active on a runtime-valued window (before: refused for `*DFT` / `&field`). A drag changes
+   only the stored preview value: nothing is posted to the document, only the runtime axes move (a mixed form keeps its
+   literal line or position), and the drag is clamped to the highest start at which the whole window still fits. The handle's
+   tooltip says it moves the preview position only. A window with a fixed start still rewrites the `WINDOW` keyword, as before;
+   a record-name window (`WINDOW(W1)`) is still inherited, so its handle stays off (set the position on W1).
+3. **Resize is unchanged.** Height and width are always literals and still go to the source; keeping `*NOMSGLIN` /
+   `*NORSTCSR` on resize is E8g.
+
+- Code: `buildWindowPreviewStartHtml` / `wireWindowPreviewStart` and the `previewInfo` argument of `startWindowMove` in
+  `buildWebviewTemplate.js`; no engine, writer or store change (the E3f store, the simulator panel list and compare mode work as
+  they did).
+- Tests: `e8dWindowPreviewPosition.test.js` (27 checks: the box for `*DFT` and the mixed form, fit check and reason, clear and
+  reset, drag stored not written, literal axis kept, clamp, fixed-start window unchanged; the new-behaviour checks fail without the
+  change).
 
 ---
 
