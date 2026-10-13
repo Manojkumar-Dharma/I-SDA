@@ -32,12 +32,24 @@ one for genuinely fixable, tracked work.
 ### DSPF (screen) designer
 
 - `WINDOW` positions that depend on a runtime value (`*DFT`, or a
-  program-to-system field name) can't be known at design time, so they
-  render at a fixed placeholder position with a dashed border instead
-  (staggered per-window in compare mode so multiple placeholders don't
-  overlap). `WINDOW(record-format-name)` (inheriting another record's
-  geometry) is fully resolved, as is every other `WINDOW`/`WDWBORDER`
-  form.
+  program-to-system field name for the start line, the start position or
+  both) can't be known at design time: for `*DFT` the system picks the
+  position at run time relative to the cursor, by rules that are not in
+  the DDS Reference. The preview draws a design-time stand-in instead. A
+  "Preview position" box in the record's Basic tab (or a drag of the
+  window) sets a start line and position for the preview only, kept per
+  file in workspace storage and never written to the source; a start that
+  would not fit the display being drawn is refused. Until a value is set
+  the window sits at a fixed placeholder (line 2, column 2) with a dashed
+  border, which stays while either coordinate is still unset; a literal
+  coordinate of a mixed form (`WINDOW(4 &POS 9 30)`) is always exact.
+  In compare mode only the windows still on the placeholder are staggered,
+  and a window with chosen values is drawn where chosen. Size, `*MSGLIN` /
+  `*NOMSGLIN` and `*RSTCSR` / `*NORSTCSR` are always literals and resolve
+  fully, and a move or resize from the preview keeps those trailing
+  options. `WINDOW(record-format-name)` (inheriting another record's
+  geometry) takes the start chosen on the record it names, as does every
+  other `WINDOW`/`WDWBORDER` form.
 - `CHCCTL` and `SFLCHCCTL` take their value from a program-to-system
   field at run time, so the DDS source cannot say which state a choice
   will be in. The preview draws a design-time stand-in instead: a control

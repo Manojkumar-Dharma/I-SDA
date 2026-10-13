@@ -47,7 +47,7 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-4 of 10 epics done (E3, E7, E9, E10); 42 sub-tasks done (E3a - E3l, E7a - E7m, E8a - E8e and E8g, E9a - E9e, E10a - E10f). Current version: **v0.14.6**.
+5 of 10 epics done (E3, E7, E8, E9, E10); 43 sub-tasks done (E3a - E3l, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.15.0**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
@@ -58,7 +58,7 @@ never in columns 1-80 or the tag area.
 | [E5](#e5) | Preview export (PNG / SVG / HTML / text) | E5a - E5g | E3 (soft, for indicator state) | Open | - |
 | [E6](#e6) | Menu designer: command keys and `TYPE(*UIM)` | E6a - E6h | E2 (soft, for compile errors) | Open | - |
 | [E7](#e7) | Faster test suite | E7a - E7m | - | Done | v0.12.2 |
-| [E8](#e8) | `WINDOW(*DFT)` and runtime-valued window parameters | E8a - E8g | E3f | Open | - |
+| [E8](#e8) | `WINDOW(*DFT)` and runtime-valued window parameters | E8a - E8g | E3f | Done | v0.15.0 |
 | [E9](#e9) | `EDTCDE(Y/W)` separator width | E9a - E9e | - | Done | v0.13.0 |
 | [E10](#e10) | `CHCCTL` / `SFLCHCCTL` choice control values | E10a - E10f | E3f (E10f only) | Done | v0.14.0 |
 
@@ -1216,7 +1216,7 @@ values instead of staggering placeholders; the accepted-limitation entry is rewr
 | E8d | **UI. Decision first.** A "Set preview position" control on a placeholder window; whether drag/resize is allowed on a runtime-valued window and what it changes (preview value only, never source). | E8c | Done | v0.14.4 |
 | E8e | **Compare mode.** Replace the per-window stagger with the chosen values where set. | E8c | Done | v0.14.5 |
 | E8g | **Resize keeps the trailing options.** `DspfWriter.setWindowGeometry` rebuilds the parameter text from the numbers only, so resizing a window from the preview drops a trailing `*NOMSGLIN` / `*NORSTCSR` (found in E8a). Keep every token after the four numbers (three for `*DFT`); test both forms. | - | Done | v0.14.6 |
-| E8f | **Release** (next free minor); rewrite the `WINDOW` entry in `LIMITATIONS-PLAN.md`. | E8a - E8e, E8g | In progress | — |
+| E8f | **Release** (next free minor); rewrite the `WINDOW` entry in `LIMITATIONS-PLAN.md`. Results against the acceptance paragraph: [E8f results](#e8f-results). | E8a - E8e, E8g | Done | v0.15.0 |
 
 ### E8a results
 
@@ -1390,6 +1390,38 @@ tokens (after the three for `*DFT`) exactly as typed (`*MSGLIN` / `*NOMSGLIN`, `
 - A long keyword wraps onto a continuation line at column 80 as it always did; the options survive the wrap.
 - Tests: `e8gWindowGeometryKeepsOptions.test.js` (11 checks: both forms, move, resize, move and resize, one and both options,
   the refusal that remains, and a real resize drag on the designer page; 8 fail without the change).
+
+### E8f results
+
+**Released as v0.15.0.** The acceptance paragraph for the epic, checked against the code and the tests of the tree it ships
+in (v0.14.6 plus the E8f claim):
+
+1. *Every runtime-valued `WINDOW` form listed in E8a can be given a preview value.* **Met.** The forms are `*DFT` (one
+   token for both coordinates), `&field` for the line, `&field` for the position, and the mixed forms; size, `*MSGLIN` /
+   `*NOMSGLIN` and `*RSTCSR` / `*NORSTCSR` are always literals. The values live in the E3f store (`windowStart`
+   namespace, E8b), the engine resolves each coordinate on its own (E8c), and the Basic tab's "Preview position" box and the
+   move handle set them (E8d); `WINDOW(record-format-name)` takes the value chosen on the record it names.
+   `e8bWindowStartValues.test.js`, `e8cWindowStartPreview.test.js` (37 checks), `e8dWindowPreviewPosition.test.js` (27).
+2. *The dashed placeholder remains the default.* **Met.** With nothing stored the window is drawn at line 2, column 2
+   with the dashed border exactly as before, and the border stays while either coordinate is unset (E8c).
+3. *Nothing is written to the source.* **Met.** A preview value is stored in workspace storage only; a drag on a
+   runtime-valued window posts nothing to the document (E8d). A window with a fixed start still rewrites `WINDOW` on move
+   and resize, as it always did, and E8g makes that keep the trailing `*NOMSGLIN` / `*NORSTCSR`
+   (`e8gWindowGeometryKeepsOptions.test.js`, 11 checks).
+4. *Compare mode uses the chosen values instead of staggering placeholders.* **Met.** A window with chosen values is drawn
+   where chosen; the stagger applies only to windows still on the placeholder, and the current record's own placeholder
+   window holds the first slot (E8e, `e8eCompareModeValues.test.js`, 14 checks).
+5. *The accepted-limitation entry is rewritten.* **Done.** The `WINDOW` entry in `LIMITATIONS-PLAN.md` now says what the
+   preview does and what it cannot know.
+
+**What the preview does not do (kept in the limitation entry).** For `*DFT` the system chooses the position at run time
+from the cursor location by rules that are in IBM's *Application Display Programming* book and not in the DDS Reference, so
+a preview value is a stand-in the designer chooses, never a prediction. A preview start is accepted only where IBM's full
+window (start + lines + 1, start + positions + 3) fits the display being drawn (E8c decision), and the drawn box size itself
+is unchanged. Choosing a value for a dimmed compare record is still done on that record.
+
+**Open from E8a, not part of this release.** No guard checks that the field named in a `&field` start is signed numeric,
+usage P, length 3 or less (E8a looked for one and found none).
 
 ---
 
