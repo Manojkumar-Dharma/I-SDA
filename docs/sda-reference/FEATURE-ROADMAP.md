@@ -47,7 +47,7 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-4 of 10 epics done (E3, E7, E9, E10); 41 sub-tasks done (E3a - E3l, E7a - E7m, E8a - E8e, E9a - E9e, E10a - E10f). Current version: **v0.14.5**.
+4 of 10 epics done (E3, E7, E9, E10); 42 sub-tasks done (E3a - E3l, E7a - E7m, E8a - E8e and E8g, E9a - E9e, E10a - E10f). Current version: **v0.14.6**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
@@ -1215,7 +1215,7 @@ values instead of staggering placeholders; the accepted-limitation entry is rewr
 | E8c | **Engine.** Geometry resolution accepts the preview values; the dashed border stays for unset parameters only; unit tests for every form in E8a. | E8b | Done | v0.14.3 |
 | E8d | **UI. Decision first.** A "Set preview position" control on a placeholder window; whether drag/resize is allowed on a runtime-valued window and what it changes (preview value only, never source). | E8c | Done | v0.14.4 |
 | E8e | **Compare mode.** Replace the per-window stagger with the chosen values where set. | E8c | Done | v0.14.5 |
-| E8g | **Resize keeps the trailing options.** `DspfWriter.setWindowGeometry` rebuilds the parameter text from the numbers only, so resizing a window from the preview drops a trailing `*NOMSGLIN` / `*NORSTCSR` (found in E8a). Keep every token after the four numbers (three for `*DFT`); test both forms. | - | In progress | — |
+| E8g | **Resize keeps the trailing options.** `DspfWriter.setWindowGeometry` rebuilds the parameter text from the numbers only, so resizing a window from the preview drops a trailing `*NOMSGLIN` / `*NORSTCSR` (found in E8a). Keep every token after the four numbers (three for `*DFT`); test both forms. | - | Done | v0.14.6 |
 | E8f | **Release** (next free minor); rewrite the `WINDOW` entry in `LIMITATIONS-PLAN.md`. | E8a - E8e, E8g | Open | - |
 
 ### E8a results
@@ -1378,6 +1378,18 @@ the current record's own placeholder window (both at line 2, column 2). Now:
   Preview position); the shared record-name form follows the record it names as before. E8g and E8f remain.
 - Tests: `e8eCompareModeValues.test.js` (14 checks: every slot rule, the held-slot option, the designer page; 6 fail without
   the change).
+
+### E8g results
+
+**E8g (built, v0.14.6).** `DspfWriter.setWindowGeometry` kept only the geometry numbers, so a resize (or a move) of
+`WINDOW(4 20 9 30 *NOMSGLIN *NORSTCSR)` wrote `WINDOW(4 20 10 30)`. It now appends every token after the four geometry
+tokens (after the three for `*DFT`) exactly as typed (`*MSGLIN` / `*NOMSGLIN`, `*RSTCSR` / `*NORSTCSR`, one or both).
+
+- Nothing else changes: moving a `*DFT` window is still refused, a `&field` start still cannot be moved or resized, the
+  record-name form still points at the record it names, and a window with no trailing option is rewritten as before.
+- A long keyword wraps onto a continuation line at column 80 as it always did; the options survive the wrap.
+- Tests: `e8gWindowGeometryKeepsOptions.test.js` (11 checks: both forms, move, resize, move and resize, one and both options,
+  the refusal that remains, and a real resize drag on the designer page; 8 fail without the change).
 
 ---
 

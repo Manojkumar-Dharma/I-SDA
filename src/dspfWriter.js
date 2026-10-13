@@ -9882,6 +9882,8 @@
       var dftWidth = geometry.width != null ? geometry.width : parseInt(parts[2], 10);
       if (!(dftHeight > 0) || !(dftWidth > 0)) throw new Error('Window height and width must both be positive.');
       newParams = '*DFT ' + dftHeight + ' ' + dftWidth;
+      // E8g: every token after the three geometry tokens (*MSGLIN / *NOMSGLIN, *RSTCSR / *NORSTCSR) is kept as typed.
+      if (parts.length > 3) newParams += ' ' + parts.slice(3).join(' ');
     } else {
       var rowNum = parseInt(parts[0], 10);
       var colNum = parseInt(parts[1], 10);
@@ -9896,6 +9898,8 @@
         throw new Error('Window row, column, height, and width must all be positive.');
       }
       newParams = row + ' ' + col + ' ' + height + ' ' + width;
+      // E8g: every token after the four geometry tokens is kept as typed (resizing used to drop *NOMSGLIN / *NORSTCSR).
+      if (parts.length > 4) newParams += ' ' + parts.slice(4).join(' ');
     }
 
     var newKeywords = record.keywords.map(function (k) {
