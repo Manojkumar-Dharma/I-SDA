@@ -47,13 +47,13 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-3 of 10 epics done (E7, E9, E10); 35 sub-tasks done (E3a - E3g, E3i - E3l, E7a - E7m, E9a - E9e, E10a - E10f). Current version: **v0.14.0**.
+4 of 10 epics done (E3, E7, E9, E10); 36 sub-tasks done (E3a - E3l, E7a - E7m, E9a - E9e, E10a - E10f). Current version: **v0.14.1**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
 | [E1](#e1) | Editor-side DDS language support (diagnostics, hover, completion, outline, quick-fixes) | E1a - E1i | - | Open | - |
 | [E2](#e2) | Compile-error feedback loop | E2a - E2h | E1a, E1b for the shared diagnostics collection | Open | - |
-| [E3](#e3) | Indicator simulator (and program-to-system field values) | E3a - E3l | - | In progress | - |
+| [E3](#e3) | Indicator simulator (and program-to-system field values) | E3a - E3l | - | Done | v0.14.1 |
 | [E4](#e4) | Message-file integration (`MSGID` / `ERRMSGID` / `CHKMSGID` / `SFLMSGID`) | E4a - E4g | E3f (soft) | Open | - |
 | [E5](#e5) | Preview export (PNG / SVG / HTML / text) | E5a - E5g | E3 (soft, for indicator state) | Open | - |
 | [E6](#e6) | Menu designer: command keys and `TYPE(*UIM)` | E6a - E6h | E2 (soft, for compile errors) | Open | - |
