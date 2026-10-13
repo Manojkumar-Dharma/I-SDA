@@ -2754,8 +2754,13 @@
     var errorMessages = [];
     var menuBarSeparators = [];
     var contributing = 0;
+    // E8e - a placeholder slot (the stagger step) is used only by a window that is really drawn on the placeholder: a
+    // window with chosen preview values, a fixed start, a record without a window and a record that is not in effect
+    // take none, so the placeholders that remain stack from the first slot. options.placeholderSlotsUsed is how many
+    // slots a window drawn outside this call already holds (compare mode: the current record's own window).
+    var placeholderSlots = (options && options.placeholderSlotsUsed) || 0;
 
-    recordNames.forEach(function (recordName, index) {
+    recordNames.forEach(function (recordName) {
       var record = dspfFile.records.find(function (r) { return r.name === recordName; });
       if (!record) return;
       if (!conditionsSatisfied(record.conditions, activeIndicators, size.name)) return;
@@ -2765,7 +2770,8 @@
       var layer = contributing * 2;
       contributing++;
 
-      var windowBox = resolveWindow(record, dspfFile, 0, index, activeIndicators, size.name, size);
+      var windowBox = resolveWindow(record, dspfFile, 0, placeholderSlots, activeIndicators, size.name, size);
+      if (windowBox && windowBox.positionIsDefault) placeholderSlots++;
       var lineOffset = windowBox ? windowBox.line - 1 : 0;
       var colOffset = windowBox ? windowBox.col - 1 : 0;
 

@@ -3385,7 +3385,10 @@ const htmlTemplate = `<!DOCTYPE html>
     model.choicePreviewStates = IndicatorSim.namespaceValues(fieldValues, 'choiceControl');
     model.cursorLocationValues = IndicatorSim.namespaceValues(fieldValues, 'cursorLocation');
     model.windowStartValues = IndicatorSim.namespaceValues(fieldValues, 'windowStart');
-    const backdropScreen = DspfEngine.resolveMultiScreen(model, others, active, selectedSizeIndex);
+    // E8e: the current record's own window holds the first placeholder slot when it is still on the placeholder, so
+    // the backdrop's placeholder windows stagger away from it instead of landing exactly on top of it.
+    const primaryOnPlaceholder = !!(lastScreen && lastScreen.window && lastScreen.window.positionIsDefault);
+    const backdropScreen = DspfEngine.resolveMultiScreen(model, others, active, selectedSizeIndex, { placeholderSlotsUsed: primaryOnPlaceholder ? 1 : 0 });
     // Task P14 - the primary (current) record sits above the backdrop layer, so its
     // fields must overwrite the dimmed cells beneath them rather than let them show through.
     const primaryEl = screenOutput.querySelector('.dspf-screen');

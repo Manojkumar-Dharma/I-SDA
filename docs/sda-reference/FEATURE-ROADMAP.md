@@ -47,7 +47,7 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-4 of 10 epics done (E3, E7, E9, E10); 40 sub-tasks done (E3a - E3l, E7a - E7m, E8a - E8d, E9a - E9e, E10a - E10f). Current version: **v0.14.4**.
+4 of 10 epics done (E3, E7, E9, E10); 41 sub-tasks done (E3a - E3l, E7a - E7m, E8a - E8e, E9a - E9e, E10a - E10f). Current version: **v0.14.5**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
@@ -1214,7 +1214,7 @@ values instead of staggering placeholders; the accepted-limitation entry is rewr
 | E8b | **Preview value model.** Per-window design-time values in the E3f store; default behaviour unchanged when none is set. | E8a, E3f | Done | v0.14.2 |
 | E8c | **Engine.** Geometry resolution accepts the preview values; the dashed border stays for unset parameters only; unit tests for every form in E8a. | E8b | Done | v0.14.3 |
 | E8d | **UI. Decision first.** A "Set preview position" control on a placeholder window; whether drag/resize is allowed on a runtime-valued window and what it changes (preview value only, never source). | E8c | Done | v0.14.4 |
-| E8e | **Compare mode.** Replace the per-window stagger with the chosen values where set. | E8c | In progress | — |
+| E8e | **Compare mode.** Replace the per-window stagger with the chosen values where set. | E8c | Done | v0.14.5 |
 | E8g | **Resize keeps the trailing options.** `DspfWriter.setWindowGeometry` rebuilds the parameter text from the numbers only, so resizing a window from the preview drops a trailing `*NOMSGLIN` / `*NORSTCSR` (found in E8a). Keep every token after the four numbers (three for `*DFT`); test both forms. | - | Open | - |
 | E8f | **Release** (next free minor); rewrite the `WINDOW` entry in `LIMITATIONS-PLAN.md`. | E8a - E8e, E8g | Open | - |
 
@@ -1358,6 +1358,26 @@ places it already fills `cursorLocationValues`) each coordinate is resolved on i
 - Tests: `e8dWindowPreviewPosition.test.js` (27 checks: the box for `*DFT` and the mixed form, fit check and reason, clear and
   reset, drag stored not written, literal axis kept, clamp, fixed-start window unchanged; the new-behaviour checks fail without the
   change).
+
+### E8e results
+
+**E8e (built, v0.14.5).** Compare mode and the preview positions. A window with chosen values was already drawn exactly
+where chosen (E8c); what E8e fixes is the stagger of the windows that are still on the placeholder. Before, the stagger
+step was the record's position in the compare list, so a chosen window, a fixed-start window, a record with no window and
+a record not in effect each pushed the next placeholder along, and a backdrop placeholder window landed exactly on top of
+the current record's own placeholder window (both at line 2, column 2). Now:
+
+- **A slot is used only by a window that is really on the placeholder** (`positionIsDefault`, so a half-set window holds
+  one). `resolveMultiScreen` counts the slots as it goes; the step itself is unchanged (2 lines, 4 columns per slot).
+- **The current record's window counts first.** `resolveMultiScreen` takes `options.placeholderSlotsUsed`; the designer's
+  compare backdrop passes 1 when the current record is itself on the placeholder, so the dimmed windows start at the second
+  slot. Give the current record a preview position and the first backdrop window takes the first slot.
+- **Unchanged:** nothing chosen and no other window in the list gives the same first, second, third slots as before; the
+  read-only full overlay (`writeSequence`) call passes no held slot.
+- **Not in this task.** Choosing the values for a dimmed record's window is still done on that record (select it, then
+  Preview position); the shared record-name form follows the record it names as before. E8g and E8f remain.
+- Tests: `e8eCompareModeValues.test.js` (14 checks: every slot rule, the held-slot option, the designer page; 6 fail without
+  the change).
 
 ---
 
