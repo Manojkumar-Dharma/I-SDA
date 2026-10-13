@@ -3415,12 +3415,17 @@ const htmlTemplate = `<!DOCTYPE html>
     fkeyLegendEl.innerHTML = '';
     model.choicePreviewStates = IndicatorSim.namespaceValues(fieldValues, 'choiceControl');
     model.cursorLocationValues = IndicatorSim.namespaceValues(fieldValues, 'cursorLocation');
-    const screen = DspfEngine.resolveMultiScreen(model, included, active, selectedSizeIndex);
+    // E3l - the records are written in this order, so OVERLAY / ERASE / ERASEINP act on the ones before them.
+    const screen = DspfEngine.resolveMultiScreen(model, included, active, selectedSizeIndex, { writeSequence: true });
     lastScreen = screen;
     mainHint.classList.add('hint-readonly');
     mainHint.textContent = included.length > 1
       ? 'Stacked bottom to top: ' + included.join(' > ') + ' (' + recordName + ' on top; a later record overwrites the cells under it). Read-only - switch off "Full overlay" or "Compare" to edit again.'
       : 'Check another record above to overlay it here at full brightness, read-only.';
+    // E3l - say what a later write removed, so a record that is missing is never a mystery.
+    if (screen.writeEffects && screen.writeEffects.length) {
+      mainHint.textContent += ' ' + screen.writeEffects.map((e) => e.record + ' ' + e.effect + (e.effect === 'ERASEINP' ? ' erases input fields of ' : ' removes ') + e.records.join(', ') + '.').join(' ');
+    }
     screenOutput.innerHTML = DspfEngine.renderScreenHtml(screen);
     updateRuler(screen);
     clearSelection();

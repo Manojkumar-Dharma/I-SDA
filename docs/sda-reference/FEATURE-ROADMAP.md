@@ -157,7 +157,7 @@ option indicators; program-to-system field values can be set and are shared with
 | E3i | **`DFTVAL` default value.** Draw the default value in the field on the first output when its option indicator is on or absent (reference: "the specified value is displayed if the option indicator is on or has not been specified"). **Decision (settled):** the value replaces the field name, as on the real first output (the field name stands in for the unknown program value only when `DFTVAL` is not in effect); no "beside it" form. Built in `dspfEngine.js` (`dftvalText`): named `O` / `B` fields outside a subfile format, first instance whose condition holds, quoted value with `''` as one quote, cut to the field length, padded with blanks; an unquoted value (still being typed) keeps the name. Test: `e3iDftvalDefaultValue.test.js`. | E3d | Done | v0.13.8 |
 | E3j | **Menu bar drawing.** `MNUBARSEP` (colour, attribute and character of the separator line under the menu bar) and `MNUBARDSP` (the menu bar of another record shown when this record is written), both honouring their option indicators. | E3d | Done | v0.13.7 |
 | E3k | **Cursor position (`CSRLOC`).** Place the cursor marker from the two program fields' design-time values in the E3f store (a new `cursorLocation` namespace); an off `CSRLOC` leaves the default cursor. | E3d, E3f | Done | v0.13.11 |
-| E3l | **Record overlay keywords in display mode.** `OVERLAY`, `PROTECT`, `ERASE`, `ERASEINP`, `PUTOVR`, `PUTRETAIN` change what earlier records show, so they can only be drawn when several records are previewed together (the existing display mode); make that mode honour them under the active indicators. **Decision first:** which of the six are worth drawing. | E3d | In progress | — |
+| E3l | **Record overlay keywords in display mode.** `OVERLAY`, `PROTECT`, `ERASE`, `ERASEINP`, `PUTOVR`, `PUTRETAIN` change what earlier records show, so they can only be drawn when several records are previewed together (the existing display mode); make that mode honour them under the active indicators. **Decision (settled):** draw `OVERLAY`, `ERASE`, `ERASEINP`; `PROTECT`, `PUTOVR`, `PUTRETAIN` stay Not drawn (see E3l results). | E3d | Done | v0.13.12 |
 
 
 ### E3a results
@@ -203,7 +203,7 @@ reactivity), E3e (explain panel) and E3g (menu designer) are unchanged and still
   simulator panel lists every stored value (`REC.FLD (choice / row n) = v`) with a remove button and "Clear all stored
   values". The extension host loads the file's state on `ready` (`simulatorState` message) and saves on every change
   (`saveSimulatorState`); loading posts nothing back.
-- **Not done (still Open):** E3g menu designer parity, E3k, E3l (the gaps E3d found), E3h release. A value
+- **Not done (still Open):** E3h release (E3d's gaps are E3i, E3k and E3l, all done). A value
   store editor for a new namespace is the job of the feature that adds the namespace.
 - Tests: `e3IndicatorSim.test.js` (pure logic, a fake memento), `e3SimulatorPanel.test.js` (both panel copies,
   messages, reset).
@@ -259,8 +259,8 @@ line. A record without `WINDOW` has no error line to show; that is a limit of th
 | DSPMOD | record | Not drawn | switches the display size at run time; the preview has its own size selector |
 | DUP | field | Not drawn | the Dup key behaviour for the field; no drawn difference |
 | ENTFLDATR | field, record, file | Not drawn | the field changes attribute while the cursor is in it; an interaction state with no static form |
-| ERASE | record | Gap (E3l) | erases other records at output; shows only when records are previewed together |
-| ERASEINP | record | Gap (E3l) | erases input fields at output; shows only when records are previewed together |
+| ERASE | record | Reactive | with OVERLAY, erases the named records already on the display; shown in the stacked view with the write sequence on (E3l) |
+| ERASEINP | record | Reactive | with OVERLAY, ERASEINP(*ALL) erases the unprotected input fields already on the display; shown in the stacked view (E3l) |
 | ERRMSG | field | Reactive | the error line of a window (E3d probes it; a record without WINDOW has no error line in the preview) |
 | ERRMSGID | field | Gap (E4c) | the message text comes from the message file; E4c draws it |
 | FRCDTA | record | Not drawn | forces data to the display at output; no drawn difference |
@@ -284,16 +284,16 @@ line. A record without `WINDOW` has no error line to show; that is a limit of th
 | MNUBARSW | file, record | Not drawn | assigns the switch-to-menu-bar key; a key assignment is not part of the drawn screen |
 | MNUCNL | file, record | Not drawn | assigns the cancel key for menus; a key assignment is not part of the drawn screen |
 | MSGALARM | file, record | Not drawn | sounds the alarm for a message; nothing on the screen |
-| OVERLAY | record | Gap (E3l) | keeps the screen as it is when the record is written; shows only when records are previewed together |
+| OVERLAY | record | Reactive | records already on the display that share cells with this one are deleted; shown in the stacked view (E3l) |
 | OVRATR | record, field | Not drawn | the program overrides the field attribute at run time |
 | OVRDTA | record, field | Not drawn | the program overrides the field data at run time |
 | PAGEDOWN | file, record | Not drawn | assigns the Page Down key (ROLLUP); a key assignment is not part of the drawn screen |
 | PAGEUP | file, record | Not drawn | assigns the Page Up key (ROLLDOWN); a key assignment is not part of the drawn screen |
 | PRINT | file, record | Not drawn | assigns the Print key; a key assignment is not part of the drawn screen |
-| PROTECT | record | Gap (E3l) | makes input fields of the records already shown output only; shows only when records are previewed together |
+| PROTECT | record | Not drawn | makes input fields of the records already shown output only, which changes input capability and not what is drawn |
 | PSHBTNCHC | field | Reactive | an off push button is dropped and the buttons compress (I-57) |
-| PUTOVR | record | Gap (E3l) | output overrides at the field level; shows only when records are previewed together |
-| PUTRETAIN | record, field | Gap (E3l) | retains the override across output operations; shows only when records are previewed together |
+| PUTOVR | record | Not drawn | output overrides (OVRDTA, OVRATR) take effect at run time from the program's data, which a preview does not have |
+| PUTRETAIN | record, field | Not drawn | retains a run-time override across output operations; there is no override in a design-time preview |
 | RETLCKSTS | record | Not drawn | returns the record-lock status to the program |
 | RMVWDW | record | Not drawn | removes the window when the record is written; the preview shows one record |
 | SFLDROP | record | Reactive | the subfile starts truncated (P6) |
@@ -364,6 +364,35 @@ previewed under indicators.
   shared builder in `webviewClientHelpers.js` is a possible refactor.
 - Tests: `e3gMenuSimulator.test.js` (the preview under indicators, the list and labels, scope and show-all, record
   switch, scenarios, what is posted and loaded, stored values, nothing written to the source, the host handlers).
+
+### E3l results
+
+**E3l (built, v0.13.12).** The combined (stacked) preview can now be shown as a **write sequence**:
+`DspfEngine.resolveMultiScreen(model, records, indicators, sizeIndex, { writeSequence: true })`. The records are written in
+list order (the stacking order) and `OVERLAY`, `ERASE` and `ERASEINP` act on the records already on the display; the
+result also carries `writeEffects` (`{ record, effect, records }[]`) saying what each removed. The webview's **Full
+overlay** view turns it on and adds what was removed to its hint ("REC2 OVERLAY removes REC1."). The dimmed backdrop
+view and any caller that passes no option are unchanged.
+
+- **OVERLAY.** Records already on the display whose fields share at least one cell with this record's are deleted whole
+  (a partial overlap deletes the record; records that share no cell stay) - IBM's own REC1..REC5 example is a test. OVERLAY
+  conditioned and not selected: nothing acts, and `ERASE` / `ERASEINP` "cannot take effect" either.
+- **ERASE(rec ...).** With OVERLAY in effect, the named records already on the display are removed; may repeat, a name that
+  is not on the display is ignored, option indicators per instance.
+- **ERASEINP.** With OVERLAY in effect, `ERASEINP(*ALL)` removes the unprotected input-capable fields (`I` / `B`, not
+  `DSPATR(PR)`) of the earlier records; constants and output fields stay, and so do this record's own input fields. Plain
+  `ERASEINP` and `ERASEINP(*MDTON)` erase only fields whose changed-data tag is on, which a design-time preview cannot know,
+  so they erase none.
+- **Decision (Manojkumar's go-ahead on the proposed split).** `PROTECT` (input capability), `PUTOVR` and `PUTRETAIN`
+  (run-time overrides) change nothing that is drawn, so they stay Not drawn in the E3d table with that reason.
+- **Decision (mine, easy to reverse).** The write sequence is opt-in and the default of the real display, deleting everything
+  on a write without OVERLAY, is not applied: the combined view is a comparison that shows every record, and applying that
+  default would hide all but the last record in every file that has no OVERLAY. Calling the option for a file with no
+  OVERLAY / ERASE / ERASEINP changes nothing.
+- Not done: window records are removed with their record but a window's own overlap with other records' cells is not
+  considered; `ERASE` is not checked against the "cannot erase a CLRL record" case (no CLRL in the preview).
+- Tests: `e3lWriteSequence.test.js` (overlap, IBM's example, ERASE, ERASEINP, indicators, the Full overlay hint), and the E3d
+  table test now runs `OVERLAY` / `ERASE` / `ERASEINP` through the stacked view.
 
 ### E3k results
 

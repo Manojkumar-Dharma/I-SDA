@@ -2554,6 +2554,84 @@
     return problems;
   }
 
+  // ---------------------------------------------------------------------
+  // E3l - what writing a record does to the records already on the display. Opt-in for resolveMultiScreen
+  // (options.writeSequence), because that combined view is a comparison that shows every record by default;
+  // with it on, the records are written in list order and these keywords act on the earlier ones:
+  //   OVERLAY  "the record ... should appear on the display without the entire display being deleted first.
+  //            All records on the display with fields that partially or completely overlap fields in this
+  //            record are deleted; all others remain" - an earlier record that shares cells with this one is
+  //            removed whole, not merely painted over.
+  //   ERASE    (with OVERLAY) "the records whose names you supplied as parameter values are to be erased from
+  //            the display when this record is written" - ERASE(REC1 REC2 ...), may repeat; a name not on the
+  //            display is ignored.
+  //   ERASEINP (with OVERLAY) erases the unprotected input-capable fields already on the display (not this
+  //            record's own). ERASEINP(*ALL) erases all of them; ERASEINP / ERASEINP(*MDTON) erases only the
+  //            fields whose changed-data tag is on, which a design-time preview cannot know, so it erases none.
+  // OVERLAY not in effect (a conditioned OVERLAY whose indicator is off) means ERASE / ERASEINP "cannot take
+  // effect". The default of deleting the whole display on a write without OVERLAY is not applied: the combined
+  // view stays a comparison. PROTECT, PUTOVR and PUTRETAIN change input capability and run-time overrides, not
+  // what is drawn, so they are not drawn (E3d table: Not drawn).
+  // ---------------------------------------------------------------------
+  function fieldBoxesOverlap(a, b) {
+    var aBottom = a.line + (a.height || 1) - 1, bBottom = b.line + (b.height || 1) - 1;
+    var aRight = a.column + a.length - 1, bRight = b.column + b.length - 1;
+    return a.line <= bBottom && b.line <= aBottom && a.column <= bRight && b.column <= aRight;
+  }
+
+  function eraseTargets(record, activeIndicators, activeSizeName) {
+    var names = [];
+    (record.keywords || []).forEach(function (k) {
+      if (k.name !== 'ERASE' || !conditionsSatisfied(k.conditions, activeIndicators, activeSizeName)) return;
+      String(k.parameters || '').split(/[\s,]+/).filter(Boolean).forEach(function (n) { names.push(n.toUpperCase()); });
+    });
+    return names;
+  }
+
+  /** ERASEINP in effect on `record`: '*ALL', '*MDTON' (also the bare keyword) or null. */
+  function eraseInpMode(record, activeIndicators, activeSizeName) {
+    var mode = null;
+    (record.keywords || []).forEach(function (k) {
+      if (k.name !== 'ERASEINP' || mode === '*ALL' || !conditionsSatisfied(k.conditions, activeIndicators, activeSizeName)) return;
+      mode = /\*ALL\b/i.test(k.parameters || '') ? '*ALL' : '*MDTON';
+    });
+    return mode;
+  }
+
+  // Applies the write effects of `record` (being written now, its resolved `fields`) to the records already in
+  // `earlier`: marks them in `removed` (whole record) or flags erased input fields, and notes what happened.
+  function applyWriteEffects(record, recordName, fields, earlier, removed, effects, activeIndicators, sizeName) {
+    var hasOverlay = (record.keywords || []).some(function (k) { return k.name === 'OVERLAY'; });
+    if (!hasOverlay || !gatingKeywordInEffect(record, 'OVERLAY', activeIndicators, sizeName)) return;
+    var live = function (f) { return !removed[f.sourceRecord] && !f.erasedInput; };
+    var goneByOverlap = [];
+    var goneByErase = [];
+    var byRecord = {};
+    earlier.forEach(function (f) { if (live(f)) (byRecord[f.sourceRecord] = byRecord[f.sourceRecord] || []).push(f); });
+    Object.keys(byRecord).forEach(function (name) {
+      if (byRecord[name].some(function (f) { return fields.some(function (mine) { return fieldBoxesOverlap(f, mine); }); })) {
+        removed[name] = true;
+        goneByOverlap.push(name);
+      }
+    });
+    eraseTargets(record, activeIndicators, sizeName).forEach(function (n) {
+      Object.keys(byRecord).forEach(function (name) {
+        if (name.toUpperCase() === n && !removed[name] && name !== recordName) { removed[name] = true; goneByErase.push(name); }
+      });
+    });
+    var erasedFrom = [];
+    if (eraseInpMode(record, activeIndicators, sizeName) === '*ALL') {
+      earlier.forEach(function (f) {
+        if (!live(f) || f.nameType === 'CONSTANT' || (f.usage !== 'I' && f.usage !== 'B') || (f.style && f.style.protect)) return;
+        f.erasedInput = true;
+        if (erasedFrom.indexOf(f.sourceRecord) < 0) erasedFrom.push(f.sourceRecord);
+      });
+    }
+    if (goneByOverlap.length) effects.push({ record: recordName, effect: 'OVERLAY', records: goneByOverlap });
+    if (goneByErase.length) effects.push({ record: recordName, effect: 'ERASE', records: goneByErase });
+    if (erasedFrom.length) effects.push({ record: recordName, effect: 'ERASEINP', records: erasedFrom });
+  }
+
   /**
    * Read-only combined preview of SEVERAL record formats at once - the opt-in
    * "display mode" for comparing/eyeballing multiple formats together (not just
@@ -2572,8 +2650,11 @@
    * printing on top of it. Callers put the record that should be on top LAST.
    * @param {number} [sizeIndex] which DSPSIZ-declared size to use - see resolveScreen.
    */
-  function resolveMultiScreen(dspfFile, recordNames, activeIndicators, sizeIndex) {
+  function resolveMultiScreen(dspfFile, recordNames, activeIndicators, sizeIndex, options) {
     activeIndicators = activeIndicators || new Set();
+    var writeSequence = !!(options && options.writeSequence);
+    var writeEffects = [];
+    var removed = {};
     var size = screenSizeFromFileKeywords(dspfFile.fileKeywords, sizeIndex);
     var allFields = [];
     var windows = [];
@@ -2600,8 +2681,9 @@
       var menuBar = resolveMenuBar(record, dspfFile, activeIndicators, size.name, size.columns); // E3j
       if (menuBar.suppressOwn) fields = [];
       else fields = fields.concat(menuBar.fields);
-      if (menuBar.separator) menuBarSeparators.push(Object.assign({ stackLayer: layer }, menuBar.separator));
+      if (menuBar.separator) menuBarSeparators.push(Object.assign({ stackLayer: layer, recordName: recordName }, menuBar.separator));
       fields.forEach(function (f) { f.sourceRecord = recordName; f.stackLayer = layer + 1; if (windowBox) f.inWindow = true; });
+      if (writeSequence) applyWriteEffects(record, recordName, fields, allFields, removed, writeEffects, activeIndicators, size.name);
       allFields = allFields.concat(fields);
       if (windowBox) windows.push(Object.assign({ recordName: recordName, stackLayer: layer }, windowBox));
 
@@ -2615,7 +2697,16 @@
       if (errorMessage) errorMessages.push(Object.assign({ recordName: recordName, stackLayer: layer + 1 }, errorMessage));
     });
 
-    return { lines: size.lines, columns: size.columns, sizeName: size.name, availableSizes: size.sizes, fields: allFields, windows: windows, menuBarSeparators: menuBarSeparators, errorMessages: errorMessages, stacked: contributing > 1 };
+    if (writeEffects.length) {
+      // E3l - drop what a later write removed from the display: whole records (OVERLAY overlap, ERASE) and the
+      // input fields ERASEINP(*ALL) erased.
+      var keep = function (name) { return !removed[name]; };
+      allFields = allFields.filter(function (f) { return keep(f.sourceRecord) && !f.erasedInput; });
+      windows = windows.filter(function (w) { return keep(w.recordName); });
+      menuBarSeparators = menuBarSeparators.filter(function (m) { return keep(m.recordName); });
+      errorMessages = errorMessages.filter(function (e) { return keep(e.recordName); });
+    }
+    return { lines: size.lines, columns: size.columns, sizeName: size.name, availableSizes: size.sizes, fields: allFields, windows: windows, menuBarSeparators: menuBarSeparators, errorMessages: errorMessages, stacked: contributing > 1, writeEffects: writeEffects };
   }
 
   // ---------------------------------------------------------------------

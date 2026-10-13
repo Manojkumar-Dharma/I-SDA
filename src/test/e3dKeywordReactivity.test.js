@@ -54,10 +54,13 @@ rows.forEach((r) => {
 
 // ---- the engine against each row ----------------------------------------------------------
 const norm = (k, v) => (k === 'sourceLine' || k === 'tag' || k === 'anchorLine' ? undefined : v);
-const shot = (src, rec, set, states) => {
+const shot = (src, rec, set, states, multi) => {
   const m = DspfParser.parseDspf(src);
   if (states && states.__cursor) m.cursorLocationValues = states.__cursor;
   else if (states) m.choicePreviewStates = states;
+  // E3l: OVERLAY / ERASE / ERASEINP act on the records written before them, so they show in the combined view
+  // with the write sequence on (a row's 4th entry names the records, in write order).
+  if (multi) return JSON.stringify(DspfEngine.resolveMultiScreen(m, multi, set, 0, { writeSequence: true }), norm);
   return JSON.stringify(DspfEngine.resolveScreen(m, rec, set, null, true), norm);
 };
 const F = (n, l, u) => dds({ name: n, len: 10, type: 'A', use: u || 'B', line: l, col: 2 });
@@ -95,13 +98,19 @@ const REACTIVE = {
   CHOICE: [choice, 'R1'], MNUBARCHC: [menubar, 'MB'], MNUBARSEP: [mbSep, 'MB'], MNUBARDSP: [mbDsp, 'REC1'], PSHBTNCHC: [pshbtn, 'R1'],
   CHCAVAIL: [chcState('CHCAVAIL(*COLOR RED)'), 'R1'], CHCSLT: [chcState('CHCSLT(*COLOR RED)'), 'R1', { 'R1|SEL|1': 1 }], CHCUNAVAIL: [chcState('CHCUNAVAIL(*COLOR RED)'), 'R1', { 'R1|SEL|1': 2 }],
 };
+const twoRecords = (kws, lineOfSecond, usageOfFirst) => (ind) => [dds({ t: 'R', name: 'R1' }), F('F1', 3, usageOfFirst), dds({ t: 'R', name: 'R2' })]
+  .concat(kws(ind), [F('F2', lineOfSecond, 'O')]).join('\n') + '\n';
+REACTIVE.OVERLAY = [twoRecords((ind) => [dds({ ind, fn: 'OVERLAY' })], 3), 'R2', null, ['R1', 'R2']]; // F2 shares the line of F1
+REACTIVE.ERASE = [twoRecords((ind) => [dds({ fn: 'OVERLAY' }), dds({ ind, fn: 'ERASE(R1)' })], 9), 'R2', null, ['R1', 'R2']];
+REACTIVE.ERASEINP = [twoRecords((ind) => [dds({ fn: 'OVERLAY' }), dds({ ind, fn: 'ERASEINP(*ALL)' })], 9, 'B'), 'R2', null, ['R1', 'R2']];
 const levelBuilder = (levels) => (/record/.test(levels) ? recordKw : /field/.test(levels) ? fieldKw : /file/.test(levels) ? fileKw : null);
 
 console.log('E3d: each row against the engine');
 rows.forEach((r) => {
   if (/^C[AF]01-C[AF]24$/.test(r.name)) return; // the legend, below
   let build, rec, kwText, states = null;
-  if (REACTIVE[r.name]) { build = REACTIVE[r.name][0]; rec = REACTIVE[r.name][1]; states = REACTIVE[r.name][2] || null; }
+  let multi = null;
+  if (REACTIVE[r.name]) { build = REACTIVE[r.name][0]; rec = REACTIVE[r.name][1]; states = REACTIVE[r.name][2] || null; multi = REACTIVE[r.name][3] || null; }
   else {
     const lb = levelBuilder(r.levels);
     if (!lb) return; // help-specification level only: nothing the screen resolver reads
@@ -110,8 +119,8 @@ rows.forEach((r) => {
     if (r.name === 'SFLINZ' || r.name === 'SFLNXTCHG') { build = sfl(kwText); rec = 'CTL'; }
     if (r.name === 'RMVWDW' || r.name === 'USRRSTDSP' || r.name === 'HLPCLR' || r.name === 'ERRMSGID') { build = win(kwText); rec = 'W1'; }
   }
-  const off = shot(build(IND), rec, new Set(), states);
-  const on = shot(build(IND), rec, new Set([ON]), states);
+  const off = shot(build(IND), rec, new Set(), states, multi);
+  const on = shot(build(IND), rec, new Set([ON]), states, multi);
   if (r.status === 'Reactive') check(r.name + ': Reactive - the screen changes with the indicator', off !== on);
   else check(r.name + ': ' + r.status + ' - the screen does not change with the indicator', off === on);
   // not vacuous: the keyword really parsed with its condition
