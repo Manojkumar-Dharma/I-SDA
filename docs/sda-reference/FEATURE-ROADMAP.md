@@ -47,7 +47,7 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-5 of 10 epics done (E3, E7, E8, E9, E10); 44 sub-tasks done (E3a - E3l, E4a, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.15.0**.
+5 of 10 epics done (E3, E7, E8, E9, E10); 45 sub-tasks done (E3a - E3l, E4a, E4b, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.15.1**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
@@ -489,7 +489,7 @@ degrades to today's behaviour with a visible note.
 | ID | Sub-task and scope | Depends on | Status | Version |
 |----|--------------------|------------|--------|---------|
 | E4a | **Source of message text. Decision first.** Options: SQL (`QSYS2` message-file service, to be **verified to exist on V7R3**), `RTVMSG` per ID, `DSPMSGD` to an outfile. Also decide offline behaviour: none, or an importable cache file. | - | Done (no code change) | — |
-| E4b | **Resolver module.** `src/messageFile.js` with a fake-connection test seam (as `jobDateFormat.js` does): `*LIBL` and `lib/name` resolution, per-session cache, never throws. | E4a | In progress | - |
+| E4b | **Resolver module.** `src/messageFile.js` with a fake-connection test seam (as `jobDateFormat.js` does): `*LIBL` and `lib/name` resolution, per-session cache, never throws. | E4a | Done | v0.15.1 |
 | E4c | **Preview.** Show resolved text for the keywords above in the right place on the screen; `&1`-style substitution from E3f values or a placeholder; severity-colour only if the reference says it affects display. | E4b, E3f (soft) | Open | - |
 | E4d | **Picker and validation.** Message-ID picker with text in the `ERRMSGID`, `MSGID`, `SFLMSGID`, `CHKMSGID` panels; an "ID not found in `<msgf>`" diagnostic through the E1 hub when available. | E4b | Open | - |
 | E4e | **Menu designer.** Compile Menu already creates the `USRnnnn` messages with `ADDMSGD`; show the existing messages for a menu's options and flag drift between the menu text and the message. | E4b | Open | - |
@@ -514,6 +514,32 @@ Decision (Manojkumar, v0.15.0 tree, docs only):
 - **Effect on later rows:** E4b exposes `getText(id, msgf)` and `listMessages(msgf)`, and records which path (SQL or
   `RTVMSG`) answered; `listMessages` returns "unsupported" on the fallback path. E4f's cache location setting is dropped
   (memory only); `isda.messageFiles` stays.
+
+### E4b results
+
+`src/messageFile.js` (plain UMD JS, no dependencies beyond `qdbrtvfdParser.js` for EBCDIC decoding), tested by
+`src/test/e4bMessageFile.test.js` (83 checks) against a fake connection. Nothing calls it yet: E4c, E4d and E4e do.
+
+- **API.** `createResolver(connection, hooks)` returns `getText(id, msgf)`, `listMessages(msgf)`, `clear(msgf?)` and
+  `mode()` (`'unknown'`, `'sql'` or `'api'`). `connection` is Code for i's connection or a function returning the current
+  one (a later connect is picked up; cached text still answers after a disconnect). `hooks.ensureLibrary` is the same hook
+  `jobDateFormat.js` takes, so `ISDATEMP` is created once for all procedures. Text keeps its `&1` markers; E4c fills them.
+- **Never throws.** Every result is `{ ok: true, ... }` or `{ ok: false, code, error }` with code `not-connected`,
+  `bad-id`, `bad-msgf`, `not-found`, `unsupported` or `error`. Bad IDs and message-file names are refused before any SQL
+  (7-character ID, IBM i object names, `LIB/NAME`, bare name, `*LIBL`, `*CURLIB`).
+- **Resolution.** `*LIBL` reads the library list once (`QSYS2.LIBRARY_LIST_INFO`) and asks for every library in one
+  statement; the first library in list order that holds the file wins. `*CURLIB` uses the CURRENT entry.
+- **Fallback.** Only an error that names `MESSAGE_FILE_DATA` as missing switches to `QMHRTVM` (format `RTVM0100`, through
+  an `ISDATEMP` external CL procedure and a dump procedure, as `jobDateFormat.js` does) for the rest of the session. An
+  authority or connection error is an error and switches nothing. On that path `listMessages` is `unsupported` and the
+  message names 7.3 TR6.
+- **Cache.** Per session, in memory. A found message is cached, a not-found answer is not (the message may be added
+  later), concurrent asks share one query, `listMessages` primes the text cache, `clear(file)` after `ADDMSGD` /
+  `CHGMSGD` drops one file, `clear()` drops everything.
+- **Not checked against a real IBM i.** Three assumptions, each in one place: the `QSYS2.LIBRARY_LIST_INFO` column names
+  (`SCHEMA_NAME`, `TYPE`, `ORDINAL_POSITION`), the `RTVM0100` offsets (`RTVM0100` constant) and the CPF ids for "file not
+  found" (`CPF2407`) and "message not found" (`CPF2410`). A capture from a real system should confirm them before E4g
+  releases; if one is wrong, it is a one-line change plus the matching test.
 
 ---
 
