@@ -1213,7 +1213,7 @@ values instead of staggering placeholders; the accepted-limitation entry is rewr
 | E8a | **Inventory.** From the `WINDOW` section of the DDS Reference: exactly which parameters can be `*DFT` or a program-to-system field (reference line, reference column, lines, columns, and the `WDWBORDER` interaction), and what IBM says `*DFT` means at run time. | - | Done (no code change) | — |
 | E8b | **Preview value model.** Per-window design-time values in the E3f store; default behaviour unchanged when none is set. | E8a, E3f | Done | v0.14.2 |
 | E8c | **Engine.** Geometry resolution accepts the preview values; the dashed border stays for unset parameters only; unit tests for every form in E8a. | E8b | Done | v0.14.3 |
-| E8d | **UI. Decision first.** A "Set preview position" control on a placeholder window; whether drag/resize is allowed on a runtime-valued window and what it changes (preview value only, never source). | E8c | Open | - |
+| E8d | **UI. Decision first.** A "Set preview position" control on a placeholder window; whether drag/resize is allowed on a runtime-valued window and what it changes (preview value only, never source). | E8c | In progress | - |
 | E8e | **Compare mode.** Replace the per-window stagger with the chosen values where set. | E8c | Open | - |
 | E8g | **Resize keeps the trailing options.** `DspfWriter.setWindowGeometry` rebuilds the parameter text from the numbers only, so resizing a window from the preview drops a trailing `*NOMSGLIN` / `*NORSTCSR` (found in E8a). Keep every token after the four numbers (three for `*DFT`); test both forms. | - | Open | - |
 | E8f | **Release** (next free minor); rewrite the `WINDOW` entry in `LIMITATIONS-PLAN.md`. | E8a - E8e, E8g | Open | - |
