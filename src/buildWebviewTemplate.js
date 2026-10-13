@@ -3383,6 +3383,7 @@ const htmlTemplate = `<!DOCTYPE html>
     if (others.length === 0) return;
     model.choicePreviewStates = IndicatorSim.namespaceValues(fieldValues, 'choiceControl');
     model.cursorLocationValues = IndicatorSim.namespaceValues(fieldValues, 'cursorLocation');
+    model.windowStartValues = IndicatorSim.namespaceValues(fieldValues, 'windowStart');
     const backdropScreen = DspfEngine.resolveMultiScreen(model, others, active, selectedSizeIndex);
     // Task P14 - the primary (current) record sits above the backdrop layer, so its
     // fields must overwrite the dimmed cells beneath them rather than let them show through.
@@ -3415,6 +3416,7 @@ const htmlTemplate = `<!DOCTYPE html>
     fkeyLegendEl.innerHTML = '';
     model.choicePreviewStates = IndicatorSim.namespaceValues(fieldValues, 'choiceControl');
     model.cursorLocationValues = IndicatorSim.namespaceValues(fieldValues, 'cursorLocation');
+    model.windowStartValues = IndicatorSim.namespaceValues(fieldValues, 'windowStart');
     // E3l - the records are written in this order, so OVERLAY / ERASE / ERASEINP act on the ones before them.
     const screen = DspfEngine.resolveMultiScreen(model, included, active, selectedSizeIndex, { writeSequence: true });
     lastScreen = screen;
@@ -3471,6 +3473,7 @@ const htmlTemplate = `<!DOCTYPE html>
 
     model.choicePreviewStates = IndicatorSim.namespaceValues(fieldValues, 'choiceControl');
     model.cursorLocationValues = IndicatorSim.namespaceValues(fieldValues, 'cursorLocation');
+    model.windowStartValues = IndicatorSim.namespaceValues(fieldValues, 'windowStart');
     const screen = DspfEngine.resolveScreen(model, recordName, active, activePulldown, previewMultipleRows, selectedSizeIndex, sflFoldFlipped, sflEndLastPage);
     if (!(screen.subfilePreview && screen.subfilePreview.foldDrop && screen.subfilePreview.foldDrop.canToggle)) sflFoldFlipped = false;
     if (!(screen.subfilePreview && screen.subfilePreview.sflEnd && screen.subfilePreview.sflEnd.canShowLastPage)) sflEndLastPage = false;

@@ -47,7 +47,7 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-4 of 10 epics done (E3, E7, E9, E10); 38 sub-tasks done (E3a - E3l, E7a - E7m, E8a - E8b, E9a - E9e, E10a - E10f). Current version: **v0.14.2**.
+4 of 10 epics done (E3, E7, E9, E10); 39 sub-tasks done (E3a - E3l, E7a - E7m, E8a - E8c, E9a - E9e, E10a - E10f). Current version: **v0.14.3**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
@@ -1212,7 +1212,7 @@ values instead of staggering placeholders; the accepted-limitation entry is rewr
 |----|--------------------|------------|--------|---------|
 | E8a | **Inventory.** From the `WINDOW` section of the DDS Reference: exactly which parameters can be `*DFT` or a program-to-system field (reference line, reference column, lines, columns, and the `WDWBORDER` interaction), and what IBM says `*DFT` means at run time. | - | Done (no code change) | — |
 | E8b | **Preview value model.** Per-window design-time values in the E3f store; default behaviour unchanged when none is set. | E8a, E3f | Done | v0.14.2 |
-| E8c | **Engine.** Geometry resolution accepts the preview values; the dashed border stays for unset parameters only; unit tests for every form in E8a. | E8b | In progress | — |
+| E8c | **Engine.** Geometry resolution accepts the preview values; the dashed border stays for unset parameters only; unit tests for every form in E8a. | E8b | Done | v0.14.3 |
 | E8d | **UI. Decision first.** A "Set preview position" control on a placeholder window; whether drag/resize is allowed on a runtime-valued window and what it changes (preview value only, never source). | E8c | Open | - |
 | E8e | **Compare mode.** Replace the per-window stagger with the chosen values where set. | E8c | Open | - |
 | E8g | **Resize keeps the trailing options.** `DspfWriter.setWindowGeometry` rebuilds the parameter text from the numbers only, so resizing a window from the preview drops a trailing `*NOMSGLIN` / `*NORSTCSR` (found in E8a). Keep every token after the four numbers (three for `*DFT`); test both forms. | - | Open | - |
@@ -1296,6 +1296,43 @@ positions + 3 within the columns). A record that names another window takes the 
   form taking the stored value of the record it names (E8c); compare mode (E8e).
 - Tests: `e8bWindowStartValues.test.js` (36 checks: every form, the fit limits on both display sizes, namespace keys and
   values, persistence, and that a stored value does not move a window yet).
+
+### E8c results
+
+**E8c (built, v0.14.3).** `DspfEngine.resolveWindow(record, dspfFile, depth, placeholderIndex, activeIndicators,
+activeSizeName, displaySize)` takes a new last parameter, the display (`{ lines, columns }`); `resolveScreen` and
+`resolveMultiScreen` pass theirs. With `dspfFile.windowStartValues` (the webview fills it from the E3f store in all three
+places it already fills `cursorLocationValues`) each coordinate is resolved on its own:
+
+| Coordinate in the keyword | Result |
+|---------------------------|--------|
+| literal | always exact; a stored value is ignored |
+| `*DFT` or `&field`, value stored and `windowStartProblem` says it fits | the stored value |
+| `*DFT` or `&field`, no value or one that does not fit | the placeholder (line 2, position 2, staggered per window in compare mode) |
+
+- **Dashed border** (`positionIsDefault`) stays while any coordinate is on the placeholder, so a half-set window is still
+  dashed. A new `previewStart` flag is true when a stored value was used; the window title then says "preview position"
+  instead of "position set at runtime".
+- **Mixed forms fixed.** `WINDOW(4 &POS 9 30)` and `WINDOW(&LINE 20 9 30)` keep their literal; only the runtime
+  coordinate is a placeholder or a stored value (the gap E8a found).
+- **Record-name form.** `WINDOW(W1)` takes the stored start of W1 (the recursion resolves W1 with W1's own key); a value
+  stored under the referencing record is not used, because that record has no start of its own.
+- **Display size.** The fit is checked on the display being drawn, so a start that only fits 27 x 132 is used there and
+  ignored on 24 x 80. Callers that pass no display size (the four truthiness checks in the subfile code) get the
+  placeholder as before.
+- **Compare mode.** Each window uses its own stored values; windows without them keep the staggered placeholders.
+  Replacing the stagger by chosen values for everything is E8e.
+- **Fields** of a preview window are placed exactly as for the same window written out as literals (tested cell for cell).
+- **Not in this task.** No editor for the values (E8d), so until then they can only come from the store itself; the
+  move and resize handles on a window with a preview start still refuse a `*DFT` / `&field` position, as for a placeholder
+  (E8d decides).
+- **Decision (Manoj): keep the stricter, IBM rule.** The engine draws a window as a box of exactly lines x positions with the
+  border inside it (`grid-row:6 / span 9` for `WINDOW(6 12 9 30)`), while the reference's own arithmetic puts the lower border
+  on start + lines + 1 and the right border on start + positions + 3 (11 x 34 for 9 x 30, example 1). `windowStartMax` follows
+  the reference, so a preview start is accepted only where IBM's full window fits; that stays. The drawn box size itself is
+  unchanged here (pre-existing, affects literal windows too) and is not part of E8.
+- Tests: `e8cWindowStartPreview.test.js` (37 checks: every form, display sizes, record-name form, markup, compare mode,
+  the designer page loading stored values; 20 of them fail without the engine change).
 
 ---
 

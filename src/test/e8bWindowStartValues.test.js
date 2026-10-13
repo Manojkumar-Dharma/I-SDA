@@ -94,13 +94,13 @@ console.log('E8b: the windowStart namespace');
   check('saved per file and read back', IndicatorSim.getValue(IndicatorSim.loadFileState(memo, 'file:a').values, 'windowStart', key) === 6 && IndicatorSim.loadFileState(memo, 'file:b').values.windowStart === undefined);
 }
 
-console.log('E8b: nothing changes yet');
+console.log('E8b: a caller that gives no display size is unaffected (E8c reads the values when it does)');
 {
   const model = build([dds({ t: 'R', name: 'WIN1' }), dds({ fn: 'WINDOW(*DFT 9 30)' }), dds({ name: 'F1', len: 5, type: 'A', use: 'B', line: 2, col: 2 })]);
   const before = DspfEngine.resolveWindow(model.records[0], model);
   model.windowStartValues = { 'WIN1|LINE': 10, 'WIN1|POSITION': 20 };
   const after = DspfEngine.resolveWindow(model.records[0], model);
-  check('a stored value does not move the window until E8c reads it', before.line === after.line && before.col === after.col && after.positionIsDefault === true);
+  check('without a display size a stored value does not move the window', before.line === after.line && before.col === after.col && after.positionIsDefault === true);
 }
 
 if (failureCount() > 0) process.exit(1);

@@ -1257,9 +1257,12 @@
    *   placeholder-positioned window shown at the same time (compare mode).
    *   0 (the default) is the original single fixed spot - every existing
    *   caller that doesn't pass this keeps the prior behavior exactly.
-   * @returns {{line:number, col:number, height:number, width:number, title:string|null, positionIsDefault:boolean, inheritedFrom:string|null}|null}
+   * @param {{lines:number, columns:number}} [displaySize] the display the window is drawn on; with dspfFile.windowStartValues
+   *   (E8b) it lets a runtime-valued start take its stored design-time value. Without it every runtime-valued start
+   *   is the placeholder, as before.
+   * @returns {{line:number, col:number, height:number, width:number, title:string|null, positionIsDefault:boolean, previewStart:boolean, inheritedFrom:string|null}|null}
    */
-  function resolveWindow(record, dspfFile, depth, placeholderIndex, activeIndicators, activeSizeName) {
+  function resolveWindow(record, dspfFile, depth, placeholderIndex, activeIndicators, activeSizeName, displaySize) {
     depth = depth || 0;
     if (depth > 5) return null; // guard against a reference cycle between records
 
@@ -1273,7 +1276,7 @@
     if (parts.length === 1 && !/^[+-]?\d+$/.test(parts[0]) && parts[0].toUpperCase() !== '*DFT') {
       var refRecord = dspfFile && dspfFile.records.find(function (r) { return r.name === parts[0]; });
       if (!refRecord) return null;
-      var inherited = resolveWindow(refRecord, dspfFile, depth + 1, placeholderIndex, activeIndicators, activeSizeName);
+      var inherited = resolveWindow(refRecord, dspfFile, depth + 1, placeholderIndex, activeIndicators, activeSizeName, displaySize);
       if (!inherited) return null;
       // WDWTITLE, if present, is still read from THIS record, not the referenced one.
       // *MSGLIN/*NOMSGLIN isn't an option this bare form can carry itself
@@ -1293,6 +1296,7 @@
         width: inherited.width,
         title: ownTitle != null ? ownTitle : inherited.title,
         positionIsDefault: inherited.positionIsDefault,
+        previewStart: inherited.previewStart,
         inheritedFrom: parts[0],
         msgLine: inherited.msgLine,
         border: ownBorder.color || ownBorder.attrs.length > 0 || hasWdwBorderChars(ownBorder) ? ownBorder : inherited.border,
@@ -1316,29 +1320,37 @@
     }
     if (Number.isNaN(height) || Number.isNaN(width)) return null;
 
-    var line, col, positionIsDefault;
+    // E8b/E8c: each runtime-valued coordinate (*DFT, or a program-to-system field) takes the design-time value stored
+    // for this record ('windowStart' namespace, dspfFile.windowStartValues) when there is one that fits the window on
+    // this display; a literal coordinate is always exact, and a coordinate with no usable value falls back to the
+    // placeholder (staggered per window), which keeps the dashed border. Nothing is read from or written to the source.
     var stagger = placeholderIndex || 0;
-    if (isDftPosition) {
+    var startValues = dspfFile && dspfFile.windowStartValues;
+    var previewStart = false;
+    var runtimeStart = function (coordinate) {
+      if (!startValues || !displaySize) return null;
+      var key = windowStartKey(record.name, coordinate);
+      if (!Object.prototype.hasOwnProperty.call(startValues, key)) return null;
+      var value = startValues[key];
+      if (windowStartProblem(coordinate, value, { lines: height, positions: width }, displaySize.lines, displaySize.columns)) return null;
+      previewStart = true;
+      return Number(value);
+    };
+    var lineToken = isDftPosition ? null : parseInt(parts[0], 10);
+    var colToken = isDftPosition ? null : parseInt(parts[1], 10);
+    var line = lineToken != null && !Number.isNaN(lineToken) ? lineToken : runtimeStart('line');
+    var col = colToken != null && !Number.isNaN(colToken) ? colToken : runtimeStart('position');
+    var positionIsDefault = false;
+    if (line == null) {
       line = PLACEHOLDER_WINDOW_LINE + stagger * PLACEHOLDER_WINDOW_STAGGER_LINE;
+      positionIsDefault = true;
+    }
+    if (col == null) {
       col = PLACEHOLDER_WINDOW_COL + stagger * PLACEHOLDER_WINDOW_STAGGER_COL;
       positionIsDefault = true;
-    } else {
-      var lineNum = parseInt(parts[0], 10);
-      var colNum = parseInt(parts[1], 10);
-      if (!Number.isNaN(lineNum) && !Number.isNaN(colNum)) {
-        line = lineNum;
-        col = colNum;
-        positionIsDefault = false;
-      } else {
-        // A field name (program-to-system field) instead of a literal - its
-        // runtime value isn't knowable at design time.
-        line = PLACEHOLDER_WINDOW_LINE + stagger * PLACEHOLDER_WINDOW_STAGGER_LINE;
-        col = PLACEHOLDER_WINDOW_COL + stagger * PLACEHOLDER_WINDOW_STAGGER_COL;
-        positionIsDefault = true;
-      }
     }
 
-    return { line: line, col: col, height: height, width: width, title: resolveWindowTitle(record, activeIndicators, activeSizeName), positionIsDefault: positionIsDefault, inheritedFrom: null, msgLine: msgLine, border: resolveWdwBorder(record, dspfFile, activeIndicators, activeSizeName) };
+    return { line: line, col: col, height: height, width: width, title: resolveWindowTitle(record, activeIndicators, activeSizeName), positionIsDefault: positionIsDefault, previewStart: previewStart, inheritedFrom: null, msgLine: msgLine, border: resolveWdwBorder(record, dspfFile, activeIndicators, activeSizeName) };
   }
 
   // ---------------------------------------------------------------------
@@ -2435,7 +2447,7 @@
       return { lines: size.lines, columns: size.columns, recordName: recordName, fields: [], suppressed: true, availableSizes: size.sizes };
     }
 
-    var windowBox = resolveWindow(record, dspfFile, 0, 0, activeIndicators, size.name);
+    var windowBox = resolveWindow(record, dspfFile, 0, 0, activeIndicators, size.name, size);
     var lineOffset = windowBox ? windowBox.line - 1 : 0;
     var colOffset = windowBox ? windowBox.col - 1 : 0;
 
@@ -2753,7 +2765,7 @@
       var layer = contributing * 2;
       contributing++;
 
-      var windowBox = resolveWindow(record, dspfFile, 0, index, activeIndicators, size.name);
+      var windowBox = resolveWindow(record, dspfFile, 0, index, activeIndicators, size.name, size);
       var lineOffset = windowBox ? windowBox.line - 1 : 0;
       var colOffset = windowBox ? windowBox.col - 1 : 0;
 
@@ -3131,6 +3143,7 @@
         if (w.recordName) titleParts.push(w.recordName);
         if (w.title) titleParts.push(w.title);
         if (w.positionIsDefault) titleParts.push('position set at runtime');
+        else if (w.previewStart) titleParts.push('preview position');
         if (w.inheritedFrom) titleParts.push('window shared with ' + w.inheritedFrom);
         var titleHtml = titleParts.length > 0 ? '<div class="dspf-window-title">' + escapeHtml(titleParts.join(' \u00b7 ')) + '</div>' : '';
         var border = w.border || { color: null, attrs: [], chars: ['', '', '', '', '', '', '', ''] };
