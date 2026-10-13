@@ -47,7 +47,7 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-4 of 10 epics done (E3, E7, E9, E10); 36 sub-tasks done (E3a - E3l, E7a - E7m, E9a - E9e, E10a - E10f). Current version: **v0.14.1**.
+4 of 10 epics done (E3, E7, E9, E10); 38 sub-tasks done (E3a - E3l, E7a - E7m, E8a - E8b, E9a - E9e, E10a - E10f). Current version: **v0.14.2**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
@@ -1211,7 +1211,7 @@ values instead of staggering placeholders; the accepted-limitation entry is rewr
 | ID | Sub-task and scope | Depends on | Status | Version |
 |----|--------------------|------------|--------|---------|
 | E8a | **Inventory.** From the `WINDOW` section of the DDS Reference: exactly which parameters can be `*DFT` or a program-to-system field (reference line, reference column, lines, columns, and the `WDWBORDER` interaction), and what IBM says `*DFT` means at run time. | - | Done (no code change) | — |
-| E8b | **Preview value model.** Per-window design-time values in the E3f store; default behaviour unchanged when none is set. | E8a, E3f | In progress | — |
+| E8b | **Preview value model.** Per-window design-time values in the E3f store; default behaviour unchanged when none is set. | E8a, E3f | Done | v0.14.2 |
 | E8c | **Engine.** Geometry resolution accepts the preview values; the dashed border stays for unset parameters only; unit tests for every form in E8a. | E8b | Open | - |
 | E8d | **UI. Decision first.** A "Set preview position" control on a placeholder window; whether drag/resize is allowed on a runtime-valued window and what it changes (preview value only, never source). | E8c | Open | - |
 | E8e | **Compare mode.** Replace the per-window stagger with the chosen values where set. | E8c | Open | - |
@@ -1272,6 +1272,30 @@ with two or more runtime-valued windows.
 **For E8b.** A namespace (for example `windowPosition`) in `IndicatorSim.VALUE_NAMESPACES`, keyed by record name, value
 a line and a position that fit the display size (window must fit: line + lines + 1 within the rows, position +
 positions + 3 within the columns). A record that names another window takes the stored value of the record it names.
+
+### E8b results
+
+**E8b (built, v0.14.2).** The value model for E8, in the E3f store; nothing is drawn differently yet.
+
+- **Namespace `windowStart`** (`IndicatorSim.VALUE_NAMESPACES`). Key `RECORD|LINE` or `RECORD|POSITION`
+  (`DspfEngine.windowStartKey`), value a whole number 1 - 132. One value per coordinate, so `WINDOW(4 &POS 9 30)` keeps its
+  literal 4 and takes a stored value for the position alone (the E8a gap). The key is the record, not the field name, so a
+  `*DFT` window and a `&field` window are stored the same way and renaming the field loses nothing.
+- **`DspfEngine.windowStartParts(record)`** reads the record's own `WINDOW` keyword into `{ form, line, position, lines,
+  positions, runtime }`, each coordinate `literal` / `field` / `dft`, and `runtime` lists the coordinates that need a value.
+  It returns null for no `WINDOW`, the record-name form (that record takes the corner of the record it names, E8c) and a
+  malformed keyword. Trailing `*MSGLIN` / `*NOMSGLIN` / `*RSTCSR` / `*NORSTCSR` are ignored.
+- **Fit rule** (`windowStartMax`, `windowStartProblem`): the lower border is on line start + lines + 1 and the right border
+  on position start + positions + 3 (reference, example 1), so on 24 x 80 a 9 x 30 window starts at line 14 or lower and
+  position 47 or lower. The store accepts 1 - 132 because it does not know the display or the window; the fit is checked
+  against the window and display size by `windowStartProblem`, and the engine (E8c) ignores a value that does not fit,
+  as `CSRLOC` does.
+- **Simulator panel.** The stored-value list shows the values (`WIN1 (window start line) = 6`) with the remove button and
+  "Clear all stored values" with no panel change. The editor for them is E8d's job, as the E3f note says.
+- **Not in this task.** Reading the values in `resolveWindow` and the dashed border for unset parts (E8c); the record-name
+  form taking the stored value of the record it names (E8c); compare mode (E8e).
+- Tests: `e8bWindowStartValues.test.js` (36 checks: every form, the fit limits on both display sizes, namespace keys and
+  values, persistence, and that a stored value does not move a window yet).
 
 ---
 

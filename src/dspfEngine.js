@@ -1342,6 +1342,80 @@
   }
 
   // ---------------------------------------------------------------------
+  // E8b - the design-time values behind a runtime-valued WINDOW start (E3f store, namespace 'windowStart', never
+  // written to the source). Only the window's upper-left corner can be unknown (E8a): the start line and the start
+  // position are each a number, a program-to-system field (&FIELD) or - as one token standing for both - *DFT.
+  // A value is stored per record and per coordinate, so WINDOW(4 &POS 9 30) keeps its literal 4 and takes a value
+  // for the position alone. The engine (E8c) reads them; nothing here changes how a window is drawn today.
+  // ---------------------------------------------------------------------
+
+  /** The key a window start value is stored under: 'RECORD|LINE' or 'RECORD|POSITION' (upper case). */
+  function windowStartKey(recordName, coordinate) {
+    return String(recordName || '').toUpperCase() + '|' + (String(coordinate || '').toLowerCase() === 'position' ? 'POSITION' : 'LINE');
+  }
+
+  /**
+   * How a record's own WINDOW keyword gives its corner, or null when the record has no WINDOW keyword of its own
+   * (none, or the WINDOW(record-format-name) form, which takes the corner of the record it names).
+   * { form: 'dft' | 'direct', line, position, lines, positions, runtime }
+   *   line / position: { kind: 'literal', value } | { kind: 'field', field } | { kind: 'dft' }
+   *   runtime: the coordinates ('line', 'position') whose value is not known at design time, in that order.
+   */
+  function windowStartParts(record) {
+    var kw = record && (record.keywords || []).find(function (k) { return k.name === 'WINDOW'; });
+    if (!kw) return null;
+    var tokens = String(kw.parameters || '').trim().split(/\s+/).filter(Boolean);
+    var isOption = function (t) { return /^\*(NO)?(MSGLIN|RSTCSR)$/i.test(t); };
+    tokens = tokens.filter(function (t) { return !isOption(t); });
+    var coordinate = function (t) {
+      if (/^[+-]?\d+$/.test(t)) return { kind: 'literal', value: parseInt(t, 10) };
+      return { kind: 'field', field: t.replace(/^&/, '').toUpperCase() };
+    };
+    var lines, positions, line, position, form;
+    if (tokens.length === 3 && tokens[0].toUpperCase() === '*DFT') {
+      form = 'dft';
+      line = { kind: 'dft' };
+      position = { kind: 'dft' };
+      lines = parseInt(tokens[1], 10);
+      positions = parseInt(tokens[2], 10);
+    } else if (tokens.length === 4) {
+      form = 'direct';
+      line = coordinate(tokens[0]);
+      position = coordinate(tokens[1]);
+      lines = parseInt(tokens[2], 10);
+      positions = parseInt(tokens[3], 10);
+    } else {
+      return null;
+    }
+    if (isNaN(lines) || isNaN(positions)) return null;
+    var runtime = [];
+    if (line.kind !== 'literal') runtime.push('line');
+    if (position.kind !== 'literal') runtime.push('position');
+    return { form: form, line: line, position: position, lines: lines, positions: positions, runtime: runtime };
+  }
+
+  /**
+   * The largest start a window of `size` lines (or positions) can have on a display of `total` rows (or columns):
+   * the lower border is on line start + lines + 1 and the right border on position start + positions + 3
+   * (DDS Reference, WINDOW example 1), and both must be on the display.
+   */
+  function windowStartMax(coordinate, size, total) {
+    return total - size - (coordinate === 'position' ? 3 : 1);
+  }
+
+  /** '' when `value` is a start the window can have on this display, otherwise the reason it is not. */
+  function windowStartProblem(coordinate, value, parts, rows, columns) {
+    var isPosition = coordinate === 'position';
+    var n = Number(value);
+    if (!isFinite(n) || Math.floor(n) !== n) return 'Enter a whole number.';
+    var max = windowStartMax(coordinate, isPosition ? parts.positions : parts.lines, isPosition ? columns : rows);
+    var what = isPosition ? 'position' : 'line';
+    if (n < 1) return 'The start ' + what + ' is at least 1.';
+    if (n > max) return 'A window of ' + (isPosition ? parts.positions + ' positions' : parts.lines + ' lines') + ' fits on this display only if it starts at ' + what + ' ' + max + ' or lower.';
+    return '';
+  }
+
+  // ---------------------------------------------------------------------
   // SFL / SFLCTL: a subfile is two paired record formats - the subfile
   // record (SFL keyword) defines one row's fields; the control record
   // (SFLCTL(subfile-record-name) keyword) carries SFLPAG (visible rows) plus
@@ -3322,6 +3396,10 @@
     isPulldownRecord: isPulldownRecord,
     findSflPairing: findSflPairing,
     resolveWindow: resolveWindow,
+    windowStartKey: windowStartKey,
+    windowStartParts: windowStartParts,
+    windowStartMax: windowStartMax,
+    windowStartProblem: windowStartProblem,
     escapeHtml: escapeHtml,
     availableScreenSizes: availableScreenSizes,
     validateSizeBounds: validateSizeBounds,

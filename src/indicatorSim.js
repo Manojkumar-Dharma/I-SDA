@@ -262,6 +262,16 @@
       kind: 'integer',
       min: 0,
       max: 999
+    },
+    // WINDOW(*DFT ...) / WINDOW(&line-field &position-field ...) (E8): the start line or start position the preview
+    // gives a runtime-valued window; key = DspfEngine.windowStartKey(record, 'line' | 'position'). Largest display is
+    // 27 x 132, so 1 - 132; whether a value fits THIS window on THIS display is DspfEngine.windowStartProblem's job.
+    windowStart: {
+      label: 'Window start line / position (WINDOW)',
+      keyPattern: /^[^|]+\|(LINE|POSITION)$/,
+      kind: 'integer',
+      min: 1,
+      max: 132
     }
   };
 
@@ -368,6 +378,7 @@
     var parts = String(key).split('|');
     if (namespace === 'choiceControl' && parts.length === 3) return parts[0] + '.' + parts[1] + ' (choice / row ' + parts[2] + ')';
     if (namespace === 'cursorLocation' && parts.length === 2) return parts[0] + '.' + parts[1] + ' (CSRLOC)';
+    if (namespace === 'windowStart' && parts.length === 2) return parts[0] + ' (window start ' + parts[1].toLowerCase() + ')';
     return String(key);
   }
 
