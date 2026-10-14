@@ -1270,6 +1270,10 @@ const htmlTemplate = `<!DOCTYPE html>
   let messageTexts = {};
   const messageTextsAsked = new Set();
   let codeForIConnected = false;
+  // Task E4f - isda.messageFiles: the message files the Browse... picker offers ({ library, name, ref }), and the
+  // setting entries that are not valid names. Sent by the host on load and on every change.
+  let defaultMessageFiles = [];
+  let ignoredMessageFiles = [];
   // Task P11 - design-time "show the last page" toggle for an UNCONDITIONED SFLEND (no indicator drives Bottom).
   let sflEndLastPage = false;
   // Ruler overlay (Task L11): session-only, matching real SDA's own F14
@@ -2754,6 +2758,13 @@ const htmlTemplate = `<!DOCTYPE html>
     overlay.innerHTML =
       '<div class="confirm-dialog dbfields-dialog">' +
       '<div class="dbfields-dialog-title">Pick a message</div>' +
+      (defaultMessageFiles.length > 0
+        ? '<select id="msgp-default" style="width:100%;margin-bottom:6px;" title="isda.messageFiles"><option value="">Default message files...</option>' +
+          defaultMessageFiles.map((f, i) => '<option value="' + i + '">' + DspfEngine.escapeHtml(f.ref) + '</option>').join('') + '</select>'
+        : '') +
+      (ignoredMessageFiles.length > 0
+        ? '<div class="dbfields-status" id="msgp-ignored">Ignored in isda.messageFiles (not a message file name): ' + DspfEngine.escapeHtml(ignoredMessageFiles.join(', ')) + '</div>'
+        : '') +
       '<div class="dbfields-row"><input type="text" id="msgp-library" placeholder="Library (optional)" maxlength="10" /><input type="text" id="msgp-file" placeholder="Message file" maxlength="10" /></div>' +
       '<button class="secondary" id="msgp-list-btn" style="width:100%;">List messages</button>' +
       '<input type="text" id="msgp-filter" class="hidden" placeholder="Filter by ID or text" style="width:100%;margin-top:6px;" />' +
@@ -2772,6 +2783,12 @@ const htmlTemplate = `<!DOCTYPE html>
     const listEl = overlay.querySelector('#msgp-list');
     libraryInput.value = String(opts.library || '').toUpperCase();
     fileInput.value = String(opts.msgFile || '').toUpperCase();
+    // Task E4f - a panel that names no message file opens the first isda.messageFiles entry.
+    if (!fileInput.value.trim() && defaultMessageFiles.length > 0) {
+      libraryInput.value = defaultMessageFiles[0].library;
+      fileInput.value = defaultMessageFiles[0].name;
+    }
+    let lastCode = '';
     let messages = [];
     let currentRequest = 0;
 
@@ -2802,6 +2819,7 @@ const htmlTemplate = `<!DOCTYPE html>
       errorEl.classList.add('hidden');
       listEl.classList.add('hidden');
       filterInput.classList.add('hidden');
+      lastCode = '';
       if (!file) { showError('Enter a message file.'); return; }
       currentRequest = ++messagePickerRequestId;
       statusEl.textContent = 'Listing messages...';
@@ -2809,13 +2827,27 @@ const htmlTemplate = `<!DOCTYPE html>
       vscode.postMessage({ type: 'listMessageFile', requestId: currentRequest, msgf: (libraryInput.value.trim() ? libraryInput.value.trim().toUpperCase() + '/' : '') + file });
     }
     overlay.querySelector('#msgp-list-btn').addEventListener('click', requestList);
+    const defaultSelect = overlay.querySelector('#msgp-default');
+    if (defaultSelect) {
+      defaultSelect.addEventListener('change', () => {
+        const f = defaultMessageFiles[Number(defaultSelect.value)];
+        if (!f || defaultSelect.value === '') return;
+        libraryInput.value = f.library;
+        fileInput.value = f.name;
+        requestList();
+      });
+    }
+    overlay.__onConnected = () => { if (lastCode === 'not-connected') requestList(); };
     overlay.__onMessageFileList = (msg) => {
       if (msg.requestId !== currentRequest) return;
       statusEl.classList.add('hidden');
+      lastCode = msg.ok ? '' : String(msg.code || '');
       if (!msg.ok) {
         showError(msg.code === 'unsupported'
           ? 'Listing a message file is not supported on this IBM i release - type the message ID instead.'
-          : (msg.error || 'Could not list the message file.'));
+          : msg.code === 'not-connected'
+            ? DspfEngine.MESSAGE_NOT_CONNECTED_NOTE + ' You can still type the message ID.'
+            : (msg.error || 'Could not list the message file.'));
         return;
       }
       messages = msg.messages || [];
@@ -8111,6 +8143,10 @@ const htmlTemplate = `<!DOCTYPE html>
       // Task E4d - the host's answer to a Browse... listing (see showMessagePicker).
       const picker = document.querySelector('.msgpicker-overlay');
       if (picker && picker.__onMessageFileList) picker.__onMessageFileList(msg);
+    } else if (msg.type === 'messageFiles') {
+      // Task E4f - the isda.messageFiles setting (read by showMessagePicker when it opens).
+      defaultMessageFiles = Array.isArray(msg.files) ? msg.files.filter((f) => f && typeof f.name === 'string') : [];
+      ignoredMessageFiles = Array.isArray(msg.ignored) ? msg.ignored.map(String) : [];
     } else if (msg.type === 'messageTexts') {
       // Task E4c - the host's answer for the messages asked for (see requestMessageTexts).
       (msg.entries || []).forEach((entry) => {
@@ -8129,6 +8165,11 @@ const htmlTemplate = `<!DOCTYPE html>
           }
         });
         render();
+      }
+      // Task E4f - an open picker that could not list because IBM i was not connected lists again on connecting.
+      if (nowConnected && !codeForIConnected) {
+        const picker = document.querySelector('.msgpicker-overlay');
+        if (picker && picker.__onConnected) picker.__onConnected();
       }
       codeForIConnected = nowConnected;
     } else if (msg.type === 'jobDateFormat') {

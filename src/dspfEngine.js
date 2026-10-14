@@ -2274,6 +2274,9 @@
     });
   }
 
+  /** E4f: the one note every panel shows when message text cannot be read because IBM i is not connected. */
+  var MESSAGE_NOT_CONNECTED_NOTE = 'Message text unavailable (not connected) - connect to IBM i to see it.';
+
   /** The Reason a message's text is not on the screen, in a few words ('' when there is none). */
   function messageUnavailableReason(entry) {
     if (!entry) return 'not loaded yet';
@@ -3569,7 +3572,7 @@
           em.col +
           ' / span ' +
           em.width +
-          ';' + (em.stackLayer != null ? 'z-index:' + em.stackLayer + ';' : '') + '" title="' + escapeHtml(em.keyword || 'ERRMSG') + (em.unresolved ? ' - message text unavailable: ' + escapeHtml(em.reason || '') : '') + '">' +
+          ';' + (em.stackLayer != null ? 'z-index:' + em.stackLayer + ';' : '') + '" title="' + escapeHtml(em.keyword || 'ERRMSG') + (em.unresolved ? (em.reason === 'not connected' ? ' - ' + escapeHtml(MESSAGE_NOT_CONNECTED_NOTE) : ' - message text unavailable: ' + escapeHtml(em.reason || '')) : '') + '">' +
           escapeHtml(em.text) +
           '</div>'
         );
@@ -3670,6 +3673,7 @@
     choiceStateKey: choiceStateKey,
     messageTextKey: messageTextKey,
     messageUnavailableReason: messageUnavailableReason,
+    MESSAGE_NOT_CONNECTED_NOTE: MESSAGE_NOT_CONNECTED_NOTE,
     messageDataKey: messageDataKey,
     messageIdKeywordParts: messageIdKeywordParts,
     resolveMsgidParameters: resolveMsgidParameters,

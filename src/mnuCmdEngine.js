@@ -144,6 +144,9 @@
    *   missing = a command but no message yet (Compile Menu creates it); orphan = a message but no command;
    *   none = neither, nothing to say; unavailable = the host could not read it (reason says why).
    */
+  /** E4f: the same note the Screen Designer shows when message text cannot be read because IBM i is not connected. */
+  var NOT_CONNECTED_NOTE = 'Message text unavailable (not connected) - connect to IBM i to see it.';
+
   function optionMessageState(command, entry) {
     var cmd = String(command == null ? '' : command).trim();
     if (!entry) return { state: 'loading', text: '', reason: '' };
@@ -160,6 +163,7 @@
   return {
     messageIdForOption: messageIdForOption,
     optionMessageState: optionMessageState,
+    NOT_CONNECTED_NOTE: NOT_CONNECTED_NOTE,
     parseMnuCmd: parseMnuCmd,
     applyOptionCommand: applyOptionCommand,
     padOptionNumber: padOptionNumber,

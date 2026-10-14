@@ -47,14 +47,14 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-5 of 10 epics done (E3, E7, E8, E9, E10); 48 sub-tasks done (E3a - E3l, E4a - E4e, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.15.4**.
+5 of 10 epics done (E3, E7, E8, E9, E10); 49 sub-tasks done (E3a - E3l, E4a - E4f, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.15.5**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
 | [E1](#e1) | Editor-side DDS language support (diagnostics, hover, completion, outline, quick-fixes) | E1a - E1i | - | Open | - |
 | [E2](#e2) | Compile-error feedback loop | E2a - E2h | E1a, E1b for the shared diagnostics collection | Open | - |
 | [E3](#e3) | Indicator simulator (and program-to-system field values) | E3a - E3l | - | Done | v0.14.1 |
-| [E4](#e4) | Message-file integration (`MSGID` / `ERRMSGID` / `CHKMSGID` / `SFLMSGID`) | E4a - E4g | E3f (soft) | Open | - |
+| [E4](#e4) | Message-file integration (`MSGID` / `ERRMSGID` / `CHKMSGID` / `SFLMSGID`) | E4a - E4g | E3f (soft) | In progress | - |
 | [E5](#e5) | Preview export (PNG / SVG / HTML / text) | E5a - E5g | E3 (soft, for indicator state) | Open | - |
 | [E6](#e6) | Menu designer: command keys and `TYPE(*UIM)` | E6a - E6h | E2 (soft, for compile errors) | Open | - |
 | [E7](#e7) | Faster test suite | E7a - E7m | - | Done | v0.12.2 |
@@ -493,7 +493,7 @@ degrades to today's behaviour with a visible note.
 | E4c | **Preview.** Show resolved text for the keywords above in the right place on the screen; `&1`-style substitution from E3f values or a placeholder; severity-colour only if the reference says it affects display. | E4b, E3f (soft) | Done | v0.15.2 |
 | E4d | **Picker and validation.** Message-ID picker with text in the `ERRMSGID`, `MSGID`, `SFLMSGID`, `CHKMSGID` panels; an "ID not found in `<msgf>`" diagnostic through the E1 hub when available. | E4b | Done | v0.15.3 |
 | E4e | **Menu designer.** Compile Menu already creates the `USRnnnn` messages with `ADDMSGD`; show the existing messages for a menu's options and flag drift between the menu text and the message. | E4b | Done | v0.15.4 |
-| E4f | **Settings and degradation.** `isda.messageFiles` (default message files to search), a clear "message text unavailable (not connected)" state in the panels. | E4b | In progress | - |
+| E4f | **Settings and degradation.** `isda.messageFiles` (default message files to search), a clear "message text unavailable (not connected)" state in the panels. | E4b | Done | v0.15.5 |
 | E4g | **Release** (next free minor). | E4a - E4f | Open | - |
 
 ### E4a results
@@ -621,6 +621,31 @@ No decision was needed: the existing Compile Menu fixes what the message holds. 
   read). A document that is not an IBM i member has no message file, so nothing is shown.
 - **Not done.** Messages in the file that belong to no option (a `USRnnnn` with no matching option) are not listed; the
   lookup is per option ID, so it also works on a release without `QSYS2.MESSAGE_FILE_DATA`.
+
+### E4f results
+
+Decision taken (proposed before building, accepted by Manojkumar): `isda.messageFiles` feeds the message-ID picker and
+nothing else; it is **not** a search path for IDs. `ERRMSGID`, `SFLMSGID` and `CHKMSGID` require a message file in the
+DDS, and `MSGID` names it too, so there is never an ID with no file to look up. Setting parser in `src/messageFile.js`
+(`parseMessageFilesSetting`), host in `src/extension.ts` (`sendMessageFiles`), picker in
+`src/buildWebviewTemplate.js` (`showMessagePicker`); tests in `src/test/e4fMessageFiles.test.js`.
+
+- **The setting.** An array of `LIB/MSGF` or `MSGF` (the library list is searched for the latter), default empty. The
+  names are checked with the resolver's own rules (upper-cased, 10 characters, `*LIBL` / `*CURLIB` allowed as a
+  library); duplicates are dropped; invalid entries are ignored and named in the picker ("Ignored in isda.messageFiles").
+  Never written to the DDS. Changes reach open designers at once and are used the next time the picker opens.
+- **In the picker.** A "Default message files..." list (choosing one fills the library and file and lists it). A panel
+  that names no message file (a new CHKMSGID, say) opens the first default; a panel that names one keeps its own.
+- **Not connected.** One note everywhere: "Message text unavailable (not connected) - connect to IBM i to see it."
+  It replaces the per-panel "text unavailable (not connected)" in the ERRMSGID / SFLMSGID / MSGID / CHKMSGID panels, is the
+  preview line's tooltip, is the picker's error (with "You can still type the message ID."), and is the menu designer's
+  option line; the menu summary adds "text unavailable (not connected)". Other failures (not found, not supported, bad
+  name) keep their own wording.
+- **On connecting.** Panels and the menu designer already asked again (E4c / E4e); an open picker that could not list
+  because IBM i was not connected now lists again. A picker that listed fine is left alone.
+- **Not done.** Nothing refreshes a message that changes on the system while the designer is open (a reload does) -
+  dropped from E4f: with the resolver's per-session cache that needs a visible refresh control, which the roadmap does
+  not ask for. The setting is not read by the menu designer (its message file is fixed by Compile Menu).
 
 ## E5
 

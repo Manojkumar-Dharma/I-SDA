@@ -97,6 +97,25 @@
     return { library: lib, name: name };
   }
 
+  /**
+   * E4f: the isda.messageFiles setting -> { files, ignored }. `files` are the valid entries in the order given, each
+   * { library, name, ref } (ref is 'NAME' for *LIBL, otherwise 'LIB/NAME'), duplicates dropped; `ignored` are the entries
+   * that are not a message file name (so the host can say which ones). Anything that is not an array gives no files.
+   */
+  function parseMessageFilesSetting(value) {
+    var files = [], ignored = [], seen = {};
+    (Array.isArray(value) ? value : []).forEach(function (entry) {
+      if (typeof entry !== 'string' || entry.trim() === '') return;
+      var parsed = parseMessageFileRef(entry);
+      if (!parsed) { ignored.push(entry.trim()); return; }
+      var ref = parsed.library === '*LIBL' ? parsed.name : parsed.library + '/' + parsed.name;
+      if (seen[ref]) return;
+      seen[ref] = true;
+      files.push({ library: parsed.library === '*LIBL' ? '' : parsed.library, name: parsed.name, ref: ref });
+    });
+    return { files: files, ignored: ignored };
+  }
+
   // ---- SQL path ------------------------------------------------------------
 
   var VIEW_COLUMNS = 'MESSAGE_FILE_LIBRARY, MESSAGE_ID, MESSAGE_TEXT, MESSAGE_SECOND_LEVEL_TEXT, SEVERITY';
@@ -449,6 +468,7 @@
     RTVM0100: RTVM0100,
     normalizeMessageId: normalizeMessageId,
     parseMessageFileRef: parseMessageFileRef,
+    parseMessageFilesSetting: parseMessageFilesSetting,
     libraryListSql: libraryListSql,
     messageSql: messageSql,
     rowToMessage: rowToMessage,

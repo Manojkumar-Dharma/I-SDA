@@ -2,7 +2,7 @@
   "name": "i-sda",
   "displayName": "iSDA",
   "description": "Interactive visual designer for IBM i DDS display files (DSPF) \u2014 preview, click, drag, and edit fields with changes written straight back into the DDS source.",
-  "version": "0.15.4",
+  "version": "0.15.5",
   "publisher": "Manojkumar-IBMi",
   "icon": "images/icon.png",
   "engines": {
@@ -61,6 +61,15 @@
           "enumDescriptions": ["Not set: the connected job's DATSEP when connected, otherwise a slash.", "Slash", "Dash", "Period", "Comma", "Blank"],
           "default": "",
           "description": "Screen Designer: the date separator the preview draws for EDTCDE(Y) and EDTCDE(W) when no IBM i connection can supply the job's DATSEP. The connected job's DATSEP always wins; with neither, a slash (IBM's default) is used. It changes only the character drawn, never the field's width."
+        },
+        "isda.messageFiles": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^([A-Za-z@#$][A-Za-z0-9_@#$]{0,9}/)?[A-Za-z@#$][A-Za-z0-9_@#$]{0,9}$"
+          },
+          "default": [],
+          "markdownDescription": "Screen Designer: the message files you use most, as `LIB/MSGF` or `MSGF` (searched through the library list). The message-ID picker (Browse... in the ERRMSGID, SFLMSGID, MSGID and CHKMSGID panels) offers them in a list and opens the first one when the panel names no message file. Never written to the DDS source. Entries that are not valid IBM i names are ignored."
         },
         "isda.modificationTag": {
           "type": "string",

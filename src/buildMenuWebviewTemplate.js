@@ -1469,6 +1469,7 @@ const htmlTemplate = `<!DOCTYPE html>
     else if (st.state === 'differs') text = 'Message ' + where + ' says: ' + escapeAttr(st.text) + use;
     else if (st.state === 'orphan') text = 'Message ' + where + ' exists (' + escapeAttr(st.text) + ') but no command is mapped.' + use;
     else if (st.state === 'missing') text = 'Message ' + where + ' not created yet - Compile Menu creates it.';
+    else if (st.reason === 'not connected') text = escapeAttr(MnuCmdEngine.NOT_CONNECTED_NOTE);
     else text = 'Message ' + id + ': text unavailable (' + escapeAttr(st.reason) + ').';
     return '<div class="option-msg-line option-msg-' + st.state + '">' + text + '</div>';
   }
@@ -1485,6 +1486,7 @@ const htmlTemplate = `<!DOCTYPE html>
     if (counts.differs) parts.push(counts.differs + ' differ');
     if (counts.missing) parts.push(counts.missing + ' not created yet');
     if (counts.orphan) parts.push(counts.orphan + ' without a command');
+    if (counts.unavailable && !menuConnected) parts.push('text unavailable (not connected)');
     if (!menuMessageFile || parts.length === 0) { menuMessageSummary.classList.add('hidden'); return; }
     menuMessageSummary.textContent = 'Messages in ' + menuMessageFile + ': ' + parts.join(', ') + '.';
     menuMessageSummary.classList.remove('hidden');

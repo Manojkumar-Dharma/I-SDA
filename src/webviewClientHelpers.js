@@ -1881,6 +1881,9 @@
     if (entry && entry.code === 'not-found') {
       return '<div class="msg-text-line msg-text-warn">' + escapeHtml(id + ' not found in ' + where) + '</div>';
     }
+    if (entry && entry.code === 'not-connected') {
+      return '<div class="msg-text-line msg-text-muted msg-not-connected">' + escapeHtml(DspfEngine.MESSAGE_NOT_CONNECTED_NOTE) + '</div>';
+    }
     var why = DspfEngine.messageUnavailableReason(entry);
     return '<div class="msg-text-line msg-text-muted">text unavailable (' + escapeHtml(why) + ')</div>';
   }

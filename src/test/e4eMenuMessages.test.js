@@ -86,7 +86,7 @@ setTimeout(async () => {
   send({ type: 'menuMessagesStale' });
   check('a compile makes the page forget the answers and ask again', asks().length === beforeStale + 1 && lines().length === 0);
   send({ type: 'menuMessages', msgf: 'MYLIB/E4EMENU', entries: [{ id: 'USR0001', ok: false, code: 'not-connected' }] });
-  check('not connected shows the reason', /USR0001: text unavailable \(not connected\)/.test(lines()[0]));
+  check('not connected shows the reason', /Message text unavailable \(not connected\)/.test(lines()[0]));
   const before = asks().length;
   send({ type: 'codeForIStatus', installed: true, connected: false });
   check('still not connected: nothing is asked again', asks().length === before);

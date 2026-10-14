@@ -64,6 +64,7 @@ const MessageFile: {
     listMessages(msgf: string): Promise<{ ok: boolean; library?: string; messages?: { id: string; text: string; secondLevel: string; severity: number | null }[]; code?: string; error?: string }>;
     clear(msgf?: string): void;
   };
+  parseMessageFilesSetting(value: unknown): { files: { library: string; name: string; ref: string }[]; ignored: string[] };
 } = require('./messageFile.js');
 // The longest line the source member can hold (the SRCDTA width of its source file), so the
 // Comments panel keeps, shows and stores text past column 80 and warns before a line would no
@@ -1718,6 +1719,15 @@ class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
       const value = vscode.workspace.getConfiguration('isda').get<string>('previewDateSeparator', '');
       webviewPanel.webview.postMessage({ type: 'previewDateSeparator', value });
     };
+    // Task E4f: isda.messageFiles - the message files the Browse... picker offers. Sent with the entries that are not
+    // valid names, so the picker can say which ones were ignored; a change is sent at once (the picker reads it on open).
+    const sendMessageFiles = () => {
+      const parsed = MessageFile.parseMessageFilesSetting(vscode.workspace.getConfiguration('isda').get<unknown>('messageFiles', []));
+      webviewPanel.webview.postMessage({ type: 'messageFiles', files: parsed.files.map((f) => ({ library: f.library, name: f.name, ref: f.ref })), ignored: parsed.ignored });
+    };
+    const messageFilesSub = vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration('isda.messageFiles')) sendMessageFiles();
+    });
     const previewDateSeparatorSub = vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration('isda.previewDateSeparator')) sendPreviewDateSeparator();
     });
@@ -1770,6 +1780,7 @@ class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
         webviewPanel.webview.postMessage({ type: 'simulatorState', scenarios: simulatorState.scenarios, values: simulatorState.values });
         await sendCodeForIStatus();
         sendModTrackingConfig();
+        sendMessageFiles();
         sendPreviewDateSeparator();
       }
     });
@@ -1782,6 +1793,7 @@ class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
       extChangeSub.dispose();
       modTrackingConfigSub.dispose();
       previewDateSeparatorSub.dispose();
+      messageFilesSub.dispose();
     });
   }
 }
