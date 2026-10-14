@@ -47,14 +47,14 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-5 of 10 epics done (E3, E7, E8, E9, E10); 49 sub-tasks done (E3a - E3l, E4a - E4f, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.15.5**.
+6 of 10 epics done (E3, E4, E7, E8, E9, E10); 50 sub-tasks done (E3a - E3l, E4a - E4g, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.15.6**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
 | [E1](#e1) | Editor-side DDS language support (diagnostics, hover, completion, outline, quick-fixes) | E1a - E1i | - | Open | - |
 | [E2](#e2) | Compile-error feedback loop | E2a - E2h | E1a, E1b for the shared diagnostics collection | Open | - |
 | [E3](#e3) | Indicator simulator (and program-to-system field values) | E3a - E3l | - | Done | v0.14.1 |
-| [E4](#e4) | Message-file integration (`MSGID` / `ERRMSGID` / `CHKMSGID` / `SFLMSGID`) | E4a - E4g | E3f (soft) | In progress | - |
+| [E4](#e4) | Message-file integration (`MSGID` / `ERRMSGID` / `CHKMSGID` / `SFLMSGID`) | E4a - E4g | E3f (soft) | Done | v0.15.6 |
 | [E5](#e5) | Preview export (PNG / SVG / HTML / text) | E5a - E5g | E3 (soft, for indicator state) | Open | - |
 | [E6](#e6) | Menu designer: command keys and `TYPE(*UIM)` | E6a - E6h | E2 (soft, for compile errors) | Open | - |
 | [E7](#e7) | Faster test suite | E7a - E7m | - | Done | v0.12.2 |
@@ -143,7 +143,7 @@ would produce, with an explanation of why each keyword is or is not in effect.
 where present; toggling one re-renders the preview; named scenarios can be saved and recalled without touching
 the source; the keyword-reactivity table (E3d) has no `not reactive` row for a keyword that IBM says takes
 option indicators and no `Gap` row owned by an E3 sub-task (a `Gap` that names a sub-task of another epic stays
-open until that epic's release; at the E3 release that is `ERRMSGID`, `Gap (E4c)`); program-to-system field values
+open until that epic's release; at the E3 release that was `ERRMSGID`, `Gap (E4c)`, closed by the E4 release, v0.15.6); program-to-system field values
 can be set and are shared with other features.
 
 | ID | Sub-task and scope | Depends on | Status | Version |
@@ -225,7 +225,7 @@ Three statuses, nothing else:
   that exists only while the cursor moves. The reason is in the row. The test checks the engine really does not change.
 - **Gap (E3x)** - the effect can be drawn and the preview does not draw it yet; the sub-task that will is named.
 
-The acceptance rule for the release (E3h) is: no `Gap` row owned by an E3 sub-task left (see the acceptance paragraph; the one `Gap` row that names another epic is `ERRMSGID`, `Gap (E4c)`).
+The acceptance rule for the release (E3h) is: no `Gap` row owned by an E3 sub-task left (see the acceptance paragraph; the one `Gap` row that named another epic was `ERRMSGID`, `Gap (E4c)`, now Reactive: closed at the E4 release).
 
 What E3d changed in the engine. Each of these read the keyword but ignored its condition before:
 
@@ -382,7 +382,8 @@ free number was used; the E3 work shipped as v0.13.4 - v0.13.13 and this entry r
 
 **What E3 leaves open, by decision.**
 - **`ERRMSGID` is `Gap (E4c)`** in the E3d table. Its text comes from a message file, which is the E4 epic (all of E4 is Open).
-  Manojkumar chose to release E3 with that row owned by E4c, and the acceptance paragraph says so; E4g's release closes it.
+  Manojkumar chose to release E3 with that row owned by E4c, and the acceptance paragraph says so; E4g's release closes it
+  (done in v0.15.6: the row is Reactive since E4c).
 - **`PROTECT`, `PUTOVR`, `PUTRETAIN`** are Not drawn on purpose (E3l decision): they change nothing that is drawn.
 - **No explain panel in the menu designer** (E3g: the menu designer has no field or record keyword panel to host it), and the
   help-specification and file-level keyword lists have no explain section (E3e).
@@ -494,7 +495,7 @@ degrades to today's behaviour with a visible note.
 | E4d | **Picker and validation.** Message-ID picker with text in the `ERRMSGID`, `MSGID`, `SFLMSGID`, `CHKMSGID` panels; an "ID not found in `<msgf>`" diagnostic through the E1 hub when available. | E4b | Done | v0.15.3 |
 | E4e | **Menu designer.** Compile Menu already creates the `USRnnnn` messages with `ADDMSGD`; show the existing messages for a menu's options and flag drift between the menu text and the message. | E4b | Done | v0.15.4 |
 | E4f | **Settings and degradation.** `isda.messageFiles` (default message files to search), a clear "message text unavailable (not connected)" state in the panels. | E4b | Done | v0.15.5 |
-| E4g | **Release** (next free minor). | E4a - E4f | In progress | - |
+| E4g | **Release** (next free minor). Results against the acceptance paragraph: [E4g results](#e4g-results). | E4a - E4f | Done | v0.15.6 |
 
 ### E4a results
 
@@ -646,6 +647,36 @@ DDS, and `MSGID` names it too, so there is never an ID with no file to look up. 
 - **Not done.** Nothing refreshes a message that changes on the system while the designer is open (a reload does) -
   dropped from E4f: with the resolver's per-session cache that needs a visible refresh control, which the roadmap does
   not ask for. The setting is not read by the menu designer (its message file is fixed by Compile Menu).
+
+### E4g results
+
+**Released as v0.15.6.** E4 shipped as v0.15.1 (E4b) - v0.15.5 (E4f); this entry rolls it up. Every sub-task E4a - E4f is Done.
+The acceptance paragraph, one criterion at a time:
+
+| Acceptance criterion | Met by | Evidence |
+|----------------------|--------|----------|
+| With a connection, `ERRMSGID` / `MSGID` / `SFLMSGID` / `CHKMSGID` show the message's first-level text in the preview, `&n` filled from sample data | E4b resolver (v0.15.1), E4c preview (v0.15.2); the menu designer shows the `USRnnnn` text too (E4e, v0.15.4) | `e4bMessageFile.test.js`, `e4cMessagePreview.test.js`, `e4eMenuMessages.test.js` (the resolver against a fake connection; the real webview showing the text and the filled `&n` markers) |
+| A picker lists messages from the named message file | E4d (v0.15.3); the files you use most are offered by `isda.messageFiles` (E4f, v0.15.5) | `e4dMessagePicker.test.js`, `e4fMessageFiles.test.js` |
+| An ID that does not exist is flagged | E4d: "`ID` not found in `LIB/FILE`" as a warning inline in each of the four panels | `e4dMessagePicker.test.js` |
+| Without a connection the feature degrades to today's behaviour with a visible note | E4c (the line shows the ID and why), E4f (one shared note in the panels, the picker and the menu designer; the picker lists again on connecting) | `e4cMessagePreview.test.js`, `e4fMessageFiles.test.js` |
+
+The E3d reactivity table has no `Gap` row left: `ERRMSGID` has been Reactive since E4c, so the acceptance paragraph of E3
+is met in full.
+
+**What E4 leaves open, by decision.**
+- **Not checked against a real IBM i** (see E4b results and E4c results). Three assumptions, each in one place: the
+  `QSYS2.LIBRARY_LIST_INFO` column names (`SCHEMA_NAME`, `TYPE`, `ORDINAL_POSITION`), the `RTVM0100` offsets (`RTVM0100`
+  constant) and the CPF ids for "file not found" (`CPF2407`) and "message not found" (`CPF2410`). The E4b results asked for a
+  capture from a real system before this release; none was available, so the release goes out with them unverified. The
+  resolver never throws, so a wrong one shows as "lookup failed" or "not found" in the panel, not as a crash; a fix is one
+  line plus the matching test.
+- **Problems panel.** "Message ID not found in file" is shown inline in the four panels only (the E1 hub does not exist yet);
+  E1b can add it from the same `messageTexts` answers.
+- **No refresh while a designer is open.** A message that changes on the system shows after a reload (the resolver caches a
+  found message for the session; a not-found answer is not cached).
+- **Menu designer.** Messages in the file that belong to no option are not listed; `isda.messageFiles` is not read there
+  (its message file is fixed by Compile Menu).
+- **The setting is a picker aid, not a search path** (E4f decision): the four keywords name the message file in the DDS.
 
 ## E5
 
