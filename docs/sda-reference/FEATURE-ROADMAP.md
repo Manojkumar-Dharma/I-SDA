@@ -494,7 +494,7 @@ degrades to today's behaviour with a visible note.
 | E4d | **Picker and validation.** Message-ID picker with text in the `ERRMSGID`, `MSGID`, `SFLMSGID`, `CHKMSGID` panels; an "ID not found in `<msgf>`" diagnostic through the E1 hub when available. | E4b | Done | v0.15.3 |
 | E4e | **Menu designer.** Compile Menu already creates the `USRnnnn` messages with `ADDMSGD`; show the existing messages for a menu's options and flag drift between the menu text and the message. | E4b | Done | v0.15.4 |
 | E4f | **Settings and degradation.** `isda.messageFiles` (default message files to search), a clear "message text unavailable (not connected)" state in the panels. | E4b | Done | v0.15.5 |
-| E4g | **Release** (next free minor). | E4a - E4f | Open | - |
+| E4g | **Release** (next free minor). | E4a - E4f | In progress | - |
 
 ### E4a results
 
