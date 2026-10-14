@@ -452,6 +452,9 @@ const htmlTemplate = `<!DOCTYPE html>
   .dbfields-list-row .ftext { color: var(--ink-dim); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .dbfields-status { color: var(--ink-dim); font-size: 11px; margin: 6px 0; }
   .dbfields-error { color: var(--warn); font-size: 11px; margin-top: 6px; }
+  .msg-text-line { font-size: 11px; margin-top: 4px; color: var(--ink); }
+  .msg-text-warn { color: var(--warn); }
+  .msg-text-muted { color: var(--ink-dim); }
   button { background: #14261c; color: var(--chrome-accent); border: 1px solid #23482f; padding: 6px 10px; font-family: var(--mono); font-size: 12px; cursor: pointer; border-radius: 3px; }
   button:hover { background: #1b3324; }
   button.secondary { color: var(--ink); border-color: var(--panel-border); }
@@ -2738,6 +2741,109 @@ const htmlTemplate = `<!DOCTYPE html>
       beginDbFieldsPlacement(libraryInput.value.trim().toUpperCase() || null, fileInput.value.trim().toUpperCase(), selected);
     });
   }
+
+  // Task E4d - the message-ID picker behind every Browse... button in the ERRMSGID / SFLMSGID / MSGID / CHKMSGID
+  // panels. It asks the host for the whole message file (listMessageFile), filters it locally and hands back the
+  // chosen ID with the file and library typed in the dialog. The reply is routed back by requestId.
+  let messagePickerRequestId = 0;
+  function showMessagePicker(opts) {
+    const existing = document.querySelector('.msgpicker-overlay');
+    if (existing) existing.remove();
+    const overlay = document.createElement('div');
+    overlay.className = 'confirm-overlay dbfields-overlay msgpicker-overlay';
+    overlay.innerHTML =
+      '<div class="confirm-dialog dbfields-dialog">' +
+      '<div class="dbfields-dialog-title">Pick a message</div>' +
+      '<div class="dbfields-row"><input type="text" id="msgp-library" placeholder="Library (optional)" maxlength="10" /><input type="text" id="msgp-file" placeholder="Message file" maxlength="10" /></div>' +
+      '<button class="secondary" id="msgp-list-btn" style="width:100%;">List messages</button>' +
+      '<input type="text" id="msgp-filter" class="hidden" placeholder="Filter by ID or text" style="width:100%;margin-top:6px;" />' +
+      '<div class="dbfields-status hidden" id="msgp-status"></div>' +
+      '<div class="dbfields-error hidden" id="msgp-error"></div>' +
+      '<div class="dbfields-list hidden" id="msgp-list"></div>' +
+      '<div class="confirm-dialog-actions" style="margin-top:12px;"><button class="secondary" id="msgp-cancel">Cancel</button></div></div>';
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+    overlay.querySelector('#msgp-cancel').addEventListener('click', () => overlay.remove());
+    const libraryInput = overlay.querySelector('#msgp-library');
+    const fileInput = overlay.querySelector('#msgp-file');
+    const filterInput = overlay.querySelector('#msgp-filter');
+    const statusEl = overlay.querySelector('#msgp-status');
+    const errorEl = overlay.querySelector('#msgp-error');
+    const listEl = overlay.querySelector('#msgp-list');
+    libraryInput.value = String(opts.library || '').toUpperCase();
+    fileInput.value = String(opts.msgFile || '').toUpperCase();
+    let messages = [];
+    let currentRequest = 0;
+
+    function showError(text) { errorEl.textContent = text; errorEl.classList.remove('hidden'); }
+    function renderRows() {
+      const needle = filterInput.value.trim().toUpperCase();
+      const shown = messages.filter((m) => !needle || m.id.toUpperCase().indexOf(needle) >= 0 || String(m.text || '').toUpperCase().indexOf(needle) >= 0);
+      listEl.innerHTML = shown.map((m, i) =>
+        '<div class="dbfields-list-row msgp-row" data-id="' + DspfEngine.escapeHtml(m.id) + '"><span class="fname">' + DspfEngine.escapeHtml(m.id) + '</span>' +
+        '<span class="fattrs">' + DspfEngine.escapeHtml(m.severity == null ? '' : 'sev ' + m.severity) + '</span>' +
+        '<span class="ftext">' + DspfEngine.escapeHtml(m.text || '') + '</span></div>'
+      ).join('') || '<div class="dbfields-status" style="margin:4px 8px;">No message matches.</div>';
+      listEl.classList.remove('hidden');
+      listEl.querySelectorAll('.msgp-row').forEach((row) => {
+        row.addEventListener('click', () => {
+          const id = row.getAttribute('data-id');
+          const library = libraryInput.value.trim().toUpperCase();
+          const file = fileInput.value.trim().toUpperCase();
+          overlay.remove();
+          if (typeof opts.onPick === 'function') opts.onPick(id, library, file);
+        });
+      });
+    }
+    filterInput.addEventListener('input', renderRows);
+
+    function requestList() {
+      const file = fileInput.value.trim().toUpperCase();
+      errorEl.classList.add('hidden');
+      listEl.classList.add('hidden');
+      filterInput.classList.add('hidden');
+      if (!file) { showError('Enter a message file.'); return; }
+      currentRequest = ++messagePickerRequestId;
+      statusEl.textContent = 'Listing messages...';
+      statusEl.classList.remove('hidden');
+      vscode.postMessage({ type: 'listMessageFile', requestId: currentRequest, msgf: (libraryInput.value.trim() ? libraryInput.value.trim().toUpperCase() + '/' : '') + file });
+    }
+    overlay.querySelector('#msgp-list-btn').addEventListener('click', requestList);
+    overlay.__onMessageFileList = (msg) => {
+      if (msg.requestId !== currentRequest) return;
+      statusEl.classList.add('hidden');
+      if (!msg.ok) {
+        showError(msg.code === 'unsupported'
+          ? 'Listing a message file is not supported on this IBM i release - type the message ID instead.'
+          : (msg.error || 'Could not list the message file.'));
+        return;
+      }
+      messages = msg.messages || [];
+      if (msg.truncated) {
+        statusEl.textContent = 'Showing the first ' + messages.length + ' of ' + msg.total + ' messages - filter to narrow.';
+        statusEl.classList.remove('hidden');
+      }
+      filterInput.value = '';
+      filterInput.classList.remove('hidden');
+      renderRows();
+    };
+    if (fileInput.value) requestList();
+  }
+
+  // E4d - what the panels in webviewClientHelpers.js call for the text line and the Browse button.
+  WebviewClientHelpers.setMessageHooks({
+    textFor: (id, library, file) => messageTexts[DspfEngine.messageTextKey(id, library ? library + '/' + file : file)],
+    fieldValue: (name) => {
+      const recordName = recordSelect.value || (model.records[0] && model.records[0].name);
+      const v = IndicatorSim.getValue(fieldValues, 'messageData', DspfEngine.messageDataKey(recordName, name));
+      return v == null ? '' : v;
+    },
+    setFieldValue: (name, value) => {
+      const recordName = recordSelect.value || (model.records[0] && model.records[0].name);
+      setFieldValue('messageData', DspfEngine.messageDataKey(recordName, name), value);
+    },
+    pick: showMessagePicker,
+  });
 
   screenOutput.addEventListener('click', (e) => {
     if (!placementMode) return;
@@ -8001,6 +8107,10 @@ const htmlTemplate = `<!DOCTYPE html>
       // hook lives on the overlay element rather than module-level state.
       const overlay = document.querySelector('.dbfields-overlay');
       if (overlay && overlay.__onDatabaseFieldsResult) overlay.__onDatabaseFieldsResult(msg);
+    } else if (msg.type === 'messageFileList') {
+      // Task E4d - the host's answer to a Browse... listing (see showMessagePicker).
+      const picker = document.querySelector('.msgpicker-overlay');
+      if (picker && picker.__onMessageFileList) picker.__onMessageFileList(msg);
     } else if (msg.type === 'messageTexts') {
       // Task E4c - the host's answer for the messages asked for (see requestMessageTexts).
       (msg.entries || []).forEach((entry) => {

@@ -61,6 +61,7 @@ const JobDateFormat: {
 const MessageFile: {
   createResolver(connection: any, hooks?: { ensureLibrary?: (connection: any) => Promise<string | null> }): {
     getText(id: string, msgf: string): Promise<{ ok: boolean; text?: string; secondLevel?: string; severity?: number | null; code?: string; error?: string }>;
+    listMessages(msgf: string): Promise<{ ok: boolean; library?: string; messages?: { id: string; text: string; secondLevel: string; severity: number | null }[]; code?: string; error?: string }>;
   };
 } = require('./messageFile.js');
 // The longest line the source member can hold (the SRCDTA width of its source file), so the
@@ -1758,6 +1759,8 @@ class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
         await IndicatorSim.saveFileState(this.context.workspaceState, document.uri.toString(), { scenarios: msg.scenarios, values: msg.values });
       } else if (msg.type === 'requestMessageTexts') {
         await handleRequestMessageTexts(webviewPanel.webview, msg);
+      } else if (msg.type === 'listMessageFile') {
+        await handleListMessageFile(webviewPanel.webview, msg);
       } else if (msg.type === 'ready') {
         // A (re)loaded webview starts with no line width, so the next answer is always posted.
         lastSourceLineWidth = undefined;
@@ -2696,14 +2699,19 @@ let messageResolverConnection: any = null;
  * 'messageTexts' answer back, an entry per key. Never throws; a failure is an entry with ok false and a code, which
  * the preview shows as "text unavailable (<reason>)".
  */
-async function handleRequestMessageTexts(webview: vscode.Webview, msg: any): Promise<void> {
-  const refs: any[] = Array.isArray(msg && msg.refs) ? msg.refs.slice(0, 200) : [];
-  if (refs.length === 0) return;
+async function currentMessageResolver(): Promise<NonNullable<typeof messageResolver>> {
   const connection: any = await getConnectedCodeForIBMi();
   if (!messageResolver || connection !== messageResolverConnection) {
     messageResolverConnection = connection;
     messageResolver = MessageFile.createResolver(() => messageResolverConnection, { ensureLibrary: ensureIsdaTempLibrary });
   }
+  return messageResolver;
+}
+
+async function handleRequestMessageTexts(webview: vscode.Webview, msg: any): Promise<void> {
+  const refs: any[] = Array.isArray(msg && msg.refs) ? msg.refs.slice(0, 200) : [];
+  if (refs.length === 0) return;
+  const messageResolver = await currentMessageResolver();
   const entries: any[] = [];
   for (const ref of refs) {
     if (!ref || typeof ref.key !== 'string' || typeof ref.id !== 'string' || typeof ref.msgf !== 'string') continue;
@@ -2713,6 +2721,32 @@ async function handleRequestMessageTexts(webview: vscode.Webview, msg: any): Pro
       : { key: ref.key, ok: false, code: r.code, error: r.error });
   }
   if (entries.length > 0) webview.postMessage({ type: 'messageTexts', entries });
+}
+
+/** The most messages one picker list carries; a message file can hold thousands and the list is a webview message. */
+const MESSAGE_LIST_LIMIT = 3000;
+
+/**
+ * E4d: the message-ID picker asks for every message of a message file ('LIB/FILE' or 'FILE'). One 'messageFileList'
+ * answer, carrying the requestId it was asked with. The list needs QSYS2.MESSAGE_FILE_DATA (IBM i 7.3 TR6 or later);
+ * on an older release the answer is ok: false with code 'unsupported'. Never throws.
+ */
+async function handleListMessageFile(webview: vscode.Webview, msg: any): Promise<void> {
+  const requestId = msg && msg.requestId;
+  const msgf = msg && typeof msg.msgf === 'string' ? msg.msgf : '';
+  const resolver = await currentMessageResolver();
+  const r = await resolver.listMessages(msgf);
+  if (!r.ok) {
+    webview.postMessage({ type: 'messageFileList', requestId, msgf, ok: false, code: r.code, error: r.error });
+    return;
+  }
+  const all = r.messages || [];
+  webview.postMessage({
+    type: 'messageFileList', requestId, msgf, ok: true, library: r.library,
+    messages: all.slice(0, MESSAGE_LIST_LIMIT).map((m) => ({ id: m.id, text: m.text, severity: m.severity })),
+    truncated: all.length > MESSAGE_LIST_LIMIT,
+    total: all.length,
+  });
 }
 
 /** Task L18 (docs/sda-reference/LIMITATIONS-PLAN.md): drives the "IBM i:

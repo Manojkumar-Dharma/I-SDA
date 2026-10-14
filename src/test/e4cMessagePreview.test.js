@@ -65,7 +65,7 @@ console.log('\n1. parsing, keys, substitution, references');
   check('the host is asked once per message (two ERRMSGID of the same id and file are one)', refs.filter((r) => r.key === 'L1/APPMSG:USR0001').length === 1);
   check('SFLMSGID is asked for', refs.some((r) => r.key === '*LIBL/APPMSG:USR0009'));
   check('a MSGID that names a field with no stored value is not asked for', !refs.some((r) => /USR0003|USR$/.test(r.key)));
-  check('CHKMSGID is not asked for (not drawn)', !refs.some((r) => r.id === 'USR0007'));
+  check('CHKMSGID is asked for (E4d text line) but draws no message line', refs.some((r) => r.id === 'USR0007'));
   model.messageDataValues = { [DspfEngine.messageDataKey('R1', 'ID')]: '0003' };
   check('once the field has a value its message is asked for', DspfEngine.messageReferences(model).some((r) => r.key === '*LIBL/APPMSG:USR0003'));
   check('each reference carries key, id and message file', refs.every((r) => r.key && r.id && r.msgf));

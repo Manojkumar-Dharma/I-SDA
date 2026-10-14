@@ -1550,7 +1550,8 @@
       '</div><div class="two-col" style="margin-top:4px;">' +
       '<input type="text" id="' + ownerKey + '-cm-library" placeholder="Library (optional, *LIBL if blank)" value="' + escapeHtml(cm.library) + '" />' +
       '<input type="text" id="' + ownerKey + '-cm-msgdata" placeholder="Message data field (optional)" value="' + escapeHtml(cm.msgDataField) + '" />' +
-      '</div><div class="hint-small">Overrides the system-supplied validity-check error message - both message identifier and message file are required, or CHKMSGID is removed. The message data field, if given, must be a character (A) field with usage P in this same record.</div>' +
+      '</div>' + messageBrowseButtonHtml(ownerKey + '-cm-browse') + messageTextLineHtml(cm.msgId, cm.library, cm.msgFile) +
+      '<div class="hint-small">Overrides the system-supplied validity-check error message - both message identifier and message file are required, or CHKMSGID is removed. The message data field, if given, must be a character (A) field with usage P in this same record.</div>' +
       '<button class="secondary ' + ownerKey + '-cm-apply" style="width:100%;margin-top:8px;">Apply CHKMSGID</button>';
     return accordionWrapHtml(ownerKey + '::check-msgid', 'Check message identifier', html, false, openState);
   }
@@ -1631,6 +1632,14 @@
     if (includeValidity) {
       wireValidityCheckInstances(keywords, onChange, ownerKey + '-vc', expandedSet, rerender);
       wireCheckInstancesEditor(keywords, onChange, ownerKey + '-validity', expandedSet, rerender, VALIDITY_CHECK_CODES);
+      // E4d - Browse only fills the boxes; nothing is written until Apply CHKMSGID.
+      wireMessageBrowse(document.querySelector('.' + ownerKey + '-cm-browse'), function () {
+        return { msgFile: document.getElementById(ownerKey + '-cm-msgfile').value, library: document.getElementById(ownerKey + '-cm-library').value };
+      }, function (id, library, file) {
+        document.getElementById(ownerKey + '-cm-msgid').value = id;
+        document.getElementById(ownerKey + '-cm-msgfile').value = file;
+        document.getElementById(ownerKey + '-cm-library').value = library;
+      });
       var cmApplyBtn = document.querySelector('.' + ownerKey + '-cm-apply');
       if (cmApplyBtn) {
         cmApplyBtn.addEventListener('click', function () {
@@ -1846,6 +1855,51 @@
   // in dspfWriter.js for the exact keyword shapes.
   // -----------------------------------------------------------------------
 
+  // -----------------------------------------------------------------------
+  // Task E4d - message text line, "ID not found" warning and Browse... button shared by the ERRMSGID, SFLMSGID,
+  // MSGID and CHKMSGID panels. The template installs the hooks (it owns the host round-trip and the picker modal):
+  //   textFor(id, library, file) -> the host's entry for that message ({ok,text} | {ok:false,code,error}) or undefined
+  //   fieldValue(name) / setFieldValue(name, value) -> the E3f preview value of a message field in the selected record
+  //   pick({ msgFile, library, onPick(id, library, file) }) -> opens the message picker
+  // Without hooks (unit tests of the pure panels) no line and no button are drawn.
+  // -----------------------------------------------------------------------
+  var messageHooks = null;
+  function setMessageHooks(hooks) { messageHooks = hooks || null; }
+
+  /** One line under a message reference: its text, or why there is none. '' when nothing can be looked up. */
+  function messageTextLineHtml(id, library, file) {
+    if (!messageHooks || typeof messageHooks.textFor !== 'function') return '';
+    id = String(id || '').trim().toUpperCase();
+    file = String(file || '').trim().toUpperCase();
+    library = String(library || '').trim().toUpperCase();
+    if (!id || !file || id.charAt(0) === '&' || /[&\s]/.test(id + file + library)) return '';
+    var entry = messageHooks.textFor(id, library, file);
+    var where = (library ? library + '/' : '') + file;
+    if (entry && entry.ok && typeof entry.text === 'string') {
+      return '<div class="msg-text-line">' + escapeHtml(entry.text) + '</div>';
+    }
+    if (entry && entry.code === 'not-found') {
+      return '<div class="msg-text-line msg-text-warn">' + escapeHtml(id + ' not found in ' + where) + '</div>';
+    }
+    var why = DspfEngine.messageUnavailableReason(entry);
+    return '<div class="msg-text-line msg-text-muted">text unavailable (' + escapeHtml(why) + ')</div>';
+  }
+
+  function messageBrowseButtonHtml(cls) {
+    if (!messageHooks || typeof messageHooks.pick !== 'function') return '';
+    return '<button type="button" class="secondary msg-browse-btn ' + cls + '" style="margin-top:4px;">Browse\u2026</button>';
+  }
+
+  /** Wires a Browse button: read() gives the current { msgFile, library }, apply(id, library, file) takes the pick. */
+  function wireMessageBrowse(btn, read, apply) {
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+      if (!messageHooks || typeof messageHooks.pick !== 'function') return;
+      var st = read() || {};
+      messageHooks.pick({ msgFile: st.msgFile || '', library: st.library || '', onPick: apply });
+    });
+  }
+
   function errorMessageInstanceRowHtml(inst, p) {
     var kind = inst.kind === 'ERRMSGID' ? 'ERRMSGID' : 'ERRMSG';
     var html = '<div class="two-col" style="margin-bottom:4px;">';
@@ -1865,7 +1919,9 @@
         '<div class="two-col" style="margin-top:4px;">' +
         '<input type="text" class="' + p + '-library" placeholder="Library (opt.)" value="' + escapeHtml(inst.library || '') + '" />' +
         '<input type="text" class="' + p + '-msgdata" placeholder="&amp;field for replacement text (opt.)" value="' + escapeHtml(inst.msgDataField || '') + '" />' +
-        '</div>';
+        '</div>' +
+        messageBrowseButtonHtml(p + '-browse') +
+        messageTextLineHtml(inst.msgId, inst.library, inst.msgFile);
     }
     return html;
   }
@@ -1912,6 +1968,11 @@
         if (msgIdEl) msgIdEl.addEventListener('change', function () { updatePayload({ msgId: msgIdEl.value }); });
         var msgFileEl = document.querySelector('.' + instIdPrefix + '-msgfile');
         if (msgFileEl) msgFileEl.addEventListener('change', function () { updatePayload({ msgFile: msgFileEl.value }); });
+        wireMessageBrowse(document.querySelector('.' + instIdPrefix + '-browse'), function () {
+          var f = document.querySelector('.' + instIdPrefix + '-msgfile');
+          var l = document.querySelector('.' + instIdPrefix + '-library');
+          return { msgFile: f ? f.value : '', library: l ? l.value : '' };
+        }, function (id, library, file) { updatePayload({ msgId: id, msgFile: file, library: library }); });
         var libraryEl = document.querySelector('.' + instIdPrefix + '-library');
         if (libraryEl) libraryEl.addEventListener('change', function () { updatePayload({ library: libraryEl.value }); });
         var msgDataEl = document.querySelector('.' + instIdPrefix + '-msgdata');
@@ -1982,7 +2043,7 @@
       expandedSet,
       '+ Add message ID',
       function renderStaging(stagingIdPrefix) {
-        return msgIdPayloadHtml('', stagingIdPrefix);
+        return msgIdPayloadHtml('', stagingIdPrefix, { preview: false });
       },
       function isConditionable(inst) {
         return DspfWriter.msgidInstanceAllowsConditioning(instances, inst);
@@ -1996,7 +2057,7 @@
    *  prefix/identifier/file/Library prompts for the common form, or (see
    *  DspfWriter.parseMsgIdParams's own doc comment) a raw-text fallback
    *  for the rarer combined-&field form this can't safely decompose. */
-  function msgIdPayloadHtml(parameters, idPrefix) {
+  function msgIdPayloadHtml(parameters, idPrefix, options) {
     var parsed = DspfWriter.parseMsgIdParams(parameters);
     if (!parsed.structured) {
       return (
@@ -2010,6 +2071,17 @@
     html += '<div class="field-row"><label>Message identifier (&amp;field name)</label><input type="text" class="' + idPrefix + '-fieldname" value="' + escapeHtml(parsed.fieldName) + '" placeholder="FLDNAME" /></div></div>';
     html += '<div class="two-col"><div class="field-row"><label>Message file</label><input type="text" class="' + idPrefix + '-msgfile" value="' + escapeHtml(parsed.msgFile) + '" /></div>';
     html += '<div class="field-row"><label>Library</label><input type="text" class="' + idPrefix + '-library" value="' + escapeHtml(parsed.library) + '" placeholder="*LIBL" /></div></div>';
+    // E4d - the ID is the prefix plus the field's value, so the preview value (E3f store, never the source) is what
+    // Browse sets and what the text line looks up.
+    if (!options || options.preview !== false) {
+      html += messageBrowseButtonHtml(idPrefix + '-browse');
+      if (messageHooks && parsed.fieldName && parsed.msgFile) {
+        var previewValue = String(messageHooks.fieldValue ? messageHooks.fieldValue(parsed.fieldName) || '' : '').trim();
+        html += previewValue
+          ? messageTextLineHtml(parsed.prefix + previewValue, parsed.library, parsed.msgFile)
+          : '<div class="msg-text-line msg-text-muted">Pick a message with Browse\u2026 to preview its text.</div>';
+      }
+    }
     html += '</div>';
     return html;
   }
@@ -2077,6 +2149,16 @@
     ['-prefix', '-fieldname', '-msgfile', '-library'].forEach(function (suffix) {
       var el = document.querySelector('.' + idPrefix + suffix);
       if (el) el.addEventListener('change', commit);
+    });
+    wireMessageBrowse(document.querySelector('.' + idPrefix + '-browse'), function () {
+      var st = readMsgIdStructuredState(idPrefix);
+      return { msgFile: st.msgFile, library: st.library };
+    }, function (id) {
+      var st = readMsgIdStructuredState(idPrefix);
+      if (!st.fieldName || !messageHooks || !messageHooks.setFieldValue) return;
+      var pre = String(st.prefix || '').trim().toUpperCase();
+      var value = pre && id.toUpperCase().indexOf(pre) === 0 ? id.slice(pre.length) : id;
+      messageHooks.setFieldValue(st.fieldName, value);
     });
   }
 
@@ -8509,6 +8591,8 @@ html += '<div class="hint-small">SFLROLVAL, SFLSCROLL, and SFLRCDNBR cannot shar
       html += '<input type="text" id="' + instIdPrefix + '-resp" placeholder="response indicator 01-99 (optional)" value="' + escapeHtml(parsed.responseIndicator) + '" />';
       html += '<input type="text" id="' + instIdPrefix + '-data" placeholder="&amp;message data field (optional)" value="' + escapeHtml(parsed.msgDataField) + '" />';
       html += '</div>';
+      html += messageBrowseButtonHtml(instIdPrefix + '-browse');
+      html += messageTextLineHtml(parsed.msgId, parsed.library, parsed.msgFile);
       return html;
     }, expandedSet, '+ Add SFLMSGID instance');
     sm += '<div class="hint-small">Each instance above is independently conditioned (its own Conditioning toggle) - add as many as needed for different messages/message-IDs under different indicators. A response indicator (SFLMSG and SFLMSGID) is turned off again by the system on the next input operation, and SFLMSGID\'s message data field must be a character (A) field with usage P in this record.</div>';
@@ -8765,6 +8849,12 @@ html += '<div class="hint-small">SFLROLVAL, SFLSCROLL, and SFLRCDNBR cannot shar
       libInput.addEventListener('change', commit);
       respInput.addEventListener('change', commit);
       dataInput.addEventListener('change', commit);
+      wireMessageBrowse(document.querySelector('.' + instIdPrefix + '-browse'), function () {
+        return { msgFile: fileInput.value, library: libInput.value };
+      }, function (id, library, file) {
+        idInput.value = id; fileInput.value = file; libInput.value = library;
+        commit();
+      });
     }, expandedSet, rerender, function makeDefaultSflMsgId() {
       // Same non-blank-placeholder reasoning as makeDefaultSflMsg above,
       // and matching L1b's own 'MSGID'/'MSGFILE' convention for ERRMSGID -
@@ -9064,6 +9154,8 @@ html += '<div class="hint-small">SFLROLVAL, SFLSCROLL, and SFLRCDNBR cannot shar
   }
 
   return {
+    setMessageHooks: setMessageHooks,
+    messageTextLineHtml: messageTextLineHtml,
     rebuildRecordSelect: rebuildRecordSelect,
     recordTypeDependentInfo: recordTypeDependentInfo,
     RECORD_TYPES: RECORD_TYPES,

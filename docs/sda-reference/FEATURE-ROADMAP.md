@@ -47,7 +47,7 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-5 of 10 epics done (E3, E7, E8, E9, E10); 46 sub-tasks done (E3a - E3l, E4a - E4c, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.15.2**.
+5 of 10 epics done (E3, E7, E8, E9, E10); 47 sub-tasks done (E3a - E3l, E4a - E4d, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.15.3**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
@@ -491,7 +491,7 @@ degrades to today's behaviour with a visible note.
 | E4a | **Source of message text. Decision first.** Options: SQL (`QSYS2` message-file service, to be **verified to exist on V7R3**), `RTVMSG` per ID, `DSPMSGD` to an outfile. Also decide offline behaviour: none, or an importable cache file. | - | Done (no code change) | — |
 | E4b | **Resolver module.** `src/messageFile.js` with a fake-connection test seam (as `jobDateFormat.js` does): `*LIBL` and `lib/name` resolution, per-session cache, never throws. | E4a | Done | v0.15.1 |
 | E4c | **Preview.** Show resolved text for the keywords above in the right place on the screen; `&1`-style substitution from E3f values or a placeholder; severity-colour only if the reference says it affects display. | E4b, E3f (soft) | Done | v0.15.2 |
-| E4d | **Picker and validation.** Message-ID picker with text in the `ERRMSGID`, `MSGID`, `SFLMSGID`, `CHKMSGID` panels; an "ID not found in `<msgf>`" diagnostic through the E1 hub when available. | E4b | In progress | - |
+| E4d | **Picker and validation.** Message-ID picker with text in the `ERRMSGID`, `MSGID`, `SFLMSGID`, `CHKMSGID` panels; an "ID not found in `<msgf>`" diagnostic through the E1 hub when available. | E4b | Done | v0.15.3 |
 | E4e | **Menu designer.** Compile Menu already creates the `USRnnnn` messages with `ADDMSGD`; show the existing messages for a menu's options and flag drift between the menu text and the message. | E4b | Open | - |
 | E4f | **Settings and degradation.** `isda.messageFiles` (default message files to search), a clear "message text unavailable (not connected)" state in the panels. | E4b | Open | - |
 | E4g | **Release** (next free minor). | E4a - E4f | Open | - |
@@ -578,6 +578,27 @@ text in the field; `&n` values from one stored string per field. Engine in `src/
   has no message keywords.
 
 ---
+
+### E4d results
+
+Decisions (Manojkumar): a Browse... button opens a list; the text and the "not found" warning sit inline in each panel
+(the E1 hub does not exist yet); only the four panels listed. Host in `src/extension.ts` (`listMessageFile` ->
+`messageFileList`, at most 3000 messages, `truncated` and `total` reported), panels in `src/webviewClientHelpers.js`
+(shared `messageTextLineHtml`, Browse button, hooks installed by the template), picker modal `showMessagePicker` in
+`src/buildWebviewTemplate.js`; tests in `src/test/e4dMessagePicker.test.js`.
+
+- **Text line.** Under the `ERRMSGID`, `SFLMSGID` and `CHKMSGID` references the message text; an ID the host says is not in
+  the file shows "`ID` not found in `LIB/FILE`" as a warning; any other reason (not connected, not loaded, unsupported)
+  is a dimmer "text unavailable (reason)". `CHKMSGID` is now looked up (still not drawn on the display).
+- **Browse....** Opens a dialog with the library and file from the panel, lists the file at once, filters by ID or text,
+  shows ID, severity and first-level text. Picking an `ERRMSGID` / `SFLMSGID` row writes ID, file and library; `CHKMSGID`
+  only fills its boxes (nothing is written until Apply CHKMSGID). On a release without the view the list says it is not
+  supported and the ID can still be typed.
+- **`MSGID`.** Its ID is a prefix plus a field, so Browse sets that field's preview value (E3f `messageData`, prefix
+  removed) and the line shows the text of prefix + value; the DDS source is never changed. A `MSGID` in the raw-text
+  form has no picker. The inline-warning rule applies to literal IDs only.
+- **For E1b.** Add "message ID not found in file" to the Problems panel from the same `messageTexts` answers, so it does not
+  depend on the panel being open.
 
 ## E5
 

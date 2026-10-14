@@ -2280,6 +2280,8 @@
     if (entry.code === 'not-connected') return 'not connected';
     if (entry.code === 'not-found') return 'not found';
     if (entry.code === 'unsupported') return 'not supported on this release';
+    if (entry.code === 'bad-id') return 'not a valid message ID';
+    if (entry.code === 'bad-msgf') return 'not a valid message file';
     return 'lookup failed';
   }
 
@@ -2419,9 +2421,9 @@
   }
 
   /**
-   * Every message the host should look up for this file: [{ key, id, msgf }]. ERRMSGID and SFLMSGID name theirs in the
-   * source; a MSGID that names a field is included once the field has a stored value. CHKMSGID is left out (not drawn;
-   * E4d lists it in its own panel).
+   * Every message the host should look up for this file: [{ key, id, msgf }]. ERRMSGID, SFLMSGID and CHKMSGID name theirs
+   * in the source (CHKMSGID's text is not drawn on the screen, only shown in its panel - E4d); a MSGID that names a field
+   * is included once the field has a stored value.
    */
   function messageReferences(dspfFile) {
     var seen = {};
@@ -2438,7 +2440,7 @@
       var owners = [record].concat(record.fields || []);
       owners.forEach(function (owner) {
         (owner.keywords || []).forEach(function (k) {
-          if (k.name === 'ERRMSGID' || k.name === 'SFLMSGID') {
+          if (k.name === 'ERRMSGID' || k.name === 'SFLMSGID' || k.name === 'CHKMSGID') {
             var parts = messageIdKeywordParts(k.parameters);
             add(parts.id, parts.file);
           } else if (k.name === 'MSGID') {
@@ -3667,6 +3669,7 @@
     resolveScreen: resolveScreen,
     choiceStateKey: choiceStateKey,
     messageTextKey: messageTextKey,
+    messageUnavailableReason: messageUnavailableReason,
     messageDataKey: messageDataKey,
     messageIdKeywordParts: messageIdKeywordParts,
     resolveMsgidParameters: resolveMsgidParameters,
