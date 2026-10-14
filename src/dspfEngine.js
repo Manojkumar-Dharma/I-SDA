@@ -1572,7 +1572,7 @@
         column: startCol,
         length: Math.max(renderLength, 1),
         height: renderHeight,
-        text: dftvalText(field, record, len, activeIndicators, activeSizeName) || fieldDisplayText(field, len),
+        text: msgidFieldText(field, record, len, dspfFile, activeIndicators, activeSizeName) || dftvalText(field, record, len, activeIndicators, activeSizeName) || fieldDisplayText(field, len),
         style: style,
         widget: widget,
         cntfld: cntfld,
@@ -2185,6 +2185,273 @@
   }
 
   // ---------------------------------------------------------------------
+  // E4c - message text from a message file: ERRMSGID, SFLMSGID (the message line) and MSGID (the field's own text).
+  //
+  // The text itself comes from the extension host (src/messageFile.js, E4b) and arrives as dspfFile.messageTexts,
+  // { messageTextKey(id, file): { ok: true, text } | { ok: false, code, error } }, set by the webview and never
+  // written to the source. The values of the program-to-system character fields these keywords name (a MSGID
+  // field's message-id / file / library, an ERRMSGID / SFLMSGID msg-data field) come from
+  // dspfFile.messageDataValues, keyed by messageDataKey() - the E3f `messageData` namespace.
+  //
+  // Where it is drawn (DDS Reference): ERRMSG, ERRMSGID, SFLMSG and SFLMSGID all go to "the message line" - the last
+  // display line unless MSGLOC(line) moves it, or the window's own reserved last line unless the window says
+  // *NOMSGLIN. "If more than one error message is selected at a time" the first of ERRMSG, ERRMSGID, SFLMSG, SFLMSGID
+  // is displayed, and of the same keyword the first one selected (record, then fields in source order). SFLMSG and
+  // SFLMSGID are on the subfile-control record and "the SFLDSP keyword must be in effect for [them] to be processed".
+  // A MSGID field shows the message text in the field, "truncated if it is longer than the MSGID field ... padded
+  // with blanks if it is shorter".
+  // CHKMSGID is not drawn: it is issued when a validity check fails on input, which the preview cannot know.
+  // ---------------------------------------------------------------------
+
+  /** The key a message's text is stored under: 'LIB/FILE:ID' upper case, *LIBL when no library is given. */
+  function messageTextKey(msgId, msgFile) {
+    var f = String(msgFile || '').trim().toUpperCase();
+    if (f.indexOf('/') === -1) f = '*LIBL/' + f;
+    return f + ':' + String(msgId || '').trim().toUpperCase();
+  }
+
+  /** The key a program-to-system character field's design-time value is stored under: 'RECORD|FIELD' upper case. */
+  function messageDataKey(recordName, fieldName) {
+    return String(recordName || '').toUpperCase() + '|' + String(fieldName || '').toUpperCase().replace(/^&/, '');
+  }
+
+  /**
+   * The parts of an ERRMSGID / SFLMSGID / CHKMSGID parameter list: (msgid [library/]msg-file [response-indicator]
+   * [&msg-data]). Returns { id, file, dataField, responseIndicator } (strings; '' when absent).
+   */
+  function messageIdKeywordParts(parameters) {
+    var tokens = String(parameters || '').trim().replace(/^\(|\)$/g, '').split(/\s+/).filter(Boolean);
+    var out = { id: tokens[0] || '', file: tokens[1] || '', dataField: '', responseIndicator: '' };
+    tokens.slice(2).forEach(function (t) {
+      if (t.charAt(0) === '&') out.dataField = t.slice(1).toUpperCase();
+      else if (/^\d{1,2}$/.test(t)) out.responseIndicator = t;
+    });
+    return out;
+  }
+
+  /** Replaces each &FIELD in a token with its stored value (trimmed, upper case); null when one has no value. */
+  function fillFieldRefs(token, recordName, values) {
+    var missing = false;
+    var out = String(token).replace(/&([A-Za-z@#$][A-Za-z0-9_@#$]*)/g, function (m, name) {
+      var v = values && values[messageDataKey(recordName, name)];
+      if (v === undefined || v === null || String(v).trim() === '') { missing = true; return ''; }
+      return String(v).trim().toUpperCase();
+    });
+    return missing ? null : out;
+  }
+
+  /**
+   * MSGID(message-identifier [library-name/]message-file) or MSGID(*NONE). The identifier is "[msg-prefix] &field-name"
+   * or "[msgid-prefix] msg-id" (prefix 3 characters, then 4), the file "[library/]file", "[&field1/]&field2" or a mix.
+   * Returns { none: true } for *NONE, { id, file } once every named field has a stored value, else null.
+   */
+  function resolveMsgidParameters(parameters, recordName, values) {
+    var tokens = String(parameters || '').trim().replace(/^\(|\)$/g, '').split(/\s+/).filter(Boolean);
+    if (tokens.length === 1 && tokens[0].toUpperCase() === '*NONE') return { none: true };
+    if (tokens.length < 2 || tokens.length > 3) return null;
+    var fileToken = tokens[tokens.length - 1];
+    var idTokens = tokens.slice(0, tokens.length - 1);
+    var idParts = idTokens.map(function (t) { return fillFieldRefs(t, recordName, values); });
+    var file = fillFieldRefs(fileToken, recordName, values);
+    if (file === null || idParts.some(function (p) { return p === null; })) return null;
+    return { id: idParts.join(''), file: file };
+  }
+
+  /** "Replacement text" for &1, &2 ...: the stored string is read as values separated by '|'; an &n with no value stays. */
+  function substituteMessageData(text, dataString) {
+    if (dataString === undefined || dataString === null || dataString === '') return text;
+    var values = String(dataString).split('|');
+    return String(text).replace(/&(\d+)/g, function (m, n) {
+      var i = parseInt(n, 10) - 1;
+      return i >= 0 && i < values.length ? values[i] : m;
+    });
+  }
+
+  /** The first instance of `name` on `owner` (record or field) whose option indicators hold, or undefined. */
+  function firstKeywordInEffect(owner, name, activeIndicators, activeSizeName) {
+    return (owner.keywords || []).find(function (k) {
+      return k.name === name && conditionsSatisfied(k.conditions, activeIndicators, activeSizeName);
+    });
+  }
+
+  /** The Reason a message's text is not on the screen, in a few words ('' when there is none). */
+  function messageUnavailableReason(entry) {
+    if (!entry) return 'not loaded yet';
+    if (entry.code === 'not-connected') return 'not connected';
+    if (entry.code === 'not-found') return 'not found';
+    if (entry.code === 'unsupported') return 'not supported on this release';
+    return 'lookup failed';
+  }
+
+  /**
+   * The message line's text for an ERRMSGID / SFLMSGID instance: { text, unresolved, reason }. With no text for the ID
+   * the line shows the ID and file, so the person sees which message is meant and why its text is missing.
+   */
+  function idMessageLineText(kw, record, dspfFile) {
+    var parts = messageIdKeywordParts(kw.parameters);
+    if (!parts.id || !parts.file) return null;
+    var entry = (dspfFile && dspfFile.messageTexts || {})[messageTextKey(parts.id, parts.file)];
+    if (entry && entry.ok && typeof entry.text === 'string') {
+      var data = parts.dataField ? (dspfFile.messageDataValues || {})[messageDataKey(record.name, parts.dataField)] : '';
+      return { text: substituteMessageData(entry.text, data), unresolved: false, reason: '' };
+    }
+    return {
+      text: parts.id.toUpperCase() + ' ' + parts.file.toUpperCase() + ' - text unavailable (' + messageUnavailableReason(entry) + ')',
+      unresolved: true,
+      reason: messageUnavailableReason(entry)
+    };
+  }
+
+  /** The line the message line is on: MSGLOC(line) in effect, else the last display line; never below the last line. */
+  function messageLineNumber(dspfFile, size, activeIndicators) {
+    var inds = activeIndicators || new Set();
+    var kw = (dspfFile && dspfFile.fileKeywords || []).find(function (k) {
+      return k.name === 'MSGLOC' && conditionsSatisfied(k.conditions, inds, size.name);
+    });
+    var n = kw ? parseInt(String(kw.parameters || '').trim(), 10) : NaN;
+    if (!isFinite(n) || n < 1) return size.lines;
+    return Math.min(n, size.lines);
+  }
+
+  /**
+   * The message the display shows for this record, by IBM's priority, and where: { text, line, col, width, keyword,
+   * unresolved?, reason? } or null. A window with its own message line keeps it; a record without a window, or a
+   * window with *NOMSGLIN, uses the display's message line.
+   */
+  function resolveMessageLine(dspfFile, record, windowBox, size, activeIndicators) {
+    var inds = activeIndicators || new Set();
+    var found = null;
+    var plain = resolveWindowErrorMessage(record, inds, size.name);
+    if (plain != null) found = { text: plain, keyword: 'ERRMSG' };
+    var inEffectFields = function () {
+      return record.fields.filter(function (f) { return conditionsSatisfied(f.conditions, inds, size.name); });
+    };
+    if (!found) {
+      var owners = [record].concat(inEffectFields());
+      for (var i = 0; i < owners.length && !found; i++) {
+        var kw = firstKeywordInEffect(owners[i], 'ERRMSGID', inds, size.name);
+        var t = kw && idMessageLineText(kw, record, dspfFile);
+        if (t) found = { text: t.text, keyword: 'ERRMSGID', unresolved: t.unresolved, reason: t.reason };
+      }
+    }
+    var sflOn = gatingKeywordInEffect(record, 'SFLDSP', inds, size.name) && (record.keywords || []).some(function (k) { return k.name === 'SFLDSP'; });
+    if (!found && sflOn) {
+      var sm = firstKeywordInEffect(record, 'SFLMSG', inds, size.name);
+      var smText = sm && String(sm.parameters || '').match(/'((?:[^']|'')*)'/);
+      if (smText) found = { text: smText[1].replace(/''/g, "'"), keyword: 'SFLMSG' };
+    }
+    if (!found && sflOn) {
+      var si = firstKeywordInEffect(record, 'SFLMSGID', inds, size.name);
+      var st = si && idMessageLineText(si, record, dspfFile);
+      if (st) found = { text: st.text, keyword: 'SFLMSGID', unresolved: st.unresolved, reason: st.reason };
+    }
+    if (!found) return null;
+    var box;
+    if (windowBox && windowBox.msgLine) {
+      box = { line: windowBox.line + windowBox.height - 1, col: windowBox.col, width: windowBox.width, inWindow: true };
+    } else {
+      box = { line: messageLineNumber(dspfFile, size, inds), col: 1, width: size.columns, inWindow: false };
+    }
+    var out = {
+      text: found.text.length > box.width ? found.text.slice(0, box.width) : found.text,
+      line: box.line, col: box.col, width: box.width, keyword: found.keyword, inWindow: box.inWindow
+    };
+    if (found.unresolved) { out.unresolved = true; out.reason = found.reason; }
+    return out;
+  }
+
+  /**
+   * Text for a MSGID field, cut or padded to the field length, or null when there is nothing to draw (no MSGID in
+   * effect, a value the preview does not have yet, no text for the ID) so the caller falls back to the field name.
+   * Only output-capable named fields outside a subfile ("The MSGID field must be output-capable (usage B or O)",
+   * "You cannot specify MSGID in a subfile record format").
+   */
+  function msgidFieldText(field, record, len, dspfFile, activeIndicators, activeSizeName) {
+    if (!field || field.nameType === 'CONSTANT') return null;
+    if (field.usage !== 'O' && field.usage !== 'B') return null;
+    if ((record.keywords || []).some(function (k) { return k.name === 'SFL'; })) return null;
+    var kw = firstKeywordInEffect(field, 'MSGID', activeIndicators || new Set(), activeSizeName);
+    if (!kw) return null;
+    var r = resolveMsgidParameters(kw.parameters, record.name, dspfFile && dspfFile.messageDataValues);
+    if (!r) return null;
+    var value;
+    if (r.none) {
+      value = '';
+    } else {
+      var entry = (dspfFile && dspfFile.messageTexts || {})[messageTextKey(r.id, r.file)];
+      if (!entry || !entry.ok || typeof entry.text !== 'string') return null;
+      value = entry.text;
+    }
+    if (value.length > len) value = value.substring(0, len);
+    return value + repeat(' ', len - value.length);
+  }
+
+  /**
+   * The program-to-system fields a record's message keywords name, for the simulator's value editor:
+   * [{ name, role: 'data' | 'id' | 'file', keyword, hint }] in source order, each name once. 'data' is the
+   * msg-data field of an ERRMSGID / SFLMSGID (replacement text); 'id' and 'file' are the fields a MSGID names.
+   */
+  function messageDataFields(record) {
+    var out = [];
+    var add = function (name, role, keyword, hint) {
+      var n = String(name).toUpperCase();
+      if (!n || out.some(function (o) { return o.name === n; })) return;
+      out.push({ name: n, role: role, keyword: keyword, hint: hint });
+    };
+    if (!record) return out;
+    [record].concat(record.fields || []).forEach(function (owner) {
+      (owner.keywords || []).forEach(function (k) {
+        if (k.name === 'ERRMSGID' || k.name === 'SFLMSGID') {
+          var parts = messageIdKeywordParts(k.parameters);
+          if (parts.dataField) add(parts.dataField, 'data', k.name, 'values for &1, &2 ... of ' + (parts.id || 'the message').toUpperCase() + ', separated by |');
+        } else if (k.name === 'MSGID') {
+          var tokens = String(k.parameters || '').trim().replace(/^\(|\)$/g, '').split(/\s+/).filter(Boolean);
+          tokens.forEach(function (t, i) {
+            var role = i === tokens.length - 1 ? 'file' : 'id';
+            (t.match(/&[A-Za-z@#$][A-Za-z0-9_@#$]*/g) || []).forEach(function (ref) {
+              add(ref.slice(1), role, 'MSGID', role === 'id' ? 'message ID (' + (tokens.length === 3 ? '4 characters after the prefix' : '7 characters') + ')' : 'message file (or library / file)');
+            });
+          });
+        }
+      });
+    });
+    return out;
+  }
+
+  /**
+   * Every message the host should look up for this file: [{ key, id, msgf }]. ERRMSGID and SFLMSGID name theirs in the
+   * source; a MSGID that names a field is included once the field has a stored value. CHKMSGID is left out (not drawn;
+   * E4d lists it in its own panel).
+   */
+  function messageReferences(dspfFile) {
+    var seen = {};
+    var out = [];
+    var add = function (id, file) {
+      if (!id || !file) return;
+      var key = messageTextKey(id, file);
+      if (seen[key] || out.length >= 500) return;
+      seen[key] = true;
+      out.push({ key: key, id: String(id).toUpperCase(), msgf: String(file).toUpperCase() });
+    };
+    var values = dspfFile && dspfFile.messageDataValues;
+    ((dspfFile && dspfFile.records) || []).forEach(function (record) {
+      var owners = [record].concat(record.fields || []);
+      owners.forEach(function (owner) {
+        (owner.keywords || []).forEach(function (k) {
+          if (k.name === 'ERRMSGID' || k.name === 'SFLMSGID') {
+            var parts = messageIdKeywordParts(k.parameters);
+            add(parts.id, parts.file);
+          } else if (k.name === 'MSGID') {
+            var r = resolveMsgidParameters(k.parameters, record.name, values);
+            if (r && !r.none) add(r.id, r.file);
+          }
+        });
+      });
+    });
+    return out;
+  }
+
+  // ---------------------------------------------------------------------
   // Resolve Referenced Field (REF/REFFLD, position 29 'R'): given a field
   // flagged as a database reference, works out WHICH field, in WHICH
   // library/file, its length/type/decimals should be resolved from - the
@@ -2580,7 +2847,7 @@
     }
 
     // ERRMSG on the window's own reserved message line - see resolveWindowErrorMessageLine.
-    var errorMessage = resolveWindowErrorMessageLine(record, windowBox, activeIndicators, size.name);
+    var errorMessage = resolveMessageLine(dspfFile, record, windowBox, size, activeIndicators);
 
     return {
       lines: size.lines,
@@ -2792,9 +3059,15 @@
         allFields = allFields.concat(preview.fields);
       }
 
-      var errorMessage = resolveWindowErrorMessageLine(record, windowBox, activeIndicators, size.name);
+      var errorMessage = resolveMessageLine(dspfFile, record, windowBox, size, activeIndicators);
       if (errorMessage) errorMessages.push(Object.assign({ recordName: recordName, stackLayer: layer + 1 }, errorMessage));
     });
+
+    // E4c: the display has ONE message line, so of the messages on it only the topmost record's is kept; a window's
+    // own message line is its own.
+    var lastOnDisplay = -1;
+    errorMessages.forEach(function (e, i) { if (!e.inWindow) lastOnDisplay = i; });
+    errorMessages = errorMessages.filter(function (e, i) { return e.inWindow || i === lastOnDisplay; });
 
     if (writeEffects.length) {
       // E3l - drop what a later write removed from the display: whole records (OVERLAY overlap, ERASE) and the
@@ -3288,13 +3561,13 @@
     var errorMessageHtml = errorMessageList
       .map(function (em) {
         return (
-          '<div class="dspf-window-msgline" style="grid-row:' +
+          '<div class="dspf-window-msgline' + (em.inWindow === false ? ' dspf-display-msgline' : '') + (em.unresolved ? ' dspf-msgline-unresolved' : '') + '" style="grid-row:' +
           em.line +
           ';grid-column:' +
           em.col +
           ' / span ' +
           em.width +
-          ';' + (em.stackLayer != null ? 'z-index:' + em.stackLayer + ';' : '') + '" title="ERRMSG">' +
+          ';' + (em.stackLayer != null ? 'z-index:' + em.stackLayer + ';' : '') + '" title="' + escapeHtml(em.keyword || 'ERRMSG') + (em.unresolved ? ' - message text unavailable: ' + escapeHtml(em.reason || '') : '') + '">' +
           escapeHtml(em.text) +
           '</div>'
         );
@@ -3393,6 +3666,14 @@
     parseMenubarChoice: parseMenubarChoice,
     resolveScreen: resolveScreen,
     choiceStateKey: choiceStateKey,
+    messageTextKey: messageTextKey,
+    messageDataKey: messageDataKey,
+    messageIdKeywordParts: messageIdKeywordParts,
+    resolveMsgidParameters: resolveMsgidParameters,
+    substituteMessageData: substituteMessageData,
+    messageReferences: messageReferences,
+    messageDataFields: messageDataFields,
+    messageLineNumber: messageLineNumber,
     cursorLocationKey: cursorLocationKey,
     cursorLocationFields: cursorLocationFields,
     choiceStateName: choiceStateName,

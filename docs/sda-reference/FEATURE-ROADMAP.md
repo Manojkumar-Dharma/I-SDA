@@ -47,7 +47,7 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-5 of 10 epics done (E3, E7, E8, E9, E10); 45 sub-tasks done (E3a - E3l, E4a, E4b, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.15.1**.
+5 of 10 epics done (E3, E7, E8, E9, E10); 46 sub-tasks done (E3a - E3l, E4a - E4c, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.15.2**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
@@ -263,8 +263,8 @@ line. A record without `WINDOW` has no error line to show; that is a limit of th
 | ENTFLDATR | field, record, file | Not drawn | the field changes attribute while the cursor is in it; an interaction state with no static form |
 | ERASE | record | Reactive | with OVERLAY, erases the named records already on the display; shown in the stacked view with the write sequence on (E3l) |
 | ERASEINP | record | Reactive | with OVERLAY, ERASEINP(*ALL) erases the unprotected input fields already on the display; shown in the stacked view (E3l) |
-| ERRMSG | field | Reactive | the error line of a window (E3d probes it; a record without WINDOW has no error line in the preview) |
-| ERRMSGID | field | Gap (E4c) | the message text comes from the message file; E4c draws it |
+| ERRMSG | field | Reactive | the message line: a window's own last line, or the display's message line (last line, or `MSGLOC`) for a record without `WINDOW` or a window with `*NOMSGLIN` (E4c) |
+| ERRMSGID | field | Reactive | the message text from the message file on the same message line as `ERRMSG`, after it in IBM's priority; with no text the line shows the ID and why (E4c) |
 | FRCDTA | record | Not drawn | forces data to the display at output; no drawn difference |
 | HELP | file, record | Not drawn | assigns the Help key; a key assignment is not part of the drawn screen |
 | HLPBDY | help | Not drawn | help text area; online help is not previewed |
@@ -490,7 +490,7 @@ degrades to today's behaviour with a visible note.
 |----|--------------------|------------|--------|---------|
 | E4a | **Source of message text. Decision first.** Options: SQL (`QSYS2` message-file service, to be **verified to exist on V7R3**), `RTVMSG` per ID, `DSPMSGD` to an outfile. Also decide offline behaviour: none, or an importable cache file. | - | Done (no code change) | — |
 | E4b | **Resolver module.** `src/messageFile.js` with a fake-connection test seam (as `jobDateFormat.js` does): `*LIBL` and `lib/name` resolution, per-session cache, never throws. | E4a | Done | v0.15.1 |
-| E4c | **Preview.** Show resolved text for the keywords above in the right place on the screen; `&1`-style substitution from E3f values or a placeholder; severity-colour only if the reference says it affects display. | E4b, E3f (soft) | In progress | - |
+| E4c | **Preview.** Show resolved text for the keywords above in the right place on the screen; `&1`-style substitution from E3f values or a placeholder; severity-colour only if the reference says it affects display. | E4b, E3f (soft) | Done | v0.15.2 |
 | E4d | **Picker and validation.** Message-ID picker with text in the `ERRMSGID`, `MSGID`, `SFLMSGID`, `CHKMSGID` panels; an "ID not found in `<msgf>`" diagnostic through the E1 hub when available. | E4b | Open | - |
 | E4e | **Menu designer.** Compile Menu already creates the `USRnnnn` messages with `ADDMSGD`; show the existing messages for a menu's options and flag drift between the menu text and the message. | E4b | Open | - |
 | E4f | **Settings and degradation.** `isda.messageFiles` (default message files to search), a clear "message text unavailable (not connected)" state in the panels. | E4b | Open | - |
@@ -540,6 +540,42 @@ Decision (Manojkumar, v0.15.0 tree, docs only):
   (`SCHEMA_NAME`, `TYPE`, `ORDINAL_POSITION`), the `RTVM0100` offsets (`RTVM0100` constant) and the CPF ids for "file not
   found" (`CPF2407`) and "message not found" (`CPF2410`). A capture from a real system should confirm them before E4g
   releases; if one is wrong, it is a one-line change plus the matching test.
+
+### E4c results
+
+Decisions (Manojkumar): one display message line for all four keywords; `CHKMSGID` not drawn; a `MSGID` field shows its
+text in the field; `&n` values from one stored string per field. Engine in `src/dspfEngine.js`, store namespace in
+`src/indicatorSim.js`, host in `src/extension.ts`, panel in `src/buildWebviewTemplate.js`; tests in
+`src/test/e4cMessagePreview.test.js` (81 checks).
+
+- **Where it is drawn.** `ERRMSG`, `ERRMSGID`, `SFLMSG` and `SFLMSGID` go to the message line: the last display line, or
+  `MSGLOC(line)` (never below the last line; 28 on a 24-line display is line 24). A window with its own message line keeps
+  it (its last row, its width); a record without `WINDOW`, or a window with `*NOMSGLIN`, uses the display's line. This
+  changes `ERRMSG` too: it used to be drawn only inside a window, and two `dspfEngine.test.js` checks that said so were
+  rewritten.
+- **Which one.** IBM's order, ERRMSG, ERRMSGID, SFLMSG, SFLMSGID; of the same keyword the first one in effect (the record,
+  then fields in source order). `SFLMSG` / `SFLMSGID` need `SFLDSP` in effect ("the SFLDSP keyword must be in effect").
+  A multi-record view has one display message line: the topmost record's.
+- **The text.** From `dspfFile.messageTexts` (the host's answer, never written to the source). With no text the line shows
+  `ID FILE - text unavailable (reason)`, dimmer, with the reason also in its title: `not loaded yet`, `not connected`,
+  `not found`, `not supported on this release`, `lookup failed`. The `&1`, `&2` markers are filled from the msg-data
+  field's stored value, read as values separated by `|` (`C1234|Pune`); an `&n` with no value stays as written.
+  **That `|` convention is the preview's own: the real replacement text has no separator** (it is one string cut by the
+  message's own field definitions, which the preview does not read), so say so in the panel hint if it confuses.
+- **`MSGID` field.** The resolved text replaces the field name in the field, cut or padded to its length; `MSGID(*NONE)`
+  is blank. The ID and file may be literals or fields (`USR &ID`, `&LIB/&FILE`); a field with no stored value leaves the
+  field as it was. Output-capable named fields outside a subfile only; the first `MSGID` in effect.
+- **`CHKMSGID`.** Not drawn and not looked up: it is issued when an input check fails, which the preview cannot know.
+  E4d shows its text in the field's panel.
+- **Store and panel.** New E3f namespace `messageData` (text, 256 characters, key `RECORD|FIELD`) holds the program fields
+  the keywords name: the msg-data field, and a `MSGID`'s ID, library and file fields. The simulator panel's "Message values"
+  section edits them for the previewed record. Not written to the DDS source.
+- **Host.** The page sends `requestMessageTexts` (each message once; a not-connected answer is asked again when IBM i
+  connects) and gets `messageTexts`. One `messageFile.js` resolver per connection. `messageFile.js` is now in the list of
+  modules `build:webview-assets` copies to `dist/`; without that the extension would not load it.
+- **Not done.** Nothing refreshes a message that changes on the system while the designer is open (a reload does; E4f can
+  add a refresh). Message severity does not colour the line (the reference gives it no display effect). The menu designer
+  has no message keywords.
 
 ---
 

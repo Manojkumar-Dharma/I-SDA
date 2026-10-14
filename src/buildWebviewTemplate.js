@@ -300,6 +300,8 @@ const htmlTemplate = `<!DOCTYPE html>
     white-space: pre; color: var(--warn); background: rgba(255,138,92,0.1);
     pointer-events: none; z-index: 1; overflow: hidden;
   }
+  /* E4c: the text of an ERRMSGID / SFLMSGID is not known (not connected, not found): the ID is shown, dimmer. */
+  .dspf-msgline-unresolved { font-style: italic; opacity: 0.8; }
   /* SFLEND(*SCRBAR) - a design-time-only reference strip along the
    * subfile's own reserved right-edge columns; matches the other
    * protected/reference layers (dashed-ish, muted) rather than a real
@@ -1258,6 +1260,13 @@ const htmlTemplate = `<!DOCTYPE html>
   let fieldValues = {};
   let selectedScenarioName = '';
   let simulatorMessage = '';
+  // Task E4c - message text for ERRMSGID / SFLMSGID / MSGID, asked of the extension host (src/messageFile.js) and kept
+  // here for the session: { DspfEngine.messageTextKey: { ok, text } | { ok: false, code, error } }. messageTextsAsked
+  // holds the keys already requested, so each is asked once; a 'not-connected' answer is asked again when IBM i
+  // connects. Never written to the DDS source.
+  let messageTexts = {};
+  const messageTextsAsked = new Set();
+  let codeForIConnected = false;
   // Task P11 - design-time "show the last page" toggle for an UNCONDITIONED SFLEND (no indicator drives Bottom).
   let sflEndLastPage = false;
   // Ruler overlay (Task L11): session-only, matching real SDA's own F14
@@ -3159,6 +3168,8 @@ const htmlTemplate = `<!DOCTYPE html>
 
       const cursorEditor = buildCursorLocationEditor(recordName);
       if (cursorEditor) container.appendChild(cursorEditor);
+      const messageEditor = buildMessageValuesEditor(recordName);
+      if (messageEditor) container.appendChild(messageEditor);
       container.appendChild(buildScenarioRow());
       const valuesEditor = buildStoredValuesEditor();
       if (valuesEditor) container.appendChild(valuesEditor);
@@ -3199,6 +3210,37 @@ const htmlTemplate = `<!DOCTYPE html>
       line.querySelector('input').addEventListener('change', (e) => {
         const text = String(e.target.value).trim();
         setFieldValue('cursorLocation', key, text === '' ? null : text);
+      });
+      box.appendChild(line);
+    });
+    return box;
+  }
+
+  // Task E4c - the message values editor: for a previewed record whose message keywords name program fields, one text
+  // box per field: the msg-data field of an ERRMSGID / SFLMSGID (values for &1, &2 ... separated by |) and the
+  // message-id / file fields of a MSGID. A box left empty removes the stored value. Stored in the E3f 'messageData'
+  // namespace, never written to the DDS source.
+  function buildMessageValuesEditor(recordName) {
+    const record = model.records.find((r) => r.name === recordName);
+    const fields = DspfEngine.messageDataFields(record);
+    if (fields.length === 0) return null;
+    const box = document.createElement('div');
+    box.className = 'sim-messages';
+    box.style.cssText = 'margin-top:8px;font-size:11px;';
+    box.innerHTML = '<div class="section-label">Message values</div>';
+    fields.forEach((f) => {
+      const key = DspfEngine.messageDataKey(recordName, f.name);
+      const stored = IndicatorSim.getValue(fieldValues, 'messageData', key);
+      const line = document.createElement('label');
+      line.style.cssText = 'display:block;padding:2px 0;';
+      line.title = f.keyword + ' - ' + f.hint;
+      line.innerHTML = '<div>' + escapeSimHtml(f.name) + ' <span class="hint-small">' + escapeSimHtml(f.keyword + ': ' + f.hint) + '</span></div>' +
+        '<input type="text" class="sim-message-input" data-key="' + escapeSimHtml(key) + '" maxlength="256" style="width:100%;" placeholder="not set" />';
+      const input = line.querySelector('input');
+      input.value = stored == null ? '' : stored;
+      input.addEventListener('change', (e) => {
+        const text = String(e.target.value);
+        setFieldValue('messageData', key, text.trim() === '' ? null : text);
       });
       box.appendChild(line);
     });
@@ -3382,9 +3424,7 @@ const htmlTemplate = `<!DOCTYPE html>
       (name) => name !== currentRecordName && model.records.some((r) => r.name === name)
     );
     if (others.length === 0) return;
-    model.choicePreviewStates = IndicatorSim.namespaceValues(fieldValues, 'choiceControl');
-    model.cursorLocationValues = IndicatorSim.namespaceValues(fieldValues, 'cursorLocation');
-    model.windowStartValues = IndicatorSim.namespaceValues(fieldValues, 'windowStart');
+    syncStoredValuesIntoModel();
     // E8e: the current record's own window holds the first placeholder slot when it is still on the placeholder, so
     // the backdrop's placeholder windows stagger away from it instead of landing exactly on top of it.
     const primaryOnPlaceholder = !!(lastScreen && lastScreen.window && lastScreen.window.positionIsDefault);
@@ -3418,9 +3458,7 @@ const htmlTemplate = `<!DOCTYPE html>
     // current record LAST so it is drawn on top (resolveMultiScreen stacks in list order).
     const included = Array.from(compareSelectedRecords).filter((n) => n !== recordName && model.records.some((r) => r.name === n)).concat([recordName]);
     fkeyLegendEl.innerHTML = '';
-    model.choicePreviewStates = IndicatorSim.namespaceValues(fieldValues, 'choiceControl');
-    model.cursorLocationValues = IndicatorSim.namespaceValues(fieldValues, 'cursorLocation');
-    model.windowStartValues = IndicatorSim.namespaceValues(fieldValues, 'windowStart');
+    syncStoredValuesIntoModel();
     // E3l - the records are written in this order, so OVERLAY / ERASE / ERASEINP act on the ones before them.
     const screen = DspfEngine.resolveMultiScreen(model, included, active, selectedSizeIndex, { writeSequence: true });
     lastScreen = screen;
@@ -3441,7 +3479,28 @@ const htmlTemplate = `<!DOCTYPE html>
     propsBody.innerHTML = '<div class="empty-state">Full overlay compare is read-only - nothing here is editable while it is on.</div>';
   }
 
+  // The stored run-time values (E3f) and the message texts (E4c) the engine reads off the model.
+  function syncStoredValuesIntoModel() {
+    model.choicePreviewStates = IndicatorSim.namespaceValues(fieldValues, 'choiceControl');
+    model.cursorLocationValues = IndicatorSim.namespaceValues(fieldValues, 'cursorLocation');
+    model.windowStartValues = IndicatorSim.namespaceValues(fieldValues, 'windowStart');
+    model.messageDataValues = IndicatorSim.namespaceValues(fieldValues, 'messageData');
+    model.messageTexts = messageTexts;
+  }
+
+  // Task E4c - asks the extension host for the text of every message the file's keywords name that has not been
+  // asked yet. The answer comes back as a 'messageTexts' message, which re-renders.
+  function requestMessageTexts() {
+    if (!vscode || typeof vscode.postMessage !== 'function') return;
+    const fresh = DspfEngine.messageReferences(model).filter((r) => !messageTextsAsked.has(r.key));
+    if (fresh.length === 0) return;
+    fresh.forEach((r) => messageTextsAsked.add(r.key));
+    vscode.postMessage({ type: 'requestMessageTexts', refs: fresh });
+  }
+
   function render() {
+    syncStoredValuesIntoModel();
+    requestMessageTexts();
     model.resolvedReferences = resolvedReferences;
     hideCrosshair();
     clearCanvasMessage();
@@ -3475,9 +3534,7 @@ const htmlTemplate = `<!DOCTYPE html>
     const currentRecord = model.records.find((r) => r.name === recordName);
     fkeyLegendEl.innerHTML = WebviewClientHelpers.functionKeyLegendHtml(DspfEngine.resolveFunctionKeyLegend(model, currentRecord, active, (DspfEngine.availableScreenSizes(model)[selectedSizeIndex] || {}).name || null));
 
-    model.choicePreviewStates = IndicatorSim.namespaceValues(fieldValues, 'choiceControl');
-    model.cursorLocationValues = IndicatorSim.namespaceValues(fieldValues, 'cursorLocation');
-    model.windowStartValues = IndicatorSim.namespaceValues(fieldValues, 'windowStart');
+    syncStoredValuesIntoModel();
     const screen = DspfEngine.resolveScreen(model, recordName, active, activePulldown, previewMultipleRows, selectedSizeIndex, sflFoldFlipped, sflEndLastPage);
     if (!(screen.subfilePreview && screen.subfilePreview.foldDrop && screen.subfilePreview.foldDrop.canToggle)) sflFoldFlipped = false;
     if (!(screen.subfilePreview && screen.subfilePreview.sflEnd && screen.subfilePreview.sflEnd.canShowLastPage)) sflEndLastPage = false;
@@ -7944,8 +8001,26 @@ const htmlTemplate = `<!DOCTYPE html>
       // hook lives on the overlay element rather than module-level state.
       const overlay = document.querySelector('.dbfields-overlay');
       if (overlay && overlay.__onDatabaseFieldsResult) overlay.__onDatabaseFieldsResult(msg);
+    } else if (msg.type === 'messageTexts') {
+      // Task E4c - the host's answer for the messages asked for (see requestMessageTexts).
+      (msg.entries || []).forEach((entry) => {
+        if (entry && typeof entry.key === 'string') messageTexts[entry.key] = entry;
+      });
+      render();
     } else if (msg.type === 'codeForIStatus') {
       updateCodeForIBadge(msg.installed, msg.connected);
+      // Task E4c - connecting to IBM i is the moment messages that could not be read ('not connected') are asked again.
+      const nowConnected = !!msg.connected;
+      if (nowConnected && !codeForIConnected) {
+        Object.keys(messageTexts).forEach((key) => {
+          if (messageTexts[key] && messageTexts[key].ok === false && messageTexts[key].code === 'not-connected') {
+            delete messageTexts[key];
+            messageTextsAsked.delete(key);
+          }
+        });
+        render();
+      }
+      codeForIConnected = nowConnected;
     } else if (msg.type === 'jobDateFormat') {
       // The connected job's DATFMT / DATSEP (QUSRJOBI JOBI0400). Only the
       // engine's DATE preview and width follow it; an unusable value clears

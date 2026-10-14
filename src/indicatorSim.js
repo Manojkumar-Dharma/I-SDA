@@ -263,6 +263,15 @@
       min: 0,
       max: 999
     },
+    // E4c: the value a program sets in a character field a message keyword names: the msg-data field of ERRMSGID /
+    // SFLMSGID (replacement text, read as values for &1, &2 ... separated by '|') and the message-id / file / library
+    // fields of MSGID (the plain text); key = DspfEngine.messageDataKey(record, field). Up to 256 characters, the
+    // largest message data a message can take.
+    messageData: {
+      label: 'Message keyword field value (ERRMSGID / SFLMSGID / MSGID)',
+      keyPattern: /^[^|]+\|[^|]+$/,
+      kind: 'text'
+    },
     // WINDOW(*DFT ...) / WINDOW(&line-field &position-field ...) (E8): the start line or start position the preview
     // gives a runtime-valued window; key = DspfEngine.windowStartKey(record, 'line' | 'position'). Largest display is
     // 27 x 132, so 1 - 132; whether a value fits THIS window on THIS display is DspfEngine.windowStartProblem's job.
@@ -378,6 +387,7 @@
     var parts = String(key).split('|');
     if (namespace === 'choiceControl' && parts.length === 3) return parts[0] + '.' + parts[1] + ' (choice / row ' + parts[2] + ')';
     if (namespace === 'cursorLocation' && parts.length === 2) return parts[0] + '.' + parts[1] + ' (CSRLOC)';
+    if (namespace === 'messageData' && parts.length === 2) return parts[0] + '.' + parts[1] + ' (message value)';
     if (namespace === 'windowStart' && parts.length === 2) return parts[0] + ' (window start ' + parts[1].toLowerCase() + ')';
     return String(key);
   }

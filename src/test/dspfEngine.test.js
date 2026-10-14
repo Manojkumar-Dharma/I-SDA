@@ -932,7 +932,7 @@ console.log('\nERRMSG: a message longer than the window width is truncated to fi
   check('truncation keeps the leading characters', screen.errorMessage.text === 'This messa');
 }
 
-console.log('\nERRMSG: *NOMSGLIN moves the message OUT of the window - nothing renders on the window\'s own message line');
+console.log('\nERRMSG: *NOMSGLIN moves the message OUT of the window - it renders on the display\'s message line (E4c), not the window\'s own');
 {
   const src = [
     buildLine({ seq: '00010', nameType: 'R', name: 'WIN2', func: 'WINDOW(4 10 6 30 *NOMSGLIN)' }),
@@ -941,7 +941,9 @@ console.log('\nERRMSG: *NOMSGLIN moves the message OUT of the window - nothing r
   ].join('\n') + '\n';
   const model = DspfParser.parseDspf(src);
   const screen = DspfEngine.resolveScreen(model, 'WIN2', new Set());
-  check('no window message line is rendered when *NOMSGLIN is specified', screen.errorMessage === null);
+  check('nothing renders on the window\'s own message line when *NOMSGLIN is specified', !!screen.errorMessage && screen.errorMessage.inWindow === false);
+  check('it is on the display\'s message line: the last line, from column 1, the full width', screen.errorMessage.line === screen.lines && screen.errorMessage.col === 1 && screen.errorMessage.width === screen.columns);
+  check('the text is the ERRMSG text', screen.errorMessage.text === 'Invalid input');
 }
 
 console.log('\nERRMSG: a record-level ERRMSG is picked up too (not just field-level)');
@@ -956,7 +958,7 @@ console.log('\nERRMSG: a record-level ERRMSG is picked up too (not just field-le
   check('record-level ERRMSG text is used', screen.errorMessage && screen.errorMessage.text === 'Record-level error');
 }
 
-console.log('\nERRMSG: a record with no WINDOW keyword never gets a window message line (out of scope by definition)');
+console.log('\nERRMSG: a record with no WINDOW keyword has no window message line - its message is on the display\'s message line (E4c)');
 {
   const src = [
     buildLine({ seq: '00010', nameType: 'R', name: 'SCR1' }),
@@ -965,7 +967,8 @@ console.log('\nERRMSG: a record with no WINDOW keyword never gets a window messa
   ].join('\n') + '\n';
   const model = DspfParser.parseDspf(src);
   const screen = DspfEngine.resolveScreen(model, 'SCR1', new Set());
-  check('no window -> no errorMessage', screen.errorMessage === null);
+  check('no window -> the message is on the display message line, not in a window', !!screen.errorMessage && screen.errorMessage.inWindow === false && screen.window === null);
+  check('the display message line is the last line', screen.errorMessage.line === screen.lines && screen.errorMessage.text === 'Invalid input');
 }
 
 console.log('\nresolveReferenceTarget: a bare R with no REFFLD resolves against the file-level REF, using the field\'s own name');

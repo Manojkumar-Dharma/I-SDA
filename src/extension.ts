@@ -55,6 +55,14 @@ const QdbrtvfdParser: {
 const JobDateFormat: {
   fetchJobDateFormat(connection: any, hooks?: { ensureLibrary?: (connection: any) => Promise<string | null> }): Promise<{ ok: boolean; error?: string; dateFormat?: string; dateSeparator?: string; timeSeparator?: string | null }>;
 } = require('./jobDateFormat.js');
+// Message-file text (E4b / E4c): ERRMSGID, SFLMSGID and MSGID show the real message text in the preview.
+// QSYS2.MESSAGE_FILE_DATA first, QMHRTVM when the release has no such view, a per-session cache. Plain
+// dependency-free JS with its own fake-connection tests; see its file header.
+const MessageFile: {
+  createResolver(connection: any, hooks?: { ensureLibrary?: (connection: any) => Promise<string | null> }): {
+    getText(id: string, msgf: string): Promise<{ ok: boolean; text?: string; secondLevel?: string; severity?: number | null; code?: string; error?: string }>;
+  };
+} = require('./messageFile.js');
 // The longest line the source member can hold (the SRCDTA width of its source file), so the
 // Comments panel keeps, shows and stores text past column 80 and warns before a line would no
 // longer fit. Plain dependency-free JS with its own fake-connection tests; see its file header.
@@ -1748,6 +1756,8 @@ class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
       } else if (msg.type === 'saveSimulatorState') {
         // Tasks E3c / E3f: the file's scenarios and stored run-time values. workspaceState only - the DDS source is never written.
         await IndicatorSim.saveFileState(this.context.workspaceState, document.uri.toString(), { scenarios: msg.scenarios, values: msg.values });
+      } else if (msg.type === 'requestMessageTexts') {
+        await handleRequestMessageTexts(webviewPanel.webview, msg);
       } else if (msg.type === 'ready') {
         // A (re)loaded webview starts with no line width, so the next answer is always posted.
         lastSourceLineWidth = undefined;
@@ -2674,6 +2684,35 @@ async function getConnectedCodeForIBMi(): Promise<{ runCommand: (info: { command
   const connection = instance && typeof instance.getConnection === 'function' ? instance.getConnection() : undefined;
   if (!connection || typeof connection.runCommand !== 'function') return undefined;
   return connection;
+}
+
+// One resolver per connection: its cache and its library list belong to the system it was asked on. A new connection
+// (or none) starts a fresh one; text that could not be read (not connected, a failed call) is never cached by it.
+let messageResolver: ReturnType<typeof MessageFile.createResolver> | null = null;
+let messageResolverConnection: any = null;
+
+/**
+ * E4c: the webview asks for the text of the messages its keywords name (ERRMSGID, SFLMSGID, MSGID) and gets one
+ * 'messageTexts' answer back, an entry per key. Never throws; a failure is an entry with ok false and a code, which
+ * the preview shows as "text unavailable (<reason>)".
+ */
+async function handleRequestMessageTexts(webview: vscode.Webview, msg: any): Promise<void> {
+  const refs: any[] = Array.isArray(msg && msg.refs) ? msg.refs.slice(0, 200) : [];
+  if (refs.length === 0) return;
+  const connection: any = await getConnectedCodeForIBMi();
+  if (!messageResolver || connection !== messageResolverConnection) {
+    messageResolverConnection = connection;
+    messageResolver = MessageFile.createResolver(() => messageResolverConnection, { ensureLibrary: ensureIsdaTempLibrary });
+  }
+  const entries: any[] = [];
+  for (const ref of refs) {
+    if (!ref || typeof ref.key !== 'string' || typeof ref.id !== 'string' || typeof ref.msgf !== 'string') continue;
+    const r = await messageResolver.getText(ref.id, ref.msgf);
+    entries.push(r.ok
+      ? { key: ref.key, ok: true, text: r.text, secondLevel: r.secondLevel, severity: r.severity }
+      : { key: ref.key, ok: false, code: r.code, error: r.error });
+  }
+  if (entries.length > 0) webview.postMessage({ type: 'messageTexts', entries });
 }
 
 /** Task L18 (docs/sda-reference/LIMITATIONS-PLAN.md): drives the "IBM i:

@@ -1819,7 +1819,9 @@ function runFieldPropertyHelpersScenario() {
     msgFileEl2.value = 'APPLMSGS';
     msgFileEl2.dispatchEvent(new Event('change', { bubbles: true }));
 
-    const idEdit = posted[posted.length - 1];
+    // E4c: the page also asks the host for the message text once the ERRMSGID names an ID, so the last posted message is no
+    // longer necessarily the edit - take the last applyEdit.
+    const idEdit = posted.filter((m) => m.type === 'applyEdit').pop();
     check('posts ERRMSGID with both the msgid and message file the user actually typed, each surviving the OTHER field\'s separate commit', idEdit && idEdit.type === 'applyEdit' && dewrapDds(idEdit.text).includes('ERRMSGID(MSG0001 APPLMSGS') && !idEdit.text.includes('ERRMSG('));
 
     console.log('  Keying options (CHECK) on a named field - Task L1d: now a repeatable, independently-conditioned instance (Task L1\u2019s foundation)');
