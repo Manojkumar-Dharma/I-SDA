@@ -96,7 +96,7 @@ all of it can be switched off with settings.
 
 | ID | Sub-task and scope | Depends on | Status | Version |
 |----|--------------------|------------|--------|---------|
-| E1a | **Diagnostics core.** New pure module `src/ddsDiagnostics.js`: parse a source text and run the existing guard chain (`commitSourceChange` guards, spec conflict rules) in a read-only "report, don't refuse" mode. Output is a list of positioned diagnostics with a stable code per rule. Added to the `build:webview-assets` copy list. | - | Open | - |
+| E1a | **Diagnostics core.** New pure module `src/ddsDiagnostics.js`: parse a source text and run the existing guard chain (`commitSourceChange` guards, spec conflict rules) in a read-only "report, don't refuse" mode. Output is a list of positioned diagnostics with a stable code per rule. Added to the `build:webview-assets` copy list. | - | In progress | — |
 | E1b | **Wire to VS Code.** `DiagnosticCollection` over `DDS_LANGUAGE_SELECTOR` documents, debounced on change and on open; settings `isda.diagnostics.enable` and a severity map; cleared on close. Creates the shared hub (see Shared foundations). | E1a | Open | - |
 | E1c | **Hover.** Keyword hover from the generated keyword index: level, parameter grammar, option-indicator validity, `DDS_Keyword_V7r6` citation. Fixed-column awareness (hover only in the keyword area, columns 45-80 plus continuation lines). | E1a | Open | - |
 | E1d | **Completion.** Keyword completion filtered by level, record type and field usage/data type using `keywordSpec.js`; parameter snippets; no suggestion for a keyword the guards would refuse here. | E1a | Open | - |
