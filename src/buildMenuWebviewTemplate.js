@@ -208,6 +208,9 @@ const htmlTemplate = `<!DOCTYPE html>
   }
   .option-label-input:focus { border-color: var(--chrome-accent); outline: none; }
   .option-cmd-row { display: flex; align-items: center; gap: 6px; }
+  .option-msg-line { font-size: 10px; margin-top: 3px; color: var(--ink-dim); }
+  .option-msg-differs, .option-msg-orphan { color: var(--warn); }
+  .option-msg-line button { font-size: 10px; padding: 1px 6px; margin-left: 6px; }
   .option-cmd-prompt { color: var(--ink-dim); font-size: 10px; flex: 0 0 auto; letter-spacing: 0.03em; }
   .option-cmd {
     flex: 1; min-width: 0; background: #050705; color: var(--chrome-accent); border: 1px solid var(--panel-border); border-radius: 3px;
@@ -423,6 +426,7 @@ const htmlTemplate = `<!DOCTYPE html>
     <label class="compare-toggle"><input type="checkbox" id="modTrackingSeqToggle" /> Tag in columns 1-5</label>
   </div>
   <div class="options-hint">Each option's number, text, and command. Drag ⣿ to swap two options.</div>
+  <div class="options-hint hidden" id="menuMessageSummary"></div>
   <div class="options-list" id="optionsBody"></div>
   <div class="add-option">
     <div class="add-option-header">+ Add a new option</div>
@@ -1438,12 +1442,62 @@ const htmlTemplate = `<!DOCTYPE html>
     });
   }
 
+  // Task E4e - what Compile Menu wrote: the message USRnnnn (in the message file named like this menu) holds each
+  // option's command. The host looks the messages up; msgf is null for a document that is not an IBM i member.
+  let menuMessageFile; // undefined = not answered yet, null = no message file to look at
+  const menuMessages = {};
+  const menuMessagesAsked = new Set();
+  let menuConnected = false;
+  const menuMessageSummary = document.getElementById('menuMessageSummary');
+
+  function requestMenuMessages(options) {
+    const fresh = options.map((o) => MnuCmdEngine.messageIdForOption(o.numberValue)).filter((id) => !menuMessagesAsked.has(id));
+    if (fresh.length === 0 || !vscode || typeof vscode.postMessage !== 'function') return;
+    fresh.forEach((id) => menuMessagesAsked.add(id));
+    vscode.postMessage({ type: 'requestMenuMessages', ids: fresh });
+  }
+
+  function optionMessageLineHtml(optionNumber, command) {
+    if (!menuMessageFile) return '';
+    const id = MnuCmdEngine.messageIdForOption(optionNumber);
+    const st = MnuCmdEngine.optionMessageState(command, menuMessages[id]);
+    if (st.state === 'loading' || st.state === 'none') return '';
+    const where = id + ' in ' + menuMessageFile;
+    const use = '<button type="button" class="secondary option-msg-use">Use message text</button>';
+    let text;
+    if (st.state === 'match') text = 'Message ' + where + ' matches the command.';
+    else if (st.state === 'differs') text = 'Message ' + where + ' says: ' + escapeAttr(st.text) + use;
+    else if (st.state === 'orphan') text = 'Message ' + where + ' exists (' + escapeAttr(st.text) + ') but no command is mapped.' + use;
+    else if (st.state === 'missing') text = 'Message ' + where + ' not created yet - Compile Menu creates it.';
+    else text = 'Message ' + id + ': text unavailable (' + escapeAttr(st.reason) + ').';
+    return '<div class="option-msg-line option-msg-' + st.state + '">' + text + '</div>';
+  }
+
+  function renderMenuMessageSummary(options) {
+    if (!menuMessageSummary) return;
+    const counts = {};
+    options.forEach((o) => {
+      const st = MnuCmdEngine.optionMessageState(commandFor(o.numberValue), menuMessages[MnuCmdEngine.messageIdForOption(o.numberValue)]).state;
+      counts[st] = (counts[st] || 0) + 1;
+    });
+    const parts = [];
+    if (counts.match) parts.push(counts.match + ' match');
+    if (counts.differs) parts.push(counts.differs + ' differ');
+    if (counts.missing) parts.push(counts.missing + ' not created yet');
+    if (counts.orphan) parts.push(counts.orphan + ' without a command');
+    if (!menuMessageFile || parts.length === 0) { menuMessageSummary.classList.add('hidden'); return; }
+    menuMessageSummary.textContent = 'Messages in ' + menuMessageFile + ': ' + parts.join(', ') + '.';
+    menuMessageSummary.classList.remove('hidden');
+  }
+
   function renderOptions() {
     const currentRecordName = recordSelect.value || (model.records[0] && model.records[0].name);
     const options = extractMenuOptions(model, currentRecordName);
     optionsBody.innerHTML = '';
     if (optionCountEl) optionCountEl.textContent = options.length === 1 ? '1 option' : options.length + ' options';
     refreshAddOptionDefaults();
+    requestMenuMessages(options);
+    renderMenuMessageSummary(options);
     if (options.length === 0) {
       optionsBody.innerHTML = '<div class="empty-state">No numbered options found on this screen yet. iSDA looks for constants shaped like "1. Do a thing" to build this list - add one in the DDS source, then reopen this designer.</div>';
       return;
@@ -1475,6 +1529,7 @@ const htmlTemplate = `<!DOCTYPE html>
         '<span class="option-cmd-prompt">CMD&gt;</span>' +
         '<input type="text" class="option-cmd" value="' + escapeAttr(command) + '" placeholder="Command to run, e.g. CALL PGM1" />' +
         '</div>' +
+        optionMessageLineHtml(opt.numberValue, command) +
         '<div class="option-cond-toggle" data-num="' + numLabel + '">Conditioning' + condSummary + (isExpanded ? ' \u25b4' : ' \u25be') + '</div>' +
         '<div class="option-cond-body' + (isExpanded ? '' : ' hidden') + '" id="opt-cond-body-' + numLabel + '"></div>' +
         '<div class="option-style-toggle" data-num="' + numLabel + '">Style' + styleSummary + (styleExpanded ? ' \u25b4' : ' \u25be') + '</div>' +
@@ -1537,6 +1592,15 @@ const htmlTemplate = `<!DOCTYPE html>
 
       const labelInput = row.querySelector('.option-label-input');
       labelInput.addEventListener('change', () => updateOptionLabel(opt.recordName, opt.numberValue, labelInput.value));
+
+      const useMessageBtn = row.querySelector('.option-msg-use');
+      if (useMessageBtn) {
+        useMessageBtn.addEventListener('click', () => {
+          const entry = menuMessages[MnuCmdEngine.messageIdForOption(opt.numberValue)];
+          if (commandStatus === 'unsupported' || !entry || !entry.ok) return;
+          vscode.postMessage({ type: 'applyMenuCmdOptionEdit', edits: [{ numberValue: opt.numberValue, command: String(entry.text).trim() }] });
+        });
+      }
 
       const input = row.querySelector('.option-cmd');
       input.addEventListener('change', () => {
@@ -2034,8 +2098,26 @@ const htmlTemplate = `<!DOCTYPE html>
       commandText = msg.text;
       cmdModel = MnuCmdEngine.parseMnuCmd(commandText);
       renderOptions();
+    } else if (msg.type === 'menuMessages') {
+      // Task E4e - the host's answer (see requestMenuMessages).
+      menuMessageFile = msg.msgf === undefined ? null : msg.msgf;
+      (msg.entries || []).forEach((entry) => { if (entry && typeof entry.id === 'string') menuMessages[entry.id] = entry; });
+      renderOptions();
+    } else if (msg.type === 'menuMessagesStale') {
+      // Task E4e - Compile Menu just rewrote the messages: forget what was read and ask again.
+      Object.keys(menuMessages).forEach((id) => { delete menuMessages[id]; });
+      menuMessagesAsked.clear();
+      renderOptions();
     } else if (msg.type === 'codeForIStatus') {
       updateCodeForIBadge(msg.installed, msg.connected);
+      if (msg.connected && !menuConnected) {
+        // Connecting is the moment messages that could not be read ('not connected') are asked again.
+        Object.keys(menuMessages).forEach((id) => {
+          if (menuMessages[id] && menuMessages[id].ok === false && menuMessages[id].code === 'not-connected') { delete menuMessages[id]; menuMessagesAsked.delete(id); }
+        });
+        renderOptions();
+      }
+      menuConnected = !!msg.connected;
     } else if (msg.type === 'modTrackingConfig') {
       // Task M8 - only ever the STARTING values (see this message's own
       // sendModTrackingConfig() doc comment in extension.ts, shared with the

@@ -16,6 +16,8 @@ const DspfEngine = require('../dspfEngine.js');
 
 const { check, failureCount } = require('./helpers/harness');
 const { newWebviewDom } = require('./helpers/common');
+// E4e: the page also posts requestMenuMessages when the option list is drawn, so "the last message" means the last one that is not that lookup.
+const lastPosted = (list) => list.filter((m) => m.type !== 'requestMenuMessages').slice(-1)[0];
 
 const menuSource =
   [
@@ -74,7 +76,7 @@ setTimeout(() => {
   const input = rows[2].querySelector('.option-cmd');
   input.value = 'SIGNOFF';
   input.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
-  const last = posted[posted.length - 1];
+  const last = lastPosted(posted);
   check('posts applyMenuCmdOptionEdit (Task M4 - structured edit, not the full text) for the command change', last && last.type === 'applyMenuCmdOptionEdit');
   check('the edit targets option 10 with the new command', last && last.edits && last.edits.length === 1 && last.edits[0].numberValue === 10 && last.edits[0].command === 'SIGNOFF');
 
@@ -676,7 +678,7 @@ function runChosenPlacementScenario() {
     doc.getElementById('addOptionRow').value = '10';
     doc.getElementById('addOptionCol').value = '20';
     doc.getElementById('addOptionBtn').dispatchEvent(new dom.window.Event('click', { bubbles: true }));
-    const chosenMsg = posted[posted.length - 1];
+    const chosenMsg = lastPosted(posted);
     check('honors the user-chosen row and column exactly', chosenMsg && chosenMsg.type === 'applyEdit' && /10 20'3\. Custom placed'/.test(chosenMsg.text));
 
     console.log('  choosing an already-occupied row is rejected with a specific error');
@@ -741,7 +743,7 @@ function runOptionConditioningScenario() {
     pendingNumInput.value = '01';
     const pendingAddBtn = doc.querySelector('.cond-ind-add[data-prefix="opt1"][data-group="pending"]');
     pendingAddBtn.dispatchEvent(new Event('click', { bubbles: true }));
-    let last = posted[posted.length - 1];
+    let last = lastPosted(posted);
     check('posts applyEdit adding indicator 01 to option 1\'s number marker', last && last.type === 'applyEdit' && /01.*'1\. Display library list'/.test(last.text.replace(/\n/g, ' ')));
 
     console.log('  option 2 is untouched by option 1\'s conditioning change');
@@ -797,7 +799,7 @@ function runOptionStyleScenario() {
     const postedBefore = posted.length;
     addBtn.dispatchEvent(new Event('click', { bubbles: true }));
     check('adding a color/attribute state posts an applyEdit', posted.length === postedBefore + 1);
-    let last = posted[posted.length - 1];
+    let last = lastPosted(posted);
     // Join DDS keyword-continuation lines before matching - see the
     // split-form scenario below for why (a long keyword can wrap mid-token
     // across a hyphen + continuation line).
@@ -819,7 +821,7 @@ function runOptionStyleScenario() {
     const postedBeforeKw = posted.length;
     kwAddBtn.dispatchEvent(new Event('click', { bubbles: true }));
     check('adding a raw keyword posts another applyEdit', posted.length === postedBeforeKw + 1);
-    last = posted[posted.length - 1];
+    last = lastPosted(posted);
     joined = last ? last.text.replace(/-\n\s*A\s*/g, '') : '';
     const idx1b = joined.indexOf("1. Display library list");
     const idx2b = joined.indexOf("2. Change current library");
@@ -898,7 +900,7 @@ function runCopyOptionScenario() {
     const copyBtn = Array.from(doc.querySelectorAll('.option-row')).find((row) => row.querySelector('.option-num-badge').textContent === '10').querySelector('.option-copy-btn');
     check('setup: found option 10\'s Copy button', !!copyBtn);
     copyBtn.dispatchEvent(new Event('click', { bubbles: true }));
-    const last = posted[posted.length - 1];
+    const last = lastPosted(posted);
     check('posts applyEdit with a new option numbered 11 (highest existing + 1)', last && last.type === 'applyEdit' && /'11\. Sign off'/.test(last.text));
     check('the original option 10 line is untouched', last && /'10\. Sign off'/.test(last.text));
     check('option 10\'s own screen row/column is unchanged (still row 5)', last && / {2}5 {2}5'10\. Sign off'/.test(last.text));
@@ -940,7 +942,7 @@ function runCopyOptionCollisionScenario() {
     const copyBtn = Array.from(doc.querySelectorAll('.option-row')).find((row) => row.querySelector('.option-num-badge').textContent === '1').querySelector('.option-copy-btn');
     check('setup: found option 1\'s Copy button', !!copyBtn);
     copyBtn.dispatchEvent(new Event('click', { bubbles: true }));
-    const last = posted[posted.length - 1];
+    const last = lastPosted(posted);
     check('posts applyEdit with a new option numbered 11 (highest existing, 10, + 1)', last && last.type === 'applyEdit' && /'11\. Display library list'/.test(last.text));
 
     const newLine = last && last.text.split('\n').find((l) => /'11\. Display library list'/.test(l));
@@ -998,7 +1000,7 @@ function runCopySplitOptionScenario() {
     const copyBtn = doc.querySelector('.option-copy-btn');
     check('setup: found the split-form option\'s Copy button', !!copyBtn);
     copyBtn.dispatchEvent(new Event('click', { bubbles: true }));
-    const last = posted[posted.length - 1];
+    const last = lastPosted(posted);
     check('posts applyEdit with a new option 2 number marker', last && last.type === 'applyEdit' && /'2\.'/.test(last.text));
     check('the new option\'s label constant is a copy of the original label, unchanged', last && /'Display current library list'/.test(last.text));
     check('the original option 1\'s number marker is untouched', last && /'1\.'/.test(last.text));
@@ -1042,7 +1044,7 @@ function runCopyMenuFileAttrsScenario() {
     console.log('  add a new file-level keyword');
     doc.getElementById('file-new-kw-name').value = 'INDARA';
     doc.querySelector('.kw-add[data-owner="file"]').dispatchEvent(new Event('click', { bubbles: true }));
-    const last = posted[posted.length - 1];
+    const last = lastPosted(posted);
     check('posts applyEdit with the new file-level INDARA keyword', last && last.type === 'applyEdit' && /INDARA/.test(last.text));
     check('the existing DSPSIZ keyword is preserved', last && /DSPSIZ/.test(last.text));
 
@@ -1100,7 +1102,7 @@ function runMenuRecordCrudScenario() {
     console.log('  "+ Add record" creates a new, empty record and selects it');
     doc.getElementById('newRecordName').value = 'NEWSCR';
     doc.getElementById('newRecordBtn').dispatchEvent(new Event('click', { bubbles: true }));
-    let last = posted[posted.length - 1];
+    let last = lastPosted(posted);
     check('posts applyEdit containing the new record', last && last.type === 'applyEdit' && /R\s+NEWSCR/.test(last.text));
     check('the new record is now selected in the picker', recordSelect.value === 'NEWSCR');
     check('the input is cleared after a successful add', doc.getElementById('newRecordName').value === '');
@@ -1111,7 +1113,7 @@ function runMenuRecordCrudScenario() {
     const copyBtn = doc.getElementById('recordCopyBtn');
     check('setup: Copy record button is present and enabled', !!copyBtn && !copyBtn.disabled);
     copyBtn.dispatchEvent(new Event('click', { bubbles: true }));
-    last = posted[posted.length - 1];
+    last = lastPosted(posted);
     check('posts applyEdit containing the auto-named copy (MAINMENU2)', last && last.type === 'applyEdit' && /R\s+MAINMENU2/.test(last.text));
     check("the copy's option constant was carried over verbatim", /1\. Display library list/.test(last.text));
     check('the original MAINMENU record is still present and untouched', /R\s+MAINMENU\b/.test(last.text) && /MAIN MENU/.test(last.text));
@@ -1121,7 +1123,7 @@ function runMenuRecordCrudScenario() {
     recordSelect.value = 'SUBMENU';
     recordSelect.dispatchEvent(new Event('change', { bubbles: true }));
     doc.getElementById('recordDeleteBtn').dispatchEvent(new Event('click', { bubbles: true }));
-    last = posted[posted.length - 1];
+    last = lastPosted(posted);
     check('SUBMENU is gone from the posted source', last && last.type === 'applyEdit' && !/R\s+SUBMENU\b/.test(last.text));
     check('SUBMENU is no longer offered in the record picker', !Array.from(recordSelect.options).some((o) => o.value === 'SUBMENU'));
     check('every other record survives (MAINMENU, MAINMENU2, NEWSCR)', /R\s+MAINMENU\b/.test(last.text) && /R\s+MAINMENU2\b/.test(last.text) && /R\s+NEWSCR\b/.test(last.text));
@@ -1173,7 +1175,7 @@ function runCrossRecordOptionScopingScenario() {
     const labelInput = doc.querySelector('.option-label-input');
     labelInput.value = 'Renamed sub option';
     labelInput.dispatchEvent(new Event('change', { bubbles: true }));
-    let last = posted[posted.length - 1];
+    let last = lastPosted(posted);
     check("SUBMENU's line is updated", /Renamed sub option/.test(last.text));
     check("MAINMENU's own option 1 is untouched", /1\.\s*Display library list/.test(last.text));
 

@@ -128,7 +128,38 @@
     return lines.join('\n') + (lines.length > 0 ? '\n' : '');
   }
 
+  /** The message ID Compile Menu writes for an option: USR plus the option number padded to four digits. */
+  function messageIdForOption(optionNumber) {
+    return 'USR' + padOptionNumber(optionNumber);
+  }
+
+  /**
+   * E4e - how one option's command compares with the message USRnnnn in the menu's message file. Compile Menu stores
+   * the option's mapped command (the MNUCMD line) as that message's text, so "drift" is a message that no longer says
+   * what the command says (someone changed one of them since the last compile).
+   *
+   * @param {string} command - the option's command from the MNUCMD member ('' when none is mapped).
+   * @param {{ok: boolean, text?: string, code?: string}|undefined} entry - the host's answer for the message ID.
+   * @returns {{state: 'loading'|'match'|'differs'|'missing'|'orphan'|'none'|'unavailable', text: string, reason: string}}
+   *   missing = a command but no message yet (Compile Menu creates it); orphan = a message but no command;
+   *   none = neither, nothing to say; unavailable = the host could not read it (reason says why).
+   */
+  function optionMessageState(command, entry) {
+    var cmd = String(command == null ? '' : command).trim();
+    if (!entry) return { state: 'loading', text: '', reason: '' };
+    if (entry.ok) {
+      var text = String(entry.text == null ? '' : entry.text).trim();
+      if (cmd === '') return { state: 'orphan', text: text, reason: '' };
+      return { state: text === cmd ? 'match' : 'differs', text: text, reason: '' };
+    }
+    if (entry.code === 'not-found') return { state: cmd === '' ? 'none' : 'missing', text: '', reason: '' };
+    var reasons = { 'not-connected': 'not connected', unsupported: 'not supported on this release', 'bad-msgf': 'not a valid message file', 'bad-id': 'not a valid message ID' };
+    return { state: 'unavailable', text: '', reason: reasons[entry.code] || 'lookup failed' };
+  }
+
   return {
+    messageIdForOption: messageIdForOption,
+    optionMessageState: optionMessageState,
     parseMnuCmd: parseMnuCmd,
     applyOptionCommand: applyOptionCommand,
     padOptionNumber: padOptionNumber,

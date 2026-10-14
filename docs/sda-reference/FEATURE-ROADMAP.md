@@ -47,7 +47,7 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-5 of 10 epics done (E3, E7, E8, E9, E10); 47 sub-tasks done (E3a - E3l, E4a - E4d, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.15.3**.
+5 of 10 epics done (E3, E7, E8, E9, E10); 48 sub-tasks done (E3a - E3l, E4a - E4e, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.15.4**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
@@ -492,7 +492,7 @@ degrades to today's behaviour with a visible note.
 | E4b | **Resolver module.** `src/messageFile.js` with a fake-connection test seam (as `jobDateFormat.js` does): `*LIBL` and `lib/name` resolution, per-session cache, never throws. | E4a | Done | v0.15.1 |
 | E4c | **Preview.** Show resolved text for the keywords above in the right place on the screen; `&1`-style substitution from E3f values or a placeholder; severity-colour only if the reference says it affects display. | E4b, E3f (soft) | Done | v0.15.2 |
 | E4d | **Picker and validation.** Message-ID picker with text in the `ERRMSGID`, `MSGID`, `SFLMSGID`, `CHKMSGID` panels; an "ID not found in `<msgf>`" diagnostic through the E1 hub when available. | E4b | Done | v0.15.3 |
-| E4e | **Menu designer.** Compile Menu already creates the `USRnnnn` messages with `ADDMSGD`; show the existing messages for a menu's options and flag drift between the menu text and the message. | E4b | In progress | - |
+| E4e | **Menu designer.** Compile Menu already creates the `USRnnnn` messages with `ADDMSGD`; show the existing messages for a menu's options and flag drift between the menu text and the message. | E4b | Done | v0.15.4 |
 | E4f | **Settings and degradation.** `isda.messageFiles` (default message files to search), a clear "message text unavailable (not connected)" state in the panels. | E4b | Open | - |
 | E4g | **Release** (next free minor). | E4a - E4f | Open | - |
 
@@ -599,6 +599,28 @@ Decisions (Manojkumar): a Browse... button opens a list; the text and the "not f
   form has no picker. The inline-warning rule applies to literal IDs only.
 - **For E1b.** Add "message ID not found in file" to the Problems panel from the same `messageTexts` answers, so it does not
   depend on the panel being open.
+
+### E4e results
+
+No decision was needed: the existing Compile Menu fixes what the message holds. Host in `src/extension.ts`
+(`requestMenuMessages` -> `menuMessages`), state logic in `src/mnuCmdEngine.js`, panel in
+`src/buildMenuWebviewTemplate.js`; tests in `src/test/e4eMenuMessages.test.js`.
+
+- **What drifts.** Compile Menu writes one message per option, `USRnnnn` in a message file named like the menu member
+  (same library), and its text is the option's mapped **command** (the `MNUCMD` line), not the label on the screen. So
+  drift is a message that no longer says what the command says, because the command or the message was changed since the
+  last compile. The roadmap row's "menu text" means this command.
+- **Per option.** Under the `CMD>` box one line: matches; differs (shows the message text, with a "Use message text"
+  button that writes it into the `MNUCMD` command - the screen source is untouched); not created yet (a command and no
+  message; Compile Menu creates it); a message but no command mapped (flagged, button offered); text unavailable
+  (reason). An option with neither a command nor a message shows nothing. The comparison is exact (ends trimmed): a command
+  keeps its case.
+- **Summary.** A line above the list: "Messages in LIB/MENU: 2 match, 1 differ, ...".
+- **When it is read.** Once per option ID when the options are first shown; again after Compile Menu (the host clears
+  that message file's cached text and the page asks again) and when IBM i connects (for messages that could not be
+  read). A document that is not an IBM i member has no message file, so nothing is shown.
+- **Not done.** Messages in the file that belong to no option (a `USRnnnn` with no matching option) are not listed; the
+  lookup is per option ID, so it also works on a release without `QSYS2.MESSAGE_FILE_DATA`.
 
 ## E5
 

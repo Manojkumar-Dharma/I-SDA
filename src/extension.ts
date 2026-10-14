@@ -62,6 +62,7 @@ const MessageFile: {
   createResolver(connection: any, hooks?: { ensureLibrary?: (connection: any) => Promise<string | null> }): {
     getText(id: string, msgf: string): Promise<{ ok: boolean; text?: string; secondLevel?: string; severity?: number | null; code?: string; error?: string }>;
     listMessages(msgf: string): Promise<{ ok: boolean; library?: string; messages?: { id: string; text: string; secondLevel: string; severity: number | null }[]; code?: string; error?: string }>;
+    clear(msgf?: string): void;
   };
 } = require('./messageFile.js');
 // The longest line the source member can hold (the SRCDTA width of its source file), so the
@@ -1996,8 +1997,14 @@ class MenuDesignerEditorProvider implements vscode.CustomTextEditorProvider {
         } catch (err) {
           vscode.window.showErrorMessage(`iSDA: failed to save menu commands to ${commandUri.path}: ${err}`);
         }
+      } else if (msg.type === 'requestMenuMessages') {
+        await handleRequestMenuMessages(webviewPanel.webview, document.uri, msg);
       } else if (msg.type === 'compileMenu') {
         await compileMenu(document.uri);
+        // E4e: the compile rewrote the messages, so what was read before is stale.
+        const compiled = parseMemberUri(document.uri);
+        if (compiled && messageResolver) messageResolver.clear(`${compiled.library}/${compiled.name}`);
+        webviewPanel.webview.postMessage({ type: 'menuMessagesStale' });
         await sendCodeForIStatus();
       } else if (msg.type === 'openCommandSource') {
         // Bug fix (direct request) - opens the MNUCMD companion source
@@ -2721,6 +2728,28 @@ async function handleRequestMessageTexts(webview: vscode.Webview, msg: any): Pro
       : { key: ref.key, ok: false, code: r.code, error: r.error });
   }
   if (entries.length > 0) webview.postMessage({ type: 'messageTexts', entries });
+}
+
+/**
+ * E4e: the menu designer asks for the messages Compile Menu writes for the menu's options (USRnnnn in the message file
+ * named like the menu member, in the member's library). One 'menuMessages' answer: msgf is null when the document is not
+ * an IBM i member (no message file to look at), otherwise one entry per ID. Never throws.
+ */
+async function handleRequestMenuMessages(webview: vscode.Webview, uri: vscode.Uri, msg: any): Promise<void> {
+  const parsed = parseMemberUri(uri);
+  if (!parsed) {
+    webview.postMessage({ type: 'menuMessages', msgf: null, entries: [] });
+    return;
+  }
+  const msgf = `${parsed.library}/${parsed.name}`;
+  const ids: string[] = (Array.isArray(msg && msg.ids) ? msg.ids : []).filter((id: any) => typeof id === 'string' && /^USR\d{4}$/.test(id)).slice(0, 200);
+  const resolver = await currentMessageResolver();
+  const entries: any[] = [];
+  for (const id of ids) {
+    const r = await resolver.getText(id, msgf);
+    entries.push(r.ok ? { id, ok: true, text: r.text } : { id, ok: false, code: r.code });
+  }
+  webview.postMessage({ type: 'menuMessages', msgf, entries });
 }
 
 /** The most messages one picker list carries; a message file can hold thousands and the list is a webview message. */
