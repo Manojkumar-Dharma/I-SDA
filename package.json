@@ -2,7 +2,7 @@
   "name": "i-sda",
   "displayName": "iSDA",
   "description": "Interactive visual designer for IBM i DDS display files (DSPF) \u2014 preview, click, drag, and edit fields with changes written straight back into the DDS source.",
-  "version": "0.15.7",
+  "version": "0.15.8",
   "publisher": "Manojkumar-IBMi",
   "icon": "images/icon.png",
   "engines": {
@@ -47,6 +47,59 @@
           "type": "boolean",
           "default": true,
           "description": "Screen and Menu Designer: when an edit removes source lines (a keyword taken off, a field or record deleted), keep them in the source as comment lines instead of dropping them, so no sequence number, OR marker or tag is lost. Ignored while Track source modifications is on with a tag, which already comments out what it replaces."
+        },
+        "isda.diagnostics.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show DDS rule violations in the Problems panel for display-file and menu sources opened in the text editor (the same rules the designers enforce)."
+        },
+        "isda.diagnostics.severity": {
+          "type": "object",
+          "default": {},
+          "description": "Severity per rule code: error (the default), warning, information, hint, or off. Example: { \"isda.windowDependency\": \"warning\" }.",
+          "propertyNames": {
+            "enum": [
+            "isda.parseError",
+            "isda.scrbarReserved",
+            "isda.altKeyFileExclusion",
+            "isda.windowDependency",
+            "isda.sflctlDependency",
+            "isda.subfileKeyword",
+            "isda.subfileFoldDrop",
+            "isda.outputControl",
+            "isda.multiLevelEligibility",
+            "isda.referenceField",
+            "isda.choiceMenuBar",
+            "isda.windowHelpMenu",
+            "isda.initRetainReturn",
+            "isda.fileLevelDisplay",
+            "isda.commandFunctionParameter",
+            "isda.retKey",
+            "isda.menuBarRecordRequired",
+            "isda.fileHelp",
+            "isda.helpSpec",
+            "isda.helpKeywordRelation",
+            "isda.fieldKind",
+            "isda.commandFunctionPairing",
+            "isda.commandKeyNumber",
+            "isda.commandKeyRange",
+            "isda.optionIndicatorRequired",
+            "isda.systemValueKeyword",
+            "isda.usrdfnWhitelist",
+            "isda.sflWhitelist",
+            "isda.mnubarWhitelist",
+            "isda.windowMutex",
+            "isda.pulldownMutex",
+            "isda.keepMutex",
+            "isda.alwrolClrlSlnoMutex",
+            "isda.sflNxtchgSflMsgRcd",
+            "isda.dspmodSfl"
+          ]
+          },
+          "additionalProperties": {
+            "type": "string",
+            "enum": ["error", "warning", "information", "hint", "off"]
+          }
         },
         "isda.modificationTagPosition": {
           "type": "string",
@@ -192,7 +245,7 @@
     "test": "node src/test/run.js",
     "test:parity": "node src/test/parity.js",
     "test:quick": "node src/test/quick.js",
-    "build:webview-assets": "node src/fixtures/generateFixture.js && esbuild src/browserEntry.ts --bundle --format=iife --global-name=DspfParser --outfile=dist/dspfParser.browser.js && node src/buildWebviewTemplate.js && node src/buildMenuWebviewTemplate.js && node -e \"require('fs').mkdirSync('dist',{recursive:true});['mnuCmdEngine.js','dspfEngine.js','indicatorSim.js','keywordSpec.js','dspfWriter.js','webviewClientHelpers.js','qdbrtvfdParser.js','jobDateFormat.js','sourceLineWidth.js','messageFile.js','ddsDiagnostics.js'].forEach(f=>require('fs').copyFileSync('src/'+f,'dist/'+f))\"",
+    "build:webview-assets": "node src/fixtures/generateFixture.js && esbuild src/browserEntry.ts --bundle --format=iife --global-name=DspfParser --outfile=dist/dspfParser.browser.js && node src/buildWebviewTemplate.js && node src/buildMenuWebviewTemplate.js && node -e \"require('fs').mkdirSync('dist',{recursive:true});['mnuCmdEngine.js','dspfEngine.js','indicatorSim.js','keywordSpec.js','dspfWriter.js','webviewClientHelpers.js','qdbrtvfdParser.js','jobDateFormat.js','sourceLineWidth.js','messageFile.js','ddsDiagnostics.js','diagnosticsHub.js'].forEach(f=>require('fs').copyFileSync('src/'+f,'dist/'+f))\"",
     "compile": "npm run build:webview-assets && tsc -p ."
   },
   "devDependencies": {

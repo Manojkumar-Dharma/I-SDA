@@ -791,6 +791,37 @@ async function run() {
   vscodeMock.__changeListener({ document: otherDoc });
   check('ignores change events for unrelated documents', posted2.length === countBefore);
 
+  console.log('\nE1b: diagnostics hub');
+  const diagCollections = vscodeMock.__diagnosticCollections;
+  check('activate() creates one diagnostic collection, named iSDA', diagCollections.length >= 1 && diagCollections[diagCollections.length - 1].name === 'iSDA');
+  const diagCollection = diagCollections[diagCollections.length - 1];
+  const badDds = [buildLine({ nameType: 'R', name: 'REC1' }), buildLine({ func: 'RMVWDW' })].join('\n');
+  const diagDoc = vscodeMock.__mockDocument(badDds);
+  vscodeMock.__setOpenTextDocuments([diagDoc]);
+  vscodeMock.__fireConfigChange('isda.diagnostics.enable');
+  check('a document the DDS selector does not match is not analysed', diagCollection.get(diagDoc.uri) === undefined);
+  vscodeMock.__setLanguageMatch(() => 10);
+  vscodeMock.__fireConfigChange('isda.diagnostics.enable');
+  const diagList = diagCollection.get(diagDoc.uri) || [];
+  check('a DDS display source with a violation is published to the Problems panel', diagList.length === 1 && diagList[0].code === 'isda.windowDependency' && diagList[0].source === 'iSDA');
+  const cmdDoc = vscodeMock.__mockDocument(badDds, new vscodeMock.Uri('member', '/MYLIB/QMNUSRC/MYMENU.MNUCMD'));
+  const rpgDoc = vscodeMock.__mockDocument(badDds, new vscodeMock.Uri('member', '/MYLIB/QRPGLESRC/PGM.RPGLE'));
+  vscodeMock.__setOpenTextDocuments([diagDoc, cmdDoc, rpgDoc]);
+  vscodeMock.__fireConfigChange('isda.diagnostics');
+  check('a MNUCMD member is not analysed', diagCollection.get(cmdDoc.uri) === undefined);
+  check('  nor a member of another source type (RPGLE)', diagCollection.get(rpgDoc.uri) === undefined);
+  check('  while the DSPF source still is', (diagCollection.get(diagDoc.uri) || []).length === 1);
+  vscodeMock.__setMockConfig('isda.diagnostics.severity', { 'isda.windowDependency': 'warning' });
+  vscodeMock.__fireConfigChange('isda.diagnostics.severity');
+  check('isda.diagnostics.severity is read from the settings', (diagCollection.get(diagDoc.uri) || [{}])[0].severity === vscodeMock.DiagnosticSeverity.Warning);
+  vscodeMock.__setMockConfig('isda.diagnostics.enable', false);
+  vscodeMock.__fireConfigChange('isda.diagnostics.enable');
+  check('isda.diagnostics.enable = false clears the diagnostics', diagCollection.get(diagDoc.uri) === undefined);
+  vscodeMock.__clearMockConfig();
+  vscodeMock.__setLanguageMatch(null);
+  vscodeMock.__setOpenTextDocuments([]);
+  vscodeMock.__fireConfigChange('isda.diagnostics');
+
   console.log('\ndispose');
   let threw = false;
   try {

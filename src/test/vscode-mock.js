@@ -5,6 +5,10 @@ const registeredCommands = {};
 const registeredCodeLensProviders = [];
 const registeredCustomEditorProviders = {}; // keyed by viewType, since the extension now registers more than one
 
+class Diagnostic {
+  constructor(range, message, severity) { this.range = range; this.message = message; this.severity = severity; }
+}
+
 class Range {
   constructor(startLine, startChar, endLine, endChar) {
     this.start = { line: startLine, character: startChar };
@@ -44,6 +48,8 @@ const changeListeners = []; // every registered workspace.onDidChangeTextDocumen
 const saveListeners = []; // every registered workspace.onDidSaveTextDocument handler
 const configChangeListeners = []; // every registered workspace.onDidChangeConfiguration handler
 const openTextDocuments = []; // simulates vscode.workspace.textDocuments
+const diagnosticCollections = []; // every languages.createDiagnosticCollection(...) result (E1b)
+let languageMatch = () => 0; // languages.match(selector, document); 0 = no match, as for a document the selector does not cover
 const executedCommands = []; // every vscode.commands.executeCommand call, for assertions
 let runCommandHandler = null; // test-supplied handler for 'code-for-ibmi.runCommand'
 // Bug fix follow-up: the extension no longer calls
@@ -71,6 +77,8 @@ const mockExtensions = { 'halcyontechltd.code-for-ibmi': { id: 'halcyontechltd.c
 
 const vscodeMock = {
   Range,
+  Diagnostic,
+  DiagnosticSeverity: { Error: 0, Warning: 1, Information: 2, Hint: 3 },
   WorkspaceEdit,
   CodeLens,
   Uri,
@@ -162,6 +170,19 @@ const vscodeMock = {
     },
   },
   languages: {
+    createDiagnosticCollection: (name) => {
+      const entries = new Map();
+      const collection = {
+        name,
+        set: (uri, list) => { entries.set(uri.toString(), list); },
+        delete: (uri) => { entries.delete(uri.toString()); },
+        get: (uri) => entries.get(uri.toString()),
+        dispose: () => { entries.clear(); },
+      };
+      diagnosticCollections.push(collection);
+      return collection;
+    },
+    match: (selector, document) => languageMatch(selector, document),
     registerCodeLensProvider: (selector, provider) => {
       registeredCodeLensProviders.push({ selector, provider });
       return { dispose: () => {} };
@@ -214,7 +235,12 @@ const vscodeMock = {
       return { dispose: () => { const i = configChangeListeners.indexOf(handler); if (i >= 0) configChangeListeners.splice(i, 1); } };
     },
     get textDocuments() { return openTextDocuments; },
+    // Open / close events are never fired by this mock (E1b subscribes to both).
+    onDidOpenTextDocument: () => ({ dispose: () => {} }),
+    onDidCloseTextDocument: () => ({ dispose: () => {} }),
   },
+  __diagnosticCollections: diagnosticCollections,
+  __setLanguageMatch: (fn) => { languageMatch = fn || (() => 0); },
   __registeredCommands: registeredCommands,
   __registeredCodeLensProviders: registeredCodeLensProviders,
   __registeredCustomEditorProviders: registeredCustomEditorProviders,

@@ -47,7 +47,7 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-6 of 10 epics done (E3, E4, E7, E8, E9, E10); 51 sub-tasks done (E1a, E3a - E3l, E4a - E4g, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.15.7**.
+6 of 10 epics done (E3, E4, E7, E8, E9, E10); 52 sub-tasks done (E1a, E1b, E3a - E3l, E4a - E4g, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.15.8**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
@@ -97,7 +97,7 @@ all of it can be switched off with settings.
 | ID | Sub-task and scope | Depends on | Status | Version |
 |----|--------------------|------------|--------|---------|
 | E1a | **Diagnostics core.** New pure module `src/ddsDiagnostics.js`: parse a source text and run the existing guard chain (`commitSourceChange` guards, spec conflict rules) in a read-only "report, don't refuse" mode. Output is a list of positioned diagnostics with a stable code per rule. Added to the `build:webview-assets` copy list. Results: [E1a results](#e1a-results). | - | Done | v0.15.7 |
-| E1b | **Wire to VS Code.** `DiagnosticCollection` over `DDS_LANGUAGE_SELECTOR` documents, debounced on change and on open; settings `isda.diagnostics.enable` and a severity map; cleared on close. Creates the shared hub (see Shared foundations). | E1a | In progress | — |
+| E1b | **Wire to VS Code.** `DiagnosticCollection` over `DDS_LANGUAGE_SELECTOR` documents, debounced on change and on open; settings `isda.diagnostics.enable` and a severity map; cleared on close. Creates the shared hub (see Shared foundations). Results: [E1b results](#e1b-results). | E1a | Done | v0.15.8 |
 | E1c | **Hover.** Keyword hover from the generated keyword index: level, parameter grammar, option-indicator validity, `DDS_Keyword_V7r6` citation. Fixed-column awareness (hover only in the keyword area, columns 45-80 plus continuation lines). | E1a | Open | - |
 | E1d | **Completion.** Keyword completion filtered by level, record type and field usage/data type using `keywordSpec.js`; parameter snippets; no suggestion for a keyword the guards would refuse here. | E1a | Open | - |
 | E1e | **Outline and navigation.** `DocumentSymbolProvider` (records, fields, subfile pairs, help specifications); go-to-definition on record names inside `SFLCTL(...)`, `WINDOW(...)`, `MNUBARCHC(...)` (the `RECORD_REFERENCES` table already says where they sit). | E1a | Open | - |
@@ -148,6 +148,36 @@ all of it can be switched off with settings.
   wants a follow-up sub-task (proposed, not added).
 - **Stand-ins in the tests.** No real guard yet reports a conflict between two records, so the cross-record paths of the
   search are tested with a stand-in guard swapped in for one `DspfWriter` export and restored afterwards.
+
+
+### E1b results
+
+`src/diagnosticsHub.js` (UMD; takes the vscode API as an argument, so it has fake-API tests in
+`src/test/e1bDiagnosticsHub.test.js`, 50 checks, 12 mutations of the module each fail it; 8 more in `extension.test.js` run the
+real `activate()` against the shared `vscode-mock.js`, which gained a diagnostic collection, `languages.match` and the open /
+close events), wired in `activate()` of `src/extension.ts`. DDS sources opened in the text editor now show E1a's diagnostics in the Problems panel.
+
+- **The hub.** `createHub(vscode, { shouldAnalyze, getSettings })` makes one `DiagnosticCollection` named `iSDA`.
+  Diagnostics are kept per file and per source: `setSource(uri, source, diagnostics)` / `clearSource(uri, source)`
+  are how the later sources (compile messages E2d, message-file checks E4d) join the same collection, and one source
+  can be cleared without touching the others. E1b's own source is `rules`.
+- **When it analyses.** On open, and 300 ms after the last change to a document (a timer per document, restarted by
+  each change; the text is read when it fires, so it is always the current text). Documents already open when the
+  extension starts are analysed at start. Closing a document clears its `rules` diagnostics and cancels a waiting analysis.
+- **Which documents.** Those the DDS selector matches that the CodeLens already treats as a display or menu source
+  (`isLikelyDisplayFile` / `isLikelyMenuFile`), except a MNUCMD member, which is not DDS.
+- **Settings.** `isda.diagnostics.enable` (default on): off clears every `rules` diagnostic at once and stops analysing;
+  on again re-analyses the open documents without reopening them. `isda.diagnostics.severity`: a map from rule code
+  (`isda.windowDependency`, ...; the manifest lists exactly the codes `ddsDiagnostics.allCodes()` returns, a test keeps
+  them in step) to `error` (the default), `warning`, `information`, `hint` or `off`; case does not matter and unknown
+  codes or values are ignored. Both take effect on a settings change.
+- **Positions.** E1a's 1-based line and column range becomes a zero-based VS Code `Range`; code and source (`iSDA`)
+  are carried over, so E1f's quick-fixes can key off `diagnostic.code`.
+- **A guard that throws** is skipped by E1a and reported on the extension host console, not shown to the user.
+- **Not checked in a real VS Code.** The tests use a fake of the API, so `languages.match` on the live selector and the
+  Problems panel itself were not exercised; a quick look in the Extension Development Host (open a `.dspf` with an
+  `RMVWDW` and no `WINDOW`) would confirm it. The designer's custom editor also opens the text document, so a file open
+  only in the designer shows its problems too.
 
 ---
 

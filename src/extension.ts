@@ -79,6 +79,26 @@ const IndicatorSim: {
   loadFileState(memento: any, fileKey: string): { scenarios: any[]; values: any };
   saveFileState(memento: any, fileKey: string, state: { scenarios?: any; values?: any }): Thenable<void>;
 } = require('./indicatorSim.js');
+// Editor-side diagnostics (E1b): the one DiagnosticCollection every iSDA diagnostic goes through. Pure JS that takes
+// the vscode API as an argument, so it has fake-API tests; ddsDiagnostics.js (E1a) does the analysing.
+const DiagnosticsHub: {
+  createHub(
+    vscodeApi: any,
+    options: {
+      shouldAnalyze(document: vscode.TextDocument): boolean;
+      getSettings(): { enable: boolean; severity: unknown };
+      onInternalErrors?(uri: vscode.Uri, errors: string[]): void;
+    }
+  ): {
+    collection: vscode.DiagnosticCollection;
+    start(): void;
+    dispose(): void;
+    refresh(document: vscode.TextDocument): void;
+    refreshAll(): void;
+    setSource(uri: vscode.Uri, source: string, diagnostics: vscode.Diagnostic[]): void;
+    clearSource(uri: vscode.Uri, source: string): void;
+  };
+} = require('./diagnosticsHub.js');
 // Same reasoning as MnuCmdEngine/DspfEngine above: plain dependency-free JS
 // shared verbatim with the webview. buildTypedRecordPlan is the "+ Add
 // record" wizard's own record-type decision table (what keywords/companion
@@ -275,6 +295,23 @@ export function activate(context: vscode.ExtensionContext): void {
       },
     })
   );
+
+  // E1b: rule violations in the Problems panel for DDS sources opened in the text editor. A MNUCMD member is
+  // not DDS (it is the option-to-command mapping), so it is left out; everything else the CodeLens treats as a
+  // display or menu source is analysed.
+  const diagnosticsHub = DiagnosticsHub.createHub(vscode, {
+    shouldAnalyze: (document) =>
+      vscode.languages.match(DDS_LANGUAGE_SELECTOR, document) > 0 &&
+      getDocumentSourceType(document.uri) !== MENU_COMMAND_SOURCE_TYPE &&
+      (isLikelyDisplayFile(document) || isLikelyMenuFile(document)),
+    getSettings: () => {
+      const config = vscode.workspace.getConfiguration('isda');
+      return { enable: config.get<boolean>('diagnostics.enable', true), severity: config.get<unknown>('diagnostics.severity', {}) };
+    },
+    onInternalErrors: (uri, errors) => console.warn('iSDA diagnostics: a rule failed on ' + uri.toString() + ': ' + errors.join('; ')),
+  });
+  diagnosticsHub.start();
+  context.subscriptions.push(diagnosticsHub);
 }
 
 // DDS display files declare record formats with 'R' in column 17; a quick,
