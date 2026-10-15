@@ -107,6 +107,12 @@
       .concat(RECORD_KEYWORD_RULES.map(function (r) { return r.code; }));
   }
 
+  /** The codes of the record-keyword rules: they answer for a keyword name and the record's other keywords and
+   *  never read a parameter, so a completion can trust them on a bare keyword (E1d). */
+  function recordKeywordCodes() {
+    return RECORD_KEYWORD_RULES.map(function (r) { return r.code; });
+  }
+
   /** What is registered, by DspfWriter export name - the E1a test compares it with every
    *  `*ConflictReason` DspfWriter exports so an unregistered guard shows up as a named gap. */
   function coverage() {
@@ -482,6 +488,7 @@
   return {
     analyze: analyze,
     allCodes: allCodes,
+    recordKeywordCodes: recordKeywordCodes,
     coverage: coverage,
     PARSE_ERROR_CODE: PARSE_ERROR_CODE,
   };

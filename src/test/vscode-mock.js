@@ -4,6 +4,7 @@
 const registeredCommands = {};
 const registeredCodeLensProviders = [];
 const registeredHoverProviders = [];
+const registeredCompletionProviders = [];
 const registeredCustomEditorProviders = {}; // keyed by viewType, since the extension now registers more than one
 
 class Diagnostic {
@@ -28,6 +29,18 @@ class MarkdownString {
 
 class Hover {
   constructor(contents, range) { this.contents = contents; this.range = range; }
+}
+
+class CompletionItem {
+  constructor(label, kind) { this.label = label; this.kind = kind; }
+}
+
+class CompletionList {
+  constructor(items, isIncomplete) { this.items = items; this.isIncomplete = !!isIncomplete; }
+}
+
+class SnippetString {
+  constructor(value) { this.value = value; }
 }
 
 class CodeLens {
@@ -89,6 +102,10 @@ const vscodeMock = {
   Diagnostic,
   MarkdownString,
   Hover,
+  CompletionItem,
+  CompletionList,
+  SnippetString,
+  CompletionItemKind: { Keyword: 13 },
   DiagnosticSeverity: { Error: 0, Warning: 1, Information: 2, Hint: 3 },
   WorkspaceEdit,
   CodeLens,
@@ -198,6 +215,10 @@ const vscodeMock = {
       registeredCodeLensProviders.push({ selector, provider });
       return { dispose: () => {} };
     },
+    registerCompletionItemProvider: (selector, provider) => {
+      registeredCompletionProviders.push({ selector, provider });
+      return { dispose: () => {} };
+    },
     registerHoverProvider: (selector, provider) => {
       registeredHoverProviders.push({ selector, provider });
       return { dispose: () => {} };
@@ -259,6 +280,7 @@ const vscodeMock = {
   __registeredCommands: registeredCommands,
   __registeredCodeLensProviders: registeredCodeLensProviders,
   __registeredHoverProviders: registeredHoverProviders,
+  __registeredCompletionProviders: registeredCompletionProviders,
   __registeredCustomEditorProviders: registeredCustomEditorProviders,
   // Back-compat for the original (pre-menu-editor) test suite, which only ever
   // dealt with one registered custom editor provider.

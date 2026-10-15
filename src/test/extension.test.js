@@ -841,6 +841,31 @@ async function run() {
   vscodeMock.__setMockConfig('isda.hover.enable', false);
   check('isda.hover.enable = false gives no hover', hoverProvider.provideHover(hoverDoc, { line: 1, character: 46 }) === undefined);
   vscodeMock.__clearMockConfig();
+
+  vscodeMock.__setLanguageMatch(null);
+  console.log('\nE1d: keyword completion');
+  const completionEntries = vscodeMock.__registeredCompletionProviders;
+  check('activate() registers one completion provider over the DDS selector', completionEntries.length >= 1 && !!completionEntries[completionEntries.length - 1].selector);
+  const completionProvider = completionEntries[completionEntries.length - 1].provider;
+  const compLines = [buildLine({ nameType: 'R', name: 'REC1' }), buildLine({ name: 'FLD1', length: 10, dataType: 'A', usage: 'B', line: 2, col: 2, func: 'DSPA' })];
+  const compDoc = vscodeMock.__mockDocument(compLines.join('\n'));
+  check('a document the DDS selector does not match gets no completion', completionProvider.provideCompletionItems(compDoc, { line: 1, character: 48 }) === undefined);
+  vscodeMock.__setLanguageMatch(() => 10);
+  const cl = completionProvider.provideCompletionItems(compDoc, { line: 1, character: 48 });
+  check('a DDS display source completes a keyword from the built data file', cl && cl.items.length === 1 && cl.items[0].label === 'DSPATR' && cl.items[0].insertText.value.indexOf('DSPATR(${1:') === 0);
+  const compCmd = vscodeMock.__mockDocument(compLines.join('\n'), new vscodeMock.Uri('member', '/MYLIB/QMNUSRC/MYMENU.MNUCMD'));
+  check('a MNUCMD member gets no completion', completionProvider.provideCompletionItems(compCmd, { line: 1, character: 48 }) === undefined);
+  check('no completion outside the keyword area', completionProvider.provideCompletionItems(compDoc, { line: 1, character: 10 }) === undefined);
+  vscodeMock.__setMockConfig('isda.completion.enable', false);
+  check('isda.completion.enable = false gives no completion', completionProvider.provideCompletionItems(compDoc, { line: 1, character: 48 }) === undefined);
+  vscodeMock.__clearMockConfig();
+  vscodeMock.__setLanguageMatch(() => 10);
+  const sflDoc = vscodeMock.__mockDocument([buildLine({ nameType: 'R', name: 'REC1' }), buildLine({ func: 'SFL' }), '     A' + ' '.repeat(38), buildLine({ name: 'FLD1', length: 10, dataType: 'A', usage: 'B', line: 2, col: 2 })].join('\n'));
+  const guarded = completionProvider.provideCompletionItems(sflDoc, { line: 2, character: 44 });
+  vscodeMock.__setMockConfig('isda.completion.filterByRules', false);
+  const unguarded = completionProvider.provideCompletionItems(sflDoc, { line: 2, character: 44 });
+  check('isda.completion.filterByRules reaches the provider (a subfile record offers fewer keywords with the rules on)', guarded.items.length > 0 && unguarded.items.length > guarded.items.length);
+  vscodeMock.__clearMockConfig();
   vscodeMock.__setLanguageMatch(null);
 
   console.log('\ndispose');

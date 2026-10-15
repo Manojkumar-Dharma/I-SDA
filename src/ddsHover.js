@@ -304,6 +304,9 @@
     describe: describe,
     indexName: indexName,
     clean: clean,
+    scan: scan,
+    chainText: chainText,
+    tokenize: tokenize,
     createProvider: createProvider,
     KEYWORD_AREA_START: KEYWORD_AREA_START
   };

@@ -2,7 +2,7 @@
   "name": "i-sda",
   "displayName": "iSDA",
   "description": "Interactive visual designer for IBM i DDS display files (DSPF) \u2014 preview, click, drag, and edit fields with changes written straight back into the DDS source.",
-  "version": "0.15.9",
+  "version": "0.15.10",
   "publisher": "Manojkumar-IBMi",
   "icon": "images/icon.png",
   "engines": {
@@ -52,6 +52,16 @@
           "type": "boolean",
           "default": true,
           "description": "Show keyword help when hovering a keyword in the text editor for display-file and menu sources: its level, parameters, option-indicator rules and the DDS Reference section it comes from."
+        },
+        "isda.completion.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Offer keyword completion in the text editor for display-file and menu sources: the keywords valid at the level you are typing at (file, record, field, help specification), with a parameter snippet."
+        },
+        "isda.completion.filterByRules": {
+          "type": "boolean",
+          "default": true,
+          "description": "Keyword completion leaves out a keyword the DDS rules would flag at that place (a conflict with a keyword the record already has, a usage or data type it does not accept). Turn off to list every keyword of the level."
         },
         "isda.diagnostics.enable": {
           "type": "boolean",
@@ -250,7 +260,7 @@
     "test": "node src/test/run.js",
     "test:parity": "node src/test/parity.js",
     "test:quick": "node src/test/quick.js",
-    "build:webview-assets": "node src/fixtures/generateFixture.js && esbuild src/browserEntry.ts --bundle --format=iife --global-name=DspfParser --outfile=dist/dspfParser.browser.js && node src/buildWebviewTemplate.js && node src/buildMenuWebviewTemplate.js && node -e \"require('fs').mkdirSync('dist',{recursive:true});['mnuCmdEngine.js','dspfEngine.js','indicatorSim.js','keywordSpec.js','dspfWriter.js','webviewClientHelpers.js','qdbrtvfdParser.js','jobDateFormat.js','sourceLineWidth.js','messageFile.js','ddsDiagnostics.js','diagnosticsHub.js','ddsHover.js'].forEach(f=>require('fs').copyFileSync('src/'+f,'dist/'+f))\" && node src/buildKeywordHoverData.js",
+    "build:webview-assets": "node src/fixtures/generateFixture.js && esbuild src/browserEntry.ts --bundle --format=iife --global-name=DspfParser --outfile=dist/dspfParser.browser.js && node src/buildWebviewTemplate.js && node src/buildMenuWebviewTemplate.js && node -e \"require('fs').mkdirSync('dist',{recursive:true});['mnuCmdEngine.js','dspfEngine.js','indicatorSim.js','keywordSpec.js','dspfWriter.js','webviewClientHelpers.js','qdbrtvfdParser.js','jobDateFormat.js','sourceLineWidth.js','messageFile.js','ddsDiagnostics.js','diagnosticsHub.js','ddsHover.js','ddsCompletion.js'].forEach(f=>require('fs').copyFileSync('src/'+f,'dist/'+f))\" && node src/buildKeywordHoverData.js",
     "compile": "npm run build:webview-assets && tsc -p ."
   },
   "devDependencies": {

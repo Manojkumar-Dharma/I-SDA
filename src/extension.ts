@@ -114,6 +114,18 @@ const DdsHover: {
   ): vscode.HoverProvider;
 } = require('./ddsHover.js');
 const HoverKeywordSpec: unknown = require('./keywordSpec.js');
+// E1d: keyword completion (pure module; the provider takes the API as an argument)
+const DdsCompletion: {
+  createProvider(
+    api: unknown,
+    options: {
+      getSettings: () => { enable: boolean; filterByRules: boolean };
+      shouldComplete: (document: vscode.TextDocument) => boolean;
+      loadData: () => unknown;
+      spec: unknown;
+    }
+  ): vscode.CompletionItemProvider;
+} = require('./ddsCompletion.js');
 // Same reasoning as MnuCmdEngine/DspfEngine above: plain dependency-free JS
 // shared verbatim with the webview. buildTypedRecordPlan is the "+ Add
 // record" wizard's own record-type decision table (what keywords/companion
@@ -333,6 +345,26 @@ export function activate(context: vscode.ExtensionContext): void {
         getSettings: () => ({ enable: vscode.workspace.getConfiguration('isda').get<boolean>('hover.enable', true) }),
         shouldHover: isDdsTextDocument,
         loadData: () => JSON.parse(fs.readFileSync(path.join(__dirname, 'keywordHoverData.json'), 'utf8')),
+        spec: HoverKeywordSpec,
+      })
+    )
+  );
+
+  // E1d: keyword completion over the same documents; it reads the hover's data file, once, on the first request.
+  let completionData: unknown = null;
+  context.subscriptions.push(
+    vscode.languages.registerCompletionItemProvider(
+      DDS_LANGUAGE_SELECTOR,
+      DdsCompletion.createProvider(vscode, {
+        getSettings: () => ({
+          enable: vscode.workspace.getConfiguration('isda').get<boolean>('completion.enable', true),
+          filterByRules: vscode.workspace.getConfiguration('isda').get<boolean>('completion.filterByRules', true),
+        }),
+        shouldComplete: isDdsTextDocument,
+        loadData: () => {
+          if (!completionData) completionData = JSON.parse(fs.readFileSync(path.join(__dirname, 'keywordHoverData.json'), 'utf8'));
+          return completionData;
+        },
         spec: HoverKeywordSpec,
       })
     )

@@ -99,7 +99,7 @@ all of it can be switched off with settings.
 | E1a | **Diagnostics core.** New pure module `src/ddsDiagnostics.js`: parse a source text and run the existing guard chain (`commitSourceChange` guards, spec conflict rules) in a read-only "report, don't refuse" mode. Output is a list of positioned diagnostics with a stable code per rule. Added to the `build:webview-assets` copy list. Results: [E1a results](#e1a-results). | - | Done | v0.15.7 |
 | E1b | **Wire to VS Code.** `DiagnosticCollection` over `DDS_LANGUAGE_SELECTOR` documents, debounced on change and on open; settings `isda.diagnostics.enable` and a severity map; cleared on close. Creates the shared hub (see Shared foundations). Results: [E1b results](#e1b-results). | E1a | Done | v0.15.8 |
 | E1c | **Hover.** Keyword hover from the generated keyword index: level, parameter grammar, option-indicator validity, `DDS_Keyword_V7r6` citation. Fixed-column awareness (hover only in the keyword area, columns 45-80 plus continuation lines). Results: [E1c results](#e1c-results). | E1a | Done | v0.15.9 |
-| E1d | **Completion.** Keyword completion filtered by level, record type and field usage/data type using `keywordSpec.js`; parameter snippets; no suggestion for a keyword the guards would refuse here. | E1a | In progress | - |
+| E1d | **Completion.** Keyword completion filtered by level, record type and field usage/data type using `keywordSpec.js`; parameter snippets; no suggestion for a keyword the guards would refuse here. Results: [E1d results](#e1d-results). | E1a | Done | v0.15.10 |
 | E1e | **Outline and navigation.** `DocumentSymbolProvider` (records, fields, subfile pairs, help specifications); go-to-definition on record names inside `SFLCTL(...)`, `WINDOW(...)`, `MNUBARCHC(...)` (the `RECORD_REFERENCES` table already says where they sit). | E1a | Open | - |
 | E1f | **Quick-fixes.** `CodeActionProvider` mapped from diagnostic codes: remove the conflicting keyword, add a missing required companion (for example `OVERLAY` for `PUTRETAIN`, `INDARA`), "Open in designer". Each fix is an edit through the same writer so source fidelity (I-202 - I-207) holds. | E1a, E1b | Open | - |
 | E1g | **Column aids.** Decorations or ruler for the fixed DDS columns (5-6 type, 17 name type, 30-34 length, ...). **Decision first:** decorations vs a CodeLens-style header; may be dropped if E1c/E1d make it redundant. | E1b | Open | - |
@@ -217,6 +217,51 @@ opened in the text editor now shows its help.
   markdown were not exercised; a quick look in the Extension Development Host (hover `DSPATR(HI)` in a `.dspf`) would confirm it.
 - **Not covered.** The index describes 185 keywords; the DDS Reference has more (display-size condition names, the field data types). Hover on a
   column other than the keyword area (the data type in column 35, the usage in column 38) is E1g's decision, not this one's.
+
+
+### E1d results
+
+`src/ddsCompletion.js` (UMD; the pure `completionAt` has no `vscode` import, `createProvider` takes the API as an argument), tested by
+`src/test/e1dCompletion.test.js` (78 checks; 25 mutations of the module each fail it) and 8 more in `extension.test.js` that run the real
+`activate()`. Typing in the keyword area of a DDS source opened in the text editor now offers the keywords valid there.
+
+- **Which documents, which place.** The documents the hover and the diagnostics use (`isDdsTextDocument`). It answers in the keyword area
+  (columns 45-80 and continuation lines), at the end of a word being typed or on a blank, and not on a comment, inside a quoted constant,
+  inside a parameter list or left of column 45. A short empty line (`     A`) has no column 45 to put the cursor on, so the cursor has to be
+  moved there first. The word replaced runs from its start to the end of the identifier the cursor is in. The list is marked incomplete while a
+  word is typed, so the client asks again as it grows. Settings `isda.completion.enable` (default on) and `isda.completion.filterByRules`
+  (default on).
+- **The level.** The hover module's line scan (`DdsHover.scan` / `chainText` / `tokenize` are now exported), so a source is read the same
+  way by both: file, record, field or help specification, a blank line keeping the level above it. The candidates are the keywords the generated
+  index lists at that level; `*` values are not keywords and are left out; `CA01-CA24` / `CF01-CF24` are offered one by one.
+- **Three filters.** (1) A keyword the field, record or file level already has is left out unless the index says it is repeatable; the word being
+  typed does not count. (2) For a named field whose usage or data type is filled in: `allowedUsage`, `blockedDataTypes`, `allowedDataTypes` and
+  `requiredDataTypes` of `keywordSpec.js` (so BLANKS / CNTFLD / FLDCSRPRG disappear on an output field, FLTFIXDEC off a non-float field, EDTCDE off
+  a field that is not data type Y); a blank usage or type filters nothing. (3) The guards: the keyword is put on a copy of the current record
+  (the file-level lines plus the record; the whole source for a file-level keyword up to 4,000 lines) and `DdsDiagnostics.analyze` is run, with
+  the diagnostics of the copy without it taken off. A keyword that adds a violation is not offered. A subfile record therefore offers exactly the
+  keywords its whitelist allows, a window record offers WDWBORDER / WDWTITLE but not SFL or USRDFN, and PUTRETAIN appears once OVERLAY is there.
+- **Parameter shape does not hide a keyword.** A bare keyword breaks every rule about its parameters, and a guard can say more than the
+  parameter when the list is malformed (WDWBORDER also reports a missing WINDOW). So a keyword with a parameter list is tried bare and in seven
+  shapes (a number, a name, a constant, the nested `(*COLOR ..)`, `(*DSPATR ..)`, `(*CHAR ..)`, `(*TEXT ..)` groups, plus the first value of an
+  enumerated list) and refused only when one violation is common to every form the parser reads as that keyword. The record-keyword rules
+  (`DdsDiagnostics.recordKeywordCodes()`, new) never read a parameter, so one of them on the bare form refuses at once. A form the parser does
+  not read as the keyword is skipped.
+- **Insert text.** No parameters: the bare name. An enumerated parameter (`COLOR`, `DATFMT`, `CHECK`, ...): a snippet with a choice. Another
+  parameter: a snippet with a placeholder named from the index (`EDTMSK('mask')`). An optional parameter: the bare name. The documentation is the
+  hover's text for that keyword and level.
+- **Cost.** About 1 ms per analysis; a subfile record 91 analyses and 134 ms, a window record 177 and 229 ms, the last record of a 20,002-line
+  source 252 ms. Verdicts are cached per context (the word being typed is blanked out of it, so typing more of a word reuses them), and a
+  second request for the same place makes no analysis. `budgetMs` (default 400) bounds a request: keywords not reached are offered and counted in
+  `unchecked`; a guard that throws leaves its keyword offered too.
+- **Limits, by design or by data.** Only the guards E1a runs take part (34 of 114; `DdsDiagnostics.coverage()`), so a keyword another guard would
+  refuse can still be offered. A keyword that needs a companion (a CHC keyword without SNGCHCFLD, ERASE without OVERLAY) is hidden until the
+  companion is there, because the guards flag it; `isda.completion.filterByRules = false` lists everything of the level. The keyword
+  index lists WRDWRAP and VALNUM at the file level only (both are field keywords), so they are not offered on a field, and the hover says
+  "Not listed at the field level" for them; the index is the data to fix, not the completion. Values inside a parameter list (`*AUTOENT`,
+  `DSPATR(` values) are not completed.
+- **Not checked in a real VS Code.** The tests use a fake of the API, so how VS Code draws the list, the snippet choice and the incomplete
+  re-query on the live selector were not exercised; typing `COL` after a field in the Extension Development Host would confirm it.
 
 ---
 
