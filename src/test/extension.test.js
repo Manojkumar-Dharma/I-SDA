@@ -866,6 +866,31 @@ async function run() {
   const unguarded = completionProvider.provideCompletionItems(sflDoc, { line: 2, character: 44 });
   check('isda.completion.filterByRules reaches the provider (a subfile record offers fewer keywords with the rules on)', guarded.items.length > 0 && unguarded.items.length > guarded.items.length);
   vscodeMock.__clearMockConfig();
+
+  console.log('\nE1e: outline and definition');
+  vscodeMock.__setLanguageMatch(null);
+  const symbolEntries = vscodeMock.__registeredSymbolProviders;
+  const definitionEntries = vscodeMock.__registeredDefinitionProviders;
+  check('activate() registers a document symbol provider and a definition provider over the DDS selector', symbolEntries.length >= 1 && definitionEntries.length >= 1 &&
+    !!symbolEntries[symbolEntries.length - 1].selector && !!definitionEntries[definitionEntries.length - 1].selector);
+  check('  the symbol provider carries a label', !!(symbolEntries[symbolEntries.length - 1].metadata && symbolEntries[symbolEntries.length - 1].metadata.label));
+  const navProvider = symbolEntries[symbolEntries.length - 1].provider;
+  const navLines = [buildLine({ nameType: 'R', name: 'SFLREC' }), buildLine({ func: 'SFL' }), buildLine({ nameType: 'R', name: 'CTL1' }), buildLine({ func: 'SFLCTL(SFLREC)' }), buildLine({ name: 'F1', length: 10, dataType: 'A', usage: 'B', line: 2, col: 2 })];
+  const navDoc = vscodeMock.__mockDocument(navLines.join('\n'));
+  check('a document the DDS selector does not match gets no outline and no definition', navProvider.provideDocumentSymbols(navDoc) === undefined && navProvider.provideDefinition(navDoc, { line: 3, character: 52 }) === undefined);
+  vscodeMock.__setLanguageMatch(() => 10);
+  const outlineSymbols = navProvider.provideDocumentSymbols(navDoc);
+  check('a DDS display source gets its record formats as the outline', outlineSymbols && outlineSymbols.length === 2 && outlineSymbols[0].name === 'SFLREC' && outlineSymbols[1].children.length === 1);
+  const navLinks = navProvider.provideDefinition(navDoc, { line: 3, character: 52 });
+  check('Go to Definition on the record name in SFLCTL(...) answers a link to that record format', navLinks && navLinks.length === 1 && navLinks[0].targetSelectionRange.start.line === 0 && navLinks[0].targetSelectionRange.start.character === 18);
+  const navCmd = vscodeMock.__mockDocument(navLines.join('\n'), new vscodeMock.Uri('member', '/MYLIB/QMNUSRC/MYMENU.MNUCMD'));
+  check('a MNUCMD member gets neither', navProvider.provideDocumentSymbols(navCmd) === undefined && navProvider.provideDefinition(navCmd, { line: 3, character: 52 }) === undefined);
+  vscodeMock.__setMockConfig('isda.outline.enable', false);
+  check('isda.outline.enable = false gives no outline (the definition stays)', navProvider.provideDocumentSymbols(navDoc) === undefined && navProvider.provideDefinition(navDoc, { line: 3, character: 52 }).length === 1);
+  vscodeMock.__clearMockConfig();
+  vscodeMock.__setMockConfig('isda.definition.enable', false);
+  check('isda.definition.enable = false gives no definition (the outline stays)', navProvider.provideDefinition(navDoc, { line: 3, character: 52 }) === undefined && navProvider.provideDocumentSymbols(navDoc).length === 2);
+  vscodeMock.__clearMockConfig();
   vscodeMock.__setLanguageMatch(null);
 
   console.log('\ndispose');

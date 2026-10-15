@@ -5,6 +5,8 @@ const registeredCommands = {};
 const registeredCodeLensProviders = [];
 const registeredHoverProviders = [];
 const registeredCompletionProviders = [];
+const registeredSymbolProviders = [];
+const registeredDefinitionProviders = [];
 const registeredCustomEditorProviders = {}; // keyed by viewType, since the extension now registers more than one
 
 class Diagnostic {
@@ -29,6 +31,12 @@ class MarkdownString {
 
 class Hover {
   constructor(contents, range) { this.contents = contents; this.range = range; }
+}
+
+class DocumentSymbol {
+  constructor(name, detail, kind, range, selectionRange) {
+    this.name = name; this.detail = detail; this.kind = kind; this.range = range; this.selectionRange = selectionRange; this.children = [];
+  }
 }
 
 class CompletionItem {
@@ -102,6 +110,8 @@ const vscodeMock = {
   Diagnostic,
   MarkdownString,
   Hover,
+  DocumentSymbol,
+  SymbolKind: { Struct: 22, Field: 7, String: 14, Interface: 10 },
   CompletionItem,
   CompletionList,
   SnippetString,
@@ -215,6 +225,14 @@ const vscodeMock = {
       registeredCodeLensProviders.push({ selector, provider });
       return { dispose: () => {} };
     },
+    registerDocumentSymbolProvider: (selector, provider, metadata) => {
+      registeredSymbolProviders.push({ selector, provider, metadata });
+      return { dispose: () => {} };
+    },
+    registerDefinitionProvider: (selector, provider) => {
+      registeredDefinitionProviders.push({ selector, provider });
+      return { dispose: () => {} };
+    },
     registerCompletionItemProvider: (selector, provider) => {
       registeredCompletionProviders.push({ selector, provider });
       return { dispose: () => {} };
@@ -281,6 +299,8 @@ const vscodeMock = {
   __registeredCodeLensProviders: registeredCodeLensProviders,
   __registeredHoverProviders: registeredHoverProviders,
   __registeredCompletionProviders: registeredCompletionProviders,
+  __registeredSymbolProviders: registeredSymbolProviders,
+  __registeredDefinitionProviders: registeredDefinitionProviders,
   __registeredCustomEditorProviders: registeredCustomEditorProviders,
   // Back-compat for the original (pre-menu-editor) test suite, which only ever
   // dealt with one registered custom editor provider.

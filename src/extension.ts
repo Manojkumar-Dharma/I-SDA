@@ -115,6 +115,16 @@ const DdsHover: {
 } = require('./ddsHover.js');
 const HoverKeywordSpec: unknown = require('./keywordSpec.js');
 // E1d: keyword completion (pure module; the provider takes the API as an argument)
+// E1e: outline and go to definition (pure module; the provider takes the API as an argument)
+const DdsOutline: {
+  createProvider(
+    api: unknown,
+    options: {
+      getSettings: () => { outline: boolean; definition: boolean };
+      shouldProvide: (document: vscode.TextDocument) => boolean;
+    }
+  ): vscode.DocumentSymbolProvider & vscode.DefinitionProvider;
+} = require('./ddsOutline.js');
 const DdsCompletion: {
   createProvider(
     api: unknown,
@@ -368,6 +378,20 @@ export function activate(context: vscode.ExtensionContext): void {
         spec: HoverKeywordSpec,
       })
     )
+  );
+
+  // E1e: the outline (Outline view, breadcrumbs, Go to Symbol) and go to definition on a record-format name in
+  // SFLCTL(...), WINDOW(...) and MNUBARCHC(...), over the same documents.
+  const outlineProvider = DdsOutline.createProvider(vscode, {
+    getSettings: () => ({
+      outline: vscode.workspace.getConfiguration('isda').get<boolean>('outline.enable', true),
+      definition: vscode.workspace.getConfiguration('isda').get<boolean>('definition.enable', true),
+    }),
+    shouldProvide: isDdsTextDocument,
+  });
+  context.subscriptions.push(
+    vscode.languages.registerDocumentSymbolProvider(DDS_LANGUAGE_SELECTOR, outlineProvider, { label: 'I-SDA DDS' }),
+    vscode.languages.registerDefinitionProvider(DDS_LANGUAGE_SELECTOR, outlineProvider)
   );
 }
 

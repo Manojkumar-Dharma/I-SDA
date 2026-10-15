@@ -100,7 +100,7 @@ all of it can be switched off with settings.
 | E1b | **Wire to VS Code.** `DiagnosticCollection` over `DDS_LANGUAGE_SELECTOR` documents, debounced on change and on open; settings `isda.diagnostics.enable` and a severity map; cleared on close. Creates the shared hub (see Shared foundations). Results: [E1b results](#e1b-results). | E1a | Done | v0.15.8 |
 | E1c | **Hover.** Keyword hover from the generated keyword index: level, parameter grammar, option-indicator validity, `DDS_Keyword_V7r6` citation. Fixed-column awareness (hover only in the keyword area, columns 45-80 plus continuation lines). Results: [E1c results](#e1c-results). | E1a | Done | v0.15.9 |
 | E1d | **Completion.** Keyword completion filtered by level, record type and field usage/data type using `keywordSpec.js`; parameter snippets; no suggestion for a keyword the guards would refuse here. Results: [E1d results](#e1d-results). | E1a | Done | v0.15.10 |
-| E1e | **Outline and navigation.** `DocumentSymbolProvider` (records, fields, subfile pairs, help specifications); go-to-definition on record names inside `SFLCTL(...)`, `WINDOW(...)`, `MNUBARCHC(...)` (the `RECORD_REFERENCES` table already says where they sit). | E1a | In progress | - |
+| E1e | **Outline and navigation.** `DocumentSymbolProvider` (records, fields, subfile pairs, help specifications); go-to-definition on record names inside `SFLCTL(...)`, `WINDOW(...)`, `MNUBARCHC(...)` (the `RECORD_REFERENCES` table already says where they sit). Results: [E1e results](#e1e-results). | E1a | Done | v0.15.11 |
 | E1f | **Quick-fixes.** `CodeActionProvider` mapped from diagnostic codes: remove the conflicting keyword, add a missing required companion (for example `OVERLAY` for `PUTRETAIN`, `INDARA`), "Open in designer". Each fix is an edit through the same writer so source fidelity (I-202 - I-207) holds. | E1a, E1b | Open | - |
 | E1g | **Column aids.** Decorations or ruler for the fixed DDS columns (5-6 type, 17 name type, 30-34 length, ...). **Decision first:** decorations vs a CodeLens-style header; may be dropped if E1c/E1d make it redundant. | E1b | Open | - |
 | E1h | **Performance and tests.** Latency budget on a 5,000-line and a 20,000-line source, incremental re-check of the edited record only, no-`vscode` unit tests for E1a, jsdom-free. | E1a | Open | - |
@@ -262,6 +262,39 @@ opened in the text editor now shows its help.
   `DSPATR(` values) are not completed.
 - **Not checked in a real VS Code.** The tests use a fake of the API, so how VS Code draws the list, the snippet choice and the incomplete
   re-query on the live selector were not exercised; typing `COL` after a field in the Extension Development Host would confirm it.
+
+
+### E1e results
+
+`src/ddsOutline.js` (UMD; `symbolsOf` and `definitionAt` are pure and have no `vscode` import, `createProvider` takes the API as an
+argument), tested by `src/test/e1eOutline.test.js` (61 checks; 28 mutations of the module, 25 of them fail it and the other 3 are
+equivalent: guards that a second guard already makes redundant) and 8 more in `extension.test.js` that run the real `activate()`.
+Both features read the source with the parser (`DspfParser.parseDspf`, not the diagnostics' guards), so they cost milliseconds.
+
+- **Outline** (`DocumentSymbolProvider`, shown in the Outline view, breadcrumbs and Go to Symbol). One node per record format, in
+  source order, with its named fields, its constants (labelled by their text, shortened to 40 characters) and its help specifications as
+  children, in source order. A record's `detail` says what it is: `subfile, control CTL1` / `subfile control for SFLREC` (the pair is
+  found from `SFLCTL(record)`; several controls of one subfile are all named), `menu bar`, `pull-down`, `window`, `user-defined`, and
+  combinations (`subfile control for SFLREC, window`). Ranges run from an entry's first line to its last content line, so the keyword
+  continuation lines are in and the blank and comment lines that trail it are out; the selection range is the name in columns 19-28 (a
+  ten-character name whole). File-level keywords are not a node. A source the parser cannot read gives an empty outline. Kinds: Struct for
+  records, Field, String for constants, Interface for help specifications. Setting `isda.outline.enable` (default on).
+- **Go to Definition** (`DefinitionProvider`, returning a `LocationLink`): on the record-format name inside `SFLCTL(...)`,
+  `WINDOW(...)` or `MNUBARCHC(...)`. Which keywords, where the name sits and what counts as a name come from `keywordSpec.js` through
+  `recordReferenceKeywords` / `recordReferenceLocator` / `recordReferenceName` (the RECORD_REFERENCES table), so a keyword added to the
+  table is navigable without a change here. The origin range is the name only (so only it is underlined); the target is the name in that
+  record's R line with the record's range. Names match whatever the case. No definition for a WINDOW given inline geometry or `*DFT`, for a
+  name no record format of the source has, for a name inside a quoted constant or a comment, for the keyword name itself, or one
+  character outside the name. A name continued over a `+` line is found on the line the cursor is on. Setting `isda.definition.enable`
+  (default on).
+- **Cost.** The outline of a 16,000-line source with 4,000 records and a definition inside it take well under a second (the test asserts
+  2 s and 1 s; a run took 238 ms for the definition).
+- **Limits.** Only the three RECORD_REFERENCES keywords are navigable: `HLPRCD(record)` and the other keywords that name a record format are
+  not in that table, so they have no definition (adding them to the table is the fix, and would also make rename read them). A definition
+  is found only in the same source, never in another member. There are no references or rename provider: the writer's
+  `renameRecordReferences` already does the rewriting for the designers, but a text-editor rename is a later item.
+- **Not checked in a real VS Code.** The tests use a fake of the API, so how the Outline view, breadcrumbs and the ctrl-click underline draw
+  was not exercised; opening a `.dspf` in the Extension Development Host and ctrl-clicking the name in `SFLCTL(...)` would confirm it.
 
 ---
 
