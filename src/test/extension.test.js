@@ -822,6 +822,27 @@ async function run() {
   vscodeMock.__setOpenTextDocuments([]);
   vscodeMock.__fireConfigChange('isda.diagnostics');
 
+  console.log('\nE1c: keyword hover');
+  const hoverEntries = vscodeMock.__registeredHoverProviders;
+  check('activate() registers one hover provider over the DDS selector', hoverEntries.length >= 1 && !!hoverEntries[hoverEntries.length - 1].selector);
+  const hoverProvider = hoverEntries[hoverEntries.length - 1].provider;
+  const hoverDds = [buildLine({ nameType: 'R', name: 'REC1' }), buildLine({ name: 'FLD1', length: 10, dataType: 'A', usage: 'B', line: 2, col: 2, func: 'DSPATR(HI)' })].join('\n');
+  const hoverDoc = vscodeMock.__mockDocument(hoverDds);
+  check('a document the DDS selector does not match gets no hover', hoverProvider.provideHover(hoverDoc, { line: 1, character: 46 }) === undefined);
+  vscodeMock.__setLanguageMatch(() => 10);
+  const hv = hoverProvider.provideHover(hoverDoc, { line: 1, character: 46 });
+  check('a DDS display source hovers a keyword from the built data file', hv && hv.contents.value.indexOf('**DSPATR**') === 0 && hv.range.start.line === 1 && hv.range.start.character === 44);
+  check('  citing its DDS Reference section', hv && /DDS Reference \(V7R6\): "DSPATR \(Display Attribute\) keyword for display files" \(line \d+ of DDS_Keyword_V7r6\.txt\)/.test(hv.contents.value));
+  const hoverCmd = vscodeMock.__mockDocument(hoverDds, new vscodeMock.Uri('member', '/MYLIB/QMNUSRC/MYMENU.MNUCMD'));
+  check('a MNUCMD member gets no hover', hoverProvider.provideHover(hoverCmd, { line: 1, character: 46 }) === undefined);
+  const hoverRpg = vscodeMock.__mockDocument(hoverDds, new vscodeMock.Uri('member', '/MYLIB/QRPGLESRC/PGM.RPGLE'));
+  check('  nor a member of another source type (RPGLE)', hoverProvider.provideHover(hoverRpg, { line: 1, character: 46 }) === undefined);
+  check('no hover outside the keyword area', hoverProvider.provideHover(hoverDoc, { line: 1, character: 10 }) === undefined);
+  vscodeMock.__setMockConfig('isda.hover.enable', false);
+  check('isda.hover.enable = false gives no hover', hoverProvider.provideHover(hoverDoc, { line: 1, character: 46 }) === undefined);
+  vscodeMock.__clearMockConfig();
+  vscodeMock.__setLanguageMatch(null);
+
   console.log('\ndispose');
   let threw = false;
   try {

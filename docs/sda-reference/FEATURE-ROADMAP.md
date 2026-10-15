@@ -47,7 +47,7 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-6 of 10 epics done (E3, E4, E7, E8, E9, E10); 52 sub-tasks done (E1a, E1b, E3a - E3l, E4a - E4g, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.15.8**.
+6 of 10 epics done (E3, E4, E7, E8, E9, E10); 53 sub-tasks done (E1a - E1c, E3a - E3l, E4a - E4g, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.15.9**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
@@ -98,7 +98,7 @@ all of it can be switched off with settings.
 |----|--------------------|------------|--------|---------|
 | E1a | **Diagnostics core.** New pure module `src/ddsDiagnostics.js`: parse a source text and run the existing guard chain (`commitSourceChange` guards, spec conflict rules) in a read-only "report, don't refuse" mode. Output is a list of positioned diagnostics with a stable code per rule. Added to the `build:webview-assets` copy list. Results: [E1a results](#e1a-results). | - | Done | v0.15.7 |
 | E1b | **Wire to VS Code.** `DiagnosticCollection` over `DDS_LANGUAGE_SELECTOR` documents, debounced on change and on open; settings `isda.diagnostics.enable` and a severity map; cleared on close. Creates the shared hub (see Shared foundations). Results: [E1b results](#e1b-results). | E1a | Done | v0.15.8 |
-| E1c | **Hover.** Keyword hover from the generated keyword index: level, parameter grammar, option-indicator validity, `DDS_Keyword_V7r6` citation. Fixed-column awareness (hover only in the keyword area, columns 45-80 plus continuation lines). | E1a | In progress | — |
+| E1c | **Hover.** Keyword hover from the generated keyword index: level, parameter grammar, option-indicator validity, `DDS_Keyword_V7r6` citation. Fixed-column awareness (hover only in the keyword area, columns 45-80 plus continuation lines). Results: [E1c results](#e1c-results). | E1a | Done | v0.15.9 |
 | E1d | **Completion.** Keyword completion filtered by level, record type and field usage/data type using `keywordSpec.js`; parameter snippets; no suggestion for a keyword the guards would refuse here. | E1a | Open | - |
 | E1e | **Outline and navigation.** `DocumentSymbolProvider` (records, fields, subfile pairs, help specifications); go-to-definition on record names inside `SFLCTL(...)`, `WINDOW(...)`, `MNUBARCHC(...)` (the `RECORD_REFERENCES` table already says where they sit). | E1a | Open | - |
 | E1f | **Quick-fixes.** `CodeActionProvider` mapped from diagnostic codes: remove the conflicting keyword, add a missing required companion (for example `OVERLAY` for `PUTRETAIN`, `INDARA`), "Open in designer". Each fix is an edit through the same writer so source fidelity (I-202 - I-207) holds. | E1a, E1b | Open | - |
@@ -178,6 +178,45 @@ close events), wired in `activate()` of `src/extension.ts`. DDS sources opened i
   Problems panel itself were not exercised; a quick look in the Extension Development Host (open a `.dspf` with an
   `RMVWDW` and no `WINDOW`) would confirm it. The designer's custom editor also opens the text document, so a file open
   only in the designer shows its problems too.
+
+### E1c results
+
+`src/ddsHover.js` (UMD; the pure `hoverAt` has no `vscode` import, `createProvider` takes the API as an argument like the hub),
+`src/buildKeywordHoverData.js` (builds the runtime data), tested by `src/test/e1cHover.test.js` (71 checks; 24 mutations of
+`ddsHover.js` each fail it) and 8 more in `extension.test.js` that run the real `activate()`. Hovering a keyword in a DDS source
+opened in the text editor now shows its help.
+
+- **Which documents.** The same ones E1b analyses (`isDdsTextDocument` in `extension.ts`, now shared by the hub and the hover):
+  the DDS selector matches and the CodeLens treats it as a display or menu source, a MNUCMD member excluded. Setting
+  `isda.hover.enable` (default on) switches it off.
+- **Where it answers.** Only in the keyword area: columns 45-80, and on continuation lines (a `+` / `-` in the last column, the next
+  line's columns 7-44 blank, the parser's own rule). It follows a chain over any number of lines: `+` joins at the first
+  nonblank of the next line and `-` at column 45 keeping the blanks, so a name split across two lines is one word. No hover on a comment
+  (even where its text reaches column 45), on a quoted constant, on a blank between keywords, or on a word the index does not know.
+- **The level.** One pass over the lines above the cursor, with the parser's column rules: `R` in column 17 is a record, `H` a help
+  specification, a name in columns 19-28 a field, and a line with no name belongs to whatever came before it; lines before the first
+  record are file level. The text picks the index entry for that level; when the keyword is not listed there the hover says so and
+  names the levels it is listed at ("Not listed at the record level; it is a field keyword"), and a keyword listed at several levels
+  names the others.
+- **On a parameter.** Hovering anything inside a keyword's parameter list (a value, a parenthesis, a blank) gives that keyword's hover, with the
+  range running from its name to the closing parenthesis, over several lines when the list continues. The exception is a `*`-value the
+  index describes on its own (`*RSTCSR`, `*SLTIND`, ...), which answers for itself with its own range.
+- **What it says.** The index's level and category, description, parameter label and repeatability and its System/36 note; the form
+  (`parameterGrammar`) and option-indicator rule (`valid` / `not valid` / `required`) from `RECORD_TYPES` in `keywordSpec.js`, said only where the spec
+  states them; and a citation of the DDS Reference (V7R6) section with its title and line in `DDS_Keyword_V7r6.txt`. `CA03` and `CF12` are
+  described under the `CAnn` / `CFnn` family. Notes in the index that name an internal task (`Task I-39`, `S36-3`, "See ... .md") are dropped
+  from the text.
+- **The data.** `docs/**` is not in the VSIX, so `npm run build:webview-assets` runs `node src/buildKeywordHoverData.js`, which writes
+  `dist/keywordHoverData.json`: the keyword table of `KEYWORD-LOOKUP.json` (185 entries) and, for each, the section heading in the DDS Reference
+  text. A heading counts only in the first column (the text keeps indented copies as "Related reference" cross-links, which would otherwise win
+  for WINDOW and UNLOCK); headings wrapped over two lines are joined. 171 of the 185 have a citation; the 13 `*`-values are not sections of their
+  own, and IGCCNV's heading is indented (it sits in the DBCS chapter), so the first-column rule skips it. The extension reads the file on the first hover.
+- **Measured.** A hover at the end of a 20,001-line source takes under 30 ms (the test allows 200 ms), since it is one pass over the lines above the
+  cursor. No cache; E1h owns the latency budget and any incremental work.
+- **Not checked in a real VS Code.** The tests use a fake of the API, so `languages.registerHoverProvider` on the live selector and how VS Code draws the
+  markdown were not exercised; a quick look in the Extension Development Host (hover `DSPATR(HI)` in a `.dspf`) would confirm it.
+- **Not covered.** The index describes 185 keywords; the DDS Reference has more (display-size condition names, the field data types). Hover on a
+  column other than the keyword area (the data type in column 35, the usage in column 38) is E1g's decision, not this one's.
 
 ---
 

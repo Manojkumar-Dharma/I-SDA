@@ -3,6 +3,7 @@
 // so we can catch wrong-API-assumption bugs before shipping, not just syntax errors.
 const registeredCommands = {};
 const registeredCodeLensProviders = [];
+const registeredHoverProviders = [];
 const registeredCustomEditorProviders = {}; // keyed by viewType, since the extension now registers more than one
 
 class Diagnostic {
@@ -19,6 +20,14 @@ class Range {
 class WorkspaceEdit {
   constructor() { this.edits = []; }
   replace(uri, range, newText) { this.edits.push({ uri, range, newText }); }
+}
+
+class MarkdownString {
+  constructor(value) { this.value = value; }
+}
+
+class Hover {
+  constructor(contents, range) { this.contents = contents; this.range = range; }
 }
 
 class CodeLens {
@@ -78,6 +87,8 @@ const mockExtensions = { 'halcyontechltd.code-for-ibmi': { id: 'halcyontechltd.c
 const vscodeMock = {
   Range,
   Diagnostic,
+  MarkdownString,
+  Hover,
   DiagnosticSeverity: { Error: 0, Warning: 1, Information: 2, Hint: 3 },
   WorkspaceEdit,
   CodeLens,
@@ -187,6 +198,10 @@ const vscodeMock = {
       registeredCodeLensProviders.push({ selector, provider });
       return { dispose: () => {} };
     },
+    registerHoverProvider: (selector, provider) => {
+      registeredHoverProviders.push({ selector, provider });
+      return { dispose: () => {} };
+    },
   },
   workspace: {
     workspaceFolders: [{ uri: new Uri('file', '/workspace') }],
@@ -243,6 +258,7 @@ const vscodeMock = {
   __setLanguageMatch: (fn) => { languageMatch = fn || (() => 0); },
   __registeredCommands: registeredCommands,
   __registeredCodeLensProviders: registeredCodeLensProviders,
+  __registeredHoverProviders: registeredHoverProviders,
   __registeredCustomEditorProviders: registeredCustomEditorProviders,
   // Back-compat for the original (pre-menu-editor) test suite, which only ever
   // dealt with one registered custom editor provider.

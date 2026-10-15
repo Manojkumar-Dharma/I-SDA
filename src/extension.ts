@@ -10,6 +10,8 @@
  *     pushed into the webview so the visual preview never goes stale
  */
 import * as vscode from 'vscode';
+import * as fs from 'fs';
+import * as path from 'path';
 import { getWebviewHtml } from './webviewTemplate';
 import { getMenuWebviewHtml, MenuCommandSourceStatus } from './menuWebviewTemplate';
 import { parseDspf } from './dspfParser';
@@ -99,6 +101,19 @@ const DiagnosticsHub: {
     clearSource(uri: vscode.Uri, source: string): void;
   };
 } = require('./diagnosticsHub.js');
+// Keyword hover (E1c): pure lookup in ddsHover.js, data built into dist/keywordHoverData.json at build time.
+const DdsHover: {
+  createProvider(
+    vscodeApi: any,
+    options: {
+      getSettings(): { enable: boolean };
+      shouldHover(document: vscode.TextDocument): boolean;
+      loadData(): unknown;
+      spec: unknown;
+    }
+  ): vscode.HoverProvider;
+} = require('./ddsHover.js');
+const HoverKeywordSpec: unknown = require('./keywordSpec.js');
 // Same reasoning as MnuCmdEngine/DspfEngine above: plain dependency-free JS
 // shared verbatim with the webview. buildTypedRecordPlan is the "+ Add
 // record" wizard's own record-type decision table (what keywords/companion
@@ -300,10 +315,7 @@ export function activate(context: vscode.ExtensionContext): void {
   // not DDS (it is the option-to-command mapping), so it is left out; everything else the CodeLens treats as a
   // display or menu source is analysed.
   const diagnosticsHub = DiagnosticsHub.createHub(vscode, {
-    shouldAnalyze: (document) =>
-      vscode.languages.match(DDS_LANGUAGE_SELECTOR, document) > 0 &&
-      getDocumentSourceType(document.uri) !== MENU_COMMAND_SOURCE_TYPE &&
-      (isLikelyDisplayFile(document) || isLikelyMenuFile(document)),
+    shouldAnalyze: isDdsTextDocument,
     getSettings: () => {
       const config = vscode.workspace.getConfiguration('isda');
       return { enable: config.get<boolean>('diagnostics.enable', true), severity: config.get<unknown>('diagnostics.severity', {}) };
@@ -312,6 +324,29 @@ export function activate(context: vscode.ExtensionContext): void {
   });
   diagnosticsHub.start();
   context.subscriptions.push(diagnosticsHub);
+
+  // E1c: keyword hover over the same documents. The data file is read on the first hover, not at start-up.
+  context.subscriptions.push(
+    vscode.languages.registerHoverProvider(
+      DDS_LANGUAGE_SELECTOR,
+      DdsHover.createProvider(vscode, {
+        getSettings: () => ({ enable: vscode.workspace.getConfiguration('isda').get<boolean>('hover.enable', true) }),
+        shouldHover: isDdsTextDocument,
+        loadData: () => JSON.parse(fs.readFileSync(path.join(__dirname, 'keywordHoverData.json'), 'utf8')),
+        spec: HoverKeywordSpec,
+      })
+    )
+  );
+}
+
+// A display-file or menu source opened in the text editor: what the diagnostics and the hover work on. A MNUCMD
+// member is not DDS (it is the option-to-command mapping), so it is left out.
+function isDdsTextDocument(document: vscode.TextDocument): boolean {
+  return (
+    vscode.languages.match(DDS_LANGUAGE_SELECTOR, document) > 0 &&
+    getDocumentSourceType(document.uri) !== MENU_COMMAND_SOURCE_TYPE &&
+    (isLikelyDisplayFile(document) || isLikelyMenuFile(document))
+  );
 }
 
 // DDS display files declare record formats with 'R' in column 17; a quick,
