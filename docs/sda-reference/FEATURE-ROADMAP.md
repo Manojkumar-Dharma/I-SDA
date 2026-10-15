@@ -47,7 +47,7 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-6 of 10 epics done (E3, E4, E7, E8, E9, E10); 50 sub-tasks done (E3a - E3l, E4a - E4g, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.15.6**.
+6 of 10 epics done (E3, E4, E7, E8, E9, E10); 51 sub-tasks done (E1a, E3a - E3l, E4a - E4g, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.15.7**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
@@ -96,7 +96,7 @@ all of it can be switched off with settings.
 
 | ID | Sub-task and scope | Depends on | Status | Version |
 |----|--------------------|------------|--------|---------|
-| E1a | **Diagnostics core.** New pure module `src/ddsDiagnostics.js`: parse a source text and run the existing guard chain (`commitSourceChange` guards, spec conflict rules) in a read-only "report, don't refuse" mode. Output is a list of positioned diagnostics with a stable code per rule. Added to the `build:webview-assets` copy list. | - | In progress | — |
+| E1a | **Diagnostics core.** New pure module `src/ddsDiagnostics.js`: parse a source text and run the existing guard chain (`commitSourceChange` guards, spec conflict rules) in a read-only "report, don't refuse" mode. Output is a list of positioned diagnostics with a stable code per rule. Added to the `build:webview-assets` copy list. Results: [E1a results](#e1a-results). | - | Done | v0.15.7 |
 | E1b | **Wire to VS Code.** `DiagnosticCollection` over `DDS_LANGUAGE_SELECTOR` documents, debounced on change and on open; settings `isda.diagnostics.enable` and a severity map; cleared on close. Creates the shared hub (see Shared foundations). | E1a | Open | - |
 | E1c | **Hover.** Keyword hover from the generated keyword index: level, parameter grammar, option-indicator validity, `DDS_Keyword_V7r6` citation. Fixed-column awareness (hover only in the keyword area, columns 45-80 plus continuation lines). | E1a | Open | - |
 | E1d | **Completion.** Keyword completion filtered by level, record type and field usage/data type using `keywordSpec.js`; parameter snippets; no suggestion for a keyword the guards would refuse here. | E1a | Open | - |
@@ -105,6 +105,49 @@ all of it can be switched off with settings.
 | E1g | **Column aids.** Decorations or ruler for the fixed DDS columns (5-6 type, 17 name type, 30-34 length, ...). **Decision first:** decorations vs a CodeLens-style header; may be dropped if E1c/E1d make it redundant. | E1b | Open | - |
 | E1h | **Performance and tests.** Latency budget on a 5,000-line and a 20,000-line source, incremental re-check of the edited record only, no-`vscode` unit tests for E1a, jsdom-free. | E1a | Open | - |
 | E1i | **Release** (next free minor). | E1a - E1h | Open | - |
+
+### E1a results
+
+`src/ddsDiagnostics.js` (UMD, no `vscode` import; needs only `dspfWriter.js` and the compiled parser), tested by
+`src/test/e1aDiagnosticsCore.test.js` (61 checks; 17 mutations of the module each fail it). Nothing calls it yet: E1b wires it to VS Code.
+
+- **API.** `analyze(source, options)` returns `{ diagnostics, model, internalErrors }`. A diagnostic is
+  `{ line, column, endColumn, severity, code, message, keyword, record, source: 'iSDA' }`: 1-based, `endColumn`
+  exclusive, `keyword` / `record` null when the diagnostic is on a whole line or at file level. `options.severity`
+  (`{ code: severity | 'off' }`), `options.disabled` (codes) and `options.model` (an already parsed file, so E1b - E1e can
+  share one parse). The parsed `model` comes back for the same reason. It never throws: a guard that throws is skipped
+  and named in `internalErrors`. `allCodes()` lists every stable code (`isda.<rule>`, plus `isda.parseError`);
+  `coverage()` lists the registered guards by their `DspfWriter` export name.
+- **What runs.** Parser errors; the 25 model guards of the `commitSourceChange` chain (`scrbarReserved` and
+  `altKeyFileExclusion` plus the 23 in `windowDependencyGuardBlocks`), called as `guard(emptyModel, model)`. They are
+  diff-based ("only a violation this edit introduces"), so against an empty old model every violation in the file counts;
+  and nine record-keyword rules (`(keywordName, recordKeywords)`: the USRDFN / SFL / MNUBAR whitelists, the WINDOW /
+  PULLDOWN / KEEP / ALWROL-CLRL-SLNO / SFLNXTCHG-SFLMSGRCD / DSPMOD mutexes) asked once per keyword of each record. Three
+  of those guards answer yes for any keyword once the record carries the marker (they were only ever called for one
+  keyword), so the registry limits them with `only`. Every rule reports `error`, the severity the compiler gives what the
+  guards refuse.
+- **Where it points.** A model guard returns one reason and no position, and only the first violation. Each reason is
+  located by removal: file keywords one by one; then the records by bisection (the smallest prefix of records whose
+  removal clears the reason, and the same from the other end, so a 700-record file takes about twenty guard calls), then
+  the items of the chosen record, tested with the far-side records removed so a reason that needs several offenders gone
+  (HLPRCD on three records) is still cleared by one item. When removing two different items clears it (a conflict between
+  two fields or records), the one the reason names first wins, a name introduced by "field" or "record" before a bare
+  one: `ALIAS(AA) on field F2 ... field F1 already uses it` points at F2. The offender is then removed from a working copy
+  and the guard asked again, so one guard reports every violation, in source order. A clean source costs one call per
+  guard.
+- **Ranges.** A keyword is its text in the keyword area (columns 45-80), on its first line; a whole field, record or H
+  specification is its name (columns 19-28); anything else is the whole line.
+- **Measured.** 4,901 lines (700 records) with one violation: 110 - 170 ms; 4,900 clean lines: 100 - 160 ms (this
+  machine, Node 22); the acceptance paragraph asks for under a second at 5,000 lines. E1h still owns the latency budget at
+  20,000 lines and the incremental re-check.
+- **Not covered yet.** 34 of the 114 `*ConflictReason` functions `DspfWriter` exports are registered; the other 80 have a
+  different signature (`(oldKeywords, newKeywords)` on a field or a record, `(field, updates)`, the `*BasicEdit*` family,
+  the float and EDTMSK families). Each needs a decision on which level it applies to before it can run on a static source.
+  The test prints the size of that gap and fails if a new `(oldModel, newModel)` guard appears in `DspfWriter` without
+  being registered (the other signatures are not checked). This is the one thing the acceptance paragraph's "rule violations" leans on that E1a does not finish; it
+  wants a follow-up sub-task (proposed, not added).
+- **Stand-ins in the tests.** No real guard yet reports a conflict between two records, so the cross-record paths of the
+  search are tested with a stand-in guard swapped in for one `DspfWriter` export and restored afterwards.
 
 ---
 
