@@ -104,7 +104,7 @@ all of it can be switched off with settings.
 | E1f | **Quick-fixes.** `CodeActionProvider` mapped from diagnostic codes: remove the conflicting keyword, add a missing required companion (for example `OVERLAY` for `PUTRETAIN`, `INDARA`), "Open in designer". Each fix is an edit through the same writer so source fidelity (I-202 - I-207) holds. Results: [E1f results](#e1f-results). | E1a, E1b | Done | v0.15.12 |
 | E1g | **Column aids.** Decorations or ruler for the fixed DDS columns (5-6 type, 17 name type, 30-34 length, ...). **Decision taken:** decorations on the active line, off by default (not every line, not a CodeLens ruler, not dropped). Results: [E1g results](#e1g-results). | E1b | Done | v0.15.13 |
 | E1h | **Performance and tests.** Latency budget on a 5,000-line and a 20,000-line source, incremental re-check of the edited record only, no-`vscode` unit tests for E1a, jsdom-free. **Decision taken:** a per-record cache (record-local guards asked about one record at a time and kept per record text; the guards that look across records stay whole-model); the budget is enforced by work counts plus loose clock ceilings. Results: [E1h results](#e1h-results). | E1a | Done | v0.15.14 |
-| E1i | **Release** (next free minor). | E1a - E1h | Open | - |
+| E1i | **Release** (next free minor). | E1a - E1h | In progress | — |
 
 ### E1a results
 
