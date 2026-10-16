@@ -47,7 +47,7 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-6 of 10 epics done (E3, E4, E7, E8, E9, E10); 53 sub-tasks done (E1a - E1c, E3a - E3l, E4a - E4g, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.15.9**.
+6 of 10 epics done (E3, E4, E7, E8, E9, E10); 56 sub-tasks done (E1a - E1f, E3a - E3l, E4a - E4g, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.15.12**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
@@ -101,7 +101,7 @@ all of it can be switched off with settings.
 | E1c | **Hover.** Keyword hover from the generated keyword index: level, parameter grammar, option-indicator validity, `DDS_Keyword_V7r6` citation. Fixed-column awareness (hover only in the keyword area, columns 45-80 plus continuation lines). Results: [E1c results](#e1c-results). | E1a | Done | v0.15.9 |
 | E1d | **Completion.** Keyword completion filtered by level, record type and field usage/data type using `keywordSpec.js`; parameter snippets; no suggestion for a keyword the guards would refuse here. Results: [E1d results](#e1d-results). | E1a | Done | v0.15.10 |
 | E1e | **Outline and navigation.** `DocumentSymbolProvider` (records, fields, subfile pairs, help specifications); go-to-definition on record names inside `SFLCTL(...)`, `WINDOW(...)`, `MNUBARCHC(...)` (the `RECORD_REFERENCES` table already says where they sit). Results: [E1e results](#e1e-results). | E1a | Done | v0.15.11 |
-| E1f | **Quick-fixes.** `CodeActionProvider` mapped from diagnostic codes: remove the conflicting keyword, add a missing required companion (for example `OVERLAY` for `PUTRETAIN`, `INDARA`), "Open in designer". Each fix is an edit through the same writer so source fidelity (I-202 - I-207) holds. | E1a, E1b | Open | - |
+| E1f | **Quick-fixes.** `CodeActionProvider` mapped from diagnostic codes: remove the conflicting keyword, add a missing required companion (for example `OVERLAY` for `PUTRETAIN`, `INDARA`), "Open in designer". Each fix is an edit through the same writer so source fidelity (I-202 - I-207) holds. Results: [E1f results](#e1f-results). | E1a, E1b | Done | v0.15.12 |
 | E1g | **Column aids.** Decorations or ruler for the fixed DDS columns (5-6 type, 17 name type, 30-34 length, ...). **Decision first:** decorations vs a CodeLens-style header; may be dropped if E1c/E1d make it redundant. | E1b | Open | - |
 | E1h | **Performance and tests.** Latency budget on a 5,000-line and a 20,000-line source, incremental re-check of the edited record only, no-`vscode` unit tests for E1a, jsdom-free. | E1a | Open | - |
 | E1i | **Release** (next free minor). | E1a - E1h | Open | - |
@@ -295,6 +295,41 @@ Both features read the source with the parser (`DspfParser.parseDspf`, not the d
   `renameRecordReferences` already does the rewriting for the designers, but a text-editor rename is a later item.
 - **Not checked in a real VS Code.** The tests use a fake of the API, so how the Outline view, breadcrumbs and the ctrl-click underline draw
   was not exercised; opening a `.dspf` in the Extension Development Host and ctrl-clicking the name in `SFLCTL(...)` would confirm it.
+
+### E1f results
+
+`src/ddsQuickFix.js` (UMD; `fixesFor` and `toTextEdit` are pure and have no `vscode` import, `createProvider` takes the API as an
+argument), tested by `src/test/e1fQuickFix.test.js` (76 checks; 17 mutations of the module, 14 killed at first, the 3 survivors got
+a test each and are killed now) and 8 more in `extension.test.js` that run the real `activate()`. A problem iSDA shows in the
+Problems panel now has a lightbulb in the text editor.
+
+- **Three actions.** (1) **Remove `<keyword>`** for any diagnostic that sits on a keyword (file, record, field or help specification).
+  (2) **Add the missing companion**, preferred over removing because it keeps what the author wrote: `OVERLAY` to the record for
+  `PUTRETAIN`, `ERASE`, `ERASEINP`, `PROTECT` and `MDTOFF`; `INDARA` to the file for `RETKEY` and `RETCMDKEY`. Both lists are read from the spec
+  (`requiresRecordKeyword`, `requiresInFile`), not from the message text, and only a companion that is written bare is offered: `WINDOW` (needs
+  geometry), `SFLCTL` (needs a record name), `HLPPNLGRP` and `PRINT` (need a name) are not invented. (3) **Open in designer**
+  (`vscode.openWith` with the display or the menu designer's view type) on every iSDA problem, for the ones a text edit cannot settle.
+- **Same writer, same settings.** A fix is made with `applyFileKeywordsUpdate` / `applyRecordUpdate` / `applyFieldUpdate`, then
+  `applyModificationTracking`, with `keepRemovedLines` switched on and off around it exactly as the designers do (it is off while tracking
+  is on, and the writer's own state is restored afterwards). So untouched lines stay verbatim (tags past column 80, data in columns 1-5),
+  sequence numbers are re-stamped by the writer (I-203), the tag goes at the end or in columns 1-5 (I-204), and a removed keyword line stays as a
+  comment with `isda.keepRemovedLines` (I-207). A keyword on the same line as its record or field has no line of its own to keep, so it is just taken off.
+- **Verified before it is shown.** The fixed source is analysed again and the fix is offered only when the diagnostic's own kind (code, keyword,
+  record) goes down and nothing appears that was not there before. A fix that trades one problem for another does not show. Cost: one more
+  analysis per candidate fix (100 - 170 ms at 5,000 lines), only when the lightbulb is asked for; the analysis of the open version is cached per
+  document version and shared by all the diagnostics of a request.
+- **The edit.** `toTextEdit` reduces the whole-source result to one whole-line replace (common first and last lines are left alone), in the document's
+  own line ending; an insertion, a deletion and a change at the very end of the document each have a correct range (the first version of the
+  end-of-document case produced an end before its start; a check now applies every edit above to the text in both line endings and compares).
+- **Settings.** `isda.quickFix.enable` (default on) and `isda.quickFix.openInDesigner` (default on). Documents are the ones the hover and the
+  diagnostics use (`isDdsTextDocument`); a MNUCMD member gets nothing.
+- **Limits.** Most diagnostics have only "Remove" (and "Open in designer"): only seven keywords have a bare companion in the spec. A diagnostic with
+  no keyword (a record-level or whole-line one, for example `isda.helpKeywordRelation` on a record) has no edit, only "Open in designer". The remove
+  fix removes the one keyword the diagnostic points at even when another keyword is the better one to drop (for a conflict between two keywords
+  there is one lightbulb on each). No "fix all in file", no quick-fix for the parameter of a keyword (a wrong value), and no fix for the
+  `CRTDSPF` / `CRTMNU` messages E2 will add (a different source, a different code space).
+- **Not checked in a real VS Code.** The tests use a fake of the API, so the lightbulb, the preview of a `WorkspaceEdit` and the `vscode.openWith` call
+  on the live custom editors were not exercised; putting the cursor on an `RMVWDW` with no `WINDOW` in the Extension Development Host would confirm it.
 
 ---
 

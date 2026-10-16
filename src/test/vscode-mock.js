@@ -5,6 +5,7 @@ const registeredCommands = {};
 const registeredCodeLensProviders = [];
 const registeredHoverProviders = [];
 const registeredCompletionProviders = [];
+const registeredCodeActionProviders = [];
 const registeredSymbolProviders = [];
 const registeredDefinitionProviders = [];
 const registeredCustomEditorProviders = {}; // keyed by viewType, since the extension now registers more than one
@@ -24,6 +25,11 @@ class WorkspaceEdit {
   constructor() { this.edits = []; }
   replace(uri, range, newText) { this.edits.push({ uri, range, newText }); }
 }
+
+class CodeAction {
+  constructor(title, kind) { this.title = title; this.kind = kind; }
+}
+const CodeActionKind = { QuickFix: 'quickfix' };
 
 class MarkdownString {
   constructor(value) { this.value = value; }
@@ -118,6 +124,8 @@ const vscodeMock = {
   CompletionItemKind: { Keyword: 13 },
   DiagnosticSeverity: { Error: 0, Warning: 1, Information: 2, Hint: 3 },
   WorkspaceEdit,
+  CodeAction,
+  CodeActionKind,
   CodeLens,
   Uri,
   ViewColumn: { Active: -1, Beside: -2, One: 1 },
@@ -233,6 +241,10 @@ const vscodeMock = {
       registeredDefinitionProviders.push({ selector, provider });
       return { dispose: () => {} };
     },
+    registerCodeActionsProvider: (selector, provider, metadata) => {
+      registeredCodeActionProviders.push({ selector, provider, metadata });
+      return { dispose: () => {} };
+    },
     registerCompletionItemProvider: (selector, provider) => {
       registeredCompletionProviders.push({ selector, provider });
       return { dispose: () => {} };
@@ -299,6 +311,7 @@ const vscodeMock = {
   __registeredCodeLensProviders: registeredCodeLensProviders,
   __registeredHoverProviders: registeredHoverProviders,
   __registeredCompletionProviders: registeredCompletionProviders,
+  __registeredCodeActionProviders: registeredCodeActionProviders,
   __registeredSymbolProviders: registeredSymbolProviders,
   __registeredDefinitionProviders: registeredDefinitionProviders,
   __registeredCustomEditorProviders: registeredCustomEditorProviders,

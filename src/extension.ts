@@ -136,6 +136,17 @@ const DdsCompletion: {
     }
   ): vscode.CompletionItemProvider;
 } = require('./ddsCompletion.js');
+const DdsQuickFix: {
+  createProvider(
+    api: unknown,
+    options: {
+      getSettings: () => { enable: boolean; openInDesigner: boolean };
+      getEditSettings: () => { keepRemoved: boolean; tracking: { enabled: boolean; tag: string; position: 'end' | 'sequence' } };
+      shouldProvide: (document: vscode.TextDocument) => boolean;
+      designerViewType: (document: vscode.TextDocument) => string | null;
+    }
+  ): vscode.CodeActionProvider;
+} = require('./ddsQuickFix.js');
 // Same reasoning as MnuCmdEngine/DspfEngine above: plain dependency-free JS
 // shared verbatim with the webview. buildTypedRecordPlan is the "+ Add
 // record" wizard's own record-type decision table (what keywords/companion
@@ -392,6 +403,29 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.languages.registerDocumentSymbolProvider(DDS_LANGUAGE_SELECTOR, outlineProvider, { label: 'I-SDA DDS' }),
     vscode.languages.registerDefinitionProvider(DDS_LANGUAGE_SELECTOR, outlineProvider)
+  );
+
+  // E1f: quick-fixes for the E1b diagnostics (remove the conflicting keyword, add a missing companion, open in the
+  // designer). The edits go through the same writer the designers use and follow the same modification-tracking and
+  // keep-removed-lines settings, so a fix keeps the source the way a designer edit would.
+  context.subscriptions.push(
+    vscode.languages.registerCodeActionsProvider(
+      DDS_LANGUAGE_SELECTOR,
+      DdsQuickFix.createProvider(vscode, {
+        getSettings: () => {
+          const config = vscode.workspace.getConfiguration('isda');
+          return { enable: config.get<boolean>('quickFix.enable', true), openInDesigner: config.get<boolean>('quickFix.openInDesigner', true) };
+        },
+        getEditSettings: () => {
+          const tracking = getModTrackingConfig();
+          return { keepRemoved: tracking.keepRemoved, tracking: { enabled: tracking.enabled, tag: tracking.tag, position: tracking.position } };
+        },
+        shouldProvide: isDdsTextDocument,
+        designerViewType: (document: vscode.TextDocument) =>
+          isLikelyMenuFile(document) ? MenuDesignerEditorProvider.viewType : isLikelyDisplayFile(document) ? DspfDesignerEditorProvider.viewType : null,
+      }),
+      { providedCodeActionKinds: [vscode.CodeActionKind.QuickFix] }
+    )
   );
 }
 

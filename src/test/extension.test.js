@@ -893,6 +893,37 @@ async function run() {
   vscodeMock.__clearMockConfig();
   vscodeMock.__setLanguageMatch(null);
 
+  console.log('\nE1f: quick-fixes');
+  vscodeMock.__setLanguageMatch(() => 10);
+  const quickFixEntries = vscodeMock.__registeredCodeActionProviders;
+  check('activate() registers one code action provider over the DDS selector, offering quick-fix actions', quickFixEntries.length >= 1 && !!quickFixEntries[quickFixEntries.length - 1].selector &&
+    JSON.stringify(quickFixEntries[quickFixEntries.length - 1].metadata) === JSON.stringify({ providedCodeActionKinds: ['quickfix'] }));
+  const quickFixProvider = quickFixEntries[quickFixEntries.length - 1].provider;
+  const qfLines = ['     A          R REC1', '     A                                      PUTRETAIN', '     A            F1            10A  B  2  2'];
+  const qfDoc = vscodeMock.__mockDocument(qfLines.join('\n'));
+  const qfDiagnostic = { range: { start: { line: 1, character: 44 }, end: { line: 1, character: 53 } }, source: 'iSDA', code: 'isda.multiLevelEligibility' };
+  const qfActions = quickFixProvider.provideCodeActions(qfDoc, null, { diagnostics: [qfDiagnostic] });
+  check('a PUTRETAIN problem gets "Add OVERLAY", "Remove PUTRETAIN" and "Open in designer" from the real activate()', qfActions.map((a) => a.title).join('|') === 'Add OVERLAY to record format REC1|Remove PUTRETAIN|Open in designer');
+  check('  "Open in designer" opens the display designer (a .dspf is a display source)', qfActions[2].command.command === 'vscode.openWith' && qfActions[2].command.arguments[1] === 'dspfDesigner.editor');
+  vscodeMock.__setMockConfig('isda.keepRemovedLines', false);
+  const qfNoKeep = quickFixProvider.provideCodeActions(qfDoc, null, { diagnostics: [qfDiagnostic] });
+  check('isda.keepRemovedLines = false reaches the edit (the removed line is not kept as a comment)', qfNoKeep[1].edit.edits[0].newText === '' && /^ {5}A\* +PUTRETAIN\n$/.test(qfActions[1].edit.edits[0].newText));
+  vscodeMock.__clearMockConfig();
+  vscodeMock.__setMockConfig('isda.trackSourceModifications', true);
+  vscodeMock.__setMockConfig('isda.modificationTag', 'MK');
+  const qfTracked = quickFixProvider.provideCodeActions(qfDoc, null, { diagnostics: [qfDiagnostic] });
+  check('isda.trackSourceModifications and isda.modificationTag reach the edit (the added line is tagged)', /OVERLAY\s+MK/.test(qfTracked[0].edit.edits[0].newText));
+  vscodeMock.__clearMockConfig();
+  vscodeMock.__setMockConfig('isda.quickFix.openInDesigner', false);
+  check('isda.quickFix.openInDesigner = false removes "Open in designer"', quickFixProvider.provideCodeActions(qfDoc, null, { diagnostics: [qfDiagnostic] }).length === 2);
+  vscodeMock.__clearMockConfig();
+  vscodeMock.__setMockConfig('isda.quickFix.enable', false);
+  check('isda.quickFix.enable = false offers nothing', quickFixProvider.provideCodeActions(qfDoc, null, { diagnostics: [qfDiagnostic] }).length === 0);
+  vscodeMock.__clearMockConfig();
+  const qfCmd = vscodeMock.__mockDocument(qfLines.join('\n'), new vscodeMock.Uri('member', '/MYLIB/QMNUSRC/MYMENU.MNUCMD'));
+  check('a MNUCMD member gets no quick-fix', quickFixProvider.provideCodeActions(qfCmd, null, { diagnostics: [qfDiagnostic] }).length === 0);
+  vscodeMock.__setLanguageMatch(null);
+
   console.log('\ndispose');
   let threw = false;
   try {
