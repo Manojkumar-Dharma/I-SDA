@@ -47,11 +47,11 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-6 of 10 epics done (E3, E4, E7, E8, E9, E10); 58 sub-tasks done (E1a - E1h, E3a - E3l, E4a - E4g, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.15.14**.
+7 of 10 epics done (E1, E3, E4, E7, E8, E9, E10); 59 sub-tasks done (E1a - E1i, E3a - E3l, E4a - E4g, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.16.0**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
-| [E1](#e1) | Editor-side DDS language support (diagnostics, hover, completion, outline, quick-fixes) | E1a - E1i | - | Open | - |
+| [E1](#e1) | Editor-side DDS language support (diagnostics, hover, completion, outline, quick-fixes) | E1a - E1i | - | Done | v0.16.0 |
 | [E2](#e2) | Compile-error feedback loop | E2a - E2h | E1a, E1b for the shared diagnostics collection | Open | - |
 | [E3](#e3) | Indicator simulator (and program-to-system field values) | E3a - E3l | - | Done | v0.14.1 |
 | [E4](#e4) | Message-file integration (`MSGID` / `ERRMSGID` / `CHKMSGID` / `SFLMSGID`) | E4a - E4g | E3f (soft) | Done | v0.15.6 |
@@ -104,7 +104,7 @@ all of it can be switched off with settings.
 | E1f | **Quick-fixes.** `CodeActionProvider` mapped from diagnostic codes: remove the conflicting keyword, add a missing required companion (for example `OVERLAY` for `PUTRETAIN`, `INDARA`), "Open in designer". Each fix is an edit through the same writer so source fidelity (I-202 - I-207) holds. Results: [E1f results](#e1f-results). | E1a, E1b | Done | v0.15.12 |
 | E1g | **Column aids.** Decorations or ruler for the fixed DDS columns (5-6 type, 17 name type, 30-34 length, ...). **Decision taken:** decorations on the active line, off by default (not every line, not a CodeLens ruler, not dropped). Results: [E1g results](#e1g-results). | E1b | Done | v0.15.13 |
 | E1h | **Performance and tests.** Latency budget on a 5,000-line and a 20,000-line source, incremental re-check of the edited record only, no-`vscode` unit tests for E1a, jsdom-free. **Decision taken:** a per-record cache (record-local guards asked about one record at a time and kept per record text; the guards that look across records stay whole-model); the budget is enforced by work counts plus loose clock ceilings. Results: [E1h results](#e1h-results). | E1a | Done | v0.15.14 |
-| E1i | **Release** (next free minor). | E1a - E1h | In progress | — |
+| E1i | **Release** (next free minor; Manojkumar chose 0.16.0). Results against the acceptance paragraph: [E1i results](#e1i-results). | E1a - E1h | Done | v0.16.0 |
 
 ### E1a results
 
@@ -355,6 +355,28 @@ Problems panel now has a lightbulb in the text editor.
 - **Latency budget.** Under a second at 5,000 lines (acceptance for the release; the edit takes about 60 ms) and about 200 ms at 20,000 lines. The test's ceilings are loose (edit 1 s / 2 s, cold 2 s / 4 s for 5,000 / 20,000 lines); the exact checks are the counts.
 - **Hub.** One analyzer per open document, created on first analysis, dropped on close, when the feature is switched off, or when the document stops being DDS.
 - **Not done.** An incremental parser, and cheaper whole-model guards (skipping a guard when the file has none of the keywords it is about), would take the 20,000-line edit lower; E1f's quick-fix still analyses in one shot per request. Not checked in a real VS Code: the tests use a fake of the API.
+
+### E1i results
+
+**Released as v0.16.0** (Manojkumar chose the minor number; the E1 work shipped as v0.15.7 - v0.15.14 and this entry rolls it up). Every sub-task E1a - E1h is Done. The acceptance paragraph, one criterion at a time:
+
+| Acceptance criterion | Met by | Evidence |
+|----------------------|--------|----------|
+| Rule violations in Problems for a `.dspf` / `.mnudds` / member opened in the text editor | E1a (v0.15.7) the rules, E1b (v0.15.8) the Problems panel, over open, change (300 ms debounce) and close | `e1aDiagnosticsCore.test.js`, `e1bDiagnosticsHub.test.js`, 8 checks in `extension.test.js` that run the real `activate()` |
+| ... within one second for a 5,000-line source | E1a, E1h (v0.15.14) | `e1iRelease.test.js`: 4,998 lines clean 178 ms and 5,049 lines with 50 violations 156 ms on the first run (nothing remembered); a one-line edit with the memory warm takes about 60 ms (`e1hPerformance.test.js`, counted exactly) |
+| Hover works for every keyword in the generated index | E1c (v0.15.9) | `e1cHover.test.js`: every entry of `KEYWORD-LOOKUP.json` hovers at each level it is listed at (185 keywords) |
+| Completion works for every keyword in the generated index | E1d (v0.15.10) | `e1iRelease.test.js`: each of the 213 index entries at the file, record, field and help-specification levels is offered at its level, on a line where its data type and usage fit (`EDTCDE` / `EDTWRD` need data type `Y`, `MAPVAL` needs `L`, `T` or `Z`). The `*` entries are parameter values, not keywords, and are not offered by design |
+| The outline lists records and fields | E1e (v0.15.11) | `e1eOutline.test.js`: one node per record format in source order, its fields, constants and help specifications under it; go to definition on `SFLCTL(...)`, `WINDOW(...)`, `MNUBARCHC(...)` |
+| At least the three most common violations offer a quick-fix | E1f (v0.15.12) | `e1fQuickFix.test.js`: **Remove `<keyword>`** on any problem that sits on a keyword, **Add the missing companion** (`OVERLAY` for `PUTRETAIN`, `ERASE`, `ERASEINP`, `PROTECT`, `MDTOFF`; `INDARA` for `RETKEY`, `RETCMDKEY`), **Open in designer** on every iSDA problem |
+| All of it can be switched off with settings | E1b, E1c, E1d, E1e, E1f, E1g | `isda.diagnostics.enable`, `isda.hover.enable`, `isda.completion.enable`, `isda.outline.enable`, `isda.quickFix.enable` (all default on; `isda.columnAids.enable` is default off); `e1iRelease.test.js` checks each exists, is a boolean, has that default and is read by `extension.ts` |
+
+**What E1 leaves open, by decision.**
+- **80 of the 114 `*ConflictReason` guards are not run by the diagnostics** (E1a: they have another signature, `(oldKeywords, newKeywords)` on a field or record, `(field, updates)`, the `*BasicEdit*` family). The Problems panel shows the 34 that are registered; the others still refuse an edit inside the designers. This is the largest gap between "the designers" and "the text editor" and wants a follow-up epic or sub-task; none was added here.
+- **A conflict between a record and a file keyword** is reported for every offending record, on the file keyword (E1h); the designers' guard reports the first only.
+- **Whole-model guards stay whole-model** (15 of the 25 model guards, and the parse): a one-line edit at 20,000 lines costs about 200 ms, most of it the parse. E1f's quick-fix still analyses in one shot per request.
+- **Column aids are off by default** (E1g decision).
+- **Not checked in a real VS Code.** Every E1 test uses a fake of the VS Code API. The Problems panel, the hover, the completion list, the outline, the lightbulb and the column bands were never seen in an Extension Development Host; a short manual pass (open a `.dspf` with a violation, hover `DSPATR(HI)`, complete a keyword, open the outline, use the lightbulb) is still owed before this ships to users.
+- **Settings are read through `vscode.workspace.getConfiguration('isda')`**; changing one takes effect on the next request or, for the Problems panel, on the configuration-change event.
 
 ---
 
