@@ -100,6 +100,38 @@
 
   var PARSE_ERROR_CODE = 'isda.parseError';
 
+  /**
+   * E1h: the model guards whose verdict on a record depends only on the file keywords and that
+   * record. Each was read in dspfWriter.js (its `*Violations` function walks `model.records` once,
+   * keeps no state from one record to the next and reads no other record), and the E1h test checks
+   * the claim again against the whole-model run on generated sources. These are the guards an
+   * incremental re-check can run on one record at a time and keep per record text.
+   *
+   * Everything else stays whole-model, and for a reason each:
+   *   subfileKeyword, subfileFoldDrop  look up the subfile record of a control record (subfileRecordOf)
+   *   fieldKind                        WINDOW(record) borrows the width of another record (windowColumnsOf)
+   *   commandKeyNumber, commandKeyRange, systemValueKeyword   count across the whole file
+   *   choiceMenuBar, windowHelpMenu    resolve a record named in a parameter
+   *   menuBarRecordRequired, fileHelp, helpSpec, helpKeywordRelation   ask "anywhere in the file"
+   *   scrbarReserved                   counts keywords across records
+   *   fileLevelDisplay, altKeyFileExclusion   file keywords only, so already one cheap call
+   * A guard added to MODEL_GUARDS is whole-model until someone reads it and adds its code here.
+   */
+  var RECORD_LOCAL_CODES = [
+    'isda.windowDependency',
+    'isda.sflctlDependency',
+    'isda.outputControl',
+    'isda.multiLevelEligibility',
+    'isda.referenceField',
+    'isda.initRetainReturn',
+    'isda.commandFunctionParameter',
+    'isda.retKey',
+    'isda.commandFunctionPairing',
+    'isda.optionIndicatorRequired',
+  ];
+
+  function isRecordLocal(code, override) { return (override || RECORD_LOCAL_CODES).indexOf(code) >= 0; }
+
   /** Every code this module can emit, for a settings schema or a severity map. */
   function allCodes() {
     return [PARSE_ERROR_CODE]
@@ -119,6 +151,15 @@
     return {
       model: MODEL_GUARDS.map(function (g) { return g[1]; }),
       recordKeyword: RECORD_KEYWORD_RULES.map(function (r) { return r.fn; }),
+    };
+  }
+
+  /** E1h: which model guards run per record (and are kept per record text) and which run on the
+   *  whole model every time, by rule code. */
+  function scopes() {
+    return {
+      record: MODEL_GUARDS.filter(function (g) { return isRecordLocal(g[0]); }).map(function (g) { return g[0]; }),
+      file: MODEL_GUARDS.filter(function (g) { return !isRecordLocal(g[0]); }).map(function (g) { return g[0]; }),
     };
   }
 
@@ -193,7 +234,17 @@
   // Locating a model-guard reason.
   // ---------------------------------------------------------------------
 
+  // The work counters of the analysis in progress (E1h). analyze() is synchronous, so one slot is
+  // enough; it is set for the length of a run and restored after it.
+  var activeStats = null;
+
   function guardReason(fn, model) {
+    if (activeStats) {
+      activeStats.guardCalls++;
+      // The records the guard is handed: the work it does grows with them, so this is the number the
+      // E1h tests budget (a clock is not exact, a count is).
+      activeStats.recordWork += (model.records || []).length;
+    }
     return fn(emptyModel(), model) || null;
   }
 
@@ -371,57 +422,347 @@
   // Running the registry.
   // ---------------------------------------------------------------------
 
-  function runModelGuards(lines, model, push, internalErrors) {
+  function modelOf(fileKeywords, records) {
+    return { fileKeywords: fileKeywords, records: records, comments: [], errors: [] };
+  }
+
+  /**
+   * Ask `fn` about `model`, locate what it names, take that out of a working copy and ask again, until
+   * it is satisfied: one guard reports every violation. `found(reason, removal, range, who)` is called
+   * for each one; the working copy at the end is returned. One reason can be true of several places at
+   * once (HLPRCD on two records), so the same reason may come round again; each round removes what it
+   * reported, so it ends.
+   */
+  function reportAll(fn, model, lines, found) {
+    var cur = model;
+    for (var n = 0; n < MAX_PER_GUARD; n++) {
+      var reason = guardReason(fn, cur);
+      if (!reason) break;
+      var rm = locate(fn, cur, reason);
+      found(reason, rm, rangeFor(lines, cur, rm), describe(cur, rm));
+      if (!rm) break;
+      cur = applyRemoval(cur, rm);
+    }
+    return cur;
+  }
+
+  function errorText(name, e) { return name + ': ' + (e && e.message ? e.message : e); }
+
+  /** The model guards, each over the whole model. `only` limits it to the entries it returns true for. */
+  function runModelGuards(lines, model, push, internalErrors, only) {
     MODEL_GUARDS.forEach(function (entry) {
+      if (only && !only(entry[0])) return;
       var code = entry[0];
       var fn = DspfWriter[entry[1]];
       if (typeof fn !== 'function') { internalErrors.push(entry[1] + ' is not exported by DspfWriter'); return; }
-      var cur = model;
       try {
-        // One reason can be true of several places at once (HLPRCD on two records), so the same
-        // reason may come round again; each round removes what it reported, so it ends.
-        for (var n = 0; n < MAX_PER_GUARD; n++) {
-          var reason = guardReason(fn, cur);
-          if (!reason) break;
-          var rm = locate(fn, cur, reason);
-          var range = rangeFor(lines, cur, rm);
-          var who = describe(cur, rm);
+        reportAll(fn, model, lines, function (reason, rm, range, who) {
           push(code, reason, range, who.keyword, who.record);
-          if (!rm) break;
-          cur = applyRemoval(cur, rm);
-        }
+        });
       } catch (e) {
-        internalErrors.push(entry[1] + ': ' + (e && e.message ? e.message : e));
+        internalErrors.push(errorText(entry[1], e));
       }
     });
   }
 
-  function runRecordKeywordRules(lines, model, push, internalErrors) {
+  /** The record-keyword rules for one record. */
+  function runRecordKeywordRulesFor(lines, rec, push, internalErrors) {
     RECORD_KEYWORD_RULES.forEach(function (rule) {
       var fn = DspfWriter[rule.fn];
       if (typeof fn !== 'function') { internalErrors.push(rule.fn + ' is not exported by DspfWriter'); return; }
-      model.records.forEach(function (rec) {
-        var kws = rec.keywords || [];
-        kws.forEach(function (kw) {
-          var name = kw.name;
-          if (rule.only && rule.only.indexOf(name) < 0) return;
-          try {
-            var reason = fn(name, kws);
-            if (reason) push(rule.code, reason, keywordRange(lines, kw), name, rec.name || null);
-          } catch (e) {
-            internalErrors.push(rule.fn + ': ' + (e && e.message ? e.message : e));
-          }
-        });
+      var kws = rec.keywords || [];
+      kws.forEach(function (kw) {
+        var name = kw.name;
+        if (rule.only && rule.only.indexOf(name) < 0) return;
+        try {
+          var reason = fn(name, kws);
+          if (reason) push(rule.code, reason, keywordRange(lines, kw), name, rec.name || null);
+        } catch (e) {
+          internalErrors.push(errorText(rule.fn, e));
+        }
       });
     });
+  }
+
+  function runRecordKeywordRules(lines, model, push, internalErrors) {
+    model.records.forEach(function (rec) { runRecordKeywordRulesFor(lines, rec, push, internalErrors); });
+  }
+
+  // ---------------------------------------------------------------------
+  // The incremental re-check (E1h).
+  //
+  // A record-local guard (RECORD_LOCAL_CODES) gives a record the same verdict whatever else is in the
+  // file, so it can be asked about one record alone - a "sandbox" model of the file keywords and that
+  // record - and the answer kept for as long as the record's text, and the file keywords above the
+  // first record, stay the same. After an edit only the records whose text changed are asked again;
+  // the guards that look across records, the parse errors and the file-level part still run over the
+  // whole model every time. Locating a violation is also cheaper: inside a one-record sandbox there is
+  // no bisection over thousands of records.
+  //
+  // Positions are kept relative to the record's own first line (so the same record moved down by an
+  // insertion above it reuses its answer), except for a diagnostic placed on a file keyword, which
+  // stays where it is; a change to the lines above the first record drops everything.
+  // ---------------------------------------------------------------------
+
+  /** The conditions of a record as text, without their line numbers: the indicator-only lines that
+   *  carry them can sit above the record's own line, outside the text slice that keys it. */
+  function conditionSignature(rec) {
+    return (rec.conditions || []).map(function (c) {
+      return [c.relation, JSON.stringify(c.indicators || []), JSON.stringify(c.displaySizeCondition || null)].join('|');
+    }).join(';');
+  }
+
+  /** What a cached answer is keyed by: the record's lines (its own line up to the next record's) and
+   *  its conditions. */
+  function recordKey(lines, rec, startLine, endLine) {
+    return lines.slice(startLine - 1, endLine - 1).join('\n') + '\u0001' + conditionSignature(rec);
+  }
+
+  /** True when every record has a line number and they increase - what the slicing relies on. */
+  function slicesAreUsable(records) {
+    for (var i = 0; i < records.length; i++) {
+      var at = records[i].sourceLine;
+      if (!(at >= 1) || (i > 0 && at <= records[i - 1].sourceLine)) return false;
+    }
+    return true;
+  }
+
+  /**
+   * The raw diagnostics of one analysis, computed incrementally against `prev` (the state a previous
+   * analysis left, or null). Returns { raw, state } or null when the model cannot be sliced by line
+   * (the caller then runs the whole-model path).
+   */
+  function collectIncremental(prev, lines, model, stats, internalErrors, localCodes) {
+    var records = model.records || [];
+    if (!slicesAreUsable(records)) return null;
+
+    var raw = [];
+    function pushRaw(code, message, range, keyword, record) {
+      raw.push({ line: range.line, column: range.column, endColumn: range.endColumn, code: code, message: message, keyword: keyword || null, record: record || null });
+    }
+
+    (model.errors || []).forEach(function (err) {
+      pushRaw(PARSE_ERROR_CODE, err.message, wholeLine(lines, err.line || 1), null, null);
+    });
+    runModelGuards(lines, model, pushRaw, internalErrors, function (code) { return !isRecordLocal(code, localCodes); });
+
+    // The record-local guards. First the part that does not depend on any record: the guard asked
+    // about the file keywords alone. What it names is reported once, here, and taken out of the file
+    // keywords the record sandboxes use, so no record repeats it.
+    var locals = [];
+    MODEL_GUARDS.forEach(function (entry) {
+      if (!isRecordLocal(entry[0], localCodes)) return;
+      var fn = DspfWriter[entry[1]];
+      if (typeof fn !== 'function') { internalErrors.push(entry[1] + ' is not exported by DspfWriter'); return; }
+      var local = { code: entry[0], name: entry[1], fn: fn, fileKeywords: model.fileKeywords };
+      try {
+        var work = reportAll(fn, modelOf(model.fileKeywords, []), lines, function (reason, rm, range, who) {
+          pushRaw(local.code, reason, range, who.keyword, who.record);
+        });
+        local.fileKeywords = work.fileKeywords;
+        locals.push(local);
+      } catch (e) {
+        internalErrors.push(errorText(entry[1], e));
+      }
+    });
+
+    var firstLine = records.length ? records[0].sourceLine : lines.length + 1;
+    var fileKey = lines.slice(0, firstLine - 1).join('\n');
+    var reusable = prev && prev.fileKey === fileKey ? prev.records : new Map();
+
+    var keys = records.map(function (rec, i) {
+      return recordKey(lines, rec, rec.sourceLine, i + 1 < records.length ? records[i + 1].sourceLine : lines.length + 1);
+    });
+    var fresh = new Map(); // record key -> { rec, diags, errors }
+    keys.forEach(function (k, i) {
+      if (!reusable.has(k) && !fresh.has(k)) fresh.set(k, { rec: records[i], diags: [], errors: [] });
+    });
+    var freshList = [];
+    fresh.forEach(function (f) { freshList.push(f); });
+    stats.recordsAnalyzed = freshList.length;
+
+    function keep(f, code, reason, rm, range, who) {
+      var atFile = !rm || rm.kind === 'fileKeyword'; // a file keyword (or no place at all): stays where it is
+      f.diags.push({
+        abs: atFile,
+        line: atFile ? range.line : range.line - f.rec.sourceLine,
+        column: range.column,
+        endColumn: range.endColumn,
+        code: code,
+        message: reason,
+        keyword: who.keyword || null,
+        record: who.record || null,
+      });
+    }
+
+    if (freshList.length) {
+      var batch = freshList.map(function (f) { return f.rec; });
+      locals.forEach(function (local) {
+        try {
+          // One question over all the records that need asking: if it is satisfied, each of them is.
+          if (!guardReason(local.fn, modelOf(local.fileKeywords, batch))) return;
+          freshList.forEach(function (f) {
+            try {
+              reportAll(local.fn, modelOf(local.fileKeywords, [f.rec]), lines, function (reason, rm, range, who) {
+                keep(f, local.code, reason, rm, range, who);
+              });
+            } catch (e) {
+              f.errors.push(errorText(local.name, e));
+            }
+          });
+        } catch (e) {
+          freshList.forEach(function (f) { f.errors.push(errorText(local.name, e)); });
+        }
+      });
+      freshList.forEach(function (f) {
+        runRecordKeywordRulesFor(lines, f.rec, function (code, message, range, keyword, record) {
+          f.diags.push({ abs: false, line: range.line - f.rec.sourceLine, column: range.column, endColumn: range.endColumn, code: code, message: message, keyword: keyword || null, record: record || null });
+        }, f.errors);
+      });
+    }
+
+    // Put the answers together, in source order, and keep them for the next run.
+    var next = new Map();
+    var placed = {};
+    var errorSeen = {};
+    records.forEach(function (rec, i) {
+      var key = keys[i];
+      var entry = reusable.has(key) ? reusable.get(key) : fresh.get(key);
+      if (!next.has(key)) next.set(key, entry);
+      if (reusable.has(key)) stats.recordsReused++;
+      entry.errors.forEach(function (text) { if (!errorSeen[text]) { errorSeen[text] = true; internalErrors.push(text); } });
+      entry.diags.forEach(function (d) {
+        var line = d.abs ? d.line : d.line + rec.sourceLine;
+        if (d.abs) { // the same file keyword named from two identical records is one diagnostic
+          var id = [d.code, line, d.column, d.message].join('\u0001');
+          if (placed[id]) return;
+          placed[id] = true;
+        }
+        raw.push({ line: line, column: d.column, endColumn: d.endColumn, code: d.code, message: d.message, keyword: d.keyword, record: d.record });
+      });
+    });
+    return { raw: raw, state: { fileKey: fileKey, records: next } };
+  }
+
+  /** The whole-model path, as E1a had it: every guard over the whole model. The reference the E1h test
+   *  compares the incremental path with, and the fallback when the model cannot be sliced. */
+  function collectReference(lines, model, internalErrors) {
+    var raw = [];
+    function pushRaw(code, message, range, keyword, record) {
+      raw.push({ line: range.line, column: range.column, endColumn: range.endColumn, code: code, message: message, keyword: keyword || null, record: record || null });
+    }
+    (model.errors || []).forEach(function (err) {
+      pushRaw(PARSE_ERROR_CODE, err.message, wholeLine(lines, err.line || 1), null, null);
+    });
+    runModelGuards(lines, model, pushRaw, internalErrors, null);
+    runRecordKeywordRules(lines, model, pushRaw, internalErrors);
+    return raw;
   }
 
   // ---------------------------------------------------------------------
   // Entry points.
   // ---------------------------------------------------------------------
 
+  /** Settings applied last, so a cached analysis does not depend on them: a rule off or moved to
+   *  another severity changes the output without any guard being asked again. */
+  function finish(raw, options) {
+    var severityMap = options.severity || {};
+    var disabled = options.disabled || [];
+    var diagnostics = [];
+    raw.forEach(function (d) {
+      if (disabled.indexOf(d.code) >= 0) return;
+      var severity = severityMap[d.code] || 'error';
+      if (severity === 'off') return;
+      diagnostics.push({
+        line: d.line,
+        column: d.column,
+        endColumn: d.endColumn,
+        severity: severity,
+        code: d.code,
+        message: d.message,
+        keyword: d.keyword,
+        record: d.record,
+        source: SOURCE,
+      });
+    });
+    diagnostics.sort(function (a, b) {
+      return a.line - b.line || a.column - b.column || (a.code < b.code ? -1 : a.code > b.code ? 1 : 0);
+    });
+    return diagnostics;
+  }
+
   /**
-   * analyze(source, options?) -> { diagnostics, model, internalErrors }
+   * createAnalyzer() -> { analyze(source, options?), reset() }
+   *
+   * An analyzer remembers the last source it saw, so the next call to analyze() on an edited version
+   * of the same source only asks again about what changed: the same text again is answered from
+   * memory without parsing, and after an edit the record-local guards are asked again for the records
+   * whose text changed only (see the incremental re-check above). Hold one per open document.
+   */
+  function createAnalyzer() {
+    var prev = null; // { text, model, raw, internalErrors, fileKey, records }
+
+    function analyze(source, options) {
+      options = options || {};
+      var text = source == null ? '' : String(source);
+      var lines = text.split(/\r\n|\r|\n/);
+      var stats = { mode: 'incremental', lines: lines.length, records: 0, recordsAnalyzed: 0, recordsReused: 0, guardCalls: 0, recordWork: 0, parsed: false };
+      var internalErrors = [];
+      var outer = activeStats;
+      activeStats = stats;
+      try {
+        // The same text again: nothing to ask. (A model passed in comes with its own text, so it is never memoised.)
+        if (!options.model && !options.reference && prev && prev.text === text) {
+          stats.mode = 'same-text';
+          stats.records = prev.model.records.length;
+          stats.recordsReused = stats.records;
+          return { diagnostics: finish(prev.raw, options), model: prev.model, internalErrors: prev.internalErrors.slice(), stats: stats };
+        }
+
+        var model = options.model || null;
+        if (!model) {
+          try {
+            model = DspfParser.parseDspf(text);
+            stats.parsed = true;
+          } catch (e) {
+            internalErrors.push('parseDspf: ' + (e && e.message ? e.message : e));
+            return { diagnostics: [], model: null, internalErrors: internalErrors, stats: stats };
+          }
+        }
+        stats.records = (model.records || []).length;
+
+        var raw = null;
+        var state = null;
+        // A model supplied by the caller may not match `source`, so slicing the source by its lines is not safe.
+        if (!options.reference && !options.model) {
+          var inc = collectIncremental(prev, lines, model, stats, internalErrors, options.recordLocal);
+          if (inc) { raw = inc.raw; state = inc.state; }
+        }
+        if (!raw) {
+          stats.mode = 'reference';
+          stats.recordsAnalyzed = stats.records;
+          stats.recordsReused = 0;
+          raw = collectReference(lines, model, internalErrors);
+        } else if (stats.recordsReused === 0) {
+          stats.mode = 'cold';
+        }
+
+        if (state) {
+          prev = { text: text, model: model, raw: raw, internalErrors: internalErrors.slice(), fileKey: state.fileKey, records: state.records };
+        } else if (!options.model) {
+          prev = null;
+        }
+        return { diagnostics: finish(raw, options), model: model, internalErrors: internalErrors, stats: stats };
+      } finally {
+        activeStats = outer;
+      }
+    }
+
+    return { analyze: analyze, reset: function () { prev = null; } };
+  }
+
+  /**
+   * analyze(source, options?) -> { diagnostics, model, internalErrors, stats }
    *
    * diagnostic: { line, column, endColumn, severity, code, message, keyword, record, source }
    *   severity  'error' | 'warning' | 'information' | 'hint'
@@ -429,67 +770,33 @@
    *   record    the record format it is in, or null (file level)
    *
    * options:
-   *   severity  { code: severity | 'off' } overrides (the default for every rule is 'error', the
-   *             DDS compiler refuses what the guards refuse)
-   *   disabled  array of codes to skip entirely
-   *   model     an already parsed DspfFile for this source, to skip the parse
+   *   severity   { code: severity | 'off' } overrides (the default for every rule is 'error', the
+   *              DDS compiler refuses what the guards refuse)
+   *   disabled   array of codes to skip entirely
+   *   model      an already parsed DspfFile for this source, to skip the parse
+   *   reference  true: ask every guard about the whole model, as E1a did (the E1h test compares with it)
+   *   recordLocal  array of codes to run per record instead of RECORD_LOCAL_CODES (a test seam: it lets the
+   *              E1h test show that a wrong classification is caught by the comparison with `reference`)
+   *
+   * One-shot: nothing is kept between calls (createAnalyzer() is the one that is incremental).
+   * `stats` counts the work: mode ('cold', 'incremental', 'same-text', 'reference'), records, recordsAnalyzed
+   * (asked again), recordsReused (answered from the last run), guardCalls, recordWork (records handed to
+   * guards, summed over every call), parsed.
    *
    * Never throws: a source that will not parse gives the parser's error list as diagnostics, and a
    * guard that throws is skipped and named in `internalErrors`.
    */
   function analyze(source, options) {
-    options = options || {};
-    var text = source == null ? '' : String(source);
-    var lines = text.split(/\r\n|\r|\n/);
-    var severityMap = options.severity || {};
-    var disabled = options.disabled || [];
-    var diagnostics = [];
-    var internalErrors = [];
-
-    function push(code, message, range, keyword, record) {
-      if (disabled.indexOf(code) >= 0) return;
-      var severity = severityMap[code] || 'error';
-      if (severity === 'off') return;
-      diagnostics.push({
-        line: range.line,
-        column: range.column,
-        endColumn: range.endColumn,
-        severity: severity,
-        code: code,
-        message: message,
-        keyword: keyword || null,
-        record: record || null,
-        source: SOURCE,
-      });
-    }
-
-    var model = options.model || null;
-    if (!model) {
-      try {
-        model = DspfParser.parseDspf(text);
-      } catch (e) {
-        internalErrors.push('parseDspf: ' + (e && e.message ? e.message : e));
-        return { diagnostics: [], model: null, internalErrors: internalErrors };
-      }
-    }
-
-    (model.errors || []).forEach(function (err) {
-      push(PARSE_ERROR_CODE, err.message, wholeLine(lines, err.line || 1), null, null);
-    });
-    runModelGuards(lines, model, push, internalErrors);
-    runRecordKeywordRules(lines, model, push, internalErrors);
-
-    diagnostics.sort(function (a, b) {
-      return a.line - b.line || a.column - b.column || (a.code < b.code ? -1 : a.code > b.code ? 1 : 0);
-    });
-    return { diagnostics: diagnostics, model: model, internalErrors: internalErrors };
+    return createAnalyzer().analyze(source, options);
   }
 
   return {
     analyze: analyze,
+    createAnalyzer: createAnalyzer,
     allCodes: allCodes,
     recordKeywordCodes: recordKeywordCodes,
     coverage: coverage,
+    scopes: scopes,
     PARSE_ERROR_CODE: PARSE_ERROR_CODE,
   };
 });

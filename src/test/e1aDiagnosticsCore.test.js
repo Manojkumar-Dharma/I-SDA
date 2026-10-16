@@ -214,11 +214,13 @@ check('  and fast (under 2 s)', cleanMs < 2000);
 const bigMany = analyze(bigSource(300, -1).flatMap((l, i) => (/ REC\d+$/.test(l) && i % 7 === 0) ? [l, L({ func: 'RMVWDW' })] : [l]));
 check('many violations in one guard are all found (and no cascade)', byCode(bigMany, 'isda.windowDependency').length === bigMany.diagnostics.length && bigMany.diagnostics.length > 20);
 
-// ---- cross-record conflicts (no real guard has one yet, so a stand-in guard takes retKey's place) -----------
+// ---- cross-record conflicts (no real guard has one yet, so a stand-in guard takes commandKeyRange's place) ---
+// commandKeyRange runs over the whole model; a record-local guard (E1h) is never asked about two records at
+// once, so the whole-model search is what these checks are about and the stand-in has to be a whole-model guard.
 function withFakeGuard(fake, body) {
-  const real = DspfWriter.retKeyNewConflictReason;
-  DspfWriter.retKeyNewConflictReason = fake;
-  try { return body(); } finally { DspfWriter.retKeyNewConflictReason = real; }
+  const real = DspfWriter.commandKeyRangeNewConflictReason;
+  DspfWriter.commandKeyRangeNewConflictReason = fake;
+  try { return body(); } finally { DspfWriter.commandKeyRangeNewConflictReason = real; }
 }
 const recs = (model) => model.records;
 const hasKw = (r, n) => (r.keywords || []).some((k) => k.name === n);
@@ -233,17 +235,17 @@ function pairGuard(text) {
   };
 }
 const aboutC = withFakeGuard(pairGuard('TESTKW on record RECC repeats the one on record RECA.'), () => analyze(pairSource));
-const ac = byCode(aboutC, 'isda.retKey');
+const ac = byCode(aboutC, 'isda.commandKeyRange');
 check('pair conflict across records, message about the later one: reported at RECC\'s keyword (line 7)',
   ac.length === 1 && ac[0].line === 7 && ac[0].record === 'RECC' && ac[0].keyword === 'TESTKW');
 const aboutA = withFakeGuard(pairGuard('TESTKW on record RECA repeats the one on record RECC.'), () => analyze(pairSource));
-const aa = byCode(aboutA, 'isda.retKey');
+const aa = byCode(aboutA, 'isda.commandKeyRange');
 check('  message about the earlier one: reported at RECA\'s keyword (line 3, not its other keyword)', aa.length === 1 && aa[0].line === 3 && aa[0].record === 'RECA');
 const bare = withFakeGuard(pairGuard('TESTKW is repeated: RECC and RECA both carry it.'), () => analyze(pairSource));
-const bc = byCode(bare, 'isda.retKey');
+const bc = byCode(bare, 'isda.commandKeyRange');
 check('  with no "record" before the names, the first one mentioned wins (RECC)', bc.length === 1 && bc[0].record === 'RECC' && bc[0].line === 7);
 const neither = withFakeGuard(pairGuard('TESTKW is repeated.'), () => analyze(pairSource));
-const nc = byCode(neither, 'isda.retKey');
+const nc = byCode(neither, 'isda.commandKeyRange');
 check('  naming neither: the earlier record', nc.length === 1 && nc[0].record === 'RECA' && nc[0].line === 3);
 
 const emptyRecordGuard = (oldModel, newModel) => {
@@ -251,7 +253,7 @@ const emptyRecordGuard = (oldModel, newModel) => {
   return r ? 'Record format ' + r.name + ' has nothing in it.' : null;
 };
 const empty = withFakeGuard(emptyRecordGuard, () => analyze([L({ nameType: 'R', name: 'FULL1' }), field('F1', 2, 2), L({ nameType: 'R', name: 'EMPTY1' })]));
-const er = byCode(empty, 'isda.retKey');
+const er = byCode(empty, 'isda.commandKeyRange');
 check('an offender that is a whole record: its name, columns 19-25', er.length === 1 && er[0].line === 3 &&
   er[0].column === 19 && er[0].endColumn === 25 && er[0].keyword === null && er[0].record === 'EMPTY1');
 

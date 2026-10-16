@@ -14,6 +14,9 @@
  *
  * Behaviour:
  *   - a document is analysed when it opens, and again 300 ms after the last change to it;
+ *   - each analysed document has its own analyzer (E1h), which remembers the last text and so asks the
+ *     guards again only about the records that changed; closing the document, switching the feature
+ *     off or no longer treating it as DDS drops it;
  *   - closing it clears its diagnostics from the `rules` source;
  *   - `isda.diagnostics.enable` off clears every `rules` diagnostic and stops analysing;
  *   - `isda.diagnostics.severity` maps a rule code to error / warning / information / hint / off.
@@ -50,7 +53,9 @@
    * options:
    *   shouldAnalyze(document) -> boolean   which documents are DDS sources (required)
    *   getSettings() -> { enable, severity }   read fresh on every use
-   *   analyze                              default DdsDiagnostics.analyze
+   *   analyze(text, options)               one-shot analysis for every document, no memory between
+   *                                        edits (a test seam; by default each document gets an analyzer)
+   *   createAnalyzer()                     default DdsDiagnostics.createAnalyzer (a test seam)
    *   debounceMs                           default 300
    *   schedule(fn, ms) -> handle, cancel(handle)   default setTimeout / clearTimeout (a test seam)
    *   onInternalErrors(uri, list)          called when a guard threw (analysis went on without it)
@@ -62,7 +67,8 @@
     options = options || {};
     var shouldAnalyze = options.shouldAnalyze || function () { return false; };
     var getSettings = options.getSettings || function () { return { enable: true, severity: {} }; };
-    var analyze = options.analyze || DdsDiagnostics.analyze;
+    var analyze = options.analyze || null;
+    var createAnalyzer = options.createAnalyzer || DdsDiagnostics.createAnalyzer;
     var debounceMs = options.debounceMs == null ? DEFAULT_DEBOUNCE_MS : options.debounceMs;
     var schedule = options.schedule || function (fn, ms) { return setTimeout(fn, ms); };
     var cancel = options.cancel || function (h) { clearTimeout(h); };
@@ -70,6 +76,7 @@
     var collection = vscodeApi.languages.createDiagnosticCollection('iSDA');
     var sources = new Map(); // uri string -> Map(source name -> vscode.Diagnostic[])
     var pending = new Map(); // uri string -> timer handle
+    var analyzers = new Map(); // uri string -> the document's analyzer (E1h)
     var subscriptions = [];
     var disposed = false;
 
@@ -108,6 +115,12 @@
       return out;
     }
 
+    function analyzerFor(k) {
+      var a = analyzers.get(k);
+      if (!a) { a = createAnalyzer(); analyzers.set(k, a); }
+      return a;
+    }
+
     function cancelPending(k) {
       if (pending.has(k)) { cancel(pending.get(k)); pending.delete(k); }
     }
@@ -120,10 +133,13 @@
       cancelPending(k);
       var s = settings();
       if (!s.enable || document.isClosed || !shouldAnalyze(document)) {
+        analyzers.delete(k);
         clearSource(document.uri, RULES_SOURCE);
         return;
       }
-      var result = analyze(document.getText(), { severity: s.severity });
+      var result = analyze
+        ? analyze(document.getText(), { severity: s.severity })
+        : analyzerFor(k).analyze(document.getText(), { severity: s.severity });
       if (result.internalErrors && result.internalErrors.length && options.onInternalErrors) {
         options.onInternalErrors(document.uri, result.internalErrors);
       }
@@ -148,6 +164,7 @@
 
     function onClose(document) {
       cancelPending(key(document.uri));
+      analyzers.delete(key(document.uri));
       clearSource(document.uri, RULES_SOURCE);
     }
 
@@ -169,6 +186,7 @@
       disposed = true;
       pending.forEach(function (h) { cancel(h); });
       pending.clear();
+      analyzers.clear();
       subscriptions.forEach(function (s) { if (s && typeof s.dispose === 'function') s.dispose(); });
       subscriptions = [];
       sources.clear();
