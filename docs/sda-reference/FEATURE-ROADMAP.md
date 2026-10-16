@@ -47,11 +47,11 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-7 of 10 epics done (E1, E3, E4, E7, E8, E9, E10); 59 sub-tasks done (E1a - E1i, E3a - E3l, E4a - E4g, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.16.0**.
+6 of 10 epics done (E3, E4, E7, E8, E9, E10); E1 reopened for the follow-up E1j (in progress); 59 sub-tasks done (E1a - E1i, E3a - E3l, E4a - E4g, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.16.0**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
-| [E1](#e1) | Editor-side DDS language support (diagnostics, hover, completion, outline, quick-fixes) | E1a - E1i | - | Done | v0.16.0 |
+| [E1](#e1) | Editor-side DDS language support (diagnostics, hover, completion, outline, quick-fixes) | E1a - E1j | - | In progress | — |
 | [E2](#e2) | Compile-error feedback loop | E2a - E2h | E1a, E1b for the shared diagnostics collection | Open | - |
 | [E3](#e3) | Indicator simulator (and program-to-system field values) | E3a - E3l | - | Done | v0.14.1 |
 | [E4](#e4) | Message-file integration (`MSGID` / `ERRMSGID` / `CHKMSGID` / `SFLMSGID`) | E4a - E4g | E3f (soft) | Done | v0.15.6 |
@@ -105,6 +105,7 @@ all of it can be switched off with settings.
 | E1g | **Column aids.** Decorations or ruler for the fixed DDS columns (5-6 type, 17 name type, 30-34 length, ...). **Decision taken:** decorations on the active line, off by default (not every line, not a CodeLens ruler, not dropped). Results: [E1g results](#e1g-results). | E1b | Done | v0.15.13 |
 | E1h | **Performance and tests.** Latency budget on a 5,000-line and a 20,000-line source, incremental re-check of the edited record only, no-`vscode` unit tests for E1a, jsdom-free. **Decision taken:** a per-record cache (record-local guards asked about one record at a time and kept per record text; the guards that look across records stay whole-model); the budget is enforced by work counts plus loose clock ceilings. Results: [E1h results](#e1h-results). | E1a | Done | v0.15.14 |
 | E1i | **Release** (next free minor; Manojkumar chose 0.16.0). Results against the acceptance paragraph: [E1i results](#e1i-results). | E1a - E1h | Done | v0.16.0 |
+| E1j | **Run the remaining guards in the diagnostics** (follow-up to E1i). 80 of the 114 `*ConflictReason` guards are not run by `ddsDiagnostics.js` because their signature is not `(oldModel, newModel)`: `(oldKeywords, newKeywords)` on a field or record (10), `(oldField, updates)` float family (7), the `*BasicEdit*` family (about 11), `(oldKeywords, newKeywords, fieldKind / recordFields / ...)` (about 10), parameter-level `(keywordName, parameters, ...)` rules and a tail of one-off signatures. **Decision first:** a written proposal of which level each signature applies to and how a call is built from a static source (which arguments come from the parsed field, record and file, and which edit-time-only guards stay out), with Manojkumar's answer, before code. Then register what the proposal accepts, keep E1h's record-local / whole-model split, and extend the E1a coverage test so every exported guard is either run or listed as edit-time-only with a reason. | E1a, E1h | In progress | — |
 
 ### E1a results
 
