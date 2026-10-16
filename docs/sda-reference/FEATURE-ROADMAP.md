@@ -47,7 +47,7 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-6 of 10 epics done (E3, E4, E7, E8, E9, E10); 56 sub-tasks done (E1a - E1f, E3a - E3l, E4a - E4g, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.15.12**.
+6 of 10 epics done (E3, E4, E7, E8, E9, E10); 57 sub-tasks done (E1a - E1g, E3a - E3l, E4a - E4g, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.15.13**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
@@ -102,7 +102,7 @@ all of it can be switched off with settings.
 | E1d | **Completion.** Keyword completion filtered by level, record type and field usage/data type using `keywordSpec.js`; parameter snippets; no suggestion for a keyword the guards would refuse here. Results: [E1d results](#e1d-results). | E1a | Done | v0.15.10 |
 | E1e | **Outline and navigation.** `DocumentSymbolProvider` (records, fields, subfile pairs, help specifications); go-to-definition on record names inside `SFLCTL(...)`, `WINDOW(...)`, `MNUBARCHC(...)` (the `RECORD_REFERENCES` table already says where they sit). Results: [E1e results](#e1e-results). | E1a | Done | v0.15.11 |
 | E1f | **Quick-fixes.** `CodeActionProvider` mapped from diagnostic codes: remove the conflicting keyword, add a missing required companion (for example `OVERLAY` for `PUTRETAIN`, `INDARA`), "Open in designer". Each fix is an edit through the same writer so source fidelity (I-202 - I-207) holds. Results: [E1f results](#e1f-results). | E1a, E1b | Done | v0.15.12 |
-| E1g | **Column aids.** Decorations or ruler for the fixed DDS columns (5-6 type, 17 name type, 30-34 length, ...). **Decision first:** decorations vs a CodeLens-style header; may be dropped if E1c/E1d make it redundant. | E1b | Open | - |
+| E1g | **Column aids.** Decorations or ruler for the fixed DDS columns (5-6 type, 17 name type, 30-34 length, ...). **Decision taken:** decorations on the active line, off by default (not every line, not a CodeLens ruler, not dropped). Results: [E1g results](#e1g-results). | E1b | Done | v0.15.13 |
 | E1h | **Performance and tests.** Latency budget on a 5,000-line and a 20,000-line source, incremental re-check of the edited record only, no-`vscode` unit tests for E1a, jsdom-free. | E1a | Open | - |
 | E1i | **Release** (next free minor). | E1a - E1h | Open | - |
 
@@ -330,6 +330,17 @@ Problems panel now has a lightbulb in the text editor.
   `CRTDSPF` / `CRTMNU` messages E2 will add (a different source, a different code space).
 - **Not checked in a real VS Code.** The tests use a fake of the API, so the lightbulb, the preview of a `WorkspaceEdit` and the `vscode.openWith` call
   on the live custom editors were not exercised; putting the cursor on an `RMVWDW` with no `WINDOW` in the Extension Development Host would confirm it.
+
+### E1g results
+
+`src/ddsColumnAids.js` (UMD; `zonesAt`, `zoneAt` and `lineKind` are pure, `createHoverProvider` and `createController` take the `vscode` API as an argument), tested by `src/test/e1gColumnAids.test.js` (53 checks; 17 mutations of the module, all killed) and 5 more in `extension.test.js` that run the real `activate()`.
+
+- **Decision (taken with Manojkumar).** Option 1 in a light form: the fixed DDS columns drawn as alternating subtle bands on the line the cursor is on, with a hover per band, **off by default** (`isda.columnAids.enable`). Rejected: decorations on every line (noise, clashes with the theme and the syntax colours), a ruler or CodeLens header (no sticky-header API for extensions; a CodeLens sits above a line, not over its columns), dropping it (E1c/E1d name the keyword and the field, but not what each fixed column is for).
+- **Zones.** Sequence (1-5), form type (6), conditioning (7-16), name type (17), name (19-28), reference (29), length (30-34), data type (35), decimals (36-37), usage (38), line (39-41), position (42-44), keyword area (45-80). The layout depends on the line: a field line has all thirteen, a record or help-specification line six, a keyword-only line four, a continuation line only the keyword area, a comment or a blank line none. A continuation is a line with columns 7-44 blank under a keyword line that ends in `+` or `-` (comments in between are skipped, a specification line in between ends the chain, 60 lines of look-back at most).
+- **Hover.** Names the column(s) and says what goes there. Only on the active line (the line with the bands), and not in the keyword area, which E1c's keyword hover owns.
+- **Cost.** One line is classified per cursor move, selection change, active-editor change or edit of a visible document; no analysis, no parse of the whole file. Two decoration types are created on first use and disposed with the extension; switching the setting off clears the bands on the visible editors.
+- **Limits.** The column text is fixed DDS; it does not change with the keyword at the line (no "this field is a date, so columns 36-37 are blank" hint). The bands are plain grey with transparency (`rgba(128, 128, 128, ...)`), not theme colours. A MNUCMD member gets nothing (same documents as the other E1 features). Only the active editor's cursor line is drawn, multiple cursors draw on the primary one.
+- **Not checked in a real VS Code.** Tests use a fake API; how the bands look in a light and a dark theme and whether the hover collides with another extension's were not seen. Turn the setting on in the Extension Development Host to check.
 
 ---
 

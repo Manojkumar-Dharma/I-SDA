@@ -6,6 +6,9 @@ const registeredCodeLensProviders = [];
 const registeredHoverProviders = [];
 const registeredCompletionProviders = [];
 const registeredCodeActionProviders = [];
+const selectionListeners = [];
+const activeEditorListeners = [];
+const decorationTypes = [];
 const registeredSymbolProviders = [];
 const registeredDefinitionProviders = [];
 const registeredCustomEditorProviders = {}; // keyed by viewType, since the extension now registers more than one
@@ -137,6 +140,20 @@ const vscodeMock = {
   FileType: { Directory: 2, File: 1 },
   window: {
     activeTextEditor: null,
+    visibleTextEditors: [],
+    createTextEditorDecorationType: (options) => {
+      const type = { options, disposed: false, dispose() { this.disposed = true; } };
+      decorationTypes.push(type);
+      return type;
+    },
+    onDidChangeTextEditorSelection: (handler) => {
+      selectionListeners.push(handler);
+      return { dispose: () => { const i = selectionListeners.indexOf(handler); if (i >= 0) selectionListeners.splice(i, 1); } };
+    },
+    onDidChangeActiveTextEditor: (handler) => {
+      activeEditorListeners.push(handler);
+      return { dispose: () => { const i = activeEditorListeners.indexOf(handler); if (i >= 0) activeEditorListeners.splice(i, 1); } };
+    },
     showWarningMessage: (msg, ...buttons) => {
       vscodeMock.__lastWarning = msg;
       const resp = vscodeMock.__mockWarningResponse;
@@ -312,6 +329,8 @@ const vscodeMock = {
   __registeredHoverProviders: registeredHoverProviders,
   __registeredCompletionProviders: registeredCompletionProviders,
   __registeredCodeActionProviders: registeredCodeActionProviders,
+  __selectionListeners: selectionListeners,
+  __decorationTypes: decorationTypes,
   __registeredSymbolProviders: registeredSymbolProviders,
   __registeredDefinitionProviders: registeredDefinitionProviders,
   __registeredCustomEditorProviders: registeredCustomEditorProviders,

@@ -147,6 +147,21 @@ const DdsQuickFix: {
     }
   ): vscode.CodeActionProvider;
 } = require('./ddsQuickFix.js');
+// Column aids (E1g): the fixed DDS columns drawn on the line the cursor is on, with a hover per column. Off by default.
+const DdsColumnAids: {
+  createHoverProvider(
+    api: unknown,
+    options: {
+      getSettings: () => { enable: boolean };
+      shouldProvide: (document: vscode.TextDocument) => boolean;
+      getActiveLine: (document: vscode.TextDocument) => number;
+    }
+  ): vscode.HoverProvider;
+  createController(
+    api: unknown,
+    options: { getSettings: () => { enable: boolean }; shouldProvide: (document: vscode.TextDocument) => boolean }
+  ): { refresh(editor: vscode.TextEditor): void; refreshAll(): void; dispose(): void };
+} = require('./ddsColumnAids.js');
 // Same reasoning as MnuCmdEngine/DspfEngine above: plain dependency-free JS
 // shared verbatim with the webview. buildTypedRecordPlan is the "+ Add
 // record" wizard's own record-type decision table (what keywords/companion
@@ -427,6 +442,25 @@ export function activate(context: vscode.ExtensionContext): void {
       { providedCodeActionKinds: [vscode.CodeActionKind.QuickFix] }
     )
   );
+
+  // E1g: column aids on the active line (bands plus a hover per column), switched by isda.columnAids.enable (default off).
+  const columnAidsSettings = () => ({ enable: vscode.workspace.getConfiguration('isda').get<boolean>('columnAids.enable', false) });
+  const columnAids = DdsColumnAids.createController(vscode, { getSettings: columnAidsSettings, shouldProvide: isDdsTextDocument });
+  context.subscriptions.push(columnAids);
+  context.subscriptions.push(
+    vscode.languages.registerHoverProvider(
+      DDS_LANGUAGE_SELECTOR,
+      DdsColumnAids.createHoverProvider(vscode, {
+        getSettings: columnAidsSettings,
+        shouldProvide: isDdsTextDocument,
+        getActiveLine: (document: vscode.TextDocument) => {
+          const editor = vscode.window.activeTextEditor;
+          return editor && editor.document === document ? editor.selection.active.line : -1;
+        },
+      })
+    )
+  );
+  columnAids.refreshAll();
 }
 
 // A display-file or menu source opened in the text editor: what the diagnostics and the hover work on. A MNUCMD

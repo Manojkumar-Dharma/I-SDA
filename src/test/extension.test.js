@@ -824,8 +824,9 @@ async function run() {
 
   console.log('\nE1c: keyword hover');
   const hoverEntries = vscodeMock.__registeredHoverProviders;
-  check('activate() registers one hover provider over the DDS selector', hoverEntries.length >= 1 && !!hoverEntries[hoverEntries.length - 1].selector);
-  const hoverProvider = hoverEntries[hoverEntries.length - 1].provider;
+  // The keyword hover (E1c) is registered first, the column-aid hover (E1g) after it.
+  check('activate() registers the keyword hover provider over the DDS selector', hoverEntries.length >= 2 && !!hoverEntries[hoverEntries.length - 2].selector);
+  const hoverProvider = hoverEntries[hoverEntries.length - 2].provider;
   const hoverDds = [buildLine({ nameType: 'R', name: 'REC1' }), buildLine({ name: 'FLD1', length: 10, dataType: 'A', usage: 'B', line: 2, col: 2, func: 'DSPATR(HI)' })].join('\n');
   const hoverDoc = vscodeMock.__mockDocument(hoverDds);
   check('a document the DDS selector does not match gets no hover', hoverProvider.provideHover(hoverDoc, { line: 1, character: 46 }) === undefined);
@@ -922,6 +923,25 @@ async function run() {
   vscodeMock.__clearMockConfig();
   const qfCmd = vscodeMock.__mockDocument(qfLines.join('\n'), new vscodeMock.Uri('member', '/MYLIB/QMNUSRC/MYMENU.MNUCMD'));
   check('a MNUCMD member gets no quick-fix', quickFixProvider.provideCodeActions(qfCmd, null, { diagnostics: [qfDiagnostic] }).length === 0);
+  vscodeMock.__setLanguageMatch(null);
+
+  console.log('\nE1g: column aids');
+  vscodeMock.__setLanguageMatch(() => 10);
+  check('activate() draws nothing by default (isda.columnAids.enable is off): no decoration type is created', vscodeMock.__decorationTypes.length === 0);
+  const caHover = vscodeMock.__registeredHoverProviders ? vscodeMock.__registeredHoverProviders[vscodeMock.__registeredHoverProviders.length - 1] : null;
+  check('activate() registers the column-aid hover provider', !!caHover);
+  const caLines = ['     A          R REC1', '     A            F1            10A  B  2  2'];
+  const caDoc = vscodeMock.__mockDocument(caLines.join('\n'));
+  caDoc.lineCount = caLines.length;
+  caDoc.lineAt = (i) => ({ text: caLines[i] });
+  vscodeMock.window.activeTextEditor = { document: caDoc, selection: { active: { line: 1 } }, setDecorations: () => {} };
+  check('the hover says nothing while the setting is off', caHover.provider.provideHover(caDoc, { line: 1, character: 31 }) === undefined);
+  vscodeMock.__setMockConfig('isda.columnAids.enable', true);
+  const caHit = caHover.provider.provideHover(caDoc, { line: 1, character: 31 });
+  check('with isda.columnAids.enable on, hovering the length column of the active line names it', !!caHit && /^\*\*Length\*\*/.test(caHit.contents.value));
+  check('  no column hover off the active line', caHover.provider.provideHover(caDoc, { line: 0, character: 17 }) === undefined);
+  vscodeMock.window.activeTextEditor = null;
+  vscodeMock.__clearMockConfig();
   vscodeMock.__setLanguageMatch(null);
 
   console.log('\ndispose');
