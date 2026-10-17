@@ -47,11 +47,11 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-6 of 10 epics done (E3, E4, E7, E8, E9, E10); E1 reopened for the follow-up E1j (in progress); 59 sub-tasks done (E1a - E1i, E3a - E3l, E4a - E4g, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.16.0**.
+7 of 10 epics done (E1, E3, E4, E7, E8, E9, E10); 60 sub-tasks done (E1a - E1j, E3a - E3l, E4a - E4g, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.16.1**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
-| [E1](#e1) | Editor-side DDS language support (diagnostics, hover, completion, outline, quick-fixes) | E1a - E1j | - | In progress | — |
+| [E1](#e1) | Editor-side DDS language support (diagnostics, hover, completion, outline, quick-fixes) | E1a - E1j | - | Done | v0.16.1 |
 | [E2](#e2) | Compile-error feedback loop | E2a - E2h | E1a, E1b for the shared diagnostics collection | Open | - |
 | [E3](#e3) | Indicator simulator (and program-to-system field values) | E3a - E3l | - | Done | v0.14.1 |
 | [E4](#e4) | Message-file integration (`MSGID` / `ERRMSGID` / `CHKMSGID` / `SFLMSGID`) | E4a - E4g | E3f (soft) | Done | v0.15.6 |
@@ -105,7 +105,7 @@ all of it can be switched off with settings.
 | E1g | **Column aids.** Decorations or ruler for the fixed DDS columns (5-6 type, 17 name type, 30-34 length, ...). **Decision taken:** decorations on the active line, off by default (not every line, not a CodeLens ruler, not dropped). Results: [E1g results](#e1g-results). | E1b | Done | v0.15.13 |
 | E1h | **Performance and tests.** Latency budget on a 5,000-line and a 20,000-line source, incremental re-check of the edited record only, no-`vscode` unit tests for E1a, jsdom-free. **Decision taken:** a per-record cache (record-local guards asked about one record at a time and kept per record text; the guards that look across records stay whole-model); the budget is enforced by work counts plus loose clock ceilings. Results: [E1h results](#e1h-results). | E1a | Done | v0.15.14 |
 | E1i | **Release** (next free minor; Manojkumar chose 0.16.0). Results against the acceptance paragraph: [E1i results](#e1i-results). | E1a - E1h | Done | v0.16.0 |
-| E1j | **Run the remaining guards in the diagnostics** (follow-up to E1i). 80 of the 114 `*ConflictReason` guards are not run by `ddsDiagnostics.js` because their signature is not `(oldModel, newModel)`: `(oldKeywords, newKeywords)` on a field or record (10), `(oldField, updates)` float family (7), the `*BasicEdit*` family (about 11), `(oldKeywords, newKeywords, fieldKind / recordFields / ...)` (about 10), parameter-level `(keywordName, parameters, ...)` rules and a tail of one-off signatures. **Decision first:** a written proposal of which level each signature applies to and how a call is built from a static source (which arguments come from the parsed field, record and file, and which edit-time-only guards stay out), with Manojkumar's answer, before code. Then register what the proposal accepts, keep E1h's record-local / whole-model split, and extend the E1a coverage test so every exported guard is either run or listed as edit-time-only with a reason. | E1a, E1h | In progress | — |
+| E1j | **Run the remaining guards in the diagnostics** (follow-up to E1i). 80 of the 114 `*ConflictReason` guards were not run by `ddsDiagnostics.js` because their signature is not `(oldModel, newModel)`. **Decision taken:** run only what a static source can answer (each guard called with an empty old state at the level it applies to: field, record, file or model), and list every guard that stays out with a reason; the E1a coverage test fails for any exported guard that is neither run nor listed. Results: [E1j results](#e1j-results). | E1a, E1h | Done | v0.16.1 |
 
 ### E1a results
 
@@ -372,12 +372,41 @@ Problems panel now has a lightbulb in the text editor.
 | All of it can be switched off with settings | E1b, E1c, E1d, E1e, E1f, E1g | `isda.diagnostics.enable`, `isda.hover.enable`, `isda.completion.enable`, `isda.outline.enable`, `isda.quickFix.enable` (all default on; `isda.columnAids.enable` is default off); `e1iRelease.test.js` checks each exists, is a boolean, has that default and is read by `extension.ts` |
 
 **What E1 leaves open, by decision.**
-- **80 of the 114 `*ConflictReason` guards are not run by the diagnostics** (E1a: they have another signature, `(oldKeywords, newKeywords)` on a field or record, `(field, updates)`, the `*BasicEdit*` family). The Problems panel shows the 34 that are registered; the others still refuse an edit inside the designers. This is the largest gap between "the designers" and "the text editor" and wants a follow-up epic or sub-task; none was added here.
+- **80 of the 114 `*ConflictReason` guards are not run by the diagnostics** (E1a: they have another signature, `(oldKeywords, newKeywords)` on a field or record, `(field, updates)`, the `*BasicEdit*` family). The Problems panel shows the 34 that are registered; the others still refuse an edit inside the designers. This is the largest gap between "the designers" and "the text editor"; closed by [E1j](#e1j-results) (v0.16.1).
 - **A conflict between a record and a file keyword** is reported for every offending record, on the file keyword (E1h); the designers' guard reports the first only.
 - **Whole-model guards stay whole-model** (15 of the 25 model guards, and the parse): a one-line edit at 20,000 lines costs about 200 ms, most of it the parse. E1f's quick-fix still analyses in one shot per request.
 - **Column aids are off by default** (E1g decision).
 - **Not checked in a real VS Code.** Every E1 test uses a fake of the VS Code API. The Problems panel, the hover, the completion list, the outline, the lightbulb and the column bands were never seen in an Extension Development Host; a short manual pass (open a `.dspf` with a violation, hover `DSPATR(HI)`, complete a keyword, open the outline, use the lightbulb) is still owed before this ships to users.
 - **Settings are read through `vscode.workspace.getConfiguration('isda')`**; changing one takes effect on the next request or, for the Problems panel, on the configuration-change event.
+
+### E1j results
+
+**Released as v0.16.1.** The follow-up to E1i: of the 114 `*ConflictReason` guards DspfWriter exports, the diagnostics ran 34. They now run 85, and the other 29 are listed, each with the reason it has nothing to say about a source on disk.
+
+**Decision taken** (Manojkumar): run what a static source can answer; every guard that stays out is listed with a reason and the coverage test fails for a guard that is neither run nor listed; version 0.16.1.
+
+| Where the 114 guards are | Count | Held by |
+|---|---|---|
+| `(oldModel, newModel)` model guards and `(keywordName, recordKeywords)` rules, registered since E1a | 34 | `MODEL_GUARDS`, `RECORD_KEYWORD_RULES` in `src/ddsDiagnostics.js` |
+| run by the new item rules (`src/ddsItemRules.js`), 45 rules with codes `isda.*` | 51 | `e1jItemRules.test.js`: for every rule a broken source is reported on the right line and keyword and the mended one is not |
+| edit-only, listed with a reason in `EDIT_ONLY` | 29 | `e1aDiagnosticsCore.test.js`, `e1jItemRules.test.js`: every exported guard is run, registered or listed, exactly once |
+
+**How a guard is run.** The edit-time guards ask "what does this edit introduce"; with an empty old state, as the model guards already are, they name everything the source has. Each rule has a scope. **Field** and **record** rules look at one field or record and are kept per record text with the E1h cache (positions relative to the record, so an insertion above does not ask again). **File** and **model** rules look at the file keywords or across records (a control record against its subfile record, `PASSRCD` against a record, command keys against the file) and are asked on every analysis, which costs little because each guard is only called where its keyword is present. A guard answers with a reason and no position, so the keyword is found as in E1a, by removal: the keyword whose removal clears the reason, dropped from a working copy, asked again.
+
+**What stays out, and why** (`EDIT_ONLY` in `src/ddsItemRules.js` has each guard's own line):
+- guards that compare a value before and after an edit (the `*BasicEdit*` family, reorder, resolve): with no edit there is nothing to compare; for most the static twin is run (`isda.valnumEligibility` for `VALNUM`'s usage and data type, and so on);
+- guards that answer "may this keyword be added" for any keyword name (`edtmskConflictReason`, `msgconConflictReason`, `windowConflictReason`, ...): the rule runs the one that judges what the field has;
+- the second wording of a rule already run, and helpers a run guard calls.
+
+**Three static gaps found on the way and closed.** `pshbtnfldBasicEditConflictReason`, `sflchcctlBasicEditConflictReason` and `chkmsgidBasicEditConflictReason` have no "new" twin, so a push-button field of the wrong data type, a choice-control field of the wrong shape and `CHKMSGID` on a usage that cannot take input were not reported at all. They run with an old definition no real field has, so each wrong attribute counts as changed (`isda.pshbtnfldShape`, `isda.sflchcctlShape`, `isda.chkmsgidUsage`); the message reads "... cannot set data type A (must be Y) ...".
+
+**Checked.** 400 generated keyword-soup sources give the same diagnostics from the incremental path as from the whole-model run, with the item rules in; five of six deliberate breaks of the new code are caught by `e1jItemRules.test.js`, and the sixth (a blank usage defaulted to O) was redundant with the parser's own default and is covered by a check on a hand-built model. A 5,000-line source takes about 295 ms clean and 259 ms with 50 violations on the first run (178 and 156 ms before the item rules); the full suite is 359 files, 23,480 checks.
+
+**Behaviour to know.**
+- A conflict between two keywords is one diagnostic, on the first of them (`HLPDOC` with `HLPPNLGRP`, `DFT` with `DFTVAL`, `MOUBTN` with `ALTHELP`); `isda.menuBarKey` is reported on both the file-level and the record-level key, as each is wrong against the other.
+- Some wordings were written for an edit ("cannot be added to ..."); they read a little off on a source that already has the fault, and were left as the guards say them, so the designers and the editor agree.
+- Where an existing guard already reports the same fact (`helpKeywordRelation` against `isda.fileHelpExclusion`), both show; they carry different codes and wording.
+- `package.json`'s `isda.diagnostics.severity` now lists 80 codes (35 before); the E1b test checks the list against `allCodes()`.
 
 ---
 

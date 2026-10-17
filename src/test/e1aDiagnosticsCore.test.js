@@ -276,8 +276,14 @@ check('the commitSourceChange chain is fully registered (25 model guards)', cov.
 const modelShaped = exported.filter((n) => DspfWriter[n].length === 2 && /^function\s*\w*\(\s*oldModel\s*,\s*newModel\s*\)/.test(DspfWriter[n].toString()));
 check('every (oldModel, newModel) guard DspfWriter exports is registered',
   modelShaped.every((n) => cov.model.indexOf(n) >= 0) && modelShaped.length === cov.model.length);
-const pending = exported.filter((n) => registered.indexOf(n) < 0);
-console.log('  info  - ' + registered.length + ' of ' + exported.length + ' exported guards registered; ' + pending.length + ' have another signature and are not run yet');
-check('registered + pending is every exported guard', registered.length + pending.length === exported.length);
+// E1j: what is not a model guard or a record-keyword rule is either run by ddsItemRules.js or listed there as edit-only, with a reason
+const itemRun = cov.item;
+const editOnly = cov.editOnly;
+const pending = exported.filter((n) => registered.indexOf(n) < 0 && itemRun.indexOf(n) < 0 && editOnly.indexOf(n) < 0);
+console.log('  info  - ' + exported.length + ' exported guards: ' + registered.length + ' registered here, ' + itemRun.length + ' run by the item rules, ' + editOnly.length + ' edit-only (listed with a reason), ' + pending.length + ' unaccounted for');
+check('every exported guard is run or listed as edit-only' + (pending.length ? ' - unaccounted for: ' + pending.join(' ') : ''), pending.length === 0);
+check('no guard is run twice or both run and listed as edit-only',
+  new Set(registered.concat(itemRun, editOnly)).size === registered.length + itemRun.length + editOnly.length);
+check('every guard the item rules run or list exists in DspfWriter', itemRun.concat(editOnly).every((n) => typeof DspfWriter[n] === 'function'));
 
 process.exit(failureCount() === 0 ? 0 : 1);

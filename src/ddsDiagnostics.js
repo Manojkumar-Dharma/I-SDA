@@ -23,10 +23,12 @@
  * and the guard is asked again, so one guard can report several violations. A clean source costs
  * one call per guard; the search only runs when a guard fires.
  *
- * Not covered yet (the registry is the extension point): the guards with other signatures -
- * `(oldKeywords, newKeywords)` on fields, `(field, updates)` and the `*BasicEdit*` family. Each
- * needs a decision on which level it applies to; coverage() lists what is registered, so a new
- * guard in DspfWriter cannot be missed silently (the E1a test compares the two lists).
+ * The guards with other signatures (E1j) - `(oldKeywords, newKeywords)` on fields and records,
+ * `(field, updates)`, the parameter-level rules - are in ddsItemRules.js, each called with an empty
+ * old state at the level it applies to (field, record, file or model). The guards that only compare
+ * an edit's old value with its new one stay out, each listed with a reason. coverage() lists what is
+ * registered and what is left out, so a new guard in DspfWriter cannot be missed silently (the E1a
+ * test compares the lists with every `*ConflictReason` DspfWriter exports).
  *
  * Positions are 1-based lines and columns; `endColumn` is exclusive.
  */
@@ -34,11 +36,11 @@
   if (typeof module === 'object' && module.exports) {
     var parser;
     try { parser = require('./dspfParser.js'); } catch (e) { parser = require('../dist/dspfParser.js'); }
-    module.exports = factory(require('./dspfWriter.js'), parser);
+    module.exports = factory(require('./dspfWriter.js'), parser, require('./ddsItemRules.js'));
   } else {
-    root.DdsDiagnostics = factory(root.DspfWriter, root.DspfParser);
+    root.DdsDiagnostics = factory(root.DspfWriter, root.DspfParser, root.DdsItemRules);
   }
-})(typeof self !== 'undefined' ? self : this, function (DspfWriter, DspfParser) {
+})(typeof self !== 'undefined' ? self : this, function (DspfWriter, DspfParser, DdsItemRules) {
   'use strict';
 
   var SOURCE = 'iSDA';
@@ -136,7 +138,8 @@
   function allCodes() {
     return [PARSE_ERROR_CODE]
       .concat(MODEL_GUARDS.map(function (g) { return g[0]; }))
-      .concat(RECORD_KEYWORD_RULES.map(function (r) { return r.code; }));
+      .concat(RECORD_KEYWORD_RULES.map(function (r) { return r.code; }))
+      .concat(DdsItemRules.allCodes());
   }
 
   /** The codes of the record-keyword rules: they answer for a keyword name and the record's other keywords and
@@ -151,6 +154,8 @@
     return {
       model: MODEL_GUARDS.map(function (g) { return g[1]; }),
       recordKeyword: RECORD_KEYWORD_RULES.map(function (r) { return r.fn; }),
+      item: DdsItemRules.coverage().run,
+      editOnly: DdsItemRules.coverage().editOnly,
     };
   }
 
@@ -484,8 +489,65 @@
     });
   }
 
+  // ---------------------------------------------------------------------
+  // The item rules (E1j): see ddsItemRules.js. A finding names a keyword (its position), or a field, record
+  // or the file when the reason is about no keyword in particular.
+  // ---------------------------------------------------------------------
+
+  var ITEM_RULES = {
+    field: DdsItemRules.RULES.filter(function (r) { return r.scope === 'field'; }),
+    record: DdsItemRules.RULES.filter(function (r) { return r.scope === 'record'; }),
+    file: DdsItemRules.RULES.filter(function (r) { return r.scope === 'file'; }),
+    model: DdsItemRules.RULES.filter(function (r) { return r.scope === 'model'; }),
+  };
+
+  function itemRange(lines, finding, rec, field) {
+    if (finding.kw) return keywordRange(lines, finding.kw);
+    if (finding.target === 'field' && field) return entityRange(lines, field);
+    if (finding.target === 'record' && rec) return entityRange(lines, rec);
+    return wholeLine(lines, 1);
+  }
+
+  /** Run `rules` with `ctx`; each finding goes to `push(code, reason, range, keyword, record)`. */
+  function runItemRules(rules, ctx, lines, rec, field, push, internalErrors) {
+    rules.forEach(function (rule) {
+      var found;
+      try {
+        found = rule.run(ctx);
+      } catch (e) {
+        internalErrors.push(errorText(rule.code, e));
+        return;
+      }
+      found.forEach(function (f) {
+        var recordName = f.recordName !== undefined ? f.recordName : (rec ? rec.name || null : null);
+        push(rule.code, f.reason, itemRange(lines, f, rec, field), f.kw ? f.kw.name : null, recordName);
+      });
+    });
+  }
+
+  /** The field- and record-scope item rules of one record: what an incremental re-check keeps per record text. */
+  function runItemRulesForRecord(lines, rec, push, internalErrors) {
+    var fields = rec.fields || [];
+    fields.forEach(function (field, index) {
+      var before = null;
+      var ctx = { field: field, rec: rec, index: index, before: function () { return before || (before = fields.slice(0, index)); } };
+      runItemRules(ITEM_RULES.field, ctx, lines, rec, field, push, internalErrors);
+    });
+    runItemRules(ITEM_RULES.record, { rec: rec }, lines, rec, null, push, internalErrors);
+  }
+
+  /** The file- and model-scope item rules: they look at the file keywords or across records, so they are asked
+   *  again on every analysis. */
+  function runItemRulesForFile(lines, model, push, internalErrors) {
+    var ctx = { model: model, fileKeywords: model.fileKeywords || [] };
+    runItemRules(ITEM_RULES.file, ctx, lines, null, null, push, internalErrors);
+    runItemRules(ITEM_RULES.model, ctx, lines, null, null, push, internalErrors);
+  }
+
   function runRecordKeywordRules(lines, model, push, internalErrors) {
     model.records.forEach(function (rec) { runRecordKeywordRulesFor(lines, rec, push, internalErrors); });
+    model.records.forEach(function (rec) { runItemRulesForRecord(lines, rec, push, internalErrors); });
+    runItemRulesForFile(lines, model, push, internalErrors);
   }
 
   // ---------------------------------------------------------------------
@@ -618,8 +680,12 @@
         runRecordKeywordRulesFor(lines, f.rec, function (code, message, range, keyword, record) {
           f.diags.push({ abs: false, line: range.line - f.rec.sourceLine, column: range.column, endColumn: range.endColumn, code: code, message: message, keyword: keyword || null, record: record || null });
         }, f.errors);
+        runItemRulesForRecord(lines, f.rec, function (code, message, range, keyword, record) {
+          f.diags.push({ abs: false, line: range.line - f.rec.sourceLine, column: range.column, endColumn: range.endColumn, code: code, message: message, keyword: keyword || null, record: record || null });
+        }, f.errors);
       });
     }
+    runItemRulesForFile(lines, model, pushRaw, internalErrors);
 
     // Put the answers together, in source order, and keep them for the next run.
     var next = new Map();
