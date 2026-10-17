@@ -423,7 +423,7 @@ sequence number appears as a diagnostic on the right line (editor) and as a badg
 
 | ID | Sub-task and scope | Depends on | Status | Version |
 |----|--------------------|------------|--------|---------|
-| E2a | **Capture source. Decision first.** Compare the three ways to get messages: the job log (`QSYS2.JOBLOG_INFO`), a compile listing (`OUTPUT(*PRINT)` spool), and the command's own error text from Code for i. Pick one primary and one fallback; record which messages carry statement/sequence numbers. Needs real samples: **Manojkumar to provide one failing listing and joblog** to use as fixtures. | - | In progress | - |
+| E2a | **Capture source. Decision first.** Compare the three ways to get messages: the job log (`QSYS2.JOBLOG_INFO`), a compile listing (`OUTPUT(*PRINT)` spool), and the command's own error text from Code for i. Pick one primary and one fallback; record which messages carry statement/sequence numbers. Needs real samples: **Manojkumar to provide one failing listing and joblog** to use as fixtures. | - | Done (no code change) | — |
 | E2b | **Message parser.** Pure module `src/compileMessages.js`: listing/joblog text to `{msgId, severity, sequence, text}`; fixtures from E2a; tolerant of unknown message layouts (never throws). | E2a | Open | - |
 | E2c | **Sequence to line mapping.** Map a sequence number to a line in the member or local file, accounting for sequence numbers kept or re-applied by the writer (I-203), a tag in columns 1-5 (I-204), and removed-lines-kept-as-comments (I-207). Unmappable messages stay global. | E2b | Open | - |
 | E2d | **Editor diagnostics.** Feed mapped messages into the shared `DiagnosticCollection` hub as source `CRTDSPF` / `CRTMNU`; an Output channel with the raw listing; cleared on edit of the line or on the next compile. | E2c, E1b | Open | - |
@@ -431,6 +431,41 @@ sequence number appears as a diagnostic on the right line (editor) and as a badg
 | E2f | **Menu compile.** `CRTMNU` runs several steps (`CRTDSPF`, message file, `ADDMSGD`, `CRTMNU`); report which step failed and its messages, per step. | E2b | Open | - |
 | E2g | **Tests.** Fake Code-for-i connection returning recorded fixtures; end-to-end: failing compile to diagnostic on the expected line. | E2d | Open | - |
 | E2h | **Release** (next free minor). | E2a - E2g | Open | - |
+
+### E2a results
+
+**E2a (capture source, decision recorded, no code change).** Decided with Manojkumar. Real IBM i samples are still
+outstanding (open question 1), so the IBM i behaviour below is a **hypothesis to confirm against fixtures**, not
+something verified from this repo.
+
+**What the code does today.** `extension.ts` runs `CRTDSPF`, `CRTS36DSPF` and the `CRTMNU` steps (`CRTDSPF`, `CRTMSGF`,
+`ADDMSGD` / `CHGMSGD`, `CRTMNU`) through `connection.runCommand`. On a non-zero return code it shows
+`stderr || stdout` in an error toast. Nothing is parsed, so no message is tied to a source line. The menu flow already
+runs each step on its own and names the failing one (the base for E2f).
+
+**Options compared.**
+
+| Option | Sequence numbers | Main risk |
+|--------|------------------|-----------|
+| Command's own error text (`stderr` / `stdout`) | Probably none; likely only the final escape message | Too thin to map to lines |
+| Job log (`QSYS2.JOBLOG_INFO`) | Probably in the diagnostic message text | `runCommand` may not run in the job whose log is read; unconfirmed |
+| Compile listing (`OUTPUT(*PRINT)`), read back from spool | Normally shown beside each message in a fixed layout | Spool must be located and read (`QSYS2.SPOOLED_FILE_DATA`); layout differs between DDS and System/36 SFGR |
+
+**Decision.**
+1. **Primary:** the compile listing (`OUTPUT(*PRINT)`).
+2. **Fallback:** the job log, used when no listing can be read.
+3. **Last resort:** the command's own error text, which keeps feeding the existing toast and the "unmappable messages stay
+   global" case in E2c.
+
+**To confirm from fixtures before E2b.**
+- Whether listing messages carry a sequence number in a fixed column or inside the message text.
+- Whether `runCommand` shares a job with the later `QSYS2.JOBLOG_INFO` query, and how the spool file is named and found.
+- Whether `CRTS36DSPF` (SFGR source) and `CRTMNU` produce the same layout or need their own parser branch.
+- Which message IDs carry a sequence number at all (the roadmap's "record which messages carry statement/sequence
+  numbers").
+
+**Still needed from Manojkumar.** One failing `CRTDSPF` listing and its job log, with errors at known sequence numbers
+(a `CRTS36DSPF` or `CRTMNU` failure as a bonus). E2b stays blocked until they arrive.
 
 ---
 
