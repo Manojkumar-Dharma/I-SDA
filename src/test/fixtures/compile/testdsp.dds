@@ -1,0 +1,51 @@
+     A          R HDRREC
+     A                                      CA03(03 'Exit Application')
+     A                                      BLINK
+     A* ----------------------------------------------------------- *
+     A                                  1 26'CUSTOMER INFORMATION SYSTEM'
+     A                                       COLOR(TRQ)
+     A                                  2  2'DATE:'
+     A                                  2  8DATE
+     A                                  2 71'TIME:'
+     A                                  2 77TIME
+     A                                  4  5'Enter Customer ID . . :'
+     A            CUSTID         5S 0B  4 30
+     A                                       CHANGE(99)
+     A                                       CHECK(ER)
+     A            CUSTID         5S 0B  5 30
+     A                                  6  2'F3=Exit'
+     A                                 30  2'F3=Exit'
+     A                                       COLOR(BLU)
+     A* ----------------------------------------------------------- *
+     A          R DTLREC
+     A                                      OVERLAY
+     A                                      CA03(03 'Exit Application')
+     A                                      CA12(12 'Cancel / Previous')
+     A* ----------------------------------------------------------- *
+     A                                  9  5'Customer Name . . . . :'
+     A            CUSTNAME      30A  O  9 30
+     A                                 11  5'Current Balance . . . :'
+     A            CUSTBAL        9Y 2O 11 30
+     A                                       EDTCDE(J)
+     A  01                                   DSPATR(ND)
+     A  02                                   DSPATR(XX)
+     A                                 13  5'Account Status. . . . :'
+     A            CUSTSTAT      10A  O 13 30
+     A                                 23  2'F3=Exit   F12=Cancel'
+     A                                       COLOR(BLU)
+     A          R HDRREC
+     A                                      CA03(03 'Exit Application')
+     A                                      BLINK
+     A* ----------------------------------------------------------- *
+     A                                  1 26'CUSTOMER INFORMATION SYSTEM'
+     A                                       COLOR(TRQ)
+     A                                  2  2'DATE:'
+     A                                  2  8DATE
+     A                                  2 71'TIME:'
+     A                                  2 77TIME
+     A                                  4  5'Enter Customer ID . . :'
+     A            CUSTID         5S 0B  4 30
+     A                                       CHANGE(99)
+     A                                       CHECK(ER)
+     A                                  6  2'F3=Exit'
+     A                                       COLOR(BLU)

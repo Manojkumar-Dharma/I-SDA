@@ -1,0 +1,111 @@
+5770SS1 V7R3M0 160422 Data Description MANOJKUMAR/TESTDSP 10/18/26 12:10:07 Page 1
+File name . . . . . . . . . . . . . . . . . . . . . : TESTDSP
+ Library name . . . . . . . . . . . . . . . . . . : MANOJKUMAR
+File attribute . . . . . . . . . . . . . . . . . . : Display
+Source file containing DDS . . . . . . . . . . . . : QDDSSRC
+ Library name . . . . . . . . . . . . . . . . . . : MANOJKUMAR
+Source member containing DDS . . . . . . . . . . . : TESTDSP
+Source member last changed . . . . . . . . . . . . : 10/18/26 12:10:03
+Source listing options . . . . . . . . . . . . . . : *SOURCE *LIST *NOSECLVL *NOEVENTF
+DDS generation severity level . . . . . . . . . . . : 20
+DDS flagging severity level . . . . . . . . . . . . : 00
+Authority . . . . . . . . . . . . . . . . . . . . . : *LIBCRTAUT
+Replace file . . . . . . . . . . . . . . . . . . . : *YES
+Text . . . . . . . . . . . . . . . . . . . . . . . :
+Compiler . . . . . . . . . . . . . . . . . . . . . : IBM System i5 Data Description Processor
+ Data Description Source
+SEQNBR *...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8 Date
+ 500 A R HDRREC 10/18/26
+ 600 A CA03(03 'Exit Application') 10/18/26
+ 700 A BLINK 10/18/26
+ 800 A* ----------------------------------------------------------- * 10/18/26
+ 900 A 1 26'CUSTOMER INFORMATION SYSTEM' 10/18/26
+ 1000 A COLOR(TRQ) 10/18/26
+ 1100 A 2 2'DATE:' 10/18/26
+ 1200 A 2 8DATE 10/18/26
+ 1300 A 2 71'TIME:' 10/18/26
+ 1400 A 2 77TIME 10/18/26
+ 1500 A 4 5'Enter Customer ID . . :' 10/18/26
+ 1600 A CUSTID 5S 0B 4 30 10/18/26
+ 1700 A CHANGE(99) 10/18/26
+ 1800 A CHECK(ER) 10/18/26
+ 1801 A CUSTID 5S 0B 5 30 10/18/26
+* CPD5237-**********
+ 1900 A 6 2'F3=Exit' 10/18/26
+ 1901 A 30 2'F3=Exit' 10/18/26
+* CPD7830-******
+ 2000 A COLOR(BLU) 10/18/26
+ 2100 A* ----------------------------------------------------------- * 10/18/26
+ 2200 A R DTLREC 10/18/26
+ 2300 A OVERLAY 10/18/26
+ 2400 A CA03(03 'Exit Application') 10/18/26
+ 2500 A CA12(12 'Cancel / Previous') 10/18/26
+ 2600 A* ----------------------------------------------------------- * 10/18/26
+ 2700 A 9 5'Customer Name . . . . :' 10/18/26
+ 2800 A CUSTNAME 30A O 9 30 10/18/26
+ 2900 A 11 5'Current Balance . . . :' 10/18/26
+ 3000 A CUSTBAL 9Y 2O 11 30 10/18/26
+ 3100 A EDTCDE(J) 10/18/26
+ 3101 A 01 DSPATR(ND) 10/18/26
+ 3102 A 02 DSPATR(XX) 10/18/26
+* CPD7850-********** . .
+* CPD7520-* .
+* CPD7494-*
+ 3200 A 13 5'Account Status. . . . :' 10/18/26
+ 3300 A CUSTSTAT 10A O 13 30 10/18/265770SS1 V7R3M0 160422 Data Description MANOJKUMAR/TESTDSP 10/18/26 12:10:07 Page 2
+ Data Description Source
+SEQNBR *...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8 Date
+ 3400 A 23 2'F3=Exit F12=Cancel' 10/18/26
+ 3500 A COLOR(BLU) 10/18/26
+ 3600 A R HDRREC 10/18/26
+* CPD5236-**********
+ 3700 A CA03(03 'Exit Application') 10/18/26
+ 3800 A BLINK 10/18/26
+ 3900 A* ----------------------------------------------------------- * 10/18/26
+ 4000 A 1 26'CUSTOMER INFORMATION SYSTEM' 10/18/26
+ 4100 A COLOR(TRQ) 10/18/26
+ 4200 A 2 2'DATE:' 10/18/26
+ 4300 A 2 8DATE 10/18/26
+ 4400 A 2 71'TIME:' 10/18/26
+ 4500 A 2 77TIME 10/18/26
+ 4600 A 4 5'Enter Customer ID . . :' 10/18/26
+ 4700 A CUSTID 5S 0B 4 30 10/18/26
+ 4800 A CHANGE(99) 10/18/26
+ 4900 A CHECK(ER) 10/18/26
+ 5000 A 6 2'F3=Exit' 10/18/26
+ 5200 A COLOR(BLU) 10/18/26
+ * * * * * E N D O F S O U R C E * * * * *5770SS1 V7R3M0 160422 Data Description MANOJKUMAR/TESTDSP 10/18/26 12:10:07 Page 3
+ Expanded Source
+Field Buffer position
+SEQNBR *...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8 length Out In
+ DSPSIZ(*DS3)
+* Option indicator output buffer positions:
+* *IN01 0001 *IN02 0002
+* Response indicator input buffer positions:
+* *IN03 0001 *IN12 0002
+ 2200 R DTLREC OVERLAY +
+ 2400 CA03(03 'Exit Application') +
+ 2500 CA12(12 'Cancel / Previous')
+ 2700 9 5'Customer Name . . . . :' 23
+ 2800 CUSTNAME 30A O 9 30 30 3
+ 2900 11 5'Current Balance . . . :' 23
+ 3000 CUSTBAL 9Y 2O 11 30EDTCDE(J) 9 33
+ 3101 01 DSPATR(ND)
+ 3200 13 5'Account Status. . . . :' 23
+ 3300 CUSTSTAT 10A O 13 30 10 42
+ 3400 23 2'F3=Exit F12=Cancel' COLOR(BLU) 20
+ * * * * * E N D O F E X P A N D E D S O U R C E * * * * *5770SS1 V7R3M0 160422 Data Description MANOJKUMAR/TESTDSP 10/18/26 12:10:07 Page 4
+ Messages
+ ID Severity Number
+* CPD5236 30 1 Message . . . . : Record name specified more than once in file.
+* CPD5237 30 1 Message . . . . : Field or ALIAS name specified more than once in record.
+* CPD7494 20 1 Message . . . . : Keyword value not allowed.
+* CPD7520 20 1 Message . . . . : Keyword ignored because of error in list of values.
+* CPD7830 30 1 Message . . . . : Start line number too large.
+* CPD7850 30 1 Message . . . . : Option indicators not allowed.5770SS1 V7R3M0 160422 Data Description MANOJKUMAR/TESTDSP 10/18/26 12:10:07 Page 5
+ Message Summary
+ Total Informational Warning Error Severe
+ (0-9) (10-19) (20-29) (30-99)
+ 6 0 0 2 4
+* CPF7302 40 Message . . . . : File TESTDSP not created in library MANOJKUMAR.
+ * * * * * E N D O F C O M P I L A T I O N * * * * *

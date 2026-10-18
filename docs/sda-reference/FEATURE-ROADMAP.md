@@ -47,7 +47,7 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-7 of 10 epics done (E1, E3, E4, E7, E8, E9, E10); 60 sub-tasks done (E1a - E1j, E3a - E3l, E4a - E4g, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.16.1**.
+7 of 10 epics done (E1, E3, E4, E7, E8, E9, E10); 61 sub-tasks done (E1a - E1j, E2a - E2b, E3a - E3l, E4a - E4g, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.16.2**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
@@ -424,7 +424,7 @@ sequence number appears as a diagnostic on the right line (editor) and as a badg
 | ID | Sub-task and scope | Depends on | Status | Version |
 |----|--------------------|------------|--------|---------|
 | E2a | **Capture source. Decision first.** Compare the three ways to get messages: the job log (`QSYS2.JOBLOG_INFO`), a compile listing (`OUTPUT(*PRINT)` spool), and the command's own error text from Code for i. Pick one primary and one fallback; record which messages carry statement/sequence numbers. Needs real samples: **Manojkumar to provide one failing listing and joblog** to use as fixtures. | - | Done (no code change) | — |
-| E2b | **Message parser.** Pure module `src/compileMessages.js`: listing/joblog text to `{msgId, severity, sequence, text}`; fixtures from E2a; tolerant of unknown message layouts (never throws). | E2a | In progress | - |
+| E2b | **Message parser.** Pure module `src/compileMessages.js`: listing/joblog text to `{msgId, severity, sequence, text}`; fixtures from E2a; tolerant of unknown message layouts (never throws). | E2a | Done | v0.16.2 |
 | E2c | **Sequence to line mapping.** Map a sequence number to a line in the member or local file, accounting for sequence numbers kept or re-applied by the writer (I-203), a tag in columns 1-5 (I-204), and removed-lines-kept-as-comments (I-207). Unmappable messages stay global. | E2b | Open | - |
 | E2d | **Editor diagnostics.** Feed mapped messages into the shared `DiagnosticCollection` hub as source `CRTDSPF` / `CRTMNU`; an Output channel with the raw listing; cleared on edit of the line or on the next compile. | E2c, E1b | Open | - |
 | E2e | **Designer surface.** A dismissible error banner in the webview; click selects the record/field on the canvas; badges on records/fields in the property panels; both UI styles. | E2c | Open | - |
@@ -466,6 +466,64 @@ runs each step on its own and names the failing one (the base for E2f).
 
 **Still needed from Manojkumar.** One failing `CRTDSPF` listing and its job log, with errors at known sequence numbers
 (a `CRTS36DSPF` or `CRTMNU` failure as a bonus). E2b stays blocked until they arrive.
+
+**Findings from the fixtures (added with E2b; supersede the "to confirm" list above).** The samples came in after the
+decision was recorded: a failing `CRTDSPF` on IBM i V7R3M0 (`src/test/fixtures/compile/`). They confirm the decision and sharpen it.
+- **Only the listing carries line numbers.** Each message sits right after the source line it belongs to as a marker line
+  (`* CPD5237-**********`); the number is the SEQNBR of the source line above it. Text and severity are in the `Messages`
+  section at the end, once per ID. The job log has **none** of the line-level `CPD` messages and no sequence numbers: it holds only
+  `CPF7311` (errors in DDS not allowed with the generation severity level), `CPD4090` (printer) and the `CPF7302` escape.
+  So the job log fallback can only ever give file-level messages.
+- **The command's own error text already is the job log.** Code for i's text for the failed command contained `CPC3305`,
+  `CPC2198`, `CPC2101`, `CPF7311`, `CPD4090`, `CPF7302` (the job log messages of that command), followed by two `SQL0443` lines
+  (a trigger/routine error, source unknown) that are noise. The job log fallback therefore adds nothing for file-level messages, and
+  a separate `QSYS2.JOBLOG_INFO('*')` query is only worth it if `runCommand` returns less on another setup. E2c still has to
+  check that on a second connection; it is no longer on the critical path.
+- **A listing is produced although the file is not created**, by the default `OPTION(*SRC *LIST)` (the header shows
+  `*SOURCE *LIST *NOSECLVL *NOEVENTF`); nothing needs adding to the command. With the job's printer device `PRT01` missing
+  (`CPD4090`) it went to `QPRINT` in `QGPL`, so E2c must find the spooled file by job and name (`QSYSPRT`), not by the user's
+  output queue. How to read it (`QSYS2.SPOOLED_FILE_DATA` is not known to exist on V7R3; `CPYSPLF` to a temporary file is the
+  alternative) is E2c's first check.
+- **Severity decides failure.** The header says `DDS generation severity level . : 20`. Messages above that stop the file being
+  created. In the fixture the severity 20 messages (`CPD7494`, `CPD7520`) are listed together with severity 30 ones on the same line. The
+  listing's summary bands are 0-9 informational, 10-19 warning, 20-29 error, 30-99 severe.
+- **Sequence numbers are the member's own**, not 100 times the line: the fixture starts at 500 and has inserted lines 1801, 1901,
+  3101 and 3102. The Nth listed source line is the Nth line of the member (51 listed, 51 sent), so E2c maps through that
+  position, which the parser returns as `ordinal`.
+- **Still unknown:** what the asterisks and dots after the dash mean (kept raw, not used); whether a raw spool file lays out the same as the
+  PDF the fixture was read from; the layouts of `CRTS36DSPF` (SFGR) and `CRTMNU`; where the `SQL0443` pair comes from.
+
+
+### E2b results
+
+**E2b (message parser).** New `src/compileMessages.js`, plain dependency-free UMD like `messageFile.js`, copied to `dist/` by
+`build:webview-assets`. Nothing calls it yet (E2c and E2d do). Tested by `src/test/e2bCompileMessages.test.js` (55 checks) against the
+E2a fixtures in `src/test/fixtures/compile/`: `testdsp.dds` (the 51-line failing source), `testdsp.listing.txt`, `testdsp.joblog.txt`
+and `testdsp.toast.txt`.
+
+**API.** Every function returns `{ kind, recognized, messages, header, summary, sourceSequences }` (plus `failed` and, only on an
+internal error, `error`). A message is `{ msgId, severity, sequence, ordinal, text, source }` with `source` `'listing'`,
+`'joblog'` or `'command'`, and a few extras (`marker`, `type`, `position`, `noise`).
+- `parseListing(text)` reads the listing: header facts (file, library, source file and member, generation and flagging severity), the
+  source lines (`sourceSequences`, in member order), the marker lines, the `Messages` section, the summary counts and the
+  escape message. A message gets the SEQNBR of the source line above its marker as `sequence`, and that line's 1-based position as `ordinal`; the
+  escape message and any marker before the first source line get `null` for both.
+- `parseJobLog(textOrRows)` reads DSPJOBLOG-style rows (`27 CPF7302 ESCAPE 40 text`) or the rows of `QSYS2.JOBLOG_INFO`;
+  oldest first; `sequence` and `ordinal` always `null`.
+- `parseCommandText(text)` splits Code for i's `ID: text` runs (the lead-in `iSDA: CRTDSPF failed:` is not a message); no severity; `SQL...`
+  IDs are flagged `noise: true`.
+- `parse(input)` picks one of the three; `severityClass(n)` gives `info` / `warning` / `error` / `severe` / `unknown` by the listing's bands.
+
+**Decisions.**
+- The ordinal, not arithmetic, is what E2c maps from: the fixture's sequence numbers are irregular.
+- Marker tails are stored raw in `marker`; no column range is derived, so a diagnostic covers the whole line until the tail is understood.
+- Message text comes from the `Messages` section by ID. A marker whose ID is missing there keeps its place with severity `null` and empty text.
+- Blank runs inside message text and headings collapse to one space, so a widely spaced raw spool file gives the same messages as the collapsed PDF text.
+- A page header glued onto the end of a line (as the PDF export does) is split off before reading; a form feed or CRLF changes nothing.
+- Never throws: junk, non-strings, binary and a 33,000-line text all return a result (the last in about 0.1 s).
+
+**Not yet checked:** a raw spool file (CPYSPLF / `SPOOLED_FILE_DATA`) instead of PDF text; `CRTS36DSPF` and `CRTMNU` listings; wrapped message texts
+(handled by an indentation rule that has no real sample).
 
 ---
 

@@ -1,0 +1,3 @@
+27    CPF7302    ESCAPE              40   File TESTDSP not created in library MANOJKUMAR.
+26    CPD4090    DIAGNOSTIC          10   Printer device PRT01 not found. Output queue changed to QPRINT in library QGPL
+25    CPF7311    DIAGNOSTIC          30   Errors in DDS not allowed with specified GENLVL.
