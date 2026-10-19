@@ -47,7 +47,7 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-7 of 10 epics done (E1, E3, E4, E7, E8, E9, E10); 61 sub-tasks done (E1a - E1j, E2a - E2b, E3a - E3l, E4a - E4g, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.16.2**.
+7 of 10 epics done (E1, E3, E4, E7, E8, E9, E10); 62 sub-tasks done (E1a - E1j, E2a - E2b, E2i, E3a - E3l, E4a - E4g, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.16.4**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
@@ -431,7 +431,7 @@ sequence number appears as a diagnostic on the right line (editor) and as a badg
 | E2f | **Menu compile.** `CRTMNU` runs several steps (`CRTDSPF`, message file, `ADDMSGD`, `CRTMNU`); report which step failed and its messages, per step. | E2b | Open | - |
 | E2g | **Tests.** Fake Code-for-i connection returning recorded fixtures; end-to-end: failing compile to diagnostic on the expected line. | E2d | Open | - |
 | E2h | **Release** (next free minor). | E2a - E2g, E2i | Open | - |
-| E2i | **Listing fetch.** After a failed compile, get the compile listing (the spooled file named after the file being compiled) from the job that ran the command and hand its text to `parseListing`. Everything temporary lives in `ISDATEMP`, never `QTEMP`, and is dropped after use. See *E2i design* under *E2a results*. Added after E2a: the SQL session and the command run in different jobs. | E2b | In progress | - |
+| E2i | **Listing fetch.** After a failed compile, get the compile listing (the spooled file named after the file being compiled) from the job that ran the command and hand its text to `parseListing`. Everything temporary lives in `ISDATEMP`, never `QTEMP`, and is dropped after use. See *E2i design* under *E2a results*. Added after E2a: the SQL session and the command run in different jobs. | E2b | Done | v0.16.4 |
 
 ### E2a results
 
@@ -542,6 +542,37 @@ internal error, `error`). A message is `{ msgId, severity, sequence, ordinal, te
 
 **Not yet checked:** a raw spool file (CPYSPLF / `SPOOLED_FILE_DATA`) instead of PDF text; `CRTS36DSPF` and `CRTMNU` listings; wrapped message texts
 (handled by an indentation rule that has no real sample).
+
+
+### E2i results
+
+**E2i (listing fetch).** New `src/compileListing.js` (UMD, copied to `dist/` by `build:webview-assets`), tested by `src/test/e2iCompileListing.test.js`
+(55 checks) against a fake IBM i that models the V7R3 probes. Nothing calls it yet: E2d calls it after a failed compile.
+
+**What the probes on the V7R3 system showed (Manojkumar).**
+- `QSYS2.OUTPUT_QUEUE_ENTRIES` is a view over every output queue, with the columns `OUTQ`, `OUTQLIB`, `CREATED`, `SPOOLNAME`, `USER_NAME`, `USER_DATA`, `STATUS`,
+  `SIZE`, `PAGES`, `JOB_NAME` (`number/user/name`, for example `980099/MANOJK/QPADEV02T6`) and `FILENUM` (not `SPOOLED_FILE_NAME` / `CREATE_TIMESTAMP`).
+- The listing is named after the compiled file (`TESTDSP`) and sat in `QPRINT` / `QGPL`; three compiles gave three entries, two of them (minutes apart) in the same job and the
+  latest in another, so a job outlives a single command and a new session means a new job. The compile job is a `QPADEV...` job; the SQL session is not that job.
+- The user profile is not the library name (`MANOJK` against `MANOJKUMAR`): the user comes from `CURRENT USER`, never from a library.
+
+**API.**
+- `beginCompile(connection)` -> `{ since, user }`: `CURRENT TIMESTAMP` and `CURRENT USER` from the IBM i, taken just before the compile (the spooled file's `CREATED` is on that clock, not on the PC's). Each is `null` when unknown.
+- `fetchCompileListing(connection, { fileName, user?, since? }, hooks?)` -> `{ ok: true, text, job, fileNumber, created, cleanupError? }` or `{ ok: false, reason, error }`,
+  reason one of `badParameter`, `notConnected`, `lookup`, `notFound`, `library`, `create`, `copy`, `read`, `empty`. Never rejects. `text` goes to `CompileMessages.parseListing`.
+- Steps: look up the newest spooled file named `<fileName>` of the user created since the start (job name and file number) -> make sure `ISDATEMP` exists (`hooks.ensureLibrary`, else the standalone step in `jobDateFormat.js`,
+  now exported) -> `CRTPF FILE(ISDATEMP/<work>) RCDLEN(200) SIZE(*NOMAX) TEXT('iSDA compile listing - safe to delete')` -> `CPYSPLF FILE(<fileName>) TOFILE(ISDATEMP/<work>) JOB(<job>) SPLNBR(<n>) MBROPT(*REPLACE)`
+  -> read `SELECT T.* FROM ISDATEMP.<work> T ORDER BY RRN(T)` -> `DLTF` in a `finally`.
+
+**Decisions.**
+- Nothing temporary goes in `QTEMP` (the SQL session and the command are different jobs). The work file is unique per call (`L` + 6 + 3 characters), is created only after the spooled file was found (so a
+  missing spool creates nothing), and is deleted on every path that created it. A failed `DLTF` is reported as `cleanupError`; it does not fail the fetch.
+- `JOB(...)` always names the job found in the lookup, never `JOB(*)`. A job name, file number, user, file name or time that is not a plain IBM i value is refused before it reaches a command or statement.
+- The listing's own spooled file is left in the output queue (it is the user's output; every compile already leaves one).
+- Without a `user` or a `since` the two filters are left out and the newest spool of that name wins.
+
+**Not yet checked on a real system:** the `CPYSPLF` output (whether `RCDLEN(200)` suffices, whether page breaks show as blank lines or are dropped; the parser copes with either), the case of the column keys `runSQL` returns
+(both cases are handled), and the cost of the lookup on a system with a very large number of spooled files (it is bounded by the name and the start time, but the view is system-wide).
 
 ---
 

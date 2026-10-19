@@ -194,6 +194,7 @@
     OFFSETS: OFFSETS,
     DATE_FORMATS: DATE_FORMATS,
     DATE_SEPARATORS: DATE_SEPARATORS,
+    ensureLibraryStandalone: ensureLibraryStandalone,
     decodeJobi0400: decodeJobi0400,
     buildJobi0400: buildJobi0400,
     wrapperSql: wrapperSql,
