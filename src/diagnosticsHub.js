@@ -20,6 +20,9 @@
  *   - closing it clears its diagnostics from the `rules` source;
  *   - `isda.diagnostics.enable` off clears every `rules` diagnostic and stops analysing;
  *   - `isda.diagnostics.severity` maps a rule code to error / warning / information / hint / off.
+ *   - tracked sources (E2d, compile messages): `setTrackedSource(uri, source, plainDiagnostics)` keeps the plain
+ *     diagnostics so they follow edits: a line that is edited loses its diagnostics, lines below move with an
+ *     inserted or removed line, a `fileLevel` diagnostic stays where it is; closing the document clears them.
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
@@ -61,7 +64,7 @@
    *   onInternalErrors(uri, list)          called when a guard threw (analysis went on without it)
    *
    * hub: start(), dispose(), refresh(document), refreshAll(), setSource(uri, source, diagnostics),
-   *      clearSource(uri, source), collection.
+   *      clearSource(uri, source), setTrackedSource(uri, source, plain), clearTrackedSource(uri, source), collection.
    */
   function createHub(vscodeApi, options) {
     options = options || {};
@@ -77,6 +80,7 @@
     var sources = new Map(); // uri string -> Map(source name -> vscode.Diagnostic[])
     var pending = new Map(); // uri string -> timer handle
     var analyzers = new Map(); // uri string -> the document's analyzer (E1h)
+    var tracked = new Map(); // uri string -> Map(source name -> plain diagnostics) that follow edits (E2d)
     var subscriptions = [];
     var disposed = false;
 
@@ -99,6 +103,73 @@
     }
 
     function clearSource(uri, source) { setSource(uri, source, []); }
+
+    /** E2d: a source whose diagnostics follow the text. `plain` is what ddsDiagnostics.js produces (1-based line and
+     *  column), plus `fileLevel: true` for one that belongs to the file and not to a line. An empty list clears it. */
+    function setTrackedSource(uri, source, plain) {
+      var k = key(uri);
+      var list = Array.isArray(plain) ? plain.slice() : [];
+      var bySource = tracked.get(k);
+      if (list.length) {
+        if (!bySource) { bySource = new Map(); tracked.set(k, bySource); }
+        bySource.set(source, list);
+      } else if (bySource) {
+        bySource.delete(source);
+        if (!bySource.size) tracked.delete(k);
+      }
+      setSource(uri, source, list.map(toVsCode));
+    }
+
+    function clearTrackedSource(uri, source) { setTrackedSource(uri, source, []); }
+
+    function countNewlines(text) {
+      var m = String(text == null ? '' : text).match(/\r\n|\r|\n/g);
+      return m ? m.length : 0;
+    }
+
+    /** Where the diagnostics of one tracked source are after one edit (a pure function of the list and the change). */
+    function applyChange(list, change) {
+      var range = change && change.range;
+      if (!range || !range.start || !range.end) return list;
+      var startLine = range.start.line;
+      var endLine = range.end.line;
+      var added = countNewlines(change.text);
+      var text = String(change.text == null ? '' : change.text);
+      var empty = startLine === endLine && range.start.character === range.end.character;
+      // A whole new line typed in front of a line (an insertion at column 0 that ends in a line break) moves that line
+      // down without touching its text.
+      var pushesDown = empty && range.start.character === 0 && added > 0 && /(\r\n|\r|\n)$/.test(text);
+      var delta = added - (endLine - startLine);
+      var out = [];
+      for (var i = 0; i < list.length; i++) {
+        var d = list[i];
+        if (d.fileLevel) { out.push(d); continue; }
+        var l = d.line - 1;
+        if (pushesDown) {
+          out.push(l >= startLine ? Object.assign({}, d, { line: d.line + added }) : d);
+        } else if (l < startLine) {
+          out.push(d);
+        } else if (l > endLine) {
+          out.push(delta ? Object.assign({}, d, { line: d.line + delta }) : d);
+        }
+        // else: the edit touched this line, so the message about it is no longer known to be true
+      }
+      return out;
+    }
+
+    function followEdits(event) {
+      var bySource = tracked.get(key(event.document.uri));
+      var changes = event.contentChanges;
+      if (!bySource || !changes || !changes.length) return;
+      // later text first, so the lines of the earlier changes are still the ones the diagnostics were made for
+      var ordered = changes.slice().sort(function (a, b) { return b.range.start.line - a.range.start.line || b.range.start.character - a.range.start.character; });
+      Array.from(bySource.keys()).forEach(function (source) {
+        var before = bySource.get(source);
+        var after = ordered.reduce(applyChange, before);
+        var same = after.length === before.length && after.every(function (d, i) { return d === before[i]; });
+        if (!same) setTrackedSource(event.document.uri, source, after);
+      });
+    }
 
     function settings() {
       var s = getSettings() || {};
@@ -152,6 +223,7 @@
 
     function onChange(event) {
       var document = event.document;
+      followEdits(event);
       var s = settings();
       if (!s.enable || !shouldAnalyze(document)) return;
       var k = key(document.uri);
@@ -166,6 +238,8 @@
       cancelPending(key(document.uri));
       analyzers.delete(key(document.uri));
       clearSource(document.uri, RULES_SOURCE);
+      var bySource = tracked.get(key(document.uri));
+      if (bySource) Array.from(bySource.keys()).forEach(function (source) { clearTrackedSource(document.uri, source); });
     }
 
     function onConfig(event) {
@@ -189,6 +263,7 @@
       analyzers.clear();
       subscriptions.forEach(function (s) { if (s && typeof s.dispose === 'function') s.dispose(); });
       subscriptions = [];
+      tracked.clear();
       sources.clear();
       collection.dispose();
     }
@@ -201,6 +276,8 @@
       refreshAll: refreshAll,
       setSource: setSource,
       clearSource: clearSource,
+      setTrackedSource: setTrackedSource,
+      clearTrackedSource: clearTrackedSource,
     };
   }
 

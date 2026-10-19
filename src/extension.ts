@@ -99,8 +99,32 @@ const DiagnosticsHub: {
     refreshAll(): void;
     setSource(uri: vscode.Uri, source: string, diagnostics: vscode.Diagnostic[]): void;
     clearSource(uri: vscode.Uri, source: string): void;
+    setTrackedSource(uri: vscode.Uri, source: string, diagnostics: CompilePlainDiagnostic[]): void;
+    clearTrackedSource(uri: vscode.Uri, source: string): void;
   };
 } = require('./diagnosticsHub.js');
+// Compile messages (E2b, E2c, E2i, E2d): a failed CRTDSPF / CRTS36DSPF becomes diagnostics on the lines of the source.
+type CompilePlainDiagnostic = { line: number; column: number; endColumn: number; severity: string; message: string; code?: string; source: string; fileLevel?: boolean };
+const CompileListing: {
+  beginCompile(connection: any): Promise<{ since: string | null; user: string | null }>;
+} = require('./compileListing.js');
+const CompileDiagnostics: {
+  collectCompileFeedback(
+    connection: any,
+    opts: { fileName: string; source: string; sourceText: string; mark: { since: string | null; user: string | null } | null; commandText: string },
+    hooks?: { ensureLibrary?: (connection: any) => Promise<string | null> }
+  ): Promise<{
+    ok: boolean;
+    via: 'listing' | 'command';
+    source: string;
+    raw: string;
+    diagnostics: CompilePlainDiagnostic[];
+    mapped: number;
+    fileLevel: number;
+    listing: { ok: boolean; reason: string | null; error: string | null } | null;
+    error?: string;
+  }>;
+} = require('./compileDiagnostics.js');
 // Keyword hover (E1c): pure lookup in ddsHover.js, data built into dist/keywordHoverData.json at build time.
 const DdsHover: {
   createProvider(
@@ -372,6 +396,15 @@ export function activate(context: vscode.ExtensionContext): void {
   });
   diagnosticsHub.start();
   context.subscriptions.push(diagnosticsHub);
+  // E2d: compile messages join the same collection (source CRTDSPF / CRTS36DSPF) and the same Problems panel.
+  compileHub = diagnosticsHub;
+  context.subscriptions.push({
+    dispose: () => {
+      compileHub = null;
+      if (compileChannel && typeof compileChannel.dispose === 'function') compileChannel.dispose();
+      compileChannel = null;
+    },
+  });
 
   // E1c: keyword hover over the same documents. The data file is read on the first hover, not at start-up.
   context.subscriptions.push(
@@ -602,6 +635,72 @@ function getMenuSourceUriFromCommandUri(uri: vscode.Uri): vscode.Uri | null {
   return null;
 }
 
+// ---- E2d: compile messages in the editor ----------------------------------------------------------------------
+let compileHub: {
+  setTrackedSource(uri: vscode.Uri, source: string, diagnostics: CompilePlainDiagnostic[]): void;
+  clearTrackedSource(uri: vscode.Uri, source: string): void;
+} | null = null;
+let compileChannel: vscode.OutputChannel | null = null;
+/** The sources a compile can put diagnostics under; a compile of the member clears both, then sets the one that ran. */
+const COMPILE_DIAGNOSTIC_SOURCES = ['CRTDSPF', 'CRTS36DSPF'];
+
+function getCompileChannel(): vscode.OutputChannel | null {
+  if (!compileChannel && typeof vscode.window.createOutputChannel === 'function') compileChannel = vscode.window.createOutputChannel('iSDA Compile');
+  return compileChannel;
+}
+
+/** A compile of this member is starting (or it succeeded): the messages of the last one are no longer current. */
+function clearCompileFeedback(uri: vscode.Uri): void {
+  if (!compileHub) return;
+  for (const source of COMPILE_DIAGNOSTIC_SOURCES) compileHub.clearTrackedSource(uri, source);
+}
+
+/**
+ * A compile of `uri` failed. Gets the compile listing from the IBM i (fallback: the command's own error text), maps the
+ * messages to the lines of `sourceText` and publishes them to the Problems panel; the raw text goes to the "iSDA Compile"
+ * Output channel. Never throws. Returns what was published, or null when nothing could be.
+ */
+async function showCompileFeedback(
+  connection: any,
+  uri: vscode.Uri,
+  opts: { fileName: string; source: string; sourceText: string; mark: { since: string | null; user: string | null } | null; commandText: string }
+): Promise<{ via: 'listing' | 'command'; mapped: number; fileLevel: number } | null> {
+  try {
+    clearCompileFeedback(uri);
+    const fb = await CompileDiagnostics.collectCompileFeedback(connection, opts, { ensureLibrary: ensureIsdaTempLibrary });
+    if (!fb.ok) return null;
+    if (compileHub) compileHub.setTrackedSource(uri, fb.source, fb.diagnostics);
+    const channel = getCompileChannel();
+    if (channel) {
+      channel.clear();
+      channel.appendLine(`=== ${opts.source} ${opts.fileName} - ${new Date().toLocaleString()} ===`);
+      channel.appendLine(fb.via === 'listing' ? '(compile listing)' : `(the command's error text${fb.listing && fb.listing.reason ? '; the listing was not available: ' + fb.listing.reason : ''})`);
+      channel.appendLine(fb.raw);
+    }
+    return { via: fb.via, mapped: fb.mapped, fileLevel: fb.fileLevel };
+  } catch {
+    return null;
+  }
+}
+
+/** The toast for a failed compile; when messages were published it also offers to open the Output channel. */
+function showCompileFailureToast(text: string, published: { mapped: number; fileLevel: number } | null): void {
+  if (!published) {
+    vscode.window.showErrorMessage(text);
+    return;
+  }
+  void Promise.resolve(vscode.window.showErrorMessage(text, 'Show Compile Output')).then((choice) => {
+    if (choice === 'Show Compile Output' && compileChannel) compileChannel.show(true);
+  });
+}
+
+function compilePublishedNote(published: { mapped: number; fileLevel: number } | null): string {
+  if (!published) return '';
+  const total = published.mapped + published.fileLevel;
+  if (total === 0) return '';
+  return `\n\n${total} message${total === 1 ? '' : 's'} in the Problems panel (${published.mapped} on a source line).`;
+}
+
 /**
  * Breaks a `member:` scheme URI's path (`/LIBRARY/FILE/NAME.TYPE`, or with a
  * leading ASP name) into its parts, for building CL commands. See
@@ -745,9 +844,18 @@ async function compileMenu(uri: vscode.Uri): Promise<void> {
 
   await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: `iSDA: Compiling menu ${library}/${objectName}` }, async (progress) => {
     progress.report({ message: 'Creating display file (CRTDSPF)...' });
+    clearCompileFeedback(uri);
+    let mark: { since: string | null; user: string | null } | null = null;
+    try {
+      mark = await CompileListing.beginCompile(connection);
+    } catch {
+      mark = null;
+    }
     let step = await run(`CRTDSPF FILE(${library}/${objectName}) SRCFILE(${library}/${srcFile}) SRCMBR(${parsed.name}) REPLACE(*YES)`, 'CRTDSPF');
     if (!step.ok) {
-      vscode.window.showErrorMessage('iSDA: ' + step.message);
+      // E2d: the DSPF step of a menu compile reports through the same path as a display file compile (the other steps: E2f).
+      const published = await showCompileFeedback(connection, uri, { fileName: objectName.toUpperCase(), source: 'CRTDSPF', sourceText, mark, commandText: step.message });
+      showCompileFailureToast('iSDA: ' + step.message, published);
       return;
     }
 
@@ -876,6 +984,14 @@ async function compileDspf(uri: vscode.Uri, webview?: vscode.Webview): Promise<v
   const library = parsed.library;
   const srcFile = parsed.file;
   const objectName = parsed.name;
+  // E2d: the text that is being compiled (saved above), for mapping the compile messages to its lines.
+  let compiledText = '';
+  try {
+    compiledText = openDoc ? openDoc.getText() : Buffer.from(await vscode.workspace.fs.readFile(uri)).toString('utf8');
+  } catch {
+    compiledText = '';
+  }
+  clearCompileFeedback(uri);
 
   async function run(command: string, label: string): Promise<{ ok: boolean; message: string }> {
     try {
@@ -896,6 +1012,13 @@ async function compileDspf(uri: vscode.Uri, webview?: vscode.Webview): Promise<v
     // extension) keeps using CRTDSPF exactly as before.
     const isS36SfgrSource = parsed.extension.toUpperCase() === 'DSPF36';
     let step: { ok: boolean; message: string };
+    // E2d: the IBM i clock and user just before the command, so the listing that belongs to this compile can be found.
+    let mark: { since: string | null; user: string | null } | null = null;
+    try {
+      mark = await CompileListing.beginCompile(connection);
+    } catch {
+      mark = null;
+    }
     if (isS36SfgrSource) {
       progress.report({ message: 'Creating System/36 display file (CRTS36DSPF)...' });
       step = await run(`CRTS36DSPF DSPFILE(${library}/${objectName}) SRCFILE(${library}/${srcFile}) SRCMBR(${parsed.name}) REPLACE(*YES)`, 'CRTS36DSPF');
@@ -904,8 +1027,16 @@ async function compileDspf(uri: vscode.Uri, webview?: vscode.Webview): Promise<v
       step = await run(`CRTDSPF FILE(${library}/${objectName}) SRCFILE(${library}/${srcFile}) SRCMBR(${parsed.name}) REPLACE(*YES)`, 'CRTDSPF');
     }
     if (!step.ok) {
-      vscode.window.showErrorMessage('iSDA: ' + step.message);
-      reportFailure('iSDA: ' + step.message);
+      progress.report({ message: 'Reading the compile messages...' });
+      const published = await showCompileFeedback(connection, uri, {
+        fileName: objectName.toUpperCase(),
+        source: isS36SfgrSource ? 'CRTS36DSPF' : 'CRTDSPF',
+        sourceText: compiledText,
+        mark,
+        commandText: step.message,
+      });
+      showCompileFailureToast('iSDA: ' + step.message, published);
+      reportFailure('iSDA: ' + step.message + compilePublishedNote(published));
       return;
     }
     vscode.window.showInformationMessage(`iSDA: Display file ${library}/${objectName} compiled.`);

@@ -47,7 +47,7 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-7 of 10 epics done (E1, E3, E4, E7, E8, E9, E10); 63 sub-tasks done (E1a - E1j, E2a - E2c, E2i, E3a - E3l, E4a - E4g, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.16.5**.
+7 of 10 epics done (E1, E3, E4, E7, E8, E9, E10); 64 sub-tasks done (E1a - E1j, E2a - E2d, E2i, E3a - E3l, E4a - E4g, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.16.6**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
@@ -426,7 +426,7 @@ sequence number appears as a diagnostic on the right line (editor) and as a badg
 | E2a | **Capture source. Decision first.** Compare the three ways to get messages: the job log (`QSYS2.JOBLOG_INFO`), a compile listing (`OUTPUT(*PRINT)` spool), and the command's own error text from Code for i. Pick one primary and one fallback; record which messages carry statement/sequence numbers. Needs real samples: **Manojkumar to provide one failing listing and joblog** to use as fixtures. | - | Done (no code change) | — |
 | E2b | **Message parser.** Pure module `src/compileMessages.js`: listing/joblog text to `{msgId, severity, sequence, text}`; fixtures from E2a; tolerant of unknown message layouts (never throws). | E2a | Done | v0.16.2 |
 | E2c | **Sequence to line mapping.** Map a sequence number to a line in the member or local file, accounting for sequence numbers kept or re-applied by the writer (I-203), a tag in columns 1-5 (I-204), and removed-lines-kept-as-comments (I-207). Unmappable messages stay global. | E2b | Done | v0.16.5 |
-| E2d | **Editor diagnostics.** Feed mapped messages into the shared `DiagnosticCollection` hub as source `CRTDSPF` / `CRTMNU`; an Output channel with the raw listing; cleared on edit of the line or on the next compile. | E2c, E2i, E1b | In progress | - |
+| E2d | **Editor diagnostics.** Feed mapped messages into the shared `DiagnosticCollection` hub as source `CRTDSPF` / `CRTMNU`; an Output channel with the raw listing; cleared on edit of the line or on the next compile. | E2c, E2i, E1b | Done | v0.16.6 |
 | E2e | **Designer surface.** A dismissible error banner in the webview; click selects the record/field on the canvas; badges on records/fields in the property panels; both UI styles. | E2c | Open | - |
 | E2f | **Menu compile.** `CRTMNU` runs several steps (`CRTDSPF`, message file, `ADDMSGD`, `CRTMNU`); report which step failed and its messages, per step. | E2b | Open | - |
 | E2g | **Tests.** Fake Code-for-i connection returning recorded fixtures; end-to-end: failing compile to diagnostic on the expected line. | E2d | Open | - |
@@ -578,6 +578,36 @@ because the mapping checks its position against the text the compiler saw. Addit
 
 **Not yet checked:** a raw spool file instead of the PDF text of the fixture (spacing, whether columns 1-5 print, lines wider than 80 in a wider source file); `CRTS36DSPF` and `CRTMNU` listings; a real compile of a member that was edited after
 its last save. The mapping has no column information: a diagnostic covers the whole line until the marker tails are understood.
+
+### E2d results
+
+**E2d (editor diagnostics).** A failed `CRTDSPF` / `CRTS36DSPF` now puts its messages in the Problems panel, on the lines they belong to. New `src/compileDiagnostics.js`
+(UMD, no `vscode` import, copied to `dist/` by `build:webview-assets`), `setTrackedSource` / `clearTrackedSource` in `src/diagnosticsHub.js`, and the wiring in `compileDspf`
+and the CRTDSPF step of `compileMenu` in `src/extension.ts`. Tested by `src/test/e2dCompileDiagnostics.test.js` (41 checks): the E2a fixtures, a fake IBM i end to end
+(listing, no spooled file, a text that is not a listing, no mark, a source edited or shifted since the compile, a connection that throws), and the hub.
+
+**Flow.** `beginCompile` runs just before the command. On failure `collectCompileFeedback` fetches the listing (E2i), parses it (E2b) and maps it to the text that was compiled (E2c).
+Without a usable listing (no spooled file, or a text that is not a compile listing) it parses the command's own error text instead; those messages are all file-level. The
+result goes to the hub under source `CRTDSPF` or `CRTS36DSPF` (a `DSPF36` member), the raw text to the **iSDA Compile** Output channel, the toast gets a **Show Compile Output**
+button, and the designer's failure banner gets a "N messages in the Problems panel" line. A compile of the member (start or success) clears the earlier messages first.
+
+**Rules.**
+- A mapped message is a diagnostic on its whole line (the E2c rule), code = message ID. A message with no line (the escape message, a line edited since the compile, an unknown layout, command text)
+  is **file-level**: line 1, `fileLevel: true`, with a short note in the text when the reason is not obvious.
+- Severity from the listing's bands: 0-9 information, 10-19 warning, 20 and over error, unknown warning. Command text has no severity, so the message ID decides: CPC and CPI information, CPD warning, the rest error.
+- `noise` messages (SQL) are left out. The function never rejects: a failure inside returns `ok: false` and the compile's own error handling goes on as before.
+
+**Following edits (hub).** Tracked diagnostics keep their plain form so they can move: an edit that touches a line removes that line's messages (they were about text that no longer exists); a line break
+inserted or removed above moves the lines below with it; a whole line typed in front of a flagged line moves it down and is not an edit of it; several changes in one event are applied later text first;
+file-level messages never move or go. Closing the document clears them. The `rules` source is not touched by any of this.
+
+**Decisions.**
+- **Source names.** The roadmap row said `CRTDSPF` / `CRTMNU`. The messages come from the display file compile, so the sources are `CRTDSPF` and `CRTS36DSPF`; the menu's other steps are E2f's.
+- **After a failed compile only.** A successful compile does not fetch its listing (a round trip per compile for warnings nobody asked for), it only clears.
+- **Edit-following lives in the hub**, which already sees the change events, so a later source (the E2f menu steps) gets it without code of its own.
+
+**Not yet checked:** a real compile against an IBM i (the fetch is the E2i one, still fake-connection tested); the designer click-through from a message to the record or field (E2e); the other `compileMenu` steps (E2f);
+a diagnostic on a line while the designer, not the text editor, has the focus. The two timing checks in `e1dCompletion` and `e1iRelease` failed once when four test shards ran at the same time and pass on their own.
 
 ### E2i results
 
