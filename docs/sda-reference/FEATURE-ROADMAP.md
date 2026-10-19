@@ -52,7 +52,7 @@ never in columns 1-80 or the tag area.
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
 | [E1](#e1) | Editor-side DDS language support (diagnostics, hover, completion, outline, quick-fixes) | E1a - E1j | - | Done | v0.16.1 |
-| [E2](#e2) | Compile-error feedback loop | E2a - E2h | E1a, E1b for the shared diagnostics collection | Open | - |
+| [E2](#e2) | Compile-error feedback loop | E2a - E2i | E1a, E1b for the shared diagnostics collection | Open | - |
 | [E3](#e3) | Indicator simulator (and program-to-system field values) | E3a - E3l | - | Done | v0.14.1 |
 | [E4](#e4) | Message-file integration (`MSGID` / `ERRMSGID` / `CHKMSGID` / `SFLMSGID`) | E4a - E4g | E3f (soft) | Done | v0.15.6 |
 | [E5](#e5) | Preview export (PNG / SVG / HTML / text) | E5a - E5g | E3 (soft, for indicator state) | Open | - |
@@ -426,11 +426,12 @@ sequence number appears as a diagnostic on the right line (editor) and as a badg
 | E2a | **Capture source. Decision first.** Compare the three ways to get messages: the job log (`QSYS2.JOBLOG_INFO`), a compile listing (`OUTPUT(*PRINT)` spool), and the command's own error text from Code for i. Pick one primary and one fallback; record which messages carry statement/sequence numbers. Needs real samples: **Manojkumar to provide one failing listing and joblog** to use as fixtures. | - | Done (no code change) | — |
 | E2b | **Message parser.** Pure module `src/compileMessages.js`: listing/joblog text to `{msgId, severity, sequence, text}`; fixtures from E2a; tolerant of unknown message layouts (never throws). | E2a | Done | v0.16.2 |
 | E2c | **Sequence to line mapping.** Map a sequence number to a line in the member or local file, accounting for sequence numbers kept or re-applied by the writer (I-203), a tag in columns 1-5 (I-204), and removed-lines-kept-as-comments (I-207). Unmappable messages stay global. | E2b | Open | - |
-| E2d | **Editor diagnostics.** Feed mapped messages into the shared `DiagnosticCollection` hub as source `CRTDSPF` / `CRTMNU`; an Output channel with the raw listing; cleared on edit of the line or on the next compile. | E2c, E1b | Open | - |
+| E2d | **Editor diagnostics.** Feed mapped messages into the shared `DiagnosticCollection` hub as source `CRTDSPF` / `CRTMNU`; an Output channel with the raw listing; cleared on edit of the line or on the next compile. | E2c, E2i, E1b | Open | - |
 | E2e | **Designer surface.** A dismissible error banner in the webview; click selects the record/field on the canvas; badges on records/fields in the property panels; both UI styles. | E2c | Open | - |
 | E2f | **Menu compile.** `CRTMNU` runs several steps (`CRTDSPF`, message file, `ADDMSGD`, `CRTMNU`); report which step failed and its messages, per step. | E2b | Open | - |
 | E2g | **Tests.** Fake Code-for-i connection returning recorded fixtures; end-to-end: failing compile to diagnostic on the expected line. | E2d | Open | - |
-| E2h | **Release** (next free minor). | E2a - E2g | Open | - |
+| E2h | **Release** (next free minor). | E2a - E2g, E2i | Open | - |
+| E2i | **Listing fetch.** After a failed compile, get the compile listing (`QSYSPRT`) from the job that ran the command and hand its text to `parseListing`. Everything temporary lives in `ISDATEMP`, never `QTEMP`, and is dropped after use. See *E2i design* under *E2a results*. Added after E2a: the SQL session and the command run in different jobs. | E2b | Open | - |
 
 ### E2a results
 
@@ -493,6 +494,23 @@ decision was recorded: a failing `CRTDSPF` on IBM i V7R3M0 (`src/test/fixtures/c
 - **Still unknown:** what the asterisks and dots after the dash mean (kept raw, not used); whether a raw spool file lays out the same as the
   PDF the fixture was read from; the layouts of `CRTS36DSPF` (SFGR) and `CRTMNU`; where the `SQL0443` pair comes from.
 
+
+**Decision after the job check (added with E2i).** Manojkumar confirmed on the V7R3 system that the SQL session runs in its own job and the
+`CRTDSPF` command runs in a different one, so `QTEMP` objects are not shared between them and `JOB_NAME => '*'` in SQL does not name the
+compile's job. Rule: **any temporary file the extension needs is created in `ISDATEMP` and dropped as soon as it has been read** (also when the read fails).
+`QSYS2.SPOOLED_FILE_DATA` does not exist on V7R3 but `SYSTOOLS.SPOOLED_FILE_DATA` does, and `CPYSPLF` is preferred.
+
+**E2i design (proposal, to confirm with a probe before it is built).**
+1. Note the time before the compile. After a failure, find the newest `QSYSPRT` spooled file of the connected user created since then, with SQL
+   (the spooled-file entries view or function; availability and column names on V7R3 are not yet confirmed), and take its qualified job name and file number.
+2. `CPYSPLF FILE(QSYSPRT) TOFILE(ISDATEMP/<unique work file>) JOB(<number/user/name>) SPLNBR(<n>) MBROPT(*REPLACE)`, creating the work file in `ISDATEMP` first
+   (`CRTPF`, record length wide enough for a 132-column listing) with a name that is unique per call so two compiles cannot meet.
+3. Read the rows with SQL in the SQL job (the work file is a normal object, so any job sees it), then `DLTF` it in a `finally`, even when the read fails.
+   The listing's own spooled file is left alone: it is the user's output.
+4. Anything missing (no spool file, `CPYSPLF` fails, the library cannot be created) returns `null`; the caller falls back to the command text
+   (`parseCommandText`), so a compile error is still shown, as a file-level message.
+5. `SYSTOOLS.SPOOLED_FILE_DATA(JOB_NAME => ..., SPOOLED_FILE_NAME => ..., SPOOLED_FILE_NUMBER => ...)` is the alternative that needs no work file, but it is a
+   SYSTOOLS object and may not be there on every system, so it is not the first choice.
 
 ### E2b results
 
