@@ -47,7 +47,7 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-7 of 10 epics done (E1, E3, E4, E7, E8, E9, E10); 62 sub-tasks done (E1a - E1j, E2a - E2b, E2i, E3a - E3l, E4a - E4g, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.16.4**.
+7 of 10 epics done (E1, E3, E4, E7, E8, E9, E10); 63 sub-tasks done (E1a - E1j, E2a - E2c, E2i, E3a - E3l, E4a - E4g, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.16.5**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
@@ -425,7 +425,7 @@ sequence number appears as a diagnostic on the right line (editor) and as a badg
 |----|--------------------|------------|--------|---------|
 | E2a | **Capture source. Decision first.** Compare the three ways to get messages: the job log (`QSYS2.JOBLOG_INFO`), a compile listing (`OUTPUT(*PRINT)` spool), and the command's own error text from Code for i. Pick one primary and one fallback; record which messages carry statement/sequence numbers. Needs real samples: **Manojkumar to provide one failing listing and joblog** to use as fixtures. | - | Done (no code change) | — |
 | E2b | **Message parser.** Pure module `src/compileMessages.js`: listing/joblog text to `{msgId, severity, sequence, text}`; fixtures from E2a; tolerant of unknown message layouts (never throws). | E2a | Done | v0.16.2 |
-| E2c | **Sequence to line mapping.** Map a sequence number to a line in the member or local file, accounting for sequence numbers kept or re-applied by the writer (I-203), a tag in columns 1-5 (I-204), and removed-lines-kept-as-comments (I-207). Unmappable messages stay global. | E2b | In progress | - |
+| E2c | **Sequence to line mapping.** Map a sequence number to a line in the member or local file, accounting for sequence numbers kept or re-applied by the writer (I-203), a tag in columns 1-5 (I-204), and removed-lines-kept-as-comments (I-207). Unmappable messages stay global. | E2b | Done | v0.16.5 |
 | E2d | **Editor diagnostics.** Feed mapped messages into the shared `DiagnosticCollection` hub as source `CRTDSPF` / `CRTMNU`; an Output channel with the raw listing; cleared on edit of the line or on the next compile. | E2c, E2i, E1b | Open | - |
 | E2e | **Designer surface.** A dismissible error banner in the webview; click selects the record/field on the canvas; badges on records/fields in the property panels; both UI styles. | E2c | Open | - |
 | E2f | **Menu compile.** `CRTMNU` runs several steps (`CRTDSPF`, message file, `ADDMSGD`, `CRTMNU`); report which step failed and its messages, per step. | E2b | Open | - |
@@ -543,6 +543,41 @@ internal error, `error`). A message is `{ msgId, severity, sequence, ordinal, te
 **Not yet checked:** a raw spool file (CPYSPLF / `SPOOLED_FILE_DATA`) instead of PDF text; `CRTS36DSPF` and `CRTMNU` listings; wrapped message texts
 (handled by an indentation rule that has no real sample).
 
+
+### E2c results
+
+**E2c (sequence to line mapping).** New `src/compileLineMap.js` (UMD, copied to `dist/` by `build:webview-assets`), tested by `src/test/e2cLineMap.test.js`
+(60 checks) against the E2a fixtures and against listings built in the fixture's layout. Nothing calls it yet: E2d (editor) and E2e (designer) do. It works on text, so
+whichever text the caller passes (the member as the editor holds it, or a local file) is the text that is mapped.
+
+**API.** `mapMessages(parsed, source, options?)`: `parsed` is any E2b result, `source` the text or an array of lines. It returns
+`{ ok, alignment, listedCount, lineCount, matchedCount, changed, messages, mapped, global }`; every message is a copy of the E2b one with
+`line` (**1-based**, like `ddsDiagnostics.js`), `column` 1 and `endColumn` (the whole line, the same rule as there), `how` and `reason`. `how` is `ordinal`, `aligned`, `count` or `sequence`;
+a message with no line has `line: null` and a `reason`: `file-level` (the escape message, job log and command text never had one), `line-changed`, `out-of-range`, `ambiguous-sequence`,
+`sequence-not-found`, `no-sequence-numbers`. Options: `width` (80) and `maxEdits` (2000). `alignLines`, `splitSource`, `sequenceOf`, `isComment` and `prepareLine` are exported for the tests.
+
+**How a message finds its line** (one rule for the whole listing, picked in this order).
+1. **Ordinal (`identical`).** The Nth listed line is the Nth line of the source, comments and blank lines included. Taken when every listed line's text equals the source line at the same place.
+2. **Aligned.** The source changed since the compile. The listed lines are matched to the current lines (common start and end, then Myers' shortest edit script), so a message moves with its line. A line that was
+   itself edited or deleted has no match: its messages go global (`line-changed`), they do not land on a neighbour. Used when at least half of the listed lines match.
+3. **Count.** The listing's text cannot be compared (under half match: an unknown layout, or another member) but the line counts agree: the ordinal as it stands.
+4. **Sequence.** Only when the numbers are in the text: the line whose columns 1-5 are digits equal to the message's sequence. Comment lines are passed over; two live lines with one number is `ambiguous-sequence`.
+
+**Change to E2b.** `parseListing` now also returns `sourceLines`, `{ sequence, text }` for each listed line (blanks collapsed, the source date taken off in `mm/dd/yy`, `dd.mm.yyyy`, `yy-mm-dd` and `yy/ddd`),
+because the mapping checks its position against the text the compiler saw. Additive: nothing else in the result changed, the E2b test is untouched. The other readers return it empty.
+
+**Decisions.**
+- **The ordinal, not the number, is the key.** The listing's SEQNBR is the member's SRCSEQ; the digits in columns 1-5 of the text are a different thing, and the E2a fixture has both blank. So the three writer behaviours the roadmap names
+  cost the main rule nothing, because the compiler listed every line the writer left in the source:
+  a commented-out OR line (`A*O 22 ...`, I-203) and removed lines kept as comments with their number (I-207) are lines like any other; a tag in columns 1-5 (I-204) is part of the text that was compiled and the listing shows.
+  They matter only in the sequence fallback: a kept or commented-out copy can share its number with the live line, so comments are skipped, and a tagged line has no number to find (`no-sequence-numbers` when no line has one).
+- **A moved line is followed, an edited line is not guessed at.** Showing a message on the wrong line is worse than showing it for the file. Clearing a diagnostic when its line is edited stays with E2d.
+- **Text is compared with blanks collapsed, with and without columns 1-5.** Whether the listing prints those columns is not confirmed against a raw spool file, so either reading counts.
+- **The diff costs by lines changed, not by source length.** A first version with a full table gave up on two small edits 10,000 lines apart; Myers' diff maps a 33,000-line source with an insert and an edit in about 0.2 s, and
+  a source more than `maxEdits` lines away from the compile keeps only its common start and end.
+
+**Not yet checked:** a raw spool file instead of the PDF text of the fixture (spacing, whether columns 1-5 print, lines wider than 80 in a wider source file); `CRTS36DSPF` and `CRTMNU` listings; a real compile of a member that was edited after
+its last save. The mapping has no column information: a diagnostic covers the whole line until the marker tails are understood.
 
 ### E2i results
 

@@ -19,6 +19,9 @@
  *   - COMMAND   Code for i's error text is the job log messages as `ID: text` runs, without severity, plus
  *               SQL0443 noise from the job log query. Also file-level only.
  *
+ * `sourceLines` (E2c) is `sourceSequences` with the text each line printed (blanks collapsed, source date off), so a
+ * mapping can check that the line it picked is the line the compiler saw.
+ *
  * `ordinal` is the 1-based position of the source line in the listing (the Nth line of the member). The
  * sequence numbers are the SOURCE MEMBER's, which need not run 100, 200, ... (the fixture starts at 500 and has
  * 1801, 1901, 3101, 3102), so E2c maps through `sourceSequences` / `ordinal`, not through arithmetic.
@@ -47,6 +50,9 @@
   var MARKER_RE = new RegExp('^\\*\\s*(' + ID + ')-(.*)$');
   var MESSAGE_RE = new RegExp('^\\*\\s*(' + ID + ')\\s+(\\d+)\\s+(?:(\\d+)\\s+)?Message(?:\\s*\\.)*\\s*:\\s*(.*)$');
   var SOURCE_LINE_RE = /^\s*(\d{1,6})(?:\s|$)/;
+  var SOURCE_TEXT_RE = /^\s*\d{1,6}(?:\s(.*))?$/;
+  // The source date the listing prints at the end of each line (mm/dd/yy, dd.mm.yy, yy-mm-dd, yy/ddd for *JUL; a 4-digit year too).
+  var DATE_TAIL_RE = /(?:^|\s+)(?:\d{2}[\/.\-]\d{2}[\/.\-]\d{2,4}|\d{2}[\/.\-]\d{3})$/;
   var COUNTS_RE = /^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s*$/;
   var JOBLOG_LINE_RE = new RegExp('^\\s*(\\d+)\\s+(' + ID + ')\\s+([A-Z][A-Z ]*?)\\s+(\\d+)\\s+(.*?)\\s*$');
   var COMMAND_ID_RE = new RegExp('(?:^|[\\s.])(' + ID + '):\\s', 'g');
@@ -54,7 +60,7 @@
   // ---- helpers ---------------------------------------------------------------
 
   function emptyResult(kind) {
-    return { kind: kind, recognized: false, messages: [], header: {}, summary: null, sourceSequences: [] };
+    return { kind: kind, recognized: false, messages: [], header: {}, summary: null, sourceSequences: [], sourceLines: [] };
   }
 
   function toLines(text) {
@@ -97,6 +103,17 @@
   }
 
   // ---- the compile listing ----------------------------------------------------
+
+  /**
+   * The source text a listing line printed after its SEQNBR, blanks collapsed and the trailing source date
+   * taken off (E2c compares it with the line it is mapped to). A line that is only a number gives ''.
+   */
+  function sourceText(line) {
+    var m = SOURCE_TEXT_RE.exec(line);
+    if (!m || !m[1]) return '';
+    return tidy(m[1]).replace(DATE_TAIL_RE, '');
+  }
+
 
   var HEADER_FIELDS = [
     ['file', /^\s*File name\b[ .]*:\s*(.*)$/, 'fileName'],
@@ -160,6 +177,7 @@
           if (sm) {
             lastSeq = num(sm[1]);
             result.sourceSequences.push(lastSeq);
+            result.sourceLines.push({ sequence: lastSeq, text: sourceText(line) });
             lastOrdinal = result.sourceSequences.length;
           }
           continue;
