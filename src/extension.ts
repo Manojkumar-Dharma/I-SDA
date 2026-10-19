@@ -1119,7 +1119,7 @@ function ensureIsdaTempLibrary(connection: any): Promise<string | null> {
         const existing = await connection.runSQL(`SELECT 1 AS X FROM QSYS2.SYSSCHEMAS WHERE SCHEMA_NAME = '${ISDA_TEMP_LIBRARY}'`);
         if (!existing || existing.length === 0) {
           const crtlib = await connection.runCommand({
-            command: `CRTLIB LIB(${ISDA_TEMP_LIBRARY}) TEXT('iSDA temporary objects (QDBRTVFD wrapper) - safe to delete, iSDA recreates it')`,
+            command: `CRTLIB LIB(${ISDA_TEMP_LIBRARY}) TEXT('iSDA temporary objects - safe to delete')`,
             environment: 'ile',
           });
           // CPF2111 = library already exists (a race with another session/user is fine - not an error).

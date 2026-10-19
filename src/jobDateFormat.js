@@ -134,7 +134,7 @@
       var existing = await connection.runSQL("SELECT 1 AS X FROM QSYS2.SYSSCHEMAS WHERE SCHEMA_NAME = '" + LIBRARY + "'");
       if (!existing || existing.length === 0) {
         var crtlib = await connection.runCommand({
-          command: "CRTLIB LIB(" + LIBRARY + ") TEXT('iSDA temporary objects - safe to delete, iSDA recreates it')",
+          command: "CRTLIB LIB(" + LIBRARY + ") TEXT('iSDA temporary objects - safe to delete')",
           environment: 'ile'
         });
         if (crtlib && typeof crtlib.code === 'number' && crtlib.code !== 0 && !/CPF2111/.test(String(crtlib.stderr || crtlib.stdout || ''))) {
