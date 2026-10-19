@@ -431,7 +431,7 @@ sequence number appears as a diagnostic on the right line (editor) and as a badg
 | E2f | **Menu compile.** `CRTMNU` runs several steps (`CRTDSPF`, message file, `ADDMSGD`, `CRTMNU`); report which step failed and its messages, per step. | E2b | Open | - |
 | E2g | **Tests.** Fake Code-for-i connection returning recorded fixtures; end-to-end: failing compile to diagnostic on the expected line. | E2d | Open | - |
 | E2h | **Release** (next free minor). | E2a - E2g, E2i | Open | - |
-| E2i | **Listing fetch.** After a failed compile, get the compile listing (`QSYSPRT`) from the job that ran the command and hand its text to `parseListing`. Everything temporary lives in `ISDATEMP`, never `QTEMP`, and is dropped after use. See *E2i design* under *E2a results*. Added after E2a: the SQL session and the command run in different jobs. | E2b | Open | - |
+| E2i | **Listing fetch.** After a failed compile, get the compile listing (the spooled file named after the file being compiled) from the job that ran the command and hand its text to `parseListing`. Everything temporary lives in `ISDATEMP`, never `QTEMP`, and is dropped after use. See *E2i design* under *E2a results*. Added after E2a: the SQL session and the command run in different jobs. | E2b | Open | - |
 
 ### E2a results
 
@@ -482,7 +482,7 @@ decision was recorded: a failing `CRTDSPF` on IBM i V7R3M0 (`src/test/fixtures/c
   check that on a second connection; it is no longer on the critical path.
 - **A listing is produced although the file is not created**, by the default `OPTION(*SRC *LIST)` (the header shows
   `*SOURCE *LIST *NOSECLVL *NOEVENTF`); nothing needs adding to the command. With the job's printer device `PRT01` missing
-  (`CPD4090`) it went to `QPRINT` in `QGPL`, so E2c must find the spooled file by job and name (`QSYSPRT`), not by the user's
+  (`CPD4090`) it went to `QPRINT` in `QGPL`, so the spooled file must be found by its own name, the file being compiled (`TESTDSP` in the fixture; Manojkumar confirmed the spool takes the object's name, not `QSYSPRT`), and by job, not by the user's
   output queue. How to read it (`QSYS2.SPOOLED_FILE_DATA` is not known to exist on V7R3; `CPYSPLF` to a temporary file is the
   alternative) is E2c's first check.
 - **Severity decides failure.** The header says `DDS generation severity level . : 20`. Messages above that stop the file being
@@ -501,15 +501,15 @@ compile's job. Rule: **any temporary file the extension needs is created in `ISD
 `QSYS2.SPOOLED_FILE_DATA` does not exist on V7R3 but `SYSTOOLS.SPOOLED_FILE_DATA` does, and `CPYSPLF` is preferred.
 
 **E2i design (proposal, to confirm with a probe before it is built).**
-1. Note the time before the compile. After a failure, find the newest `QSYSPRT` spooled file of the connected user created since then, with SQL
+1. Note the time before the compile. After a failure, find the newest spooled file of the connected user named after the compiled file (`SPOOLED_FILE_NAME` = the object name) created since then, with SQL
    (the spooled-file entries view or function; availability and column names on V7R3 are not yet confirmed), and take its qualified job name and file number.
-2. `CPYSPLF FILE(QSYSPRT) TOFILE(ISDATEMP/<unique work file>) JOB(<number/user/name>) SPLNBR(<n>) MBROPT(*REPLACE)`, creating the work file in `ISDATEMP` first
+2. `CPYSPLF FILE(<compiled file name>) TOFILE(ISDATEMP/<unique work file>) JOB(<number/user/name>) SPLNBR(<n>) MBROPT(*REPLACE)`, creating the work file in `ISDATEMP` first
    (`CRTPF`, record length wide enough for a 132-column listing) with a name that is unique per call so two compiles cannot meet.
 3. Read the rows with SQL in the SQL job (the work file is a normal object, so any job sees it), then `DLTF` it in a `finally`, even when the read fails.
-   The listing's own spooled file is left alone: it is the user's output.
+   The listing's own spooled file is left alone: it is the user's output. A name that is not the compiled file's (a spool left by an earlier compile of the same name) is told apart by its creation time and by the file number.
 4. Anything missing (no spool file, `CPYSPLF` fails, the library cannot be created) returns `null`; the caller falls back to the command text
    (`parseCommandText`), so a compile error is still shown, as a file-level message.
-5. `SYSTOOLS.SPOOLED_FILE_DATA(JOB_NAME => ..., SPOOLED_FILE_NAME => ..., SPOOLED_FILE_NUMBER => ...)` is the alternative that needs no work file, but it is a
+5. `SYSTOOLS.SPOOLED_FILE_DATA(JOB_NAME => ..., SPOOLED_FILE_NAME => <compiled file name>, SPOOLED_FILE_NUMBER => ...)` is the alternative that needs no work file, but it is a
    SYSTOOLS object and may not be there on every system, so it is not the first choice.
 
 ### E2b results
