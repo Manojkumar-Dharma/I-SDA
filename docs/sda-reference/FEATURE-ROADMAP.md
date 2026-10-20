@@ -47,12 +47,12 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-7 of 10 epics done (E1, E3, E4, E7, E8, E9, E10); 67 sub-tasks done (E1a - E1j, E2a - E2g, E2i, E3a - E3l, E4a - E4g, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.16.9**.
+8 of 10 epics done (E1, E2, E3, E4, E7, E8, E9, E10); 68 sub-tasks done (E1a - E1j, E2a - E2i, E3a - E3l, E4a - E4g, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.17.0**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
 | [E1](#e1) | Editor-side DDS language support (diagnostics, hover, completion, outline, quick-fixes) | E1a - E1j | - | Done | v0.16.1 |
-| [E2](#e2) | Compile-error feedback loop | E2a - E2i | E1a, E1b for the shared diagnostics collection | Open | - |
+| [E2](#e2) | Compile-error feedback loop | E2a - E2i | E1a, E1b for the shared diagnostics collection | Done | v0.17.0 |
 | [E3](#e3) | Indicator simulator (and program-to-system field values) | E3a - E3l | - | Done | v0.14.1 |
 | [E4](#e4) | Message-file integration (`MSGID` / `ERRMSGID` / `CHKMSGID` / `SFLMSGID`) | E4a - E4g | E3f (soft) | Done | v0.15.6 |
 | [E5](#e5) | Preview export (PNG / SVG / HTML / text) | E5a - E5g | E3 (soft, for indicator state) | Open | - |
@@ -430,7 +430,7 @@ sequence number appears as a diagnostic on the right line (editor) and as a badg
 | E2e | **Designer surface.** A dismissible error banner in the webview; click selects the record/field on the canvas; badges on records/fields in the property panels; both UI styles. | E2c | Done | v0.16.7 |
 | E2f | **Menu compile.** `CRTMNU` runs several steps (`CRTDSPF`, message file, `ADDMSGD`, `CRTMNU`); report which step failed and its messages, per step. | E2b | Done | v0.16.8 |
 | E2g | **Tests.** Fake Code-for-i connection returning recorded fixtures; end-to-end: failing compile to diagnostic on the expected line. | E2d | Done | v0.16.9 |
-| E2h | **Release** (next free minor). | E2a - E2g, E2i | In progress | — |
+| E2h | **Release** (next free minor: 0.17.0). Results against the acceptance paragraph: [E2h results](#e2h-results). | E2a - E2g, E2i | Done | v0.17.0 |
 | E2i | **Listing fetch.** After a failed compile, get the compile listing (the spooled file named after the file being compiled) from the job that ran the command and hand its text to `parseListing`. Everything temporary lives in `ISDATEMP`, never `QTEMP`, and is dropped after use. See *E2i design* under *E2a results*. Added after E2a: the SQL session and the command run in different jobs. | E2b | Done | v0.16.4 |
 
 ### E2a results
@@ -735,6 +735,28 @@ compile never finds an earlier listing by mistake. Everything received is kept i
 
 **Not yet checked:** a real IBM i (every answer here is a recording or a stand-in); a recorded `CRTS36DSPF` listing and a recorded `CRTMNU` / `ADDMSGD` failure (E2f's note still stands: add them when one is
 available); the designer's click-through from a message to a field (E2e's test covers the designer; this file does not open one).
+
+### E2h results
+
+**Released as v0.17.0** (the next free minor after E1i's 0.16.0; the E2 work shipped as v0.16.2 - v0.16.9 and this entry rolls it up). Every sub-task E2a - E2g and E2i is Done. The acceptance paragraph, one criterion at a time:
+
+| Acceptance criterion | Met by | Evidence |
+|----------------------|--------|----------|
+| After a failed compile of a remote member, each message that carries a source sequence number appears as a diagnostic on the right line (editor) | E2a decision, E2b parser (v0.16.2), E2c line map (v0.16.5), E2i listing fetch (v0.16.4), E2d Problems panel (v0.16.6) | `e2gCompileEndToEnd.test.js` scenario A: the six listing messages land on lines 15, 17, 31 (three) and 36 and each line is checked against the DDS text it is about; the escape message is file-level. Recorded from a real failing `CRTDSPF` on V7R3M0 |
+| ... and as a badge on the right record/field (designer) | E2e (v0.16.7) | `e2eDesignerCompileMessages.test.js` (the designer's own script in jsdom: panel, click-to-select, record-list, breadcrumb and props badges, canvas outline); `e2hRelease.test.js` follows one compile to the designer: the same 7 messages reach the real designer provider's panel, and `indexCompileMessages` puts them on the field `CUSTID` (line 15), the `F3=Exit` constant (line 17), the `DSPATR(XX)` field (three messages), and the record `HDRREC` (line 36); record badges DTLREC 3 and HDRREC 3 |
+| A successful recompile clears them | E2d, E2e | `e2gCompileEndToEnd.test.js` scenario C (Problems panel empty, no listing fetched); `e2hRelease.test.js` section 4: the designer is sent an empty fresh list |
+| Menu compile reports which of its steps failed | E2f (v0.16.8) | `e2fMenuCompileSteps.test.js` (every step failing in turn) and `e2gCompileEndToEnd.test.js` scenario F: the toast names the step and its message IDs, the Output channel has the per-step report, the steps that did not run are listed |
+
+Beyond the criteria: edits move or drop messages on both surfaces together (E2d hub, E2e; `e2hRelease.test.js` section 3), a designer opened after a failure is sent what is already in the Problems panel (section 5), the compile never leaves a work file behind and never uses `QTEMP` (E2i, E2g), and a failed listing fetch falls back to the command's own text without rejecting (E2g scenario D). `e2hRelease.test.js` (18 checks) was checked by breaking the designer's line mapping and the hub's fresh flag on a scratch copy: each break fails it.
+
+**What E2 leaves open, by decision.**
+- **Never run against a real IBM i by this repo's tests.** Every answer is a recording or a stand-in. Still unconfirmed on the V7R3 system: the `CPYSPLF` output layout (whether `RCDLEN(200)` suffices, how page breaks appear), the case of the column keys `runSQL` returns, and the cost of the spooled-file lookup on a system with a very large number of spooled files (E2i).
+- **Stand-in failure texts.** Only the `CRTDSPF` listing and command text are recorded. The `CRTS36DSPF` text, the `CRTMSGF`, `ADDMSGD`, `CHGMSGD` and `CRTMNU` failures are written in the tests and marked there; a recorded `CRTS36DSPF` listing (SFGR layout may differ) and a recorded `CRTMNU` failure should replace them when available (E2f, E2g).
+- **Menu messages are file-level.** `ADDMSGD` / `CHGMSGD` messages are about an option's command in the companion MNUCMD member; mapping an option to its line is a second rule and was not built (E2f). The menu designer has no panel for compile messages: it relies on the toast, the Problems panel and the Output channel.
+- **Not checked in a real VS Code.** The tests use a fake of the VS Code API and jsdom has no layout, so the Problems panel, the designer's compile panel and its badges in the `classic` and `modern` styles were never seen in an Extension Development Host. A short manual pass (fail a `CRTDSPF`, read the Problems panel, click a message in the designer, fix and recompile) is still owed before this ships to users.
+- **A diagnostic while the designer, not the text editor, has the focus** is covered by the hub (the designer follows it) but was not exercised in a real window.
+- **Successful compiles fetch no listing**, so warnings from a good compile are not shown (E2d decision).
+- **Two timing checks** (`e1dCompletion`, `e1iRelease`) failed once when four test shards ran at the same time and pass on their own (E2d note).
 
 ---
 
