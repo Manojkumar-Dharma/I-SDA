@@ -430,7 +430,7 @@ sequence number appears as a diagnostic on the right line (editor) and as a badg
 | E2e | **Designer surface.** A dismissible error banner in the webview; click selects the record/field on the canvas; badges on records/fields in the property panels; both UI styles. | E2c | Done | v0.16.7 |
 | E2f | **Menu compile.** `CRTMNU` runs several steps (`CRTDSPF`, message file, `ADDMSGD`, `CRTMNU`); report which step failed and its messages, per step. | E2b | Done | v0.16.8 |
 | E2g | **Tests.** Fake Code-for-i connection returning recorded fixtures; end-to-end: failing compile to diagnostic on the expected line. | E2d | Done | v0.16.9 |
-| E2h | **Release** (next free minor). | E2a - E2g, E2i | Open | - |
+| E2h | **Release** (next free minor). | E2a - E2g, E2i | In progress | — |
 | E2i | **Listing fetch.** After a failed compile, get the compile listing (the spooled file named after the file being compiled) from the job that ran the command and hand its text to `parseListing`. Everything temporary lives in `ISDATEMP`, never `QTEMP`, and is dropped after use. See *E2i design* under *E2a results*. Added after E2a: the SQL session and the command run in different jobs. | E2b | Done | v0.16.4 |
 
 ### E2a results
