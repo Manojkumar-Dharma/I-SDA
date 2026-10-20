@@ -88,6 +88,7 @@ const saveListeners = []; // every registered workspace.onDidSaveTextDocument ha
 const configChangeListeners = []; // every registered workspace.onDidChangeConfiguration handler
 const openTextDocuments = []; // simulates vscode.workspace.textDocuments
 const diagnosticCollections = []; // every languages.createDiagnosticCollection(...) result (E1b)
+const outputChannels = []; // every window.createOutputChannel(...) result (E2g)
 let languageMatch = () => 0; // languages.match(selector, document); 0 = no match, as for a document the selector does not cover
 const executedCommands = []; // every vscode.commands.executeCommand call, for assertions
 let runCommandHandler = null; // test-supplied handler for 'code-for-ibmi.runCommand'
@@ -159,7 +160,23 @@ const vscodeMock = {
       const resp = vscodeMock.__mockWarningResponse;
       return Promise.resolve(typeof resp === 'function' ? resp(msg, buttons) : resp);
     },
-    showErrorMessage: (msg) => { vscodeMock.__lastError = msg; return Promise.resolve(undefined); },
+    showErrorMessage: (msg, ...buttons) => { vscodeMock.__lastError = msg; vscodeMock.__lastErrorButtons = buttons; return Promise.resolve(undefined); },
+    // E2g: an Output channel that keeps what was written to it, so a test can read the "iSDA Compile" channel.
+    createOutputChannel: (name) => {
+      const channel = {
+        name,
+        lines: [],
+        shown: 0,
+        appendLine: (line) => { channel.lines.push(String(line)); },
+        append: (text) => { channel.lines.push(String(text)); },
+        clear: () => { channel.lines.length = 0; },
+        show: () => { channel.shown++; },
+        hide: () => {},
+        dispose: () => { channel.disposed = true; },
+      };
+      outputChannels.push(channel);
+      return channel;
+    },
     showInformationMessage: (msg) => { vscodeMock.__lastInformation = msg; return Promise.resolve(undefined); },
     showInputBox: () => Promise.resolve(undefined),
     showQuickPick: () => Promise.resolve(undefined),
@@ -323,6 +340,7 @@ const vscodeMock = {
     onDidCloseTextDocument: () => ({ dispose: () => {} }),
   },
   __diagnosticCollections: diagnosticCollections,
+  __outputChannels: outputChannels,
   __setLanguageMatch: (fn) => { languageMatch = fn || (() => 0); },
   __registeredCommands: registeredCommands,
   __registeredCodeLensProviders: registeredCodeLensProviders,

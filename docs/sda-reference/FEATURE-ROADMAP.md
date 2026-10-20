@@ -47,7 +47,7 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-7 of 10 epics done (E1, E3, E4, E7, E8, E9, E10); 66 sub-tasks done (E1a - E1j, E2a - E2f, E2i, E3a - E3l, E4a - E4g, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.16.8**.
+7 of 10 epics done (E1, E3, E4, E7, E8, E9, E10); 67 sub-tasks done (E1a - E1j, E2a - E2g, E2i, E3a - E3l, E4a - E4g, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.16.9**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
@@ -429,7 +429,7 @@ sequence number appears as a diagnostic on the right line (editor) and as a badg
 | E2d | **Editor diagnostics.** Feed mapped messages into the shared `DiagnosticCollection` hub as source `CRTDSPF` / `CRTMNU`; an Output channel with the raw listing; cleared on edit of the line or on the next compile. | E2c, E2i, E1b | Done | v0.16.6 |
 | E2e | **Designer surface.** A dismissible error banner in the webview; click selects the record/field on the canvas; badges on records/fields in the property panels; both UI styles. | E2c | Done | v0.16.7 |
 | E2f | **Menu compile.** `CRTMNU` runs several steps (`CRTDSPF`, message file, `ADDMSGD`, `CRTMNU`); report which step failed and its messages, per step. | E2b | Done | v0.16.8 |
-| E2g | **Tests.** Fake Code-for-i connection returning recorded fixtures; end-to-end: failing compile to diagnostic on the expected line. | E2d | In progress | - |
+| E2g | **Tests.** Fake Code-for-i connection returning recorded fixtures; end-to-end: failing compile to diagnostic on the expected line. | E2d | Done | v0.16.9 |
 | E2h | **Release** (next free minor). | E2a - E2g, E2i | Open | - |
 | E2i | **Listing fetch.** After a failed compile, get the compile listing (the spooled file named after the file being compiled) from the job that ran the command and hand its text to `parseListing`. Everything temporary lives in `ISDATEMP`, never `QTEMP`, and is dropped after use. See *E2i design* under *E2a results*. Added after E2a: the SQL session and the command run in different jobs. | E2b | Done | v0.16.4 |
 
@@ -697,6 +697,44 @@ whose `CHGMSGD` retry worked), `failed`, `skipped` (planned, never run).
 **Not yet checked:** the failure texts of `CRTMSGF`, `ADDMSGD` and `CRTMNU` on a real IBM i (the tests use synthetic text in the layout E2a recorded; only the `CRTDSPF` text is a real sample); the menu
 designer has no panel for these messages (E2e built the display file designer's; the menu designer still relies on the toast, the Problems panel and the Output channel); a menu member's diagnostics while the
 designer, not the text editor, has the focus. E2g (end-to-end tests) should add a recorded `CRTMNU` failure to the fixtures when one is available.
+
+### E2g results
+
+**E2g (end-to-end tests).** Tests only: no extension code changed. New `src/test/helpers/fakeCodeForI.js`, a fake Code for i connection (`runCommand`, `runSQL`) that plays back recorded compile
+results, and `src/test/e2gCompileEndToEnd.test.js` (70 checks). Each scenario runs the registered `dspfDesigner.compileDspf` or `dspfDesigner.compileMenu` command against the real
+extension, the way a click does, and reads back what a user sees: the Problems panel (the shared "iSDA" collection), the "iSDA Compile" Output channel and the toast. `vscode-mock.js` gained
+`window.createOutputChannel` (`__outputChannels`) and keeps the toast's buttons (`__lastErrorButtons`).
+
+**The fake.** The compile commands return the result scripted for their phase; a result with a `listing` also leaves a spooled file named after the compiled file. The SQL side models what E2i
+recorded on V7R3: it is another job than the compile (the clock and user probe, the `ISDATEMP` library check, the `OUTPUT_QUEUE_ENTRIES` lookup filtered by name, user and creation time exactly as the
+statement says), `CPYSPLF` must name the job and file number the lookup returned, work files are 200 characters wide and `DLTF` removes them. The IBM i clock moves on with every compile, so a later
+compile never finds an earlier listing by mistake. Everything received is kept in `log`.
+
+**What the scenarios check.**
+- **A. Failing `CRTDSPF`, recorded listing.** The six listing messages land on lines 15, 17, 31 (three) and 36, and each line is checked against the DDS text the message is about (the second `CUSTID`, the
+  `30  2'F3=Exit'` constant, the second `R HDRREC`, the `DSPATR(XX)` line); the escape message is file-level; the Output channel has the raw listing; the toast offers **Show Compile Output**. On the wire:
+  the clock is read before the compile and the lookup after it, the work file is in `ISDATEMP` (created on first use), never `QTEMP`, the copy names the compile's own job and file number, never `JOB(*)`,
+  and the work file is dropped.
+- **B. Edits.** An edit on a flagged line drops its messages, a line added above moves the rest, the file-level message stays.
+- **C. Recompile.** A good compile clears the messages and fetches no listing; a second failure shows its own seven messages (not fourteen) and reads the newest spooled file (number 4).
+- **D. No listing.** No spooled file, a lookup that throws, a work file that cannot be made, and a dead SQL job: the command's own text is shown, all file-level, the Output channel says why, the toast still
+  appears, nothing rejects, nothing is left in `ISDATEMP`.
+- **E. System/36.** `CRTS36DSPF DSPFILE(...)` runs, the messages are under source `CRTS36DSPF`, a good recompile clears them.
+- **F. Menu.** A failing display file step stops the compile (no `CRTMSGF`, `ADDMSGD` or `CRTMNU`) with its messages under `CRTDSPF`; a failing `CRTMNU` runs every step in order first, then shows two file-level
+  messages under `CRTMNU`, the toast names the step and its IDs, the channel has the per-step report, no listing is fetched, and a good recompile clears them; a failing `ADDMSGD` and its `CHGMSGD` retry
+  stop the compile before `CRTMNU`.
+
+**Recorded and stand-in.** Recorded (E2a, a real failing `CRTDSPF` on V7R3M0): the command text and the listing. Stand-ins, written in the test and marked there: the `CRTS36DSPF` text (the recorded
+`CRTDSPF` text is reused), the display file step of a menu (same text, no listing), and every `CRTMNU`, `ADDMSGD` and `CHGMSGD` failure text.
+
+**Decisions.**
+- **Through the registered commands, not the modules.** The modules have their own tests (E2b - E2f, E2i); what none of them could show is that `extension.ts` calls them in the right order and shows the result.
+- **One shared fake, the older ones left alone.** `e2d`, `e2f` and `e2i` keep their own small fakes: they switch single failures on for one module and the shared one is for whole flows. Moving them would have
+  been a refactor of passing tests.
+- **Lines are checked against the DDS text, not only numbers.** A listing that moved by one line would still pass a test that only compares numbers with numbers.
+
+**Not yet checked:** a real IBM i (every answer here is a recording or a stand-in); a recorded `CRTS36DSPF` listing and a recorded `CRTMNU` / `ADDMSGD` failure (E2f's note still stands: add them when one is
+available); the designer's click-through from a message to a field (E2e's test covers the designer; this file does not open one).
 
 ---
 
