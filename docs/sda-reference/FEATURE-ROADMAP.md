@@ -47,7 +47,7 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-8 of 10 epics done (E1, E2, E3, E4, E7, E8, E9, E10); 70 sub-tasks done (E1a - E1j, E2a - E2i, E3a - E3l, E4a - E4g, E5a - E5b, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.17.1**.
+8 of 10 epics done (E1, E2, E3, E4, E7, E8, E9, E10); 71 sub-tasks done (E1a - E1j, E2a - E2i, E3a - E3l, E4a - E4g, E5a - E5c, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.17.2**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
@@ -77,7 +77,7 @@ never in columns 1-80 or the tag area.
 | `src/ddsDiagnostics.js`: source in, list of `{line, column, severity, code, message, keyword}` out; no `vscode` import, so it runs in Node and in tests | E1a | E1b - E1f, E2d, E4d |
 | One `DiagnosticCollection` hub in the extension host (sources: `iSDA` rules, `CRTDSPF`, `CRTMNU`, message-file checks) | E1b (or E2d if it lands first; the second one reuses it) | E1, E2, E4 |
 | Program-to-system field value store (design-time values, per file and record, kept in workspace storage) | E3f | E8, E10, E4c (message data) |
-| Standalone-HTML/SVG serialiser of the preview grid | E5b | E5c - E5f |
+| Standalone-HTML/SVG serialiser of the preview grid | E5b | E5d - E5f |
 
 ---
 
@@ -1320,7 +1320,7 @@ to a folder with an index page; works from both designers and both UI styles.
 |----|--------------------|------------|--------|---------|
 | E5a | **Scope and formats. Decision first.** Which formats ship, whether compare mode and the ruler/crosshair are included, background/theme (classic green-on-black vs the accent colours), font fallback stack, scale factors for PNG. | - | Done (no code change) | — |
 | E5b | **Serialiser.** Pure function: the engine's resolved grid to standalone SVG and HTML (inline CSS, no remote assets, font fallback stack); snapshot tests. | E5a | Done | v0.17.1 |
-| E5c | **PNG.** Rasterise the SVG in the webview via canvas, with a scale option; save from the extension host. | E5b | In progress | — |
+| E5c | **PNG.** Rasterise the SVG in the webview via canvas, with a scale option; save from the extension host. | E5b | Done | v0.17.2 |
 | E5d | **Plain-text dump.** The grid as an 80x24 / 132x27 text block, with an optional attribute legend (underline, reverse image, colours as letters). | E5a | Open | - |
 | E5e | **UI and command.** `iSDA: Export Screen Preview`, toolbar button, save dialog, copy to clipboard, default format setting; menu designer included. | E5b | Open | - |
 | E5f | **Batch export.** Every record and every `DSPSIZ` into a folder plus an `index.html`; progress notification; cancellable. | E5b, E5e | Open | - |
@@ -1381,6 +1381,16 @@ to a folder with an index page; works from both designers and both UI styles.
 - Checked by breaking the serialiser three ways on a scratch copy (the input underline, hidden fields, the grid pinning): each fails the test.
 
 **Not yet checked.** The images were seen only through a rasteriser that ignores `textLength` (cairosvg), so how browsers lay out the pinned text, and how the picture looks in the `classic` and `modern` themes, is E5c's first look (it rasterises in the webview). Choice-state colours (E10c), the inside of radio buttons, check boxes, push buttons and CNTFLD (drawn as their text), and the menu designer's screen (E5e wires it) are not drawn or not tried yet. No setting and no command exists yet.
+
+### E5c results
+
+**E5c (PNG).** New `src/screenPng.js` (UMD, no `vscode`; copied to `dist/` by `build:webview-assets`), tested by `src/test/e5cScreenPng.test.js` (97 checks). Nothing calls it yet: the command, toolbar button, save-dialog wiring and clipboard are E5e (decision: building blocks only).
+
+**Webview half.** `ScreenPng.rasterise(svg, { scale })` draws the E5b SVG to a canvas at its final size (scale x the SVG's own width and height, so the browser rasterises the vector rather than stretching a small bitmap) and resolves `{ base64, width, height, scale }`. Scale is 1, 2 or 3 (also `'2x'`), default 2; anything else is a `RangeError`, so a setting can never pick a size silently. It refuses a picture past 16384 px on a side or 64 M pixels before touching a canvas, and rejects on an image load error, no 2D context, a canvas that cannot encode PNG, or a 15 s timeout. `toMessage(result, { name })` builds the `exportPng` message.
+
+**Host half.** `parseMessage(msg)` checks the message (type, base64 shape, 32 MB cap, PNG signature and IHDR, width and height agree with the picture) and gives a safe file name (`NAME.png`, `NAME@2x.png`, `NAME@3x.png`; path characters replaced, Windows device names suffixed). `savePng({ showSaveDialog, writeFile }, msg, { defaultFolder })` asks where to save and writes the bytes; the two vscode calls are handed in by E5e, so it is tested without vscode. A cancelled dialog saves nothing.
+
+**Real-browser check (the E5b "not yet checked" item).** The module was loaded into headless Chromium and run on 20 real screens (`sample.dspf`, `testdsp.dds`, a 132 x 27 screen, five accent themes, with and without the ruler, 1x / 2x / 3x): every PNG has exactly SVG size x scale, a malformed SVG is rejected with a clear message, and the pictures were looked at. Findings: the pinned text (`textLength`) holds the grid in a real browser (30 `W` and 30 `i` both fill 30 cells; the last column of a 132-wide screen lands where it should); the accent follows the theme (green, amber) while an explicit COLOR keeps its own; HI is bold, RI is a filled block, UL and the input underline are lines; the ruler lines up with the cells. No serialiser change was needed. Not tried: the `classic` / `modern` UI styles (the serialiser takes the theme as an input and does not read the page), and PNG from inside a real VS Code webview (E5e).
 
 ---
 
