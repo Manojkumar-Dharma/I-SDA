@@ -47,7 +47,7 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-8 of 10 epics done (E1, E2, E3, E4, E7, E8, E9, E10); 68 sub-tasks done (E1a - E1j, E2a - E2i, E3a - E3l, E4a - E4g, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.17.0**.
+8 of 10 epics done (E1, E2, E3, E4, E7, E8, E9, E10); 70 sub-tasks done (E1a - E1j, E2a - E2i, E3a - E3l, E4a - E4g, E5a - E5b, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.17.1**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
@@ -1319,7 +1319,7 @@ to a folder with an index page; works from both designers and both UI styles.
 | ID | Sub-task and scope | Depends on | Status | Version |
 |----|--------------------|------------|--------|---------|
 | E5a | **Scope and formats. Decision first.** Which formats ship, whether compare mode and the ruler/crosshair are included, background/theme (classic green-on-black vs the accent colours), font fallback stack, scale factors for PNG. | - | Done (no code change) | — |
-| E5b | **Serialiser.** Pure function: the engine's resolved grid to standalone SVG and HTML (inline CSS, no remote assets, font fallback stack); snapshot tests. | E5a | In progress | — |
+| E5b | **Serialiser.** Pure function: the engine's resolved grid to standalone SVG and HTML (inline CSS, no remote assets, font fallback stack); snapshot tests. | E5a | Done | v0.17.1 |
 | E5c | **PNG.** Rasterise the SVG in the webview via canvas, with a scale option; save from the extension host. | E5b | Open | - |
 | E5d | **Plain-text dump.** The grid as an 80x24 / 132x27 text block, with an optional attribute legend (underline, reverse image, colours as letters). | E5a | Open | - |
 | E5e | **UI and command.** `iSDA: Export Screen Preview`, toolbar button, save dialog, copy to clipboard, default format setting; menu designer included. | E5b | Open | - |
@@ -1351,6 +1351,36 @@ to a folder with an index page; works from both designers and both UI styles.
 - **E5f** (batch) can write SVG, HTML and text from the host without a webview. Whether it also writes PNG (a webview round-trip per record and size) is E5f's decision; the default is that it does not.
 
 **Not decided here:** the setting names and the command's exact title (E5e); the clipboard format per type (E5e); the menu designer's screen (E5e, the same serialiser on the menu's resolved screen).
+
+### E5b results
+
+**E5b (serialiser).** New `src/screenExport.js` (UMD, no `vscode`, no DOM, no engine import; copied to `dist/` by `build:webview-assets`), tested by `src/test/e5bScreenExport.test.js` (67 checks). Nothing calls it yet: E5c (PNG), E5d (text), E5e (command and toolbar) and E5f (batch) build on it.
+
+**API.**
+- `ScreenExport.buildSvg(screen, { theme?, ruler?, title?, idPrefix? })` -> the SVG document as a string. `screen` is what `DspfEngine.resolveScreen` / `resolveMultiScreen` returns. A `screen` that is not an object is a `TypeError`; a screen with no fields (record not found) is an empty screen.
+- `ScreenExport.buildHtml(screen, opts)` -> the same drawing inside a standalone page (doctype, utf-8, title, the theme's background, no script, no link, no remote asset).
+- Also exported: `METRICS`, `FONT_STACK`, `DEFAULT_THEME`, `brighten`, `parseColor`, `fieldClasses`.
+- `theme`: `accent` (default colour of a field with no COLOR), `background`, `windowBackground`, `windowBorder`, `inkDim`, `warn`; each accepts `#rgb`, `#rrggbb` or the `rgb(r, g, b)` a webview reports, anything else falls back to the classic value (so a theme read from computed styles can never put markup into the file).
+
+**What is drawn.** Fields and constants with HI (the preview's `brightness(1.6)` and a heavier weight), RI (field colour as background, screen colour on the text), UL, PR (0.65 opacity), the 5250 input underline for `I` / `B` fields, the DSPATR(PC) cursor block and the CSRLOC cursor; windows (the box with its offset shadow, dashed warning border when the position is set at runtime, WDWBORDER colour and HI, or the eight `*CHAR` border characters, and the title chip); stacked records (painted by layer, each field first paints the screen colour, P14); pull-down boxes and their fields; menu-bar separators; ERRMSG lines; the subfile preview with its "More..." line, `+` mark and scroll bar; the optional ruler (the designer's own numbering: a tens row, a ones row, two-digit line numbers).
+
+**Decisions.**
+- **HTML is the SVG in a page.** One drawing and two wrappers, so the formats cannot disagree, and the text stays selectable. The DOM preview (`renderScreenHtml`) stays the reference and is not reused: it carries hover titles, drag handles and `data-*` hooks that E5a excluded.
+- **A fixed character cell: 9 x 20 px, 15 px font** (the preview uses 14 px and 1.4em, which are not whole pixels). Presentation only, so a PNG at 1x / 2x / 3x stays on the pixel grid.
+- **Layout does not depend on the font.** Every text run carries `textLength` (characters x 9 px, `lengthAdjust="spacing"`), leading blanks become position, trailing blanks nothing, inner blanks are non-breaking so no renderer collapses them. A fallback font changes the look, never the layout.
+- **Underlines are lines**, not `text-decoration`, which renderers draw differently.
+- **Clipped to the `DSPSIZ` grid.** A field that runs past column 80 is cut there, as it would be on the terminal (in the recorded `HDRREC`, the `TIME` field at column 77 shows 4 of its characters). The designer lets such a field overflow; the picture does not.
+- **A still image:** BL is not animated (the class says it was there), ND fields are left out (the engine already drops them).
+- **Classes mirror the engine's** (`dspf-field dspf-hi dspf-usage-b ...`) on each field's `<g>`. They are not needed to draw it (every attribute is also written out); they exist so the drift guard can compare the serialiser with the engine, field by field.
+
+**Tests.**
+- **A - document:** well-formed XML, size from `lines` x `columns` (80x24 and 132x27), no remote font / image / script, clip, title and label, the ruler's gutter and its text equal to the engine's, the HTML wrapper, id prefix, input checks.
+- **B - fields:** the cell grid, blanks, clipping, escaping, XML-illegal control characters, multi-line fields, colour and theme (including a hostile theme value), HI / RI / UL / PR / BL / ND / PC, input underline.
+- **C - the rest:** stacking order and backing, windows (box, dashed, WDWBORDER colour, HI, `*CHAR`, a window list), pull-down, separator, ERRMSG, CSRLOC, subfile preview.
+- **D - drift guard:** the engine's own `renderScreenHtml` and the serialiser on real parsed DDS (an inline corpus with every attribute and two indicator-conditioned keywords, `testdsp.dds`, `sample.dspf`), every record under five indicator sets: 30 screens, 226 fields, same fields in the same order with the same classes, on the same cells, in the same colours. Fields with nothing to paint have an element in the engine's HTML and none here; the guard accounts for that.
+- Checked by breaking the serialiser three ways on a scratch copy (the input underline, hidden fields, the grid pinning): each fails the test.
+
+**Not yet checked.** The images were seen only through a rasteriser that ignores `textLength` (cairosvg), so how browsers lay out the pinned text, and how the picture looks in the `classic` and `modern` themes, is E5c's first look (it rasterises in the webview). Choice-state colours (E10c), the inside of radio buttons, check boxes, push buttons and CNTFLD (drawn as their text), and the menu designer's screen (E5e wires it) are not drawn or not tried yet. No setting and no command exists yet.
 
 ---
 

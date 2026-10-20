@@ -197,7 +197,7 @@ const fail = (text, code) => ({ code: code == null ? 1 : code, stdout: '', stder
   check('F: extension.ts clears the step sources with the display file ones', /COMPILE_DIAGNOSTIC_SOURCES = \['CRTDSPF', 'CRTS36DSPF', \.\.\.MenuCompileSteps\.DIAGNOSTIC_SOURCES\]/.test(ext));
   check('F: compileMenu uses planSteps and runSteps, and the old inline run() chain is gone from it', /MenuCompileSteps\.planSteps\(/.test(ext) && /MenuCompileSteps\.runSteps\(/.test(ext) && !/ADDMSGD MSGID\(\$\{msgId\}\)/.test(ext));
   check('F: the display file step still goes through showCompileFeedback (E2d)', /failedStep\.phase === 'CRTDSPF'[\s\S]{0,400}showCompileFeedback\(/.test(ext));
-  check('F: the module is copied to dist by build:webview-assets', /'compileDiagnostics\.js','menuCompileSteps\.js'\]/.test(pkg));
+  check('F: the module is copied to dist by build:webview-assets', /'compileDiagnostics\.js','menuCompileSteps\.js'[,\]]/.test(pkg));
 
   console.log(failureCount() === 0 ? 'e2fMenuCompileSteps: all checks passed' : 'e2fMenuCompileSteps: ' + failureCount() + ' check(s) FAILED');
   process.exit(failureCount() === 0 ? 0 : 1);
