@@ -127,6 +127,18 @@ const CompileDiagnostics: {
     error?: string;
   }>;
 } = require('./compileDiagnostics.js');
+// Menu compile steps (E2f): the CRTMNU sequence as a list of steps with a report per step.
+type MenuStepResult = { phase: string; verb: string; label: string; command: string; status: string; code: number | null; text: string; messages: { msgId: string; text: string }[]; alsoTried?: MenuStepResult };
+type MenuCompileReport = { ok: boolean; steps: MenuStepResult[]; failed: MenuStepResult | null; phases: { phase: string; status: string; total: number; ok: number; failed: number; skipped: number }[] };
+const MenuCompileSteps: {
+  DIAGNOSTIC_SOURCES: string[];
+  planSteps(opts: { library: string; objectName: string; srcFile: string; memberName: string; commands: { optionNumber: string; numberValue: any; command: string }[] }): any[];
+  runSteps(connection: any, steps: any[], hooks?: { onStep?: (step: any, index: number, total: number) => void }): Promise<MenuCompileReport>;
+  failureText(report: MenuCompileReport): string;
+  stepMessage(step: MenuStepResult): string;
+  formatReport(report: MenuCompileReport, options?: { title?: string }): string;
+  toDiagnostics(report: MenuCompileReport, options?: { firstLineLength?: number }): { source: string; diagnostics: CompilePlainDiagnostic[] } | null;
+} = require('./menuCompileSteps.js');
 // Keyword hover (E1c): pure lookup in ddsHover.js, data built into dist/keywordHoverData.json at build time.
 const DdsHover: {
   createProvider(
@@ -646,7 +658,7 @@ let compileHub: {
 } | null = null;
 let compileChannel: vscode.OutputChannel | null = null;
 /** The sources a compile can put diagnostics under; a compile of the member clears both, then sets the one that ran. */
-const COMPILE_DIAGNOSTIC_SOURCES = ['CRTDSPF', 'CRTS36DSPF'];
+const COMPILE_DIAGNOSTIC_SOURCES = ['CRTDSPF', 'CRTS36DSPF', ...MenuCompileSteps.DIAGNOSTIC_SOURCES];
 
 function getCompileChannel(): vscode.OutputChannel | null {
   if (!compileChannel && typeof vscode.window.createOutputChannel === 'function') compileChannel = vscode.window.createOutputChannel('iSDA Compile');
@@ -682,6 +694,32 @@ async function showCompileFeedback(
       channel.appendLine(fb.raw);
     }
     return { via: fb.via, mapped: fb.mapped, fileLevel: fb.fileLevel };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * E2f: a step of the menu compile other than the display file failed. Publishes its messages as file-level diagnostics under the
+ * step's own source (CRTMSGF, ADDMSGD or CRTMNU) and writes the per-step report to the "iSDA Compile" Output channel.
+ * Never throws. Returns what was published, or null when nothing could be.
+ */
+function showMenuStepFeedback(
+  uri: vscode.Uri,
+  report: MenuCompileReport,
+  sourceText: string,
+  menuName: string
+): { mapped: number; fileLevel: number } | null {
+  try {
+    const firstLine = String(sourceText || '').split(/\r\n|\r|\n/)[0] || '';
+    const d = MenuCompileSteps.toDiagnostics(report, { firstLineLength: firstLine.length });
+    if (d && compileHub) compileHub.setTrackedSource(uri, d.source, d.diagnostics);
+    const channel = getCompileChannel();
+    if (channel) {
+      channel.clear();
+      channel.appendLine(MenuCompileSteps.formatReport(report, { title: `=== CRTMNU ${menuName} - ${new Date().toLocaleString()} ===` }));
+    }
+    return d ? { mapped: 0, fileLevel: d.diagnostics.length } : null;
   } catch {
     return null;
   }
@@ -843,20 +881,10 @@ async function compileMenu(uri: vscode.Uri): Promise<void> {
   const library = parsed.library;
   const srcFile = parsed.file;
 
-  async function run(command: string, label: string): Promise<{ ok: boolean; message: string }> {
-    try {
-      const result: any = await connection.runCommand({ command, environment: 'ile' });
-      if (result && typeof result.code === 'number' && result.code !== 0) {
-        return { ok: false, message: `${label} failed:\n${result.stderr || result.stdout || 'unknown error'}` };
-      }
-      return { ok: true, message: '' };
-    } catch (err) {
-      return { ok: false, message: `${label} failed: ${err}` };
-    }
-  }
-
+  // E2f: the compile is a list of steps (CRTDSPF, CRTMSGF, one ADDMSGD per option, CRTMNU); each keeps its own result, so a failure
+  // names the step and its messages. The old comments on why each step is the way it is are in menuCompileSteps.js.
+  const steps = MenuCompileSteps.planSteps({ library, objectName, srcFile, memberName: parsed.name, commands });
   await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: `iSDA: Compiling menu ${library}/${objectName}` }, async (progress) => {
-    progress.report({ message: 'Creating display file (CRTDSPF)...' });
     clearCompileFeedback(uri);
     let mark: { since: string | null; user: string | null } | null = null;
     try {
@@ -864,47 +892,26 @@ async function compileMenu(uri: vscode.Uri): Promise<void> {
     } catch {
       mark = null;
     }
-    let step = await run(`CRTDSPF FILE(${library}/${objectName}) SRCFILE(${library}/${srcFile}) SRCMBR(${parsed.name}) REPLACE(*YES)`, 'CRTDSPF');
-    if (!step.ok) {
-      // E2d: the DSPF step of a menu compile reports through the same path as a display file compile (the other steps: E2f).
-      const published = await showCompileFeedback(connection, uri, { fileName: objectName.toUpperCase(), source: 'CRTDSPF', sourceText, mark, commandText: step.message });
-      showCompileFailureToast('iSDA: ' + step.message, published);
-      return;
-    }
-
-    progress.report({ message: 'Updating message file...' });
-    // Previously deleted and recreated the message file from scratch on every
-    // compile - simple, but genuinely destructive: any message ID a user (or
-    // another tool) added to it by hand outside iSDA would be silently wiped
-    // on the next compile from here. Now creates it only if it doesn't exist
-    // yet, and updates messages in place (ADDMSGD, falling back to CHGMSGD
-    // when that message ID is already there) - nothing outside the option
-    // numbers iSDA is actually writing is ever touched.
-    step = await run(`CRTMSGF MSGF(${library}/${objectName})`, 'CRTMSGF');
-    if (!step.ok && !/already exist/i.test(step.message)) {
-      vscode.window.showErrorMessage('iSDA: ' + step.message);
-      return;
-    }
-
-    for (const opt of commands) {
-      const msgId = 'USR' + opt.optionNumber; // USRnnnn - the format TYPE(*DSPF) menus expect
-      const escapedCommand = opt.command.replace(/'/g, "''");
-      const addStep = await run(`ADDMSGD MSGID(${msgId}) MSGF(${library}/${objectName}) MSG('${escapedCommand}') SEV(00)`, `ADDMSGD for option ${opt.numberValue}`);
-      if (!addStep.ok) {
-        // Most likely means this message ID already exists from a previous
-        // compile - update it in place instead of treating that as fatal.
-        const changeStep = await run(`CHGMSGD MSGID(${msgId}) MSGF(${library}/${objectName}) MSG('${escapedCommand}') SEV(00)`, `CHGMSGD for option ${opt.numberValue}`);
-        if (!changeStep.ok) {
-          vscode.window.showErrorMessage(`iSDA: ${addStep.message}\n\nAlso tried CHGMSGD: ${changeStep.message}`);
-          return;
-        }
+    const report = await MenuCompileSteps.runSteps(connection, steps, {
+      onStep: (step) => {
+        progress.report({
+          message:
+            step.phase === 'CRTDSPF' ? 'Creating display file (CRTDSPF)...' : step.phase === 'CRTMSGF' ? 'Updating message file...' : step.phase === 'CRTMNU' ? 'Creating menu object (CRTMNU)...' : `Updating message file (${step.label})...`,
+        });
+      },
+    });
+    if (!report.ok && report.failed) {
+      const failedStep = report.failed;
+      if (failedStep.phase === 'CRTDSPF') {
+        // E2d: the DSPF step of a menu compile reports through the same path as a display file compile, with line-level messages.
+        const message = MenuCompileSteps.stepMessage(failedStep);
+        const published = await showCompileFeedback(connection, uri, { fileName: objectName.toUpperCase(), source: 'CRTDSPF', sourceText, mark, commandText: message });
+        showCompileFailureToast('iSDA: ' + message, published);
+        return;
       }
-    }
-
-    progress.report({ message: 'Creating menu object (CRTMNU)...' });
-    step = await run(`CRTMNU MENU(${library}/${objectName}) TYPE(*DSPF) DSPF(${library}/${objectName}) MSGF(${library}/${objectName}) REPLACE(*YES)`, 'CRTMNU');
-    if (!step.ok) {
-      vscode.window.showErrorMessage('iSDA: ' + step.message);
+      // E2f: the other steps work on objects, not source lines - their messages are file-level, under the step's own source.
+      const published = showMenuStepFeedback(uri, report, sourceText, `${library}/${objectName}`);
+      showCompileFailureToast('iSDA: ' + MenuCompileSteps.failureText(report), published);
       return;
     }
 

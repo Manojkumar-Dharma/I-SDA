@@ -47,7 +47,7 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-7 of 10 epics done (E1, E3, E4, E7, E8, E9, E10); 65 sub-tasks done (E1a - E1j, E2a - E2e, E2i, E3a - E3l, E4a - E4g, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.16.7**.
+7 of 10 epics done (E1, E3, E4, E7, E8, E9, E10); 66 sub-tasks done (E1a - E1j, E2a - E2f, E2i, E3a - E3l, E4a - E4g, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.16.8**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
@@ -428,7 +428,7 @@ sequence number appears as a diagnostic on the right line (editor) and as a badg
 | E2c | **Sequence to line mapping.** Map a sequence number to a line in the member or local file, accounting for sequence numbers kept or re-applied by the writer (I-203), a tag in columns 1-5 (I-204), and removed-lines-kept-as-comments (I-207). Unmappable messages stay global. | E2b | Done | v0.16.5 |
 | E2d | **Editor diagnostics.** Feed mapped messages into the shared `DiagnosticCollection` hub as source `CRTDSPF` / `CRTMNU`; an Output channel with the raw listing; cleared on edit of the line or on the next compile. | E2c, E2i, E1b | Done | v0.16.6 |
 | E2e | **Designer surface.** A dismissible error banner in the webview; click selects the record/field on the canvas; badges on records/fields in the property panels; both UI styles. | E2c | Done | v0.16.7 |
-| E2f | **Menu compile.** `CRTMNU` runs several steps (`CRTDSPF`, message file, `ADDMSGD`, `CRTMNU`); report which step failed and its messages, per step. | E2b | In progress | - |
+| E2f | **Menu compile.** `CRTMNU` runs several steps (`CRTDSPF`, message file, `ADDMSGD`, `CRTMNU`); report which step failed and its messages, per step. | E2b | Done | v0.16.8 |
 | E2g | **Tests.** Fake Code-for-i connection returning recorded fixtures; end-to-end: failing compile to diagnostic on the expected line. | E2d | Open | - |
 | E2h | **Release** (next free minor). | E2a - E2g, E2i | Open | - |
 | E2i | **Listing fetch.** After a failed compile, get the compile listing (the spooled file named after the file being compiled) from the job that ran the command and hand its text to `parseListing`. Everything temporary lives in `ISDATEMP`, never `QTEMP`, and is dropped after use. See *E2i design* under *E2a results*. Added after E2a: the SQL session and the command run in different jobs. | E2b | Done | v0.16.4 |
@@ -668,6 +668,35 @@ after about 150 px); the same screen with a real IBM i compile (E2g).
 
 **Not yet checked on a real system:** the `CPYSPLF` output (whether `RCDLEN(200)` suffices, whether page breaks show as blank lines or are dropped; the parser copes with either), the case of the column keys `runSQL` returns
 (both cases are handled), and the cost of the lookup on a system with a very large number of spooled files (it is bounded by the name and the start time, but the view is system-wide).
+
+### E2f results
+
+**E2f (menu compile, per step).** A failed menu compile now says which step failed, with that step's messages, and which steps did not run. New `src/menuCompileSteps.js`
+(UMD, no `vscode` import, copied to `dist/` by `build:webview-assets`); `compileMenu` in `src/extension.ts` runs it instead of its own inline chain. Tested by
+`src/test/e2fMenuCompileSteps.test.js` (60 checks) with a fake IBM i connection: the plan, every step failing in turn, a command that throws, the report texts, the diagnostics and the hub.
+
+**Steps and commands.** `planSteps` builds the same commands the extension always ran, character for character: `CRTDSPF`, `CRTMSGF`, one `ADDMSGD` per option (`USRnnnn`, `SEV(00)`, apostrophes
+doubled) with its `CHGMSGD` retry, `CRTMNU`. `runSteps` runs them in order and stops at the first failure; each step keeps `{ phase, verb, label, command, status, code, text, messages }`, the messages
+being the E2b `parseCommandText` result without the SQL noise. Statuses: `ok`, `exists` (`CRTMSGF` on a message file that is already there: not a failure, as before), `recovered` (an `ADDMSGD` that failed and
+whose `CHGMSGD` retry worked), `failed`, `skipped` (planned, never run).
+
+**What the person sees.**
+- **Toast:** `<step> failed (<message IDs>):` then the text exactly as IBM i gave it, then `Not run: <phases>.` When `ADDMSGD` and its `CHGMSGD` retry both fail, both texts are in it (as before).
+- **Output channel "iSDA Compile":** one line per phase (`ok`, `FAILED`, `not run`, with counts for `ADDMSGD`), then a block per step that ran with its command, return code, text and message IDs. Skipped steps are counted, not listed
+  (a 30-option menu would otherwise print 30 lines). The toast has the **Show Compile Output** button when something was published.
+- **Problems panel:** the failed step's messages as file-level diagnostics on line 1 of the menu member, under the step's own source (`CRTMSGF`, `ADDMSGD` or `CRTMNU`; the `CHGMSGD` retry is `ADDMSGD`), code = message ID,
+  severity from the ID (CPC/CPI information, CPD warning, the rest error, the E2d rule), text prefixed with the step (and the option). The next compile clears them, with the display file ones.
+- **Display file step:** unchanged from E2d. It is reported as the failed step, but its messages stay line-level from the compile listing.
+
+**Decisions.**
+- **File-level, not mapped to the command member.** `ADDMSGD` and `CHGMSGD` messages are about an option's command, which lives in the companion MNUCMD member; mapping an option to its line there is a second
+  mapping rule, and nothing has been seen of what those messages say. They stay on the menu member, naming the option in the text.
+- **The step list is data.** The commands and their order are no longer inline in the extension, so the order, the retry and the "already exists" rule are tested without VS Code.
+- **No change to what runs.** Same commands, same order, same stop at the first failure, same retry; only what is kept and shown changed.
+
+**Not yet checked:** the failure texts of `CRTMSGF`, `ADDMSGD` and `CRTMNU` on a real IBM i (the tests use synthetic text in the layout E2a recorded; only the `CRTDSPF` text is a real sample); the menu
+designer has no panel for these messages (E2e built the display file designer's; the menu designer still relies on the toast, the Problems panel and the Output channel); a menu member's diagnostics while the
+designer, not the text editor, has the focus. E2g (end-to-end tests) should add a recorded `CRTMNU` failure to the fixtures when one is available.
 
 ---
 
