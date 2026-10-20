@@ -47,7 +47,7 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-7 of 10 epics done (E1, E3, E4, E7, E8, E9, E10); 64 sub-tasks done (E1a - E1j, E2a - E2d, E2i, E3a - E3l, E4a - E4g, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.16.6**.
+7 of 10 epics done (E1, E3, E4, E7, E8, E9, E10); 65 sub-tasks done (E1a - E1j, E2a - E2e, E2i, E3a - E3l, E4a - E4g, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.16.7**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
@@ -427,7 +427,7 @@ sequence number appears as a diagnostic on the right line (editor) and as a badg
 | E2b | **Message parser.** Pure module `src/compileMessages.js`: listing/joblog text to `{msgId, severity, sequence, text}`; fixtures from E2a; tolerant of unknown message layouts (never throws). | E2a | Done | v0.16.2 |
 | E2c | **Sequence to line mapping.** Map a sequence number to a line in the member or local file, accounting for sequence numbers kept or re-applied by the writer (I-203), a tag in columns 1-5 (I-204), and removed-lines-kept-as-comments (I-207). Unmappable messages stay global. | E2b | Done | v0.16.5 |
 | E2d | **Editor diagnostics.** Feed mapped messages into the shared `DiagnosticCollection` hub as source `CRTDSPF` / `CRTMNU`; an Output channel with the raw listing; cleared on edit of the line or on the next compile. | E2c, E2i, E1b | Done | v0.16.6 |
-| E2e | **Designer surface.** A dismissible error banner in the webview; click selects the record/field on the canvas; badges on records/fields in the property panels; both UI styles. | E2c | In progress | - |
+| E2e | **Designer surface.** A dismissible error banner in the webview; click selects the record/field on the canvas; badges on records/fields in the property panels; both UI styles. | E2c | Done | v0.16.7 |
 | E2f | **Menu compile.** `CRTMNU` runs several steps (`CRTDSPF`, message file, `ADDMSGD`, `CRTMNU`); report which step failed and its messages, per step. | E2b | Open | - |
 | E2g | **Tests.** Fake Code-for-i connection returning recorded fixtures; end-to-end: failing compile to diagnostic on the expected line. | E2d | Open | - |
 | E2h | **Release** (next free minor). | E2a - E2g, E2i | Open | - |
@@ -608,6 +608,36 @@ file-level messages never move or go. Closing the document clears them. The `rul
 
 **Not yet checked:** a real compile against an IBM i (the fetch is the E2i one, still fake-connection tested); the designer click-through from a message to the record or field (E2e); the other `compileMenu` steps (E2f);
 a diagnostic on a line while the designer, not the text editor, has the focus. The two timing checks in `e1dCompletion` and `e1iRelease` failed once when four test shards ran at the same time and pass on their own.
+
+### E2e results
+
+**E2e (designer surface).** The DSPF designer shows the compile messages of the last failed compile and lets you go from a message to the thing it is about. Pure part in
+`src/webviewClientHelpers.js` (`locateLine`, `indexCompileMessages`, an optional badge map on `rebuildRecordSelect`), the panel, badges and selection in `src/buildWebviewTemplate.js`,
+`onDidChangeTracked` / `getTracked` in `src/diagnosticsHub.js`, the forwarding in `DspfDesignerEditorProvider` (`src/extension.ts`). Tested by `src/test/e2eDesignerCompileMessages.test.js`
+(44 checks: the mapping, the designer's own script in jsdom, the hub's change notifications).
+
+**Where the messages come from.** Not from the compile call: the designer is told what the hub holds. The hub tells a listener every time the tracked messages of a document change, with the reason
+(`set` a compile put them there, `edit` an edit moved or dropped some, `close`), and the provider posts `{ type: 'compileMessages', fresh, messages }` to the panel of that document (`fresh` only for `set`).
+A designer opened after the compile asks on `ready` and gets what is in the Problems panel. So the designer and the Problems panel always agree, and the E2d rule (an edited line loses its messages, lines below move) applies
+to the badges too, including edits the designer itself makes by dragging.
+
+**What it shows.**
+- **Panel** under the canvas message: "Compile: 2 errors, 1 warning", one row per message (severity, `line N` or `file`, code, text). It is **dismissible**; dismissing hides the panel only, the badges stay. An update that only
+  moves or drops messages does not bring a dismissed panel back; a new compile (`fresh`) does. `render()` does not clear it (the old canvas message is cleared by every render; this one follows the host).
+- **Click** on a row selects what the line belongs to: a field or help entry (any of its lines: positional text, continuation, conditions, keywords), a record (switching the record list to it), or the file properties. A message
+  with no line (the escape message), or on a line that is no element (a comment), is shown but not clickable.
+- **Badges:** a count on the record list entries (`NAME · 2 ⚠`, the option value stays the bare name), on the File / Record / Field crumbs of the breadcrumb, and a dashed outline on the canvas field. The messages about what the props panel
+  shows (field, help entry, record, file) are listed under the breadcrumb, which every props view shares, so each of them gets it without code of its own.
+- Colours come from the existing theme variables; the `modern` UI style gets rounded corners and a tinted header. Message text and codes are escaped.
+
+**Decisions.**
+- **The designer follows the hub, not the compile call.** Pushing a list once at the end of a compile would have left the badges on lines that have since moved.
+- **A message is attached to the element, not the line.** `locateLine` takes every line an entry owns, so a message on the second line of a wrapped keyword lands on its field.
+- **Record-list text, not a second control.** The record list is the one place all records are visible at once, and `rebuildRecordSelect` already serves both copies of it.
+- **Menu designer not touched.** Its compile steps are E2f.
+
+**Not yet checked:** how the `classic` and `modern` styles actually look (jsdom has no layout, so the tests check the DOM and classes, not the pixels); a very long list of messages in a narrow panel (the list scrolls
+after about 150 px); the same screen with a real IBM i compile (E2g).
 
 ### E2i results
 

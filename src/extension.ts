@@ -101,6 +101,8 @@ const DiagnosticsHub: {
     clearSource(uri: vscode.Uri, source: string): void;
     setTrackedSource(uri: vscode.Uri, source: string, diagnostics: CompilePlainDiagnostic[]): void;
     clearTrackedSource(uri: vscode.Uri, source: string): void;
+    getTracked(uri: vscode.Uri): CompilePlainDiagnostic[];
+    onDidChangeTracked(listener: (uri: vscode.Uri, diagnostics: CompilePlainDiagnostic[], reason: 'set' | 'edit' | 'close') => void): { dispose(): void };
   };
 } = require('./diagnosticsHub.js');
 // Compile messages (E2b, E2c, E2i, E2d): a failed CRTDSPF / CRTS36DSPF becomes diagnostics on the lines of the source.
@@ -639,6 +641,8 @@ function getMenuSourceUriFromCommandUri(uri: vscode.Uri): vscode.Uri | null {
 let compileHub: {
   setTrackedSource(uri: vscode.Uri, source: string, diagnostics: CompilePlainDiagnostic[]): void;
   clearTrackedSource(uri: vscode.Uri, source: string): void;
+  getTracked(uri: vscode.Uri): CompilePlainDiagnostic[];
+  onDidChangeTracked(listener: (uri: vscode.Uri, diagnostics: CompilePlainDiagnostic[], reason: 'set' | 'edit' | 'close') => void): { dispose(): void };
 } | null = null;
 let compileChannel: vscode.OutputChannel | null = null;
 /** The sources a compile can put diagnostics under; a compile of the member clears both, then sets the one that ran. */
@@ -691,6 +695,15 @@ function showCompileFailureToast(text: string, published: { mapped: number; file
   }
   void Promise.resolve(vscode.window.showErrorMessage(text, 'Show Compile Output')).then((choice) => {
     if (choice === 'Show Compile Output' && compileChannel) compileChannel.show(true);
+  });
+}
+
+/** E2e: what the designer is told about the compile messages: line, severity, code, text, whether they belong to a line. */
+function postCompileMessages(webview: vscode.Webview, diagnostics: CompilePlainDiagnostic[], fresh: boolean): void {
+  webview.postMessage({
+    type: 'compileMessages',
+    fresh,
+    messages: diagnostics.map((d) => ({ line: d.line, column: d.column, severity: d.severity, code: d.code || '', message: d.message, source: d.source, fileLevel: !!d.fileLevel })),
   });
 }
 
@@ -2108,9 +2121,20 @@ class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
         await sendCodeForIStatus();
         sendModTrackingConfig();
         sendMessageFiles();
+        // E2e: a designer opened (or reloaded) after a failed compile still shows the messages that are in the Problems panel.
+        const existing = compileHub ? compileHub.getTracked(document.uri) : [];
+        if (existing.length) postCompileMessages(webviewPanel.webview, existing, false);
         sendPreviewDateSeparator();
       }
     });
+
+    // E2e: the compile messages of this document follow into the designer (moved or dropped by edits, replaced by a compile).
+    const documentKey = document.uri.toString();
+    const compileMessagesSub = compileHub
+      ? compileHub.onDidChangeTracked((changedUri, diagnostics, reason) => {
+          if (changedUri.toString() === documentKey && reason !== 'close') postCompileMessages(webviewPanel.webview, diagnostics, reason === 'set');
+        })
+      : { dispose() {} };
 
     webviewPanel.onDidDispose(() => {
       changeSub.dispose();
@@ -2121,6 +2145,7 @@ class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
       modTrackingConfigSub.dispose();
       previewDateSeparatorSub.dispose();
       messageFilesSub.dispose();
+      compileMessagesSub.dispose();
     });
   }
 }

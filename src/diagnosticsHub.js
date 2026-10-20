@@ -81,6 +81,7 @@
     var pending = new Map(); // uri string -> timer handle
     var analyzers = new Map(); // uri string -> the document's analyzer (E1h)
     var tracked = new Map(); // uri string -> Map(source name -> plain diagnostics) that follow edits (E2d)
+    var trackedListeners = []; // E2e: the designer's panels
     var subscriptions = [];
     var disposed = false;
 
@@ -106,7 +107,10 @@
 
     /** E2d: a source whose diagnostics follow the text. `plain` is what ddsDiagnostics.js produces (1-based line and
      *  column), plus `fileLevel: true` for one that belongs to the file and not to a line. An empty list clears it. */
-    function setTrackedSource(uri, source, plain) {
+    function setTrackedSource(uri, source, plain) { applyTracked(uri, source, plain, 'set'); }
+
+    /** reason: 'set' (a compile put them there), 'edit' (an edit moved or dropped some), 'close' (the document closed). */
+    function applyTracked(uri, source, plain, reason) {
       var k = key(uri);
       var list = Array.isArray(plain) ? plain.slice() : [];
       var bySource = tracked.get(k);
@@ -118,9 +122,25 @@
         if (!bySource.size) tracked.delete(k);
       }
       setSource(uri, source, list.map(toVsCode));
+      var merged = getTracked(uri);
+      trackedListeners.slice().forEach(function (l) { try { l(uri, merged, reason); } catch (e) { /* a listener must not break the hub */ } });
     }
 
-    function clearTrackedSource(uri, source) { setTrackedSource(uri, source, []); }
+    /** Every tracked diagnostic of the document (all sources), by line, as plain objects. */
+    function getTracked(uri) {
+      var bySource = tracked.get(key(uri));
+      var all = [];
+      if (bySource) bySource.forEach(function (list) { all = all.concat(list); });
+      return all.sort(function (a, b) { return (a.fileLevel ? 0 : 1) - (b.fileLevel ? 0 : 1) || a.line - b.line; });
+    }
+
+    /** E2e: told when the tracked diagnostics of any document change: listener(uri, mergedPlainList, reason). */
+    function onDidChangeTracked(listener) {
+      trackedListeners.push(listener);
+      return { dispose: function () { var i = trackedListeners.indexOf(listener); if (i >= 0) trackedListeners.splice(i, 1); } };
+    }
+
+    function clearTrackedSource(uri, source) { applyTracked(uri, source, [], 'set'); }
 
     function countNewlines(text) {
       var m = String(text == null ? '' : text).match(/\r\n|\r|\n/g);
@@ -167,7 +187,7 @@
         var before = bySource.get(source);
         var after = ordered.reduce(applyChange, before);
         var same = after.length === before.length && after.every(function (d, i) { return d === before[i]; });
-        if (!same) setTrackedSource(event.document.uri, source, after);
+        if (!same) applyTracked(event.document.uri, source, after, 'edit');
       });
     }
 
@@ -239,7 +259,7 @@
       analyzers.delete(key(document.uri));
       clearSource(document.uri, RULES_SOURCE);
       var bySource = tracked.get(key(document.uri));
-      if (bySource) Array.from(bySource.keys()).forEach(function (source) { clearTrackedSource(document.uri, source); });
+      if (bySource) Array.from(bySource.keys()).forEach(function (source) { applyTracked(document.uri, source, [], 'close'); });
     }
 
     function onConfig(event) {
@@ -264,6 +284,7 @@
       subscriptions.forEach(function (s) { if (s && typeof s.dispose === 'function') s.dispose(); });
       subscriptions = [];
       tracked.clear();
+      trackedListeners.length = 0;
       sources.clear();
       collection.dispose();
     }
@@ -278,6 +299,8 @@
       clearSource: clearSource,
       setTrackedSource: setTrackedSource,
       clearTrackedSource: clearTrackedSource,
+      getTracked: getTracked,
+      onDidChangeTracked: onDidChangeTracked,
     };
   }
 

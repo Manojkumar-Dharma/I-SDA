@@ -74,19 +74,106 @@
    * @returns {string} the select's resulting value, for callers (like the
    *   menu designer) that need to sync a second control off the same value.
    */
-  function rebuildRecordSelect(selectEl, records) {
+  function rebuildRecordSelect(selectEl, records, badges) {
     var prev = selectEl.value;
     selectEl.innerHTML = '';
     records.forEach(function (r) {
       var opt = document.createElement('option');
       opt.value = r.name;
-      opt.textContent = r.name;
+      // E2e: a record with compile messages says so in the list ("NAME \u00b7 2 \u26a0"); the value stays the bare name.
+      var badge = badges && badges[r.name];
+      opt.textContent = badge && badge.total ? r.name + ' \u00b7 ' + badge.total + ' \u26a0' : r.name;
       selectEl.appendChild(opt);
     });
     if (records.some(function (r) { return r.name === prev; })) {
       selectEl.value = prev;
     }
     return selectEl.value || '';
+  }
+
+  // ---- E2e: compile messages in the designer -------------------------------------------------------------------
+
+  function pushLines(into, list) {
+    (list || []).forEach(function (n) { if (typeof n === 'number') into.push(n); });
+  }
+
+  function keywordLines(keywords) {
+    var lines = [];
+    (keywords || []).forEach(function (k) {
+      pushLines(lines, k.sourceLines);
+      (k.conditions || []).forEach(function (c) { pushLines(lines, c.sourceLines); });
+    });
+    return lines;
+  }
+
+  function entryLines(entry) {
+    var lines = [];
+    pushLines(lines, entry.entrySourceLines);
+    if (typeof entry.sourceLine === 'number') lines.push(entry.sourceLine);
+    (entry.conditions || []).forEach(function (c) { pushLines(lines, c.sourceLines); });
+    return lines.concat(keywordLines(entry.keywords));
+  }
+
+  /**
+   * Which designer element a source line belongs to: { kind: 'field' | 'help', record, sourceLine } for a field or help
+   * entry (the line is any of its own lines: positional text, continuation, conditions, keywords), { kind: 'record', record }
+   * for a record format's own lines, { kind: 'file' } for a file-level keyword, or null for a line that is no element
+   * (a comment, a blank line, text the parser did not take).
+   */
+  function locateLine(model, line) {
+    if (!model || typeof line !== 'number') return null;
+    var records = model.records || [];
+    for (var i = 0; i < records.length; i++) {
+      var rec = records[i];
+      var fields = rec.fields || [];
+      for (var f = 0; f < fields.length; f++) {
+        if (entryLines(fields[f]).indexOf(line) >= 0) return { kind: 'field', record: rec.name, sourceLine: fields[f].sourceLine };
+      }
+      var helps = rec.helpEntries || [];
+      for (var h = 0; h < helps.length; h++) {
+        if (entryLines(helps[h]).indexOf(line) >= 0) return { kind: 'help', record: rec.name, sourceLine: helps[h].sourceLine };
+      }
+      var own = [];
+      if (typeof rec.sourceLine === 'number') own.push(rec.sourceLine);
+      (rec.conditions || []).forEach(function (c) { pushLines(own, c.sourceLines); });
+      own = own.concat(keywordLines(rec.keywords));
+      if (own.indexOf(line) >= 0) return { kind: 'record', record: rec.name };
+    }
+    if (keywordLines(model.fileKeywords).indexOf(line) >= 0) return { kind: 'file' };
+    return null;
+  }
+
+  function emptyCounts() { return { error: 0, warning: 0, information: 0, total: 0 }; }
+  function bump(counts, severity) {
+    var key = severity === 'error' ? 'error' : severity === 'warning' ? 'warning' : 'information';
+    counts[key]++;
+    counts.total++;
+  }
+
+  /**
+   * Puts the host's compile messages ({ line, severity, message, code, source, fileLevel }) on the designer's elements.
+   *   entries   every message with `target` (locateLine's answer, null when there is none or the message is file-level)
+   *   byRecord  { recordName: counts } for the record's own lines AND every field under it
+   *   byField   { sourceLine: [message] }   byHelp  { sourceLine: [message] }   byRecordOwn  { recordName: [message] }
+   *   fileOwn   the messages on file-level keyword lines
+   *   counts    { error, warning, information, total } over all of it
+   */
+  function indexCompileMessages(model, messages) {
+    var out = { entries: [], byRecord: {}, byField: {}, byHelp: {}, byRecordOwn: {}, fileOwn: [], counts: emptyCounts() };
+    (messages || []).forEach(function (m) {
+      var target = m.fileLevel ? null : locateLine(model, m.line);
+      var entry = Object.assign({}, m, { target: target });
+      out.entries.push(entry);
+      bump(out.counts, m.severity);
+      if (!target) return;
+      if (target.kind === 'file') { out.fileOwn.push(entry); return; }
+      if (!out.byRecord[target.record]) out.byRecord[target.record] = emptyCounts();
+      bump(out.byRecord[target.record], m.severity);
+      if (target.kind === 'field') (out.byField[target.sourceLine] = out.byField[target.sourceLine] || []).push(entry);
+      else if (target.kind === 'help') (out.byHelp[target.sourceLine] = out.byHelp[target.sourceLine] || []).push(entry);
+      else (out.byRecordOwn[target.record] = out.byRecordOwn[target.record] || []).push(entry);
+    });
+    return out;
   }
 
   /**
@@ -9160,6 +9247,8 @@ html += '<div class="hint-small">SFLROLVAL, SFLSCROLL, and SFLRCDNBR cannot shar
     setMessageHooks: setMessageHooks,
     messageTextLineHtml: messageTextLineHtml,
     rebuildRecordSelect: rebuildRecordSelect,
+    locateLine: locateLine,
+    indexCompileMessages: indexCompileMessages,
     recordTypeDependentInfo: recordTypeDependentInfo,
     RECORD_TYPES: RECORD_TYPES,
     dspatrAttrs: dspatrAttrs,

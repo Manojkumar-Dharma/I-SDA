@@ -400,6 +400,34 @@ const htmlTemplate = `<!DOCTYPE html>
   .canvas-message { font-size: 12px; padding: 6px 10px; border-radius: 3px; border: 1px solid; white-space: pre-line; }
   .canvas-message.ok { color: var(--chrome-accent); border-color: var(--chrome-accent); background: rgba(var(--chrome-accent-rgb), 0.08); }
   .canvas-message.fail { color: var(--warn); border-color: var(--warn); background: rgba(255, 138, 92, 0.1); }
+  /* Task E2e - the compile messages of the last failed compile: a dismissible panel under the canvas message, one row per
+     message (click selects the record / field it is about), a count badge on the record list, the breadcrumb and the
+     props panel, and a dashed outline on the canvas field. Not cleared by render(): it follows the host's messages. */
+  .compile-panel { font-size: 12px; border: 1px solid var(--warn); border-radius: 3px; background: rgba(255, 138, 92, 0.06); }
+  .compile-panel-head { display: flex; align-items: center; gap: 8px; padding: 4px 8px; color: var(--warn); }
+  .compile-panel-head .compile-panel-title { flex: 1; }
+  .compile-panel-close { background: none; border: none; color: inherit; cursor: pointer; font-size: 14px; line-height: 1; padding: 0 2px; }
+  .compile-panel-list { max-height: 150px; overflow-y: auto; border-top: 1px solid var(--panel-border); }
+  .compile-msg { display: flex; gap: 8px; align-items: baseline; width: 100%; text-align: left; padding: 3px 8px; background: none; border: none; border-bottom: 1px solid var(--panel-border); color: var(--ink, inherit); font: inherit; }
+  .compile-msg:last-child { border-bottom: none; }
+  .compile-msg.clickable { cursor: pointer; }
+  .compile-msg.clickable:hover { background: rgba(255, 255, 255, 0.06); }
+  .compile-msg-where { color: var(--ink-dim); min-width: 52px; white-space: nowrap; }
+  .compile-msg-code { color: var(--ink-dim); white-space: nowrap; }
+  .compile-msg-text { flex: 1; white-space: pre-wrap; }
+  .compile-sev.error { color: #ff7b72; }
+  .compile-sev.warning { color: var(--warn); }
+  .compile-sev.information { color: var(--ink-dim); }
+  .compile-badge { display: inline-block; min-width: 14px; padding: 0 4px; margin-left: 5px; border-radius: 8px; font-size: 10px; line-height: 14px; text-align: center; color: #101010; background: var(--warn); }
+  .compile-badge.error { background: #ff7b72; }
+  .compile-badge.information { background: var(--ink-dim); }
+  .props-compile-msgs { margin: 4px 0 6px; border: 1px solid var(--warn); border-radius: 3px; font-size: 12px; }
+  .dspf-field.compile-msg-error { outline: 1px dashed #ff7b72; outline-offset: 1px; }
+  .dspf-field.compile-msg-warning { outline: 1px dashed var(--warn); outline-offset: 1px; }
+  body[data-ui-style="modern"] .compile-panel,
+  body[data-ui-style="modern"] .props-compile-msgs { border-radius: 8px; overflow: hidden; }
+  body[data-ui-style="modern"] .compile-panel-head { background: rgba(255, 138, 92, 0.1); }
+  body[data-ui-style="modern"] .compile-badge { border-radius: 9px; }
   .warn { color: var(--warn); font-size: 12px; margin-top: 8px; }
   /* Task L18 - "IBM i: Connected/Not connected/Not installed" badge. Chrome
      UI (aside panel), so this uses --chrome-accent/--warn/--ink-dim, never
@@ -1041,6 +1069,7 @@ const htmlTemplate = `<!DOCTYPE html>
   <div class="crosshair-readout hidden" id="crosshairReadout"></div>
   <div class="status" id="mainHint">Click a field to select it. Drag to move. Changes are written straight back into the open document.</div>
   <div class="canvas-message hidden" id="canvasMessage"></div>
+  <div class="compile-panel hidden" id="compilePanel"></div>
   <div class="warn hidden" id="sizeBoundsWarning"></div>
   <div class="warn hidden" id="overlapWarning"></div>
   <div id="toolboxFab">
@@ -1381,6 +1410,105 @@ const htmlTemplate = `<!DOCTYPE html>
     if (!canvasMessage) return;
     canvasMessage.classList.add('hidden');
     canvasMessage.textContent = '';
+  }
+
+  // Task E2e - the compile messages (host-pushed 'compileMessages': the diagnostics hub's CRTDSPF / CRTS36DSPF messages for this
+  // document, already moved with the edits made since the compile). compileIndex puts them on records and fields (re-made by
+  // every render(), because the model is re-parsed on every edit); compilePanelDismissed hides the panel only, the badges stay.
+  const compilePanel = document.getElementById('compilePanel');
+  let compileMessages = [];
+  let compilePanelDismissed = false;
+  let compileIndex = WebviewClientHelpers.indexCompileMessages(model, []);
+  const COMPILE_SEVERITY_MARK = { error: 'E', warning: 'W', information: 'i' };
+  function compileMessageRowHtml(m) {
+    const sev = m.severity === 'error' || m.severity === 'warning' ? m.severity : 'information';
+    const where = m.fileLevel ? 'file' : 'line ' + m.line;
+    const clickable = !!m.target;
+    return '<button type="button" class="compile-msg' + (clickable ? ' clickable' : '') + '"' + (clickable ? ' data-compile-line="' + m.line + '" title="Select it in the designer"' : ' disabled') + '>' +
+      '<span class="compile-sev ' + sev + '">' + COMPILE_SEVERITY_MARK[sev] + '</span>' +
+      '<span class="compile-msg-where">' + where + '</span>' +
+      (m.code ? '<span class="compile-msg-code">' + DspfEngine.escapeHtml(m.code) + '</span>' : '') +
+      '<span class="compile-msg-text">' + DspfEngine.escapeHtml(m.message || '') + '</span></button>';
+  }
+  function compileBadgeHtml(counts) {
+    if (!counts || !counts.total) return '';
+    const sev = counts.error ? 'error' : counts.warning ? 'warning' : 'information';
+    return '<span class="compile-badge ' + sev + '" title="' + counts.error + ' error(s), ' + counts.warning + ' warning(s), ' + counts.information + ' information message(s) from the last compile">' + counts.total + '</span>';
+  }
+  function bindCompileRows(container) {
+    container.querySelectorAll('.compile-msg.clickable').forEach((row) => {
+      row.addEventListener('click', () => selectCompileTarget(parseInt(row.getAttribute('data-compile-line'), 10)));
+    });
+  }
+  function compileCountsOf(list) {
+    const counts = { error: 0, warning: 0, information: 0, total: 0 };
+    (list || []).forEach((m) => { counts[m.severity === 'error' ? 'error' : m.severity === 'warning' ? 'warning' : 'information']++; counts.total++; });
+    return counts;
+  }
+  // Messages on file-level keyword lines, and the ones that belong to the file as a whole (no line).
+  function compileFileMessages() {
+    return compileIndex.entries.filter((m) => m.fileLevel || (m.target && m.target.kind === 'file'));
+  }
+  function compileFileCounts() { return compileCountsOf(compileFileMessages()); }
+  // The messages about what the props panel is showing: the selected field or help entry, else the record, else the file.
+  function compileMessagesBlockHtml(rec, atRecord) {
+    let list = null;
+    if (showFileProps) list = compileFileMessages();
+    else if (selectedKeys.length > 1) list = null;
+    else if (selectedKey) list = compileIndex.byField[selectedKey.sourceLine];
+    else if (selectedHelpSourceLine != null) list = compileIndex.byHelp[selectedHelpSourceLine];
+    else if (atRecord && rec) list = compileIndex.byRecordOwn[rec.name];
+    if (!list || !list.length) return '';
+    return '<div class="props-compile-msgs">' + list.map(compileMessageRowHtml).join('') + '</div>';
+  }
+  function renderCompilePanel() {
+    if (!compilePanel) return;
+    const c = compileIndex.counts;
+    if (!compileMessages.length || compilePanelDismissed) { compilePanel.classList.add('hidden'); compilePanel.innerHTML = ''; return; }
+    const parts = [];
+    if (c.error) parts.push(c.error + (c.error === 1 ? ' error' : ' errors'));
+    if (c.warning) parts.push(c.warning + (c.warning === 1 ? ' warning' : ' warnings'));
+    if (c.information) parts.push(c.information + ' info');
+    compilePanel.innerHTML = '<div class="compile-panel-head"><span class="compile-panel-title">Compile: ' + parts.join(', ') + '</span>' +
+      '<button type="button" class="compile-panel-close" id="compilePanelClose" title="Dismiss (the Problems panel keeps them)">\u2715</button></div>' +
+      '<div class="compile-panel-list">' + compileIndex.entries.map(compileMessageRowHtml).join('') + '</div>';
+    compilePanel.classList.remove('hidden');
+    document.getElementById('compilePanelClose').addEventListener('click', () => { compilePanelDismissed = true; renderCompilePanel(); });
+    bindCompileRows(compilePanel);
+  }
+  // A click on a message selects what it is about: the file properties, a record (switching to it) or one field / help entry.
+  function selectCompileTarget(line) {
+    const target = WebviewClientHelpers.locateLine(model, line);
+    if (!target) return;
+    pendingPlacement = null;
+    pendingCopySource = null;
+    pendingDbFieldsSource = null;
+    clearSelection();
+    selectedHelpSourceLine = null;
+    showFileProps = target.kind === 'file';
+    if (target.kind !== 'file') {
+      recordSelect.value = target.record;
+      if (toolbarRecordSelect) toolbarRecordSelect.value = target.record;
+      activePulldown = null;
+      if (target.kind === 'field') setSingleSelection(target.sourceLine);
+      else if (target.kind === 'help') selectedHelpSourceLine = target.sourceLine;
+    }
+    render();
+    const screenEl = screenOutput.querySelector('.dspf-screen');
+    if (target.kind === 'field' && screenEl) {
+      const el = screenEl.querySelector('.dspf-field[data-source-line="' + target.sourceLine + '"]');
+      if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
+  }
+  // The dashed outline on the canvas fields that have messages (the rows themselves are rebuilt by every render()).
+  function markCompileFields() {
+    const screenEl = screenOutput.querySelector('.dspf-screen');
+    if (!screenEl) return;
+    screenEl.querySelectorAll('.dspf-field[data-source-line]').forEach((el) => {
+      const list = compileIndex.byField[parseInt(el.getAttribute('data-source-line'), 10)];
+      el.classList.remove('compile-msg-error', 'compile-msg-warning');
+      if (list && list.length) el.classList.add(list.some((m) => m.severity === 'error') ? 'compile-msg-error' : 'compile-msg-warning');
+    });
   }
   const previewRowsRow = document.getElementById('previewRowsRow');
   const previewRowsToggle = document.getElementById('previewRowsToggle');
@@ -3083,9 +3211,9 @@ const htmlTemplate = `<!DOCTYPE html>
   // requirement to keep recordSelect fully usable from the aside even
   // though the toolbar itself is invisible under classic.
   function rebuildRecordSelect() {
-    const value = WebviewClientHelpers.rebuildRecordSelect(recordSelect, model.records);
+    const value = WebviewClientHelpers.rebuildRecordSelect(recordSelect, model.records, compileIndex.byRecord);
     if (toolbarRecordSelect) {
-      WebviewClientHelpers.rebuildRecordSelect(toolbarRecordSelect, model.records);
+      WebviewClientHelpers.rebuildRecordSelect(toolbarRecordSelect, model.records, compileIndex.byRecord);
       toolbarRecordSelect.value = value;
     }
   }
@@ -3642,6 +3770,8 @@ const htmlTemplate = `<!DOCTYPE html>
     model.resolvedReferences = resolvedReferences;
     hideCrosshair();
     clearCanvasMessage();
+    compileIndex = WebviewClientHelpers.indexCompileMessages(model, compileMessages);
+    renderCompilePanel();
     mainHint.classList.remove('hint-readonly');
     mainHint.textContent = 'Click a field to select it. Drag to move. Changes are written straight back into the open document.';
 
@@ -3986,6 +4116,7 @@ const htmlTemplate = `<!DOCTYPE html>
     }
 
     renderProps(recordName);
+    markCompileFields();
   }
 
   let dragState = null;
@@ -4643,10 +4774,10 @@ const htmlTemplate = `<!DOCTYPE html>
     const rec = model.records.find((r) => r.name === recordName);
     const atRecord = !showFileProps && !selectedKey && selectedHelpSourceLine == null && !pendingPlacement;
     let html = '<div class="props-breadcrumb">';
-    html += '<span class="crumb' + (showFileProps ? ' current' : '') + '" id="crumb-file">File</span>';
+    html += '<span class="crumb' + (showFileProps ? ' current' : '') + '" id="crumb-file">File' + compileBadgeHtml(compileFileCounts()) + '</span>';
     if (rec) {
       html += '<span class="crumb-sep">&rsaquo;</span>';
-      html += '<span class="crumb' + (atRecord ? ' current' : '') + '" id="crumb-record">Record: ' + DspfEngine.escapeHtml(rec.name) + '</span>';
+      html += '<span class="crumb' + (atRecord ? ' current' : '') + '" id="crumb-record">Record: ' + DspfEngine.escapeHtml(rec.name) + compileBadgeHtml(compileIndex.byRecord[rec.name]) + '</span>';
     }
     if (selectedKeys.length > 1) {
       html += '<span class="crumb-sep">&rsaquo;</span><span class="crumb current">' + selectedKeys.length + ' fields selected</span>';
@@ -4655,7 +4786,7 @@ const htmlTemplate = `<!DOCTYPE html>
       const field = found && found.field;
       const rawLabel = field ? (field.nameType === 'CONSTANT' ? (field.constantValue || '(constant)') : (field.name || '(field)')) : '';
       const label = rawLabel.length > 18 ? rawLabel.slice(0, 18) + '\u2026' : rawLabel;
-      html += '<span class="crumb-sep">&rsaquo;</span><span class="crumb current">Field: ' + DspfEngine.escapeHtml(label) + '</span>';
+      html += '<span class="crumb-sep">&rsaquo;</span><span class="crumb current">Field: ' + DspfEngine.escapeHtml(label) + compileBadgeHtml(compileCountsOf(compileIndex.byField[selectedKey.sourceLine])) + '</span>';
     } else if (selectedHelpSourceLine != null) {
       html += '<span class="crumb-sep">&rsaquo;</span><span class="crumb current">Help entry</span>';
     } else if (pendingPlacement) {
@@ -4668,7 +4799,9 @@ const htmlTemplate = `<!DOCTYPE html>
       html += '<span class="crumb-sep">&rsaquo;</span><span class="crumb current">' + placementLabel + '</span>';
     }
     html += '</div>';
+    html += compileMessagesBlockHtml(rec, atRecord);
     propsBreadcrumb.innerHTML = html;
+    bindCompileRows(propsBreadcrumb);
 
     const fileCrumb = document.getElementById('crumb-file');
     if (fileCrumb) fileCrumb.addEventListener('click', () => {
@@ -8212,6 +8345,12 @@ const htmlTemplate = `<!DOCTYPE html>
         applyModTrackingPositionUi();
       }
       syncKeepRemovedLines();
+    } else if (msg.type === 'compileMessages') {
+      // Task E2e - the host's current compile messages for this document (it re-sends them when an edit moves or drops some);
+      // 'fresh' is a compile that just ended, which brings back a panel the person had dismissed.
+      compileMessages = Array.isArray(msg.messages) ? msg.messages : [];
+      if (msg.fresh) compilePanelDismissed = false;
+      render();
     } else if (msg.type === 'dirtyState') {
       updateSaveButtonDirtyState(msg.isDirty);
     } else if (msg.type === 'compileResult' || msg.type === 'saveResult') {
