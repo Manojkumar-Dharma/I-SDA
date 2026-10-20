@@ -1318,13 +1318,39 @@ to a folder with an index page; works from both designers and both UI styles.
 
 | ID | Sub-task and scope | Depends on | Status | Version |
 |----|--------------------|------------|--------|---------|
-| E5a | **Scope and formats. Decision first.** Which formats ship, whether compare mode and the ruler/crosshair are included, background/theme (classic green-on-black vs the accent colours), font fallback stack, scale factors for PNG. | - | In progress | — |
+| E5a | **Scope and formats. Decision first.** Which formats ship, whether compare mode and the ruler/crosshair are included, background/theme (classic green-on-black vs the accent colours), font fallback stack, scale factors for PNG. | - | Done (no code change) | — |
 | E5b | **Serialiser.** Pure function: the engine's resolved grid to standalone SVG and HTML (inline CSS, no remote assets, font fallback stack); snapshot tests. | E5a | Open | - |
 | E5c | **PNG.** Rasterise the SVG in the webview via canvas, with a scale option; save from the extension host. | E5b | Open | - |
 | E5d | **Plain-text dump.** The grid as an 80x24 / 132x27 text block, with an optional attribute legend (underline, reverse image, colours as letters). | E5a | Open | - |
 | E5e | **UI and command.** `iSDA: Export Screen Preview`, toolbar button, save dialog, copy to clipboard, default format setting; menu designer included. | E5b | Open | - |
 | E5f | **Batch export.** Every record and every `DSPSIZ` into a folder plus an `index.html`; progress notification; cancellable. | E5b, E5e | Open | - |
 | E5g | **Release** (next free minor). | E5a - E5f | Open | - |
+
+### E5a results
+
+**E5a (scope and formats), decided.** No code changed. Three decisions were put to Manojkumar and answered; the rest are defaults proposed in the same message and not objected to (marked below), open to change in the sub-task that builds them.
+
+**What exists today (audit).** There is no export feature of any kind. The preview is a DOM grid built in the webview: `render()` takes `DspfEngine.resolveScreen(...)`, an object `{ lines, columns, recordName, fields, availableSizes, ... }`, and `renderFieldDiv` turns each field (`line`, `column`, `length`, `height`, `text`, `style { color, hi, reverse, underline, blink, hidden, protect }`, `widget`, `cntfld`, `rowState`, `stackLayer`, `inWindow`) into a grid-positioned `div` with classes. Colours come from `COLOR_HEX` in `src/dspfEngine.js`; the default screen colour is the UI theme's accent (`body[data-ui-theme]`: green by default, amber, cyan, violet, white); the font is the `--mono` stack. The ruler, the crosshair and compare mode ("Show other record(s) dimmed behind") are webview chrome around that grid, not part of the engine's answer.
+
+**Decisions (asked).**
+- **Formats: all four ship.** SVG, self-contained HTML, PNG and plain text, as the acceptance paragraph says.
+- **Content: the screen only, the ruler as an option.** An export holds what the engine resolved for the current record in the current indicator state (fields, constants, windows, pull-downs, stacked records exactly as the preview shows them). The ruler (row and column numbers, the same numbering as the designer's) is a toggle, off by default. Never exported: the crosshair, compare-mode dimmed records, the selection outline, compile badges and outlines (E2e), hover titles.
+- **Colours: follow the designer's current accent theme.** The default field colour is the theme's accent at the moment of export; an explicit `COLOR` keyword keeps its `COLOR_HEX` value; the background is the preview's own (screen `#050705`, window `#0a0f0c`). The theme is an input of the serialiser, read from the webview's computed variables at export time, so the serialiser itself stays pure.
+
+**Defaults (proposed, not asked).**
+- **Font:** the `--mono` stack unchanged (`'IBM Plex Mono', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`); no remote font, no embedded font file. Every export draws on a fixed character cell, so a fallback font changes the look but not the layout.
+- **PNG scale:** 1x, 2x, 3x, default 2x (E5c).
+- **Text dump:** `lines` x `columns` of the screen size (80x24, 132x27, ...), with an optional attribute legend (E5d).
+- **Attributes in a still image:** `hi`, `reverse` and `underline` are drawn as in the preview; `blink` is static (the legend and the text dump mark it); `hidden` fields are left out.
+
+**What this means for E5b - E5g.**
+- **E5b** is a pure UMD module (proposed name `src/screenExport.js`, no `vscode` import, copied to `dist/` by `build:webview-assets`, like the E2 modules). Input: the `resolveScreen` result plus `{ theme, ruler }`; output: the SVG string and the HTML string. It follows `renderFieldDiv`'s rules for classes and attributes, so the two cannot drift: its test should compare the serialiser's attribute decisions with the engine's on the same screens.
+- **E5c** rasterises the E5b SVG in the webview (canvas), so PNG needs the webview; the host only saves the bytes.
+- **E5d** is pure and host-testable like E5b.
+- **E5e** is the command, toolbar button, save dialog, clipboard and default-format setting, in both designers and both UI styles.
+- **E5f** (batch) can write SVG, HTML and text from the host without a webview. Whether it also writes PNG (a webview round-trip per record and size) is E5f's decision; the default is that it does not.
+
+**Not decided here:** the setting names and the command's exact title (E5e); the clipboard format per type (E5e); the menu designer's screen (E5e, the same serialiser on the menu's resolved screen).
 
 ---
 
