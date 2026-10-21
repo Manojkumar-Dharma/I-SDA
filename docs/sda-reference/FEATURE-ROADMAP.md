@@ -47,7 +47,7 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-8 of 11 epics done (E1, E2, E3, E4, E7, E8, E9, E10); 74 sub-tasks done (E1a - E1j, E2a - E2i, E3a - E3l, E4a - E4g, E5a - E5f, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.17.5**.
+9 of 11 epics done (E1, E2, E3, E4, E5, E7, E8, E9, E10); 75 sub-tasks done (E1a - E1j, E2a - E2i, E3a - E3l, E4a - E4g, E5a - E5g, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.18.0**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
@@ -55,7 +55,7 @@ never in columns 1-80 or the tag area.
 | [E2](#e2) | Compile-error feedback loop | E2a - E2i | E1a, E1b for the shared diagnostics collection | Done | v0.17.0 |
 | [E3](#e3) | Indicator simulator (and program-to-system field values) | E3a - E3l | - | Done | v0.14.1 |
 | [E4](#e4) | Message-file integration (`MSGID` / `ERRMSGID` / `CHKMSGID` / `SFLMSGID`) | E4a - E4g | E3f (soft) | Done | v0.15.6 |
-| [E5](#e5) | Preview export (PNG / SVG / HTML / text) | E5a - E5g | E3 (soft, for indicator state) | Open | - |
+| [E5](#e5) | Preview export (PNG / SVG / HTML / text) | E5a - E5g | E3 (soft, for indicator state) | Done | v0.18.0 |
 | [E6](#e6) | Menu designer: command keys and `TYPE(*UIM)` | E6a - E6h | E2 (soft, for compile errors) | Open | - |
 | [E7](#e7) | Faster test suite | E7a - E7m | - | Done | v0.12.2 |
 | [E8](#e8) | `WINDOW(*DFT)` and runtime-valued window parameters | E8a - E8g | E3f | Done | v0.15.0 |
@@ -1325,7 +1325,7 @@ to a folder with an index page; works from both designers and both UI styles.
 | E5d | **Plain-text dump.** The grid as an 80x24 / 132x27 text block, with an optional attribute legend (underline, reverse image, colours as letters). | E5a | Done | v0.17.3 |
 | E5e | **UI and command.** `iSDA: Export Screen Preview`, toolbar button, save dialog, copy to clipboard, default format setting; menu designer included. | E5b | Done | v0.17.4 |
 | E5f | **Batch export.** Every record and every `DSPSIZ` into a folder plus an `index.html`; progress notification; cancellable. | E5b, E5e | Done | v0.17.5 |
-| E5g | **Release** (next free minor). | E5a - E5f | In progress | - |
+| E5g | **Release** (next free minor). | E5a - E5f | Done | v0.18.0 |
 
 ### E5a results
 
@@ -1456,6 +1456,19 @@ to a folder with an index page; works from both designers and both UI styles.
 **Tests.** A planning (sizes, names, collisions, the folder name, input checks, the cap, themes); B records (indicator fallback, size conditions, empty, kinds); C the files against the serialisers; D the index (links, skipped screens, escaping, partial writes); E running (order, progress, cancel, failed write, failed render, sync and async file calls); F the command on the vscode mock (no designer, cancelled picker, a full run, theme and ruler, an existing folder, the editor's own text, cancel, a failed write, an IBM i member); G `package.json` and the module. Checked by breaking the module three ways (no indicator fallback, cancel never checked, names allowed to collide): each fails the test.
 
 **Not yet checked.** Nothing was tried in a real VS Code window (the folder picker, the cancellable notification, Reveal folder), and the index was not opened in a browser. The designer's own state is not available to the host, so stored run-time values, message texts (E4c) and resolved `REFFLD` fields are drawn as the designer draws them before they are known. A pull-down record is exported as its own screen (its choices), not on top of its menu bar. The release is E5g.
+
+### E5g results
+
+**Released as v0.18.0.** E5 shipped as v0.17.1 (E5b) - v0.17.5 (E5f); this entry rolls it up. Every sub-task E5a - E5f is Done. The acceptance paragraph, one criterion at a time:
+
+| Acceptance criterion | Met by | Evidence |
+|----------------------|--------|----------|
+| The command and the toolbar button export the current record in the current indicator state | E5e (v0.17.4): **iSDA: Export Screen Preview** and the Export screen button; the page builds the file from the screen it last drew | `e5eExportUi.test.js`; `e5gRelease.test.js` A and B (indicator 10 switched on in the page, the click and the command both give a file that says it is on) |
+| As PNG, SVG, self-contained HTML or plain text | E5b (SVG, HTML), E5c (PNG), E5d (text) | `e5bScreenExport.test.js`, `e5cScreenPng.test.js`, `e5dScreenText.test.js`; `e5gRelease.test.js` A (all four formats through the real page and host handler, file names and bytes; the PNG is a real PNG at 2x the drawing; no script or remote file in SVG or HTML) |
+| A batch export writes every record and every `DSPSIZ` to a folder with an index page | E5f (v0.17.5): **iSDA: Export All Screen Previews** | `e5fBatchExport.test.js`; `e5gRelease.test.js` C (16 files for the sample display file, every index link resolves, the screen not shown at 24x80 is listed as skipped) |
+| Works from both designers and both UI styles | E5e wires the screen designer (side panel in classic, pinned toolbar in modern) and the menu designer | `e5gRelease.test.js` A, B and C run the screen designer in both UI styles and the menu designer |
+
+**Not yet checked.** Nothing was tried in a real VS Code window (save and folder dialogs, the cancellable notification, the clipboard image copy, whose permission rules differ in a webview so a save may be what users see). jsdom has no canvas, so the release test fakes one; E5c's headless-Chromium check covers the real rasterising. A pull-down record is exported as its own screen, and the batch cannot see `REFFLD` fields, message texts or stored values (it draws them as the designer does before they are known).
 
 ---
 
