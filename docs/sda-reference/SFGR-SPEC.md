@@ -19,7 +19,7 @@ from the manual only.
 |------|------|--------|
 | Record | One specification per line, fixed columns 1 - 80. Only the first 80 characters are used. | B-1 |
 | Line length | Lines in the sample are **right-trimmed**, not padded to 80 (lengths 6 to 80). A reader must treat missing columns as blanks, and a writer must not add trailing blanks to a line it did not change. | Verified |
-| Line ends | The sample is UTF-8 with CRLF. Both CRLF and LF must be read and written back as found. The last line has no terminator. | Verified |
+| Line ends | The sample is UTF-8 with CRLF. Both CRLF and LF must be read and written back as found. The last line ends with CRLF too (549 lines, 549 CRLF); a source without a final line end must read and write back the same way. | Verified |
 | Sequence (cols 1 - 5) | Not processed by the `FORMAT` procedure; the sample has five blanks. Keep as found. | B-1, Verified |
 | Specification type (col 6) | `S`, `H` or `D`. Required. The sample has only `S` (7 lines) and `D` (542 lines). | B-1, Verified |
 | Comment | `*` in column 7 makes the line a comment (all three spec types). A comment cannot follow a D line that has `X` in column 80. | B-1, B-14, B-27 |
@@ -140,10 +140,11 @@ when the indicator is on, the constant when off (Figure B-7, B-8). Color mapping
 ## 5. Continuation
 
 A D line with `X` in column 80 continues its constant on the **next** line, which is a D line whose columns 7 - 79
-hold the rest of the constant text (the continuation line's own column 7 - 79 are text, not a field definition). In the
+hold the rest of the constant text (the continuation line's own column 7 - 79 are text, not a field definition, and its column 80 may hold `X` again). In the
 sample, line 3 ends in `X` and line 4 is `     D` followed by blanks, meaning a blank run continues the constant.
 Findings from the sample that the parser must follow:
-- 46 lines have `X`, so 46 of the 542 D lines are continuation lines, not fields; a reader that parses every D line as
+- 46 lines have `X`, so 46 of the 542 D lines are continuation lines, not fields (a continuation line can carry `X`
+  itself and continue again: lines 177 - 180, 463 - 465, 468 - 470 and 472 - 474 are chains); a reader that parses every D line as
   a field reads their text as column values (length, line, attributes), which is why the DDS parser reports false
   fields on this file today.
 - Continuation text starts at column 7, so it can begin with letters directly after the `D` (`     Dté cochés dans`).
