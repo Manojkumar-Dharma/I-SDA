@@ -1,7 +1,7 @@
 # Feature roadmap: epics and sub-tasks (E-series)
 
 The keyword-compliance audit (`I-` tasks, [`keywordFixes.md`](keywordFixes.md)) closed at v0.11.0.
-This document tracks the **next body of work**: ten feature epics, each split into sub-tasks that
+This document tracks the **next body of work**: eleven feature epics, each split into sub-tasks that
 parallel sessions can claim independently. It sits beside [`LIMITATIONS-PLAN.md`](LIMITATIONS-PLAN.md)
 (accepted constraints, `L`/`M`/`P`/`S36-` tasks) and does not replace it: when an epic closes an
 accepted limitation, the epic's release sub-task also updates that entry.
@@ -47,7 +47,7 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-8 of 10 epics done (E1, E2, E3, E4, E7, E8, E9, E10); 74 sub-tasks done (E1a - E1j, E2a - E2i, E3a - E3l, E4a - E4g, E5a - E5f, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.17.5**.
+8 of 11 epics done (E1, E2, E3, E4, E7, E8, E9, E10); 74 sub-tasks done (E1a - E1j, E2a - E2i, E3a - E3l, E4a - E4g, E5a - E5f, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.17.5**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
@@ -61,6 +61,7 @@ never in columns 1-80 or the tag area.
 | [E8](#e8) | `WINDOW(*DFT)` and runtime-valued window parameters | E8a - E8g | E3f | Done | v0.15.0 |
 | [E9](#e9) | `EDTCDE(Y/W)` separator width | E9a - E9e | - | Done | v0.13.0 |
 | [E10](#e10) | `CHCCTL` / `SFLCHCCTL` choice control values | E10a - E10f | E3f (E10f only) | Done | v0.14.0 |
+| [E11](#e11) | System/36 `DSPF36` (SFGR) source in the designer and the editor | E11a - E11l | E1, E2, E3, E5 (soft, for reuse) | Open | - |
 
 ### Suggested order
 
@@ -2580,9 +2581,64 @@ a control field value, not an option indicator, and the gap was the preview stat
 
 ---
 
+## E11
+
+**System/36 `DSPF36` (SFGR) source in the designer and the editor**
+
+**Goal.** A `DSPF36` member (or a `.dspf36` file) holds System/36 screen format generator (`$SFGR`) source, not DDS.
+Today the extension only registers the extension and compiles it with `CRTS36DSPF` (S36-1, S36-5); the designer's
+DDS parser reads the text as DDS and produces nonsense (checked on `source/stipfm.dspf36`: one record named
+"une liste" with a field named "1367Y"). Give `DSPF36` source its own reader and writer, draw it in the existing
+preview, edit it in the existing designer, and give the text editor SFGR-aware help, so S/36 display formats are
+designed visually with the same quality as `DSPF` / `DSPF38`.
+
+**Sources (in the repo, commit 344c171).** `docs/sda-reference/source/sc414730.pdf` (*System/36 Environment
+Programming* V3R6; Appendix B, "$SFGR Specification Forms", and chapter 14, "Differences between System/36 SFGR and
+DDS"), `sc414731.pdf` (*System/36 Environment Reference*; the `FORMAT` procedure and the `$SFGR` utility, Appendix D
+SFGR messages) and the sample `stipfm.dspf36` (549 lines, French, CRLF, uses the continuation column). Convert the
+PDFs with `pdftotext -layout` as for the DDS reference; the page layout is two-column, so column ranges are checked
+against the sample, not taken from the text alone.
+
+**What the source looks like (from Appendix B and the sample).** Fixed columns, 80 wide. Columns 1 - 5 sequence
+number (ignored), column 6 specification type: `S` display control (format name in 7 - 14, start line 17 - 18, lines to
+clear 19 - 20, return input, sound alarm 25 - 26, enable function and command keys 27 - 28, blink cursor 29 - 30, erase
+input 31 - 32, override 33 - 34, suppress input 35 - 36, null fill 37 - 38, 132-column 39, right-to-left 40, key mask
+64 - 79), `D` field definition (field name 7 - 14, row and column, length, output data 23 - 24, input allowed 26, data
+type 27, mandatory fill and entry 28 - 29, self-check 30, adjust/fill 31, position cursor 32 - 33, dup key 34,
+controlled field exit 35, protect 37 - 38, high intensity 39 - 40, blink 41 - 42, nondisplay 43 - 44, reverse image
+45 - 46, underline 47 - 48, column separators 49, lowercase 51, constant type 56, constant text from 57, continuation
+column 80), `H` help definition, `*` comment lines, and `*DDS` pass-through lines that hold raw DDS. The same display
+format can be stacked with others on one screen through start line and lines to clear. The exact tables are E11a's
+deliverable; the list above is the starting point and may be corrected there.
+
+**Acceptance for the release.** `stipfm.dspf36` opens in the designer and every format draws with its constants and
+fields in the right place, with the field attributes the source gives; every field, constant and format can be added,
+moved, edited and deleted from the panels, and saving writes valid SFGR source in which every untouched line is
+byte-identical to the original; DDS-only features do not appear for a `DSPF36` file; the text editor shows SFGR
+diagnostics, hover and an outline; a failed `CRTS36DSPF` puts its messages on the right source lines; DDS tooling
+never runs on SFGR source and SFGR tooling never runs on DDS.
+
+| ID | Sub-task and scope | Depends on | Status | Version |
+|----|--------------------|------------|--------|---------|
+| E11a | **Specification and decisions.** **Decision first.** Write `docs/sda-reference/SFGR-SPEC.md`: the column tables for the S, D and H specs and the `*DDS` and comment lines, each value with its meaning, valid range and the DDS keyword (or none) it corresponds to; the continuation rule; which SFGR features have no DDS-model equivalent; every claim checked against `stipfm.dspf36`. Proposal and Manojkumar's answer to record in this section: (1) one shared model with SFGR as a second reader/writer, versus a separate model; (2) how a `DSPF36` file is told apart from DDS (extension, member source type, content sniff); (3) whether `*DDS` lines are shown as opaque blocks or parsed as DDS; (4) whether a "convert to DDS" command is in scope. May land as `Done (no code change)`. | - | Open | - |
+| E11b | **Format detection and guards.** Language id and file association for `.dspf36` and `DSPF36` members; one `isSfgrSource(uri, text)` helper; DDS diagnostics, hover, completion, outline and quick-fix providers (E1) and the DDS designer path stop running on SFGR source (today they produce false errors on it). Settings stay as they are. | E11a | Open | - |
+| E11c | **Parser.** New pure module `src/sfgrParser.js`, no `vscode` import: source text in, formats out (S spec, D specs, H specs, comments, `*DDS` blocks), each carrying its original line text and line numbers, continuation lines joined, CRLF and LF kept as found. Reports unreadable lines instead of throwing. Tests read `stipfm.dspf36` and small hand-made fixtures. | E11a | Open | - |
+| E11d | **Writer.** New pure module `src/sfgrWriter.js`: edit operations (set a column value, add, delete and move a spec, split and join continuation lines) that touch only the lines they change; untouched lines stay byte-identical, including trailing text in columns 64 - 80 and sequence numbers. Round-trip test over the whole sample. | E11c | Open | - |
+| E11e | **Model and engine mapping.** Fill the existing record and field model (`dspfModel.ts`) from SFGR formats so `dspfEngine.js` draws them: one format = one record, constants and fields placed by row and column, output-data indicators 01 - 99 as conditions, 80- and 132-column formats. Where SFGR has a concept the DDS model lacks, extend the model rather than encode it in keywords. | E11c | Open | - |
+| E11f | **Preview fidelity.** Draw the SFGR display attributes (high intensity, blink, nondisplay, reverse image, underline, column separators, lowercase), the start line and lines-to-clear stacking of several formats on one screen (Figure B-2), and the visual markers for input, output and input/output fields. Reuse the E3 simulator conditions for the indicators. | E11e | Open | - |
+| E11g | **Designer panels.** Panels for the S specification (start line, lines to clear, key enable and masks, alarm, blink, erase input, override, suppress input, null fill, 132-column, right-to-left), for the D specification (field and constant definition, input allowed, data type, mandatory fill and entry, self-check, adjust/fill, position cursor, dup key, controlled field exit, protect, attributes) and for H specs (help). Every value is a dropdown or a checked input with the range from E11a. DDS-only panels and the keyword picker are hidden for `DSPF36`. | E11d, E11e | Open | - |
+| E11h | **Editing operations.** Click-to-place and drag of fields and constants, new format, delete, duplicate, reorder, resize on the grid, undo and redo, all through the E11d writer; the Raw editor tab edits SFGR text with column rulers. | E11g | Open | - |
+| E11i | **Simulator, export and batch.** The E3 indicator simulator, the E5 exports (SVG, HTML, PNG, text) and the batch export work on SFGR source; the saved scenarios stay outside the source (see "Source stays clean"). | E11f | Open | - |
+| E11j | **Editor language support.** SFGR rule checks as diagnostics (column values out of range, duplicate format names, field outside the screen, overlapping fields, key mask without the matching enable column, unmatched continuation), hover on a column (what it is and the allowed values), outline of formats and fields, quick-fix for the most common violations; same settings pattern as E1. | E11b, E11c | Open | - |
+| E11k | **Compile messages.** Parse the `CRTS36DSPF` result (the `$SFGR` listing and the SYX messages of Appendix D of the Reference) and put the messages on the source lines, through the E2 diagnostics hub under source `CRTS36DSPF`. **Needs a real failing `CRTS36DSPF` listing as a fixture** (open question 3); until it arrives the parser can only be written against stand-in text, marked as such. | E11c, E2 | Open | - |
+| E11l | **Release** (next free minor); update `README.md` (features, file types), `LIMITATIONS-PLAN.md` (S36 entries that this epic closes), `CHANGELOG.md`. Results against the acceptance rule above. | E11a - E11k | Open | - |
+
+---
+
 ## Open questions
 
 | # | Question | Needed by |
 |---|----------|-----------|
 | 1 | E2a: a real failing compile listing and joblog from the IBM i, as fixtures. | E2a |
 | 2 | E6c: the IBM UIM reference text for menu panel groups (the IBM site is bot-blocked). | E6c |
+| 3 | E11k: a real failing `CRTS36DSPF` listing (and the member's SFGR source) from the IBM i, as fixtures. | E11k |
