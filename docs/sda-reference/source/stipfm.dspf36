@@ -1,0 +1,549 @@
+     SCHOIX1      24       Y                                   CV
+     DFA0001     1 2 2Y  Y          Y     Y            C1
+     DFA0001    50 317Y                       Y        C                       X
+     D
+     DFA0001     1 416Y                                C¦
+     DFA0009     1 467Y                                C¦
+     DFA0002     1 516Y                                C¦
+     DFL0001    23 528Y                     Y Y        C        INVENTAIRE
+     DFA0001     5 555Y               Y Y              CSUITE
+     DFA0010     1 567Y                                C¦
+     DFA0003     1 616Y                                C¦
+     DFA0011     1 667Y                                C¦
+     DFA0004     1 716Y                                C¦
+     DFA0012     1 767Y                                C¦
+     DFA0005     1 816Y                                C¦
+     DFA0002    39 820Y                                CDes Produits ont déjà éX
+     Dté cochés dans
+     DFA0013     1 867Y                                C¦
+     DFA0006     1 916Y                                C¦
+     DFA0001    39 920Y                                Cla liste manuelle      X
+     D
+     DFA0014     1 967Y                                C¦
+     DFA0007     11016Y                                C¦
+     DFA0015     11067Y                                C¦
+     DFA0008     11116Y                                C¦
+     DFA0003     81120Y                                C Faites:
+     DFA0016     11167Y                                C¦
+     DFA0021     11216Y                                C¦
+     DFA0022     11267Y                                C¦
+     DFA0001     11316Y                                C¦
+     DFA0004     31325Y               Y                CF21
+     DFA0005    181333Y                                Cpour annuler tout.
+     DFA0005     11367Y                                C¦
+     DFA0002     11416Y                                C¦
+     DFA0007     11467Y                                C¦
+     DFA0029     11516Y                                C¦
+     DFA0009     21521Y                                Cou
+     DFA0006     61525Y               Y                CENTREE
+     DFA0007    271533Y                                Cpour continuer l'inventX
+     Daire
+     DFA0030     11567Y                                C¦
+     DFA0003     11616Y                                C¦
+     DFA0010     11667Y                                C¦
+     DFA0031     11716Y                                C¦
+     DFA0032     11767Y                                C¦
+     DFA0033     11816Y                                C¦
+     DFA0034     11867Y                                C¦
+     DFA0004     11916Y                                C¦
+     DFA0015     11967Y                                C¦
+     DFA0005     12016Y                                C¦
+     DFA0001    102037Y                                CF3-Abandon
+     DFA0017     12067Y                                C¦
+     DFA0010    502117Y                       Y        C                       X
+     D
+     SCHOIX       24    64 Y                                   C
+     DFA0001    50 317Y                       Y        C                       X
+     D
+     DFA0001     1 416Y                                C¦
+     DFA0009     1 467Y                                C¦
+     DFA0002     1 516Y                                C¦
+     DFL0001    23 528Y                     Y Y        C        INVENTAIRE
+     DFA0010     1 567Y                                C¦
+     DFA0003     1 616Y                                C¦
+     DFA0011     1 667Y                                C¦
+     DFA0004     1 716Y                                C¦
+     DFA0012     1 767Y                                C¦
+     DFA0005     1 816Y                                C¦
+     DFA0013     1 867Y                                C¦
+     DFA0006     1 916Y                                C¦
+     DFA0014     1 967Y                                C¦
+     DFA0007     11016Y                                C¦
+     DFA0015     11067Y                                C¦
+     DFA0008     11116Y                                C¦
+     DFA0016     11167Y                                C¦
+     DFA0021     11216Y                                C¦
+     DFA0022     11267Y                                C¦
+     DFA0001     11316Y                                C¦
+     DFA0001    481318Y                                CVous allez cocher des pX
+     Droduits sur une liste
+     DFA0005     11367Y                                C¦
+     DFA0002     11416Y                                C¦
+     DFA0007     11467Y                                C¦
+     DFA0029     11516Y                                C¦
+     DFA0002    481518Y                                Cde mots directeurs     X
+     D
+     DFA0030     11567Y                                C¦
+     DFA0003     11616Y                                C¦
+     DFA0010     11667Y                                C¦
+     DFA0031     11716Y                                C¦
+     DFA0003    261718Y                                Caffichés à partir de --X
+     D-->
+     DFA0013    201746Y  Y            Y       Y
+     DFA0032     11767Y                                C¦
+     DFA0033     11816Y                                C¦
+     DFA0034     11867Y                                C¦
+     DFA0004     11916Y                                C¦
+     DFA0015     11967Y                                C¦
+     DFA0005     12016Y                                C¦
+     DFA0004    212042Y                                CEntrée pour continuer
+     DFA0017     12067Y                                C¦
+     DFA0002    502117Y                       Y        C                       X
+     D
+     DFA0001    7724 3Y                                C                       X
+     DF3-Abandon
+     SSAISIE      00       Y                                   BE
+     DENR        1 1 3Y  Y     N    Y     Y            Cs
+     DTIT       33 126Y                     Y Y        CINVENTAIRE : Saisie desX
+     D quantités
+     DFL0003     2 169Y                                CLe
+     DDAT        8 172Y               Y
+     DLIBEL     78 3 2Y                       Y        C         Désignation   X
+     D     lng |fa/af| cx     Stock   |      DI
+     DTA,1      41 4 2Y                     61
+     DDDD        1 444Y                     Y          C
+     DTB,1      34 446Y               Y
+     DTA,2      41 5 2Y                     62
+     DFL0010     1 544Y                     Y          C
+     DTB,2      34 546Y               Y
+     DTA,3      41 6 2Y                     63
+     DFL0013     1 644Y                     Y          C
+     DTB,3      34 646Y               Y
+     DTA,4      41 7 2Y                     64
+     DFL0016     1 744Y                     Y          C
+     DTB,4      34 746Y               Y
+     DTA,5      41 8 2Y                     65
+     DFL0019     1 844Y                     Y          C
+     DTB,5      34 846Y               Y
+     DTA,6      41 9 2Y                     66
+     DFL0022     1 944Y                     Y          C
+     DTB,6      34 946Y               Y
+     DTA,7      4110 2Y                     67
+     DFL0025     11044Y                     Y          C
+     DTB,7      341046Y               Y
+     DTA,8      4111 2Y                     68
+     DFL0028     11144Y                     Y          C
+     DTB,8      341146Y               Y
+     DTA,9      4112 2Y                     69
+     DFL0031     11244Y                     Y          C
+     DTB,9      341246Y               Y
+     DTA,10     4113 2Y                     70
+     DFL0034     11344Y                     Y          C
+     DTB,10     341346Y               Y
+     DTA,11     4114 2Y                     71
+     DFL0037     11444Y                     Y          C
+     DTB,11     341446Y               Y
+     DTA,12     4115 2Y                     72
+     DFL0040     11544Y                     Y          C
+     DTB,12     341546Y               Y
+     DTA,13     4116 2Y                     73
+     DFL0043     11644Y                     Y          C
+     DTB,13     341646Y               Y
+     DFL0045    7817 2Y                       Y        C                       X
+     D
+     DFA0007    4518 1Y                                C                       X
+     D
+     DPAL        31847Y                   37           Cpal
+     DFL0054    291851Y                                C vrac                  X
+     D
+     DSAI1      4119 2Y               Y
+     DFL0056     11944Y                     Y          C
+     DPAL1       41946Y  Y    B     37Y   3750  Y
+     DVRAC1      91951Y  YD   B37     Y     51  Y
+     DFA0001     11961Y                   30           C(
+     DNBDEC      11963Y
+     DFA0003    101965Y                   30           Cdécimales)
+     DFA0004     51976Y                                C
+     DFL0060     320 2Y                                CN°:
+     DART        720 6Y               Y
+     DFA0001    112014Y                                C
+     DQTPAL      52026Y               Y   37
+     DFL0063     82032Y                   37           Cqté/pal
+     DFA0001     22041Y                                C
+     DFL0066     12044Y                     Y          C
+     DPAL2       42046Y  Y    BN    37Y   3752  Y
+     DVRAC2      92051Y  YD   B37     Y     53  Y
+     DFL0069    192061Y                                C
+     DFA0005   18821 1Y                                C                       X
+     D                                                                         X
+     D                                                                         X
+     D
+     DMES       50233099                Y                                      X
+     D
+     DFL0071    7824 2Y                                C                       X
+     D  F2-Fin   F5-Suivant
+     SSELECT      24       Y                                   ACEIJ
+     DCE         1 1 5Y  Y     N    Y     Y            C1
+     DFL0002    37 124Y                     Y Y        C INVENTAIRE : SélectionX
+     D des produits
+     DFA0001    77 3 2Y                                Cx | Mot directeur      X
+     D         lng   | fa/af | cx| séqper|séqord| DernierIP|
+     DX1         1 4 2Y  Y            Y         Y
+     DFL0014    27 4 6Y
+     DFL0015     5 434Y
+     DFL0016     1 440Y               Y                C|
+     DFL0017     5 442Y
+     DFL0018     1 448Y               Y                C|
+     DFL0019     1 450Y                         Y
+     DFL0020     1 452Y               Y                C|
+     DFL0021     5 454Y                         Y
+     DFL0022     1 460Y               Y                C|
+     DFL0023     4 462Y                         Y
+     DFL0024     1 467Y               Y                C|
+     DFA0001     8 469Y
+     DFL0025     1 5 2Y  Y            Y         Y
+     DFL0027    27 5 6Y
+     DFL0028     5 534Y
+     DFL0029     1 540Y               Y                C|
+     DFL0030     5 542Y
+     DFL0031     1 548Y               Y                C|
+     DFL0032     1 550Y                         Y
+     DFL0033     1 552Y               Y                C|
+     DFL0034     5 554Y                         Y
+     DFL0035     1 560Y               Y                C|
+     DFL0036     4 562Y                         Y
+     DFL0037     1 567Y               Y                C|
+     DFA0002     8 569Y
+     DFL0038     1 6 2Y  Y            Y         Y
+     DFL0040    27 6 6Y
+     DFL0041     5 634Y
+     DFL0042     1 640Y               Y                C|
+     DFL0043     5 642Y
+     DFL0044     1 648Y               Y                C|
+     DFL0045     1 650Y                         Y
+     DFL0046     1 652Y               Y                C|
+     DFL0047     5 654Y                         Y
+     DFL0048     1 660Y               Y                C|
+     DFL0049     4 662Y                         Y
+     DFL0050     1 667Y               Y                C|
+     DFA0003     8 669Y
+     DFL0051     1 7 2Y  Y            Y         Y
+     DFL0053    27 7 6Y
+     DFL0054     5 734Y
+     DFL0055     1 740Y               Y                C|
+     DFL0056     5 742Y
+     DFL0057     1 748Y               Y                C|
+     DFL0058     1 750Y                         Y
+     DFL0059     1 752Y               Y                C|
+     DFL0060     5 754Y                         Y
+     DFL0061     1 760Y               Y                C|
+     DFL0062     4 762Y                         Y
+     DFL0063     1 767Y               Y                C|
+     DFA0004     8 769Y
+     DFL0064     1 8 2Y  Y            Y         Y
+     DFL0066    27 8 6Y
+     DFL0067     5 834Y
+     DFL0068     1 840Y               Y                C|
+     DFL0069     5 842Y
+     DFL0070     1 848Y               Y                C|
+     DFL0071     1 850Y                         Y
+     DFL0072     1 852Y               Y                C|
+     DFL0073     5 854Y                         Y
+     DFL0074     1 860Y               Y                C|
+     DFL0075     4 862Y                         Y
+     DFL0076     1 867Y               Y                C|
+     DFA0005     8 869Y
+     DFL0077     1 9 2Y  Y            Y         Y
+     DFL0079    27 9 6Y
+     DFL0080     5 934Y
+     DFL0081     1 940Y               Y                C|
+     DFL0082     5 942Y
+     DFL0083     1 948Y               Y                C|
+     DFL0084     1 950Y                         Y
+     DFL0085     1 952Y               Y                C|
+     DFL0086     5 954Y                         Y
+     DFL0087     1 960Y               Y                C|
+     DFL0088     4 962Y                         Y
+     DFL0089     1 967Y               Y                C|
+     DFA0006     8 969Y
+     DFL0090     110 2Y  Y            Y         Y
+     DFL0092    2710 6Y
+     DFL0093     51034Y
+     DFL0094     11040Y               Y                C|
+     DFL0095     51042Y
+     DFL0096     11048Y               Y                C|
+     DFL0097     11050Y                         Y
+     DFL0098     11052Y               Y                C|
+     DFL0099     51054Y                         Y
+     DFL0100     11060Y               Y                C|
+     DFL0101     41062Y                         Y
+     DFL0102     11067Y               Y                C|
+     DFA0007     81069Y
+     DFL0103     111 2Y  Y            Y         Y
+     DFL0105    2711 6Y
+     DFL0106     51134Y
+     DFL0107     11140Y               Y                C|
+     DFL0108     51142Y
+     DFL0109     11148Y               Y                C|
+     DFL0110     11150Y                         Y
+     DFL0111     11152Y               Y                C|
+     DFL0112     51154Y                         Y
+     DFL0113     11160Y               Y                C|
+     DFL0114     41162Y                         Y
+     DFL0115     11167Y               Y                C|
+     DFA0008     81169Y
+     DFL0116     112 2Y  Y            Y         Y
+     DFL0118    2712 6Y
+     DFL0119     51234Y
+     DFL0120     11240Y               Y                C|
+     DFL0121     51242Y
+     DFL0122     11248Y               Y                C|
+     DFL0123     11250Y                         Y
+     DFL0124     11252Y               Y                C|
+     DFL0125     51254Y                         Y
+     DFL0126     11260Y               Y                C|
+     DFL0127     41262Y                         Y
+     DFL0128     11267Y               Y                C|
+     DFA0009     81269Y
+     DFL0129     113 2Y  Y            Y         Y
+     DFL0131    2713 6Y
+     DFL0132     51334Y
+     DFL0133     11340Y               Y                C|
+     DFL0134     51342Y
+     DFL0135     11348Y               Y                C|
+     DFL0136     11350Y                         Y
+     DFL0137     11352Y               Y                C|
+     DFL0138     51354Y                         Y
+     DFL0139     11360Y               Y                C|
+     DFL0140     41362Y                         Y
+     DFL0141     11367Y               Y                C|
+     DFA0010     81369Y
+     DFL0142     114 2Y  Y            Y         Y
+     DFL0144    2714 6Y
+     DFL0145     51434Y
+     DFL0146     11440Y               Y                C|
+     DFL0147     51442Y
+     DFL0148     11448Y               Y                C|
+     DFL0149     11450Y                         Y
+     DFL0150     11452Y               Y                C|
+     DFL0151     51454Y                         Y
+     DFL0152     11460Y               Y                C|
+     DFL0153     41462Y                         Y
+     DFL0154     11467Y               Y                C|
+     DFA0011     81469Y
+     DFL0155     115 2Y  Y            Y         Y
+     DFL0157    2715 6Y
+     DFL0158     51534Y
+     DFL0159     11540Y               Y                C|
+     DFL0160     51542Y
+     DFL0161     11548Y               Y                C|
+     DFL0162     11550Y                         Y
+     DFL0163     11552Y               Y                C|
+     DFL0164     51554Y                         Y
+     DFL0165     11560Y               Y                C|
+     DFL0166     41562Y                         Y
+     DFL0167     11567Y               Y                C|
+     DFA0012     81569Y
+     DFL0168     116 2Y  Y            Y         Y
+     DFL0170    2716 6Y
+     DFL0171     51634Y
+     DFL0172     11640Y               Y                C|
+     DFL0173     51642Y
+     DFL0174     11648Y               Y                C|
+     DFL0175     11650Y                         Y
+     DFL0176     11652Y               Y                C|
+     DFL0177     51654Y                         Y
+     DFL0178     11660Y               Y                C|
+     DFL0179     41662Y                         Y
+     DFL0180     11667Y               Y                C|
+     DFA0013     81669Y
+     DFL0181     117 2Y  Y            Y         Y
+     DFL0183    2717 6Y
+     DFL0184     51734Y
+     DFL0185     11740Y               Y                C|
+     DFL0186     51742Y
+     DFL0187     11748Y               Y                C|
+     DFL0188     11750Y                         Y
+     DFL0189     11752Y               Y                C|
+     DFL0190     51754Y                         Y
+     DFL0191     11760Y               Y                C|
+     DFL0192     41762Y                         Y
+     DFL0193     11767Y               Y                C|
+     DFA0014     81769Y
+     DFL0194     118 2Y  Y            Y         Y
+     DFL0196    2718 6Y
+     DFL0197     51834Y
+     DFL0198     11840Y               Y                C|
+     DFL0199     51842Y
+     DFL0200     11848Y               Y                C|
+     DFL0201     11850Y                         Y
+     DFL0202     11852Y               Y                C|
+     DFL0203     51854Y                         Y
+     DFL0204     11860Y               Y                C|
+     DFL0205     41862Y                         Y
+     DFL0206     11867Y               Y                C|
+     DFA0015     81869Y
+     DFL0207     119 2Y  Y            Y         Y
+     DFL0209    2719 6Y
+     DFL0210     51934Y
+     DFL0211     11940Y               Y                C|
+     DFL0212     51942Y
+     DFL0213     11948Y               Y                C|
+     DFL0214     11950Y                         Y
+     DFL0215     11952Y               Y                C|
+     DFL0216     51954Y                         Y
+     DFL0217     11960Y               Y                C|
+     DFL0218     41962Y                         Y
+     DFL0219     11967Y               Y                C|
+     DFA0016     81969Y
+     DFL0220     120 2Y  Y            Y         Y
+     DFL0222    2720 6Y
+     DFL0223     52034Y
+     DFL0224     12040Y               Y                C|
+     DFL0225     52042Y
+     DFL0226     12048Y               Y                C|
+     DFL0227     12050Y                         Y
+     DFL0228     12052Y               Y                C|
+     DFL0229     52054Y                         Y
+     DFL0230     12060Y               Y                C|
+     DFL0231     42062Y                         Y
+     DFL0232     12067Y               Y                C|
+     DFA0017     82069Y
+     DFL0233     121 2Y  Y            Y         Y
+     DFL0235    2721 6Y
+     DFL0236     52134Y
+     DFL0237     12140Y               Y                C|
+     DFL0238     52142Y
+     DFL0239     12148Y               Y                C|
+     DFL0240     12150Y                         Y
+     DFL0241     12152Y               Y                C|
+     DFL0242     52154Y                         Y
+     DFL0243     12160Y               Y                C|
+     DFL0244     42162Y                         Y
+     DFL0245     12167Y               Y                C|
+     DFA0018     82169Y
+     DFL0246    2122 6Y                                CAfficher à partir de:
+     DFL0247    272228Y  Y            Y         Y
+     DMES       5023 599                Y                                      X
+     D
+     DFA0002    202358Y                                C(X=Produits choisis)
+     DFL0249    7924 1Y                                C F1-Continuer  F3-AbandX
+     Don  F5-Stopper pour compter                 F9/F10-Ar/Av
+     SECRDI       00       Y                                   C
+     DFA0001    191862Y                                C1/Erreur comptage
+     DFA0001    191962Y                                C2/Utilisat° interne
+     DFA0001    192062Y                                C3/Autre longueur
+     DFL0001     221 2Y                                C
+     DENR        121 5Y  Y     N    Y     Y            Cd
+     DFL0003     121 7Y                                C
+     DFL0004    4121 9Y               Y Y              C  D I: Une différence eX
+     Dst détectée de ...
+     DQTDI       92151Y               Y         Y
+     DFL0006    592161Y                                C 4/Transfert stock     X
+     D
+     DFL0007     92241Y                                CMotif ...
+     DMOTIF      12251Y  Y     51     Y     51  Y
+     DFL0009    282253Y                                C         5/ (libellé saX
+     Disi )
+     DFL0010    3623 2Y                                C                       X
+     D
+     DFL0011    112339Y                                CLibellé ...
+     DFA0002    302351Y  Y     52     Y     52    Y
+     DFA0001    2724 2Y                                CF3-Retour  Entrée-ContiX
+     Dnuer
+     DMES       50243099                Y                                      X
+     D
+     SSORTIE    1800
+     DFL0001     1 1 3Y  Y          Y     Y            Cf
+     DFA0001     3 1 5Y                                C
+     DFL0002    89 1 9Y                                C                       X
+     D
+     DFL0003    46 219Y               Y                CL'inventaire des produiX
+     Dts choisis est terminé.
+     DFL0004   112 266Y                                C                       X
+     D                                                                         X
+     D
+     DFL0005    46 419Y               Y                CAppuyez sur une touche X
+     Dquelconque pour sortir.
+     DFL0006   126 466Y                                C                       X
+     D                                                                         X
+     D
+     DFL0007    21 633Y               Y       Y        C
+     DFA0001   102 655Y                                C                       X
+     D                                                                         X
+     D
+     DFA0001     1 778   Y         Y      Y
+     SCHOIX2      24    64 Y                                   C
+     DENR        1 2 3Y  Y          Y     Y            C1
+     DFA0001    50 317Y                       Y        C                       X
+     D
+     DFA0001     1 416Y                                C¦
+     DFL0001    23 428Y                     Y Y        C        INVENTAIRE
+     DFA0009     1 467Y                                C¦
+     DFA0002     1 516Y                                C¦
+     DFA0010     1 567Y                                C¦
+     DFA0003     1 616Y                                C¦
+     DFA0001    48 618Y                                CDes liste d'IP existentX
+     D
+     DFA0011     1 667Y                                C¦
+     DFA0004     1 716Y                                C¦
+     DFA0002    17 718Y                                C Faites un choix
+     DFA0003    28 738Y                                C(1 seule réponse possibX
+     Dle)
+     DFA0012     1 767Y                                C¦
+     DFA0005     1 816Y                                C¦
+     DFA0013     1 867Y                                C¦
+     DFA0006     1 916Y                                C¦
+     DZ1         1 918Y  Y          60Y   60    Y
+     DFA0029    39 921Y               Y
+     DFA0014     1 967Y                                C¦
+     DFA0007     11016Y                                C¦
+     DZ2         11018Y  Y          61Y   61    Y
+     DFA0030    391021Y
+     DFA0015     11067Y                                C¦
+     DFA0008     11116Y                                C¦
+     DZ3         11118Y  Y          62Y   62    Y
+     DFA0031    391121Y               Y
+     DFA0016     11167Y                                C¦
+     DFA0021     11216Y                                C¦
+     DZ4         11218Y  Y          63Y   63    Y
+     DFA0032    391221Y
+     DFA0022     11267Y                                C¦
+     DFA0001     11316Y                                C¦
+     DZ5         11318Y  Y          64Y   64    Y
+     DFA0033    391321Y               Y
+     DFA0005     11367Y                                C¦
+     DFA0002     11416Y                                C¦
+     DZ6         11418Y  Y          65Y   65    Y
+     DFA0034    391421Y
+     DFA0007     11467Y                                C¦
+     DFA0029     11516Y                                C¦
+     DZ7         11518Y  Y          66Y   66    Y
+     DFA0035    391521Y               Y
+     DFA0030     11567Y                                C¦
+     DFA0003     11616Y                                C¦
+     DZ8         11618Y  Y          67Y   67    Y
+     DFA0036    391621Y
+     DFA0010     11667Y                                C¦
+     DFA0031     11716Y                                C¦
+     DZ9         11718Y  Y          68Y   68    Y
+     DFA0037    391721Y               Y
+     DFA0032     11767Y                                C¦
+     DFA0033     11816Y                                C¦
+     DZ10        11818Y  Y          69Y   69    Y
+     DFA0038    391821Y
+     DFA0034     11867Y                                C¦
+     DFA0004     11916Y                                C¦
+     DFA0015     11967Y                                C¦
+     DFA0005     12016Y                                C¦
+     DZ11        12018Y  Y     50     Y     50  Y
+     DFA0017    422021Y               Y                C(P)asser outre et travaX
+     Diller manuellement.
+     DFA0017     12067Y                                C¦
+     DFA0004     12116Y                                C¦
+     DFA0005     12167Y                                C¦
+     DFA0002    502217Y                       Y        C                       X
+     D
+     DFA0001    502319Y               Y Y
+     DFA0001    7724 3Y                                C                       X
+     DF3-Abandon            Entrée-continuer
