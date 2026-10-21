@@ -2629,7 +2629,7 @@ never runs on SFGR source and SFGR tooling never runs on DDS.
 
 | ID | Sub-task and scope | Depends on | Status | Version |
 |----|--------------------|------------|--------|---------|
-| E11a | **Specification and decisions.** **Decision first.** Write `docs/sda-reference/SFGR-SPEC.md`: the column tables for the S, D and H specs and the `*DDS` and comment lines, each value with its meaning, valid range and the DDS keyword (or none) it corresponds to; the continuation rule; which SFGR features have no DDS-model equivalent; every claim checked against `stipfm.dspf36`. Proposal and Manojkumar's answer to record in this section: (1) one shared model with SFGR as a second reader/writer, versus a separate model; (2) how a `DSPF36` file is told apart from DDS (extension, member source type, content sniff); (3) whether `*DDS` lines are shown as opaque blocks or parsed as DDS; (4) whether a "convert to DDS" command is in scope. May land as `Done (no code change)`. | - | In progress | - |
+| E11a | **Specification and decisions.** **Decision first.** Write `docs/sda-reference/SFGR-SPEC.md`: the column tables for the S, D and H specs and the `*DDS` and comment lines, each value with its meaning, valid range and the DDS keyword (or none) it corresponds to; the continuation rule; which SFGR features have no DDS-model equivalent; every claim checked against `stipfm.dspf36`. Proposal and Manojkumar's answer to record in this section: (1) one shared model with SFGR as a second reader/writer, versus a separate model; (2) how a `DSPF36` file is told apart from DDS (extension, member source type, content sniff); (3) whether `*DDS` lines are shown as opaque blocks or parsed as DDS; (4) whether a "convert to DDS" command is in scope. May land as `Done (no code change)`. | - | Done (no code change) | - |
 | E11b | **Format detection and guards.** Language id and file association for `.dspf36` and `DSPF36` members; one `isSfgrSource(uri, text)` helper; DDS diagnostics, hover, completion, outline and quick-fix providers (E1) and the DDS designer path stop running on SFGR source (today they produce false errors on it). Settings stay as they are. | E11a | Open | - |
 | E11c | **Parser.** New pure module `src/sfgrParser.js`, no `vscode` import: source text in, formats out (S spec, D specs, H specs, comments, `*DDS` blocks), each carrying its original line text and line numbers, continuation lines joined, CRLF and LF kept as found. Reports unreadable lines instead of throwing. Tests read `stipfm.dspf36` and small hand-made fixtures. | E11a | Open | - |
 | E11d | **Writer.** New pure module `src/sfgrWriter.js`: edit operations (set a column value, add, delete and move a spec, split and join continuation lines) that touch only the lines they change; untouched lines stay byte-identical, including trailing text in columns 64 - 80 and sequence numbers. Round-trip test over the whole sample. | E11c | Open | - |
@@ -2643,7 +2643,7 @@ never runs on SFGR source and SFGR tooling never runs on DDS.
 | E11l | **Release** (next free minor); update `README.md` (features, file types), `LIMITATIONS-PLAN.md` (S36 entries that this epic closes), `CHANGELOG.md`. Results against the acceptance rule above. | E11a - E11k | Open | - |
 
 
-### E11a proposal
+### E11a results
 
 **Status.** The specification is written: [`SFGR-SPEC.md`](SFGR-SPEC.md) holds the S, D and H column tables, the
 continuation rule, the key mask tables, the data type mapping and the line and encoding rules, each checked against
@@ -2657,18 +2657,18 @@ continuation rule, the key mask tables, the data type mapping and the line and e
 - The sample has no H spec, comment or `*DDS` line; those three rest on the manual and need their own fixtures.
 - The manual's key mask table (2 = Page Down, 3 = Page Up) contradicts its own worked example on page B-8.
 
-**Decisions to confirm (Manojkumar).**
+**Decisions (all accepted as proposed by Manojkumar).**
 
 | # | Question | Proposal | Answer |
 |---|----------|----------|--------|
-| 1 | Model | One shared record and field model with SFGR as a second reader and writer; extend the model where SFGR has a concept DDS lacks | - |
-| 2 | Detection | Extension and member source type `DSPF36` first, content check (column 6 only `S` / `D` / `H` / `*`) as the fallback | - |
-| 3 | `*DDS` lines | Preserved in place and shown as a locked item; not parsed as DDS | - |
-| 4 | Key mask | Use the manual's table (2 = Page Down, 3 = Page Up) and note the contradiction | - |
-| 5 | DBCS and WSU-only entries | Read and kept as found; no designer support in E11 | - |
-| 6 | Convert to DDS | Out of scope for E11 | - |
+| 1 | Model | One shared record and field model with SFGR as a second reader and writer; extend the model where SFGR has a concept DDS lacks | Accepted as proposed (Manojkumar) |
+| 2 | Detection | Extension and member source type `DSPF36` first, content check (column 6 only `S` / `D` / `H` / `*`) as the fallback | Accepted as proposed (Manojkumar) |
+| 3 | `*DDS` lines | Preserved in place and shown as a locked item; not parsed as DDS | Accepted as proposed (Manojkumar) |
+| 4 | Key mask | Use the manual's table (2 = Page Down, 3 = Page Up) and note the contradiction | Accepted as proposed (Manojkumar) |
+| 5 | DBCS and WSU-only entries | Read and kept as found; no designer support in E11 | Accepted as proposed (Manojkumar) |
+| 6 | Convert to DDS | Out of scope for E11 | Accepted as proposed (Manojkumar) |
 
-E11a closes as `Done (no code change)` once these are answered.
+E11a is `Done (no code change)`: the specification and the decisions are recorded.
 
 ---
 
