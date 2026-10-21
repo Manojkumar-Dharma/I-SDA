@@ -47,7 +47,7 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-8 of 10 epics done (E1, E2, E3, E4, E7, E8, E9, E10); 71 sub-tasks done (E1a - E1j, E2a - E2i, E3a - E3l, E4a - E4g, E5a - E5c, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.17.2**.
+8 of 10 epics done (E1, E2, E3, E4, E7, E8, E9, E10); 72 sub-tasks done (E1a - E1j, E2a - E2i, E3a - E3l, E4a - E4g, E5a - E5d, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.17.3**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
@@ -1321,7 +1321,7 @@ to a folder with an index page; works from both designers and both UI styles.
 | E5a | **Scope and formats. Decision first.** Which formats ship, whether compare mode and the ruler/crosshair are included, background/theme (classic green-on-black vs the accent colours), font fallback stack, scale factors for PNG. | - | Done (no code change) | — |
 | E5b | **Serialiser.** Pure function: the engine's resolved grid to standalone SVG and HTML (inline CSS, no remote assets, font fallback stack); snapshot tests. | E5a | Done | v0.17.1 |
 | E5c | **PNG.** Rasterise the SVG in the webview via canvas, with a scale option; save from the extension host. | E5b | Done | v0.17.2 |
-| E5d | **Plain-text dump.** The grid as an 80x24 / 132x27 text block, with an optional attribute legend (underline, reverse image, colours as letters). | E5a | In progress | — |
+| E5d | **Plain-text dump.** The grid as an 80x24 / 132x27 text block, with an optional attribute legend (underline, reverse image, colours as letters). | E5a | Done | v0.17.3 |
 | E5e | **UI and command.** `iSDA: Export Screen Preview`, toolbar button, save dialog, copy to clipboard, default format setting; menu designer included. | E5b | Open | - |
 | E5f | **Batch export.** Every record and every `DSPSIZ` into a folder plus an `index.html`; progress notification; cancellable. | E5b, E5e | Open | - |
 | E5g | **Release** (next free minor). | E5a - E5f | Open | - |
@@ -1391,6 +1391,29 @@ to a folder with an index page; works from both designers and both UI styles.
 **Host half.** `parseMessage(msg)` checks the message (type, base64 shape, 32 MB cap, PNG signature and IHDR, width and height agree with the picture) and gives a safe file name (`NAME.png`, `NAME@2x.png`, `NAME@3x.png`; path characters replaced, Windows device names suffixed). `savePng({ showSaveDialog, writeFile }, msg, { defaultFolder })` asks where to save and writes the bytes; the two vscode calls are handed in by E5e, so it is tested without vscode. A cancelled dialog saves nothing.
 
 **Real-browser check (the E5b "not yet checked" item).** The module was loaded into headless Chromium and run on 20 real screens (`sample.dspf`, `testdsp.dds`, a 132 x 27 screen, five accent themes, with and without the ruler, 1x / 2x / 3x): every PNG has exactly SVG size x scale, a malformed SVG is rejected with a clear message, and the pictures were looked at. Findings: the pinned text (`textLength`) holds the grid in a real browser (30 `W` and 30 `i` both fill 30 cells; the last column of a 132-wide screen lands where it should); the accent follows the theme (green, amber) while an explicit COLOR keeps its own; HI is bold, RI is a filled block, UL and the input underline are lines; the ruler lines up with the cells. No serialiser change was needed. Not tried: the `classic` / `modern` UI styles (the serialiser takes the theme as an input and does not read the page), and PNG from inside a real VS Code webview (E5e).
+
+### E5d results
+
+**E5d (plain-text dump).** New `src/screenText.js` (UMD, no `vscode`, no DOM, no engine import; copied to `dist/` by `build:webview-assets`), tested by `src/test/e5dScreenText.test.js` (70 checks). Nothing calls it yet: E5e (command, toolbar, clipboard) and E5f (batch, which can write text from the host without a webview) do.
+
+**API.** `ScreenText.buildText(screen, { ruler?, legend?, pad?, ascii?, header?, title? })` returns the text (a string ending in a newline). `screen` is what `DspfEngine.resolveScreen` / `resolveMultiScreen` returns, the same object `ScreenExport.buildSvg` draws. A `screen` that is not an object is a `TypeError`; a size that is not a display size (over 512 columns or 256 lines) is a `RangeError`. Also exported: `colorLetter`, `ATTRIBUTE_BITS`, `COLOR_LETTERS`.
+
+**The block.** `lines` rows of `columns` cells (80 x 24, 132 x 27, ...), one character per cell. Every row is written, so the block is always `lines` tall; trailing blanks are cut unless `pad` is set. The ruler (`ruler`) is the designer's own numbering, as in the picture: a tens row, a ones row and a two-digit line number before every row.
+
+**It follows the picture.** Same paint order (a stack layer, else the default of the kind, then the order added), same clipping to the `DSPSIZ` grid, hidden fields left out, and blanks inside a field do not erase what is under them: only a stacked record's field (P14), a window and a pull-down clear their cells. Control characters in a field's text become blanks, so a dump can be pasted into a terminal; a character outside the BMP takes one cell.
+
+**Drawn.** Fields and constants, multi-line fields, windows (a box with the record name and title in the top edge, a dashed border while the position is set at runtime, or the eight `WDWBORDER *CHAR` characters), pull-down boxes and their fields, menu-bar separators, ERRMSG lines, the subfile preview (its fields, the More... line right-aligned in its span, the `+` mark, the scroll bar with its thumb).
+
+**Decisions.**
+- **Legend, off by default (`legend`).** What a character grid cannot show goes in two planes of the same size, below the block: the *display attributes* as one hex digit per cell (the sum of 1 = HI, 2 = RI, 4 = UL, 8 = BL; `.` is plain text, a blank is nothing) and the *colours* as one letter per cell (B, R, G, T, Y, P, W for BLU, RED, GRN, TRQ, YLW, PNK, WHT; `.` is the screen colour, `*` a colour that is not a DDS one). The input underline of an `I` / `B` field counts as UL, as it does in the picture. A plane with nothing in it is replaced by one line saying so. Under the planes: the cursor (a `DSPATR(PC)` field, a `CSRLOC` position) and each window with its place, size, title and flags.
+- **Blink is marked, not animated.** BL is digit 8 in the attribute plane (E5a: "the legend and the text dump mark it").
+- **Window flags are in the legend, not the title.** The picture's title chip also carries "position set at runtime" and "window shared with"; cut to a window's width they read badly, so the chip here is the record name and the title only and the legend names the rest. A window with `*CHAR` border characters has no room for a title chip; the legend names it.
+- **Borders are box-drawing characters; `ascii` gives `+ - |`** (and `^ v # :` for the scroll bar). Default is Unicode because the dump is saved as UTF-8 text; the setting for the default is E5e's.
+- **No cursor mark in the grid.** The block shows characters only; the cursor is in the legend.
+
+**Tests.** A the block (sizes, trim and pad, header, ruler, input checks); B fields (cell, clip, blanks, multi-line, hidden, control characters, stacking); C windows, pull-down, separator, ERRMSG, subfile; D the legend; E drift guard against the engine and E5b's picture, record by record under five indicator sets (30 screens, 2,722 cells): every character of the dump is where the picture has it, and on screens with no window, stacking or pull-down every character of the picture is in the dump; the ruler is the picture's ruler; the seven colour letters are the engine's `COLOR_HEX`. Checked by breaking the module four ways on a scratch copy (blanks erasing, hidden fields drawn, no input underline, a box that does not clear): each fails the test.
+
+**Not decided here:** the clipboard format and the default format setting (E5e); whether batch export writes the legend (E5f).
 
 ---
 
