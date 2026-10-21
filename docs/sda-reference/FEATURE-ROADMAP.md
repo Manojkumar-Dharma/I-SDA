@@ -2612,17 +2612,13 @@ SFGR messages) and the sample `stipfm.dspf36` (549 lines, French, CRLF, uses the
 PDFs with `pdftotext -layout` as for the DDS reference; the page layout is two-column, so column ranges are checked
 against the sample, not taken from the text alone.
 
-**What the source looks like (from Appendix B and the sample).** Fixed columns, 80 wide. Columns 1 - 5 sequence
-number (ignored), column 6 specification type: `S` display control (format name in 7 - 14, start line 17 - 18, lines to
-clear 19 - 20, return input, sound alarm 25 - 26, enable function and command keys 27 - 28, blink cursor 29 - 30, erase
-input 31 - 32, override 33 - 34, suppress input 35 - 36, null fill 37 - 38, 132-column 39, right-to-left 40, key mask
-64 - 79), `D` field definition (field name 7 - 14, row and column, length, output data 23 - 24, input allowed 26, data
-type 27, mandatory fill and entry 28 - 29, self-check 30, adjust/fill 31, position cursor 32 - 33, dup key 34,
-controlled field exit 35, protect 37 - 38, high intensity 39 - 40, blink 41 - 42, nondisplay 43 - 44, reverse image
-45 - 46, underline 47 - 48, column separators 49, lowercase 51, constant type 56, constant text from 57, continuation
-column 80), `H` help definition, `*` comment lines, and `*DDS` pass-through lines that hold raw DDS. The same display
-format can be stacked with others on one screen through start line and lines to clear. The exact tables are E11a's
-deliverable; the list above is the starting point and may be corrected there.
+**What the source looks like.** Fixed columns, 80 wide, lines right-trimmed. Column 6 is the specification type: `S`
+display control (format name 7 - 14, start line 17 - 18, lines to clear 19 - 20, alarm 25 - 26, enable function and
+command keys 27 - 28, 132-column 39, key mask 64 - 79), `D` field definition (name 7 - 14, length 15 - 18, line 19 - 20,
+column 21 - 22, output data 23 - 24, input allowed 26, data type 27, attributes 37 - 49, constant type 56, constant
+text 57 - 79, continuation `X` in 80), `H` help area, `*` comment lines and `*DDS` pass-through lines. Several formats
+stack on one screen through start line and lines to clear. The full column tables, checked against the sample, are in
+[`SFGR-SPEC.md`](SFGR-SPEC.md) (E11a).
 
 **Acceptance for the release.** `stipfm.dspf36` opens in the designer and every format draws with its constants and
 fields in the right place, with the field attributes the source gives; every field, constant and format can be added,
@@ -2645,6 +2641,34 @@ never runs on SFGR source and SFGR tooling never runs on DDS.
 | E11j | **Editor language support.** SFGR rule checks as diagnostics (column values out of range, duplicate format names, field outside the screen, overlapping fields, key mask without the matching enable column, unmatched continuation), hover on a column (what it is and the allowed values), outline of formats and fields, quick-fix for the most common violations; same settings pattern as E1. | E11b, E11c | Open | - |
 | E11k | **Compile messages.** Parse the `CRTS36DSPF` result (the `$SFGR` listing and the SYX messages of Appendix D of the Reference) and put the messages on the source lines, through the E2 diagnostics hub under source `CRTS36DSPF`. **Needs a real failing `CRTS36DSPF` listing as a fixture** (open question 3); until it arrives the parser can only be written against stand-in text, marked as such. | E11c, E2 | Open | - |
 | E11l | **Release** (next free minor); update `README.md` (features, file types), `LIMITATIONS-PLAN.md` (S36 entries that this epic closes), `CHANGELOG.md`. Results against the acceptance rule above. | E11a - E11k | Open | - |
+
+
+### E11a proposal
+
+**Status.** The specification is written: [`SFGR-SPEC.md`](SFGR-SPEC.md) holds the S, D and H column tables, the
+continuation rule, the key mask tables, the data type mapping and the line and encoding rules, each checked against
+`stipfm.dspf36` or marked as manual-only. Findings that change the plan:
+
+- 46 of the sample's 542 D lines are continuation lines (text from column 7), which is why the DDS parser invents
+  fields on this file; the parser (E11c) has to join them before reading columns.
+- Lines are right-trimmed, so the writer (E11d) must treat missing columns as blanks and never pad a line it did not
+  change.
+- The manuals give no SFGR-to-DDS keyword table, so the mapping to the designer's model is defined in E11e.
+- The sample has no H spec, comment or `*DDS` line; those three rest on the manual and need their own fixtures.
+- The manual's key mask table (2 = Page Down, 3 = Page Up) contradicts its own worked example on page B-8.
+
+**Decisions to confirm (Manojkumar).**
+
+| # | Question | Proposal | Answer |
+|---|----------|----------|--------|
+| 1 | Model | One shared record and field model with SFGR as a second reader and writer; extend the model where SFGR has a concept DDS lacks | - |
+| 2 | Detection | Extension and member source type `DSPF36` first, content check (column 6 only `S` / `D` / `H` / `*`) as the fallback | - |
+| 3 | `*DDS` lines | Preserved in place and shown as a locked item; not parsed as DDS | - |
+| 4 | Key mask | Use the manual's table (2 = Page Down, 3 = Page Up) and note the contradiction | - |
+| 5 | DBCS and WSU-only entries | Read and kept as found; no designer support in E11 | - |
+| 6 | Convert to DDS | Out of scope for E11 | - |
+
+E11a closes as `Done (no code change)` once these are answered.
 
 ---
 
