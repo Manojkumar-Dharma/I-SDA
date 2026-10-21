@@ -1323,7 +1323,7 @@ to a folder with an index page; works from both designers and both UI styles.
 | E5c | **PNG.** Rasterise the SVG in the webview via canvas, with a scale option; save from the extension host. | E5b | Done | v0.17.2 |
 | E5d | **Plain-text dump.** The grid as an 80x24 / 132x27 text block, with an optional attribute legend (underline, reverse image, colours as letters). | E5a | Done | v0.17.3 |
 | E5e | **UI and command.** `iSDA: Export Screen Preview`, toolbar button, save dialog, copy to clipboard, default format setting; menu designer included. | E5b | Done | v0.17.4 |
-| E5f | **Batch export.** Every record and every `DSPSIZ` into a folder plus an `index.html`; progress notification; cancellable. | E5b, E5e | Open | - |
+| E5f | **Batch export.** Every record and every `DSPSIZ` into a folder plus an `index.html`; progress notification; cancellable. | E5b, E5e | In progress | - |
 | E5g | **Release** (next free minor). | E5a - E5f | Open | - |
 
 ### E5a results
