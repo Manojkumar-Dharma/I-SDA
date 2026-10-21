@@ -83,6 +83,7 @@ class Uri {
 
 let lastAppliedEdit = null;
 let lastWrittenFile = null;
+const mockDirs = new Set(); // uri.toString() of every directory made by workspace.fs.createDirectory (E5f)
 const mockFiles = {}; // uri.toString() -> text content, for workspace.fs.readFile in tests
 const mockConfig = {}; // 'section.key' -> value, for workspace.getConfiguration(...).get(...) in tests
 const changeListeners = []; // every registered workspace.onDidChangeTextDocument handler
@@ -181,6 +182,12 @@ const vscodeMock = {
     },
     showInformationMessage: (msg) => { vscodeMock.__lastInformation = msg; return Promise.resolve(undefined); },
     // E5e: the save dialog of the screen preview export; a test sets __setSaveDialogResponse (a Uri, undefined = cancelled, or a function of the options).
+    // E5f: the folder picker of the batch export; a test sets __setOpenDialogResponse (an array of Uris, undefined = cancelled).
+    showOpenDialog: (options) => {
+      vscodeMock.__lastOpenDialog = options;
+      const resp = vscodeMock.__openDialogResponse;
+      return Promise.resolve(typeof resp === 'function' ? resp(options) : resp);
+    },
     showSaveDialog: (options) => {
       vscodeMock.__lastSaveDialog = options;
       const resp = vscodeMock.__saveDialogResponse;
@@ -311,7 +318,9 @@ const vscodeMock = {
       },
     }),
     fs: {
-      stat: () => Promise.reject(new Error('not found')),
+      // E5f: a directory made by createDirectory exists afterwards; anything else is not found, as before.
+      stat: (uri) => (mockDirs.has(uri.toString()) ? Promise.resolve({ type: 2 }) : Promise.reject(new Error('not found'))),
+      createDirectory: (uri) => { mockDirs.add(uri.toString()); return Promise.resolve(); },
       writeFile: (uri, bytes) => {
         lastWrittenFile = { uri, text: Buffer.isBuffer(bytes) ? bytes.toString('utf8') : Buffer.from(bytes).toString('utf8') };
         mockFiles[uri.toString()] = lastWrittenFile.text;
@@ -385,6 +394,9 @@ const vscodeMock = {
   __setMockExtension: (id, ext) => { mockExtensions[id] = ext; },
   __removeMockExtension: (id) => { delete mockExtensions[id]; },
   __setWarningResponse: (respOrFn) => { vscodeMock.__mockWarningResponse = respOrFn; },
+  __setOpenDialogResponse: (respOrFn) => { vscodeMock.__openDialogResponse = respOrFn; },
+  __markDirectory: (uri) => { mockDirs.add(uri.toString()); },
+  __clearMockDirs: () => { mockDirs.clear(); },
   __setSaveDialogResponse: (respOrFn) => { vscodeMock.__saveDialogResponse = respOrFn; },
   get __lastInformationMessage() { return vscodeMock.__lastInformation; },
   // Fires every currently-registered onDidChangeTextDocument listener with the

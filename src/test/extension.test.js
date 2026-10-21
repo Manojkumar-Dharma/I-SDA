@@ -28,7 +28,7 @@ async function run() {
   console.log('activate()');
   const context = vscodeMock.__mockExtensionContext();
   ext.activate(context);
-  check('registers all commands', Object.keys(vscodeMock.__registeredCommands).length === 7);
+  check('registers all commands', Object.keys(vscodeMock.__registeredCommands).length === 8);
   check('registers openPreview command', typeof vscodeMock.__registeredCommands['dspfDesigner.openPreview'] === 'function');
   check('registers openMenuPreview command', typeof vscodeMock.__registeredCommands['dspfDesigner.openMenuPreview'] === 'function');
   check('registers createNewDspf command', typeof vscodeMock.__registeredCommands['dspfDesigner.createNewDspf'] === 'function');

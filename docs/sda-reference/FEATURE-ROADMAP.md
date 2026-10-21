@@ -47,7 +47,7 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-8 of 10 epics done (E1, E2, E3, E4, E7, E8, E9, E10); 73 sub-tasks done (E1a - E1j, E2a - E2i, E3a - E3l, E4a - E4g, E5a - E5e, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.17.4**.
+8 of 10 epics done (E1, E2, E3, E4, E7, E8, E9, E10); 74 sub-tasks done (E1a - E1j, E2a - E2i, E3a - E3l, E4a - E4g, E5a - E5f, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.17.5**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
@@ -1323,7 +1323,7 @@ to a folder with an index page; works from both designers and both UI styles.
 | E5c | **PNG.** Rasterise the SVG in the webview via canvas, with a scale option; save from the extension host. | E5b | Done | v0.17.2 |
 | E5d | **Plain-text dump.** The grid as an 80x24 / 132x27 text block, with an optional attribute legend (underline, reverse image, colours as letters). | E5a | Done | v0.17.3 |
 | E5e | **UI and command.** `iSDA: Export Screen Preview`, toolbar button, save dialog, copy to clipboard, default format setting; menu designer included. | E5b | Done | v0.17.4 |
-| E5f | **Batch export.** Every record and every `DSPSIZ` into a folder plus an `index.html`; progress notification; cancellable. | E5b, E5e | In progress | - |
+| E5f | **Batch export.** Every record and every `DSPSIZ` into a folder plus an `index.html`; progress notification; cancellable. | E5b, E5e | Done | v0.17.5 |
 | E5g | **Release** (next free minor). | E5a - E5f | Open | - |
 
 ### E5a results
@@ -1435,6 +1435,26 @@ to a folder with an index page; works from both designers and both UI styles.
 **Tests.** A settings and file names; B building every format from real screens (indicator state, ruler, text style, theme, a hostile theme value, PNG through a fake canvas, errors); C the controller (default save, the list, PNG copy and its fallbacks, the busy guard, the host's request); D the host half (message checks, text and PNG saves, copy, cancel, failed write); E the screen designer page in jsdom (both control copies, indicators, record switch, page theme); F the menu designer page; G the extension host on the vscode mock (settings, save, copy, cancel, the command with one, two and no designer, dispose); H `package.json` against the module. Checked by breaking the module three ways (theme not read, a cancelled dialog still writing, the member name not added): each fails the test.
 
 **Not yet checked.** Nothing was tried in a real VS Code window: the save dialog, the clipboard image copy from inside a real webview (whose permission rules differ from a browser's, so the fallback to a save may be what users see), and how the two control copies look in the `classic` and `modern` styles. jsdom has no canvas, so a PNG is tested through a fake one; E5c's headless-Chromium check covers the real rasterising. Batch export (E5f) and the release (E5g) are open.
+
+### E5f results
+
+**E5f (batch export).** New `src/screenBatch.js` (UMD, no `vscode`, no DOM; copied to `dist/` by `build:webview-assets`), the command **iSDA: Export All Screen Previews** (`dspfDesigner.exportAllScreenPreviews`) and `src/test/e5fBatchExport.test.js` (80 checks). Four decisions were put to Manojkumar and answered; the first is the E5a open question and the last is E5d's.
+
+**Decisions.**
+- **Formats: SVG, HTML and plain text.** All three are built on the extension host with no webview. PNG is left out (it needs a canvas, so it would need an open designer for every screen).
+- **Indicators: all off.** Deterministic and independent of the designer. A record whose own record-level condition needs an indicator (`A  10  R REC`) is drawn with that indicator on, and the index says "Drawn with indicator 10 on"; a record that is not shown at a size (a `*DS3` / `*DS4` condition) is listed as skipped for that size with its reason and gets no files. Saved scenarios (E3c) are not exported.
+- **Entry point: the command only.** It acts on the designer in front (the same rule as Export Screen Preview) and uses that designer's current text, saved or not. No button was added.
+- **Layout: one file per format, grouped by record.** `RECORD-LINESxCOLUMNS.svg` / `.html` / `.txt` for every record and every size, in a folder `MEMBER-screens`, plus `index.html`. The text dump has no legend (E5d's default, no setting).
+
+**How it works.**
+- **Plan, then write.** `prepare(model, { engine, memberName, themeName, ruler, textStyle })` resolves every record at every size and returns the entries without building any file; `run(plan, { createDirectory, writeFile }, { isCancelled, onProgress })` renders and writes one screen at a time (three files), then the index. Names are made safe for Windows, macOS and Linux and never collide, compared without case (`abc` and `ABC`; a record called `index` cannot replace `index.html`). More than 5,000 screens is refused before anything is built.
+- **The files are the serialisers' own output** (E5b picture and page, E5d dump with its header), with the UI theme's accent (green, amber, cyan, violet or white, read from the stored UI theme) and the `isda.export.ruler` and `isda.export.textStyle` settings. A test compares each file with a direct call of the serialiser on the same screen.
+- **The index** shows every record with its kind (record, window, pull-down, subfile, subfile control, user-defined), a picture per size linked to its HTML page, links to the three files, the indicators a record was drawn with, a note for a record with no fields, and the skipped screens with their reason. It carries no script and no remote file, and a name is escaped wherever it appears. A file that was not written is not linked.
+- **The command.** A folder picker (opening in the member's folder, or the workspace folder for an IBM i member) chooses where `MEMBER-screens` goes; an existing folder asks first, modally, and only files with the same names are replaced. A progress notification shows the file being written and can be cancelled: the batch stops between screens, makes no index and says how many files were written. A file that cannot be written is recorded and the rest go on; the end message names the first failure. A successful run says how many screens were exported and how many were not shown at their size, with a Reveal folder button.
+
+**Tests.** A planning (sizes, names, collisions, the folder name, input checks, the cap, themes); B records (indicator fallback, size conditions, empty, kinds); C the files against the serialisers; D the index (links, skipped screens, escaping, partial writes); E running (order, progress, cancel, failed write, failed render, sync and async file calls); F the command on the vscode mock (no designer, cancelled picker, a full run, theme and ruler, an existing folder, the editor's own text, cancel, a failed write, an IBM i member); G `package.json` and the module. Checked by breaking the module three ways (no indicator fallback, cancel never checked, names allowed to collide): each fails the test.
+
+**Not yet checked.** Nothing was tried in a real VS Code window (the folder picker, the cancellable notification, Reveal folder), and the index was not opened in a browser. The designer's own state is not available to the host, so stored run-time values, message texts (E4c) and resolved `REFFLD` fields are drawn as the designer draws them before they are known. A pull-down record is exported as its own screen (its choices), not on top of its menu bar. The release is E5g.
 
 ---
 

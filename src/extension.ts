@@ -29,6 +29,8 @@ const MnuCmdEngine: {
 // "resolve this field" and receives the refreshed document back via the normal
 // onDidChangeTextDocument -> 'externalUpdate' plumbing already in place below).
 const DspfEngine: {
+  resolveScreen(...args: any[]): any;
+  availableScreenSizes(dspfFile: any): Array<{ name: string | null; lines: number; columns: number }>;
   resolveReferenceTarget(dspfFile: any, record: any, field: any): { fieldName: string; library: string | null; file: string } | null;
   referenceKey(target: { fieldName: string; library: string | null; file: string }): string | null;
   inheritableKeywordsFromDspffdRow(row: any): Array<{ name: string; parameters: string }>;
@@ -99,6 +101,21 @@ const ScreenExportUi: {
     opts?: { defaultFolder?: string }
   ): Promise<{ done: 'saved' | 'copied' | 'cancelled'; target?: vscode.Uri; fileName?: string; format?: string; notice?: string }>;
 } = require('./screenExportUi.js');
+// Batch export of the screen previews (E5f): every record and every DSPSIZ as SVG, HTML and text, plus an index page. Pure JS
+// that takes the parsed display file and the two file calls; no webview is needed.
+const ScreenBatch: {
+  INDEX_NAME: string;
+  prepare(model: any, opts: { engine: any; memberName: string; themeName: string; ruler: boolean; textStyle: string }): {
+    folder: string;
+    total: number;
+    entries: Array<{ status: string }>;
+  };
+  run(
+    plan: any,
+    api: { createDirectory(folder: string): Thenable<void> | void; writeFile(folder: string, name: string, text: string): Thenable<void> | void },
+    hooks: { isCancelled(): boolean; onProgress(done: number, total: number, label: string): void }
+  ): Promise<{ folder: string; written: string[]; failed: Array<{ name: string; error: string }>; cancelled: boolean; skipped: number; indexWritten: boolean }>;
+} = require('./screenBatch.js');
 // Editor-side diagnostics (E1b): the one DiagnosticCollection every iSDA diagnostic goes through. Pure JS that takes
 // the vscode API as an argument, so it has fake-API tests; ddsDiagnostics.js (E1a) does the analysing.
 const DiagnosticsHub: {
@@ -348,6 +365,85 @@ async function handleExportScreen(document: vscode.TextDocument, msg: any): Prom
   }
 }
 
+/** The designer the export commands act on: the active one, else the only visible one, else none. */
+function findExportDesigner(): { panel: vscode.WebviewPanel; document: vscode.TextDocument } | undefined {
+  const open = Array.from(exportDesigners);
+  return open.find((d) => d.panel.active) || (open.filter((d) => d.panel.visible).length === 1 ? open.find((d) => d.panel.visible) : undefined);
+}
+
+/** Task E5f - every record and every DSPSIZ of the designer's file, into MEMBER-screens in a folder the user picks. */
+async function exportAllScreenPreviews(context: vscode.ExtensionContext): Promise<void> {
+  const target = findExportDesigner();
+  if (!target) {
+    vscode.window.showWarningMessage('iSDA: Open a display file or a menu in the iSDA designer first, then export its screen previews.');
+    return;
+  }
+  const document = target.document;
+  const memberName = document.uri.path.split('/').pop() || document.fileName.split(/[\\/]/).pop() || 'display-file';
+  try {
+    const settings = getExportSettings();
+    const plan = ScreenBatch.prepare(parseDspf(document.getText()), { engine: DspfEngine, memberName, themeName: getUiTheme(context), ruler: settings.ruler, textStyle: settings.textStyle });
+    if (plan.entries.length === 0) {
+      vscode.window.showWarningMessage('iSDA: There is no record format in this file to export.');
+      return;
+    }
+    const localFolder = document.uri.scheme === 'file' ? document.uri.fsPath.replace(/[\\/][^\\/]*$/, '') : vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    const picked = await vscode.window.showOpenDialog({
+      canSelectFiles: false,
+      canSelectFolders: true,
+      canSelectMany: false,
+      defaultUri: localFolder ? vscode.Uri.file(localFolder) : undefined,
+      openLabel: 'Export screens here',
+      title: 'iSDA: Export all screen previews of ' + memberName + ' into a folder named ' + plan.folder,
+    });
+    if (!picked || picked.length === 0) return;
+    const dirUri = vscode.Uri.joinPath(picked[0], plan.folder);
+    let exists = false;
+    try { await vscode.workspace.fs.stat(dirUri); exists = true; } catch { exists = false; }
+    if (exists) {
+      const answer = await vscode.window.showWarningMessage(
+        'iSDA: The folder ' + plan.folder + ' already exists there. Files with the same names are replaced; other files are left alone.',
+        { modal: true },
+        'Replace'
+      );
+      if (answer !== 'Replace') return;
+    }
+    const result = await vscode.window.withProgress(
+      { location: vscode.ProgressLocation.Notification, title: 'iSDA: Exporting screen previews of ' + memberName, cancellable: true },
+      (progress, token) => {
+        let last = 0;
+        return ScreenBatch.run(
+          plan,
+          {
+            createDirectory: () => vscode.workspace.fs.createDirectory(dirUri),
+            writeFile: (_folder, name, text) => vscode.workspace.fs.writeFile(vscode.Uri.joinPath(dirUri, name), Buffer.from(text, 'utf8')),
+          },
+          {
+            isCancelled: () => !!token?.isCancellationRequested,
+            onProgress: (done, total, label) => {
+              const pct = Math.floor((done / total) * 100);
+              progress.report({ increment: Math.max(0, pct - last), message: label + ' (' + done + ' of ' + total + ')' });
+              last = Math.max(last, pct);
+            },
+          }
+        );
+      }
+    );
+    if (result.cancelled) {
+      vscode.window.showWarningMessage('iSDA: Export cancelled. ' + result.written.length + ' file' + (result.written.length === 1 ? ' was' : 's were') + ' written to ' + plan.folder + '; no index page was made.');
+    } else if (result.failed.length > 0) {
+      vscode.window.showErrorMessage('iSDA: ' + result.failed.length + ' file' + (result.failed.length === 1 ? '' : 's') + ' could not be written to ' + plan.folder + ' (first: ' + result.failed[0].name + ': ' + result.failed[0].error + ').');
+    } else {
+      const shots = (result.written.length - (result.indexWritten ? 1 : 0)) / 3;
+      const skipped = result.skipped > 0 ? ' ' + result.skipped + ' not shown at their size, listed in the index.' : '';
+      const choice = await vscode.window.showInformationMessage('iSDA: Exported ' + shots + ' screen' + (shots === 1 ? '' : 's') + ' to ' + plan.folder + '.' + skipped, 'Reveal folder');
+      if (choice === 'Reveal folder') void vscode.commands.executeCommand('revealFileInOS', dirUri);
+    }
+  } catch (err) {
+    vscode.window.showErrorMessage('iSDA: Could not export the screen previews: ' + (err instanceof Error ? err.message : String(err)));
+  }
+}
+
 export function activate(context: vscode.ExtensionContext): void {
   const provider = new DspfDesignerEditorProvider(context);
   context.subscriptions.push(
@@ -429,8 +525,7 @@ export function activate(context: vscode.ExtensionContext): void {
   // (isda.export.defaultFormat). The designer builds the file; handleExportScreen asks where it goes.
   context.subscriptions.push(
     vscode.commands.registerCommand('dspfDesigner.exportScreenPreview', () => {
-      const open = Array.from(exportDesigners);
-      const target = open.find((d) => d.panel.active) || (open.filter((d) => d.panel.visible).length === 1 ? open.find((d) => d.panel.visible) : undefined);
+      const target = findExportDesigner();
       if (!target) {
         vscode.window.showWarningMessage('iSDA: Open a display file or a menu in the iSDA designer first, then export its screen preview.');
         return;
@@ -438,6 +533,9 @@ export function activate(context: vscode.ExtensionContext): void {
       void target.panel.webview.postMessage({ type: ScreenExportUi.REQUEST_TYPE });
     })
   );
+
+  // Task E5f - the whole file at once (the designer in front, as for Export Screen Preview).
+  context.subscriptions.push(vscode.commands.registerCommand('dspfDesigner.exportAllScreenPreviews', () => exportAllScreenPreviews(context)));
 
   context.subscriptions.push(vscode.commands.registerCommand('dspfDesigner.createNewDspf', (targetUri?: vscode.Uri) => createNewDspf(targetUri)));
 
