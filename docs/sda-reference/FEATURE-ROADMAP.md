@@ -47,7 +47,7 @@ never in columns 1-80 or the tag area.
 
 ## Status at a glance
 
-8 of 10 epics done (E1, E2, E3, E4, E7, E8, E9, E10); 72 sub-tasks done (E1a - E1j, E2a - E2i, E3a - E3l, E4a - E4g, E5a - E5d, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.17.3**.
+8 of 10 epics done (E1, E2, E3, E4, E7, E8, E9, E10); 73 sub-tasks done (E1a - E1j, E2a - E2i, E3a - E3l, E4a - E4g, E5a - E5e, E7a - E7m, E8a - E8g, E9a - E9e, E10a - E10f). Current version: **v0.17.4**.
 
 | ID | Epic | Sub-tasks | Depends on | Status | Version |
 |----|------|-----------|------------|--------|---------|
@@ -1322,7 +1322,7 @@ to a folder with an index page; works from both designers and both UI styles.
 | E5b | **Serialiser.** Pure function: the engine's resolved grid to standalone SVG and HTML (inline CSS, no remote assets, font fallback stack); snapshot tests. | E5a | Done | v0.17.1 |
 | E5c | **PNG.** Rasterise the SVG in the webview via canvas, with a scale option; save from the extension host. | E5b | Done | v0.17.2 |
 | E5d | **Plain-text dump.** The grid as an 80x24 / 132x27 text block, with an optional attribute legend (underline, reverse image, colours as letters). | E5a | Done | v0.17.3 |
-| E5e | **UI and command.** `iSDA: Export Screen Preview`, toolbar button, save dialog, copy to clipboard, default format setting; menu designer included. | E5b | In progress | - |
+| E5e | **UI and command.** `iSDA: Export Screen Preview`, toolbar button, save dialog, copy to clipboard, default format setting; menu designer included. | E5b | Done | v0.17.4 |
 | E5f | **Batch export.** Every record and every `DSPSIZ` into a folder plus an `index.html`; progress notification; cancellable. | E5b, E5e | Open | - |
 | E5g | **Release** (next free minor). | E5a - E5f | Open | - |
 
@@ -1414,6 +1414,27 @@ to a folder with an index page; works from both designers and both UI styles.
 **Tests.** A the block (sizes, trim and pad, header, ruler, input checks); B fields (cell, clip, blanks, multi-line, hidden, control characters, stacking); C windows, pull-down, separator, ERRMSG, subfile; D the legend; E drift guard against the engine and E5b's picture, record by record under five indicator sets (30 screens, 2,722 cells): every character of the dump is where the picture has it, and on screens with no window, stacking or pull-down every character of the picture is in the dump; the ruler is the picture's ruler; the seven colour letters are the engine's `COLOR_HEX`. Checked by breaking the module four ways on a scratch copy (blanks erasing, hidden fields drawn, no input underline, a box that does not clear): each fails the test.
 
 **Not decided here:** the clipboard format and the default format setting (E5e); whether batch export writes the legend (E5f).
+
+### E5e results
+
+**E5e (UI and command).** New `src/screenExportUi.js` (UMD, no `vscode`, no DOM of its own; copied to `dist/` by `build:webview-assets` after the three modules it needs and loaded into both designer pages after them), tested by `src/test/e5eExportUi.test.js` (108 checks). Four decisions were put to Manojkumar and answered (the first three are the "not decided here" items of E5a and E5d).
+
+**Decisions.**
+- **The button saves in the default format; a list beside it picks another.** One click on **Export screen** saves in `isda.export.defaultFormat`; the list offers *Save as* PNG, SVG, HTML and plain text, and *Copy* as image (PNG), SVG, HTML and text.
+- **Copy: PNG as an image, the rest as text.** The image copy is the page's own (`navigator.clipboard.write` with a `ClipboardItem`; the host has no image clipboard). A page that refuses it, or has no clipboard, falls back to a save and the host says so. SVG, HTML and text are copied by the host as text.
+- **Four settings:** `isda.export.defaultFormat` (`png` | `svg` | `html` | `text`, default `png`), `isda.export.pngScale` (1 | 2 | 3, default 2), `isda.export.ruler` (default off), `isda.export.textStyle` (`unicode` | `ascii`, default `unicode`). Each is checked on both ends; a value that is not one of the choices falls back to its default. The legend of the text dump has no setting (off).
+- **The command exports the active designer's current record, in the default format.** Command title **iSDA: Export Screen Preview** (`dspfDesigner.exportScreenPreview`). The designer in front is the one asked; with none active, a single visible designer is used; with none open (or two visible and none active) a warning says to open a display file or a menu in the designer first. No quick pick of formats: the list beside the button does that.
+
+**How it works.**
+- **The page builds the file, the host saves it.** Each designer keeps the screen it last drew (the DSPF designer's `lastScreen`; the menu designer's now too) and `createController` builds SVG, HTML or text from it, or PNG through E5c's canvas. The theme colours (accent, dim ink, warning) come from the page's computed style at export time; a value that is not a colour is dropped by the serialiser. A screen with an error, or none, is an error message and not an export. A second click while a PNG is being drawn is ignored.
+- **The export is what the preview shows now:** the record selected, under the indicators switched on in the simulator panel and the stored values (E3), with the ruler only when the setting says so. Compare-mode backdrops and overlays follow the preview (a full overlay exports the overlay); the crosshair, selection and badges are never part of it (E5a).
+- **Both UI styles, both designers.** The screen designer has two genuine copies of the controls (the side panel for the classic UI, the pinned toolbar for the modern one, which the classic UI never shows); the menu designer has one (it has no separate toolbar).
+- **Where it is saved.** The dialog opens in the member's own folder for a local file and in the first workspace folder for an IBM i member, with the name `MEMBER-RECORD` plus the format's extension (`CUSTMNT-HDRREC.svg`, `CUSTMNT-HDRREC@2x.png`, `.html`, `.txt`), made safe for Windows, macOS and Linux. A cancelled dialog writes nothing; a failed write is an error message. A save or copy ends with an information message.
+- **The settings reach the page** on `ready` and again when `isda.export.*` changes, in both designers; a closed designer is forgotten (no stale command target, no listener left).
+
+**Tests.** A settings and file names; B building every format from real screens (indicator state, ruler, text style, theme, a hostile theme value, PNG through a fake canvas, errors); C the controller (default save, the list, PNG copy and its fallbacks, the busy guard, the host's request); D the host half (message checks, text and PNG saves, copy, cancel, failed write); E the screen designer page in jsdom (both control copies, indicators, record switch, page theme); F the menu designer page; G the extension host on the vscode mock (settings, save, copy, cancel, the command with one, two and no designer, dispose); H `package.json` against the module. Checked by breaking the module three ways (theme not read, a cancelled dialog still writing, the member name not added): each fails the test.
+
+**Not yet checked.** Nothing was tried in a real VS Code window: the save dialog, the clipboard image copy from inside a real webview (whose permission rules differ from a browser's, so the fallback to a save may be what users see), and how the two control copies look in the `classic` and `modern` styles. jsdom has no canvas, so a PNG is tested through a fake one; E5c's headless-Chromium check covers the real rasterising. Batch export (E5f) and the release (E5g) are open.
 
 ---
 

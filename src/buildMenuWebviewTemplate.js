@@ -9,6 +9,12 @@ const writerJs = fs.readFileSync(path.join(__dirname, 'dspfWriter.js'), 'utf8');
 const mnuCmdEngineJs = fs.readFileSync(path.join(__dirname, 'mnuCmdEngine.js'), 'utf8');
 // IndicatorSim (E3, used here by E3g) reads DspfEngine, so it loads right after it.
 const indicatorSimJs = fs.readFileSync(path.join(__dirname, 'indicatorSim.js'), 'utf8');
+// E5e: the screen preview export, same load order as buildWebviewTemplate.js.
+const screenExportJs = fs.readFileSync(path.join(__dirname, 'screenExport.js'), 'utf8');
+const screenPngJs = fs.readFileSync(path.join(__dirname, 'screenPng.js'), 'utf8');
+const screenTextJs = fs.readFileSync(path.join(__dirname, 'screenText.js'), 'utf8');
+const screenExportUiJs = fs.readFileSync(path.join(__dirname, 'screenExportUi.js'), 'utf8');
+const ScreenExportUiNode = require('./screenExportUi.js');
 const clientHelpersJs = fs.readFileSync(path.join(__dirname, 'webviewClientHelpers.js'), 'utf8');
 const parserBundleJs = fs.readFileSync(path.join(__dirname, '../dist/dspfParser.browser.js'), 'utf8');
 
@@ -231,6 +237,9 @@ const htmlTemplate = `<!DOCTYPE html>
   .add-option-btn:disabled { opacity: 0.5; cursor: default; }
   .add-option-error { color: var(--warn); font-size: 11px; margin-top: 6px; min-height: 1.3em; }
   .compile-btn { width: 100%; background: #142018; color: var(--chrome-accent); border: 1px solid var(--chrome-accent); border-radius: 4px; padding: 9px 8px; font-family: var(--mono); font-size: 12px; cursor: pointer; }
+  .export-group { display: flex; gap: 6px; margin: 0 0 10px; }
+  .export-group .export-btn { flex: 1 1 auto; }
+  .export-group .export-more { flex: 0 0 96px; min-width: 0; }
   .save-btn { background: #142018; color: var(--chrome-accent); border: 1px solid var(--chrome-accent); border-radius: 4px; padding: 9px 8px; font-family: var(--mono); font-size: 12px; cursor: pointer; font-weight: 600; }
   .save-btn-dirty { background: #2a2410; color: var(--warn); border-color: var(--warn); animation: isda-save-pulse 1.8s ease-in-out infinite; }
   @keyframes isda-save-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
@@ -365,6 +374,7 @@ const htmlTemplate = `<!DOCTYPE html>
   <h2>Menu Design</h2>
   <div class="codefori-badge unknown" id="codeForIBadge" title="Whether the Code for IBM i extension is installed and connected. Compile Menu (CRTMNU) needs a live connection.">IBM i: checking…</div>
   <button id="saveDocBtn" class="save-btn" style="width:100%;margin-bottom:10px;" title="Save this file to disk (Ctrl+S/Cmd+S works too - this button exists because a webview panel doesn't show VS Code's own dirty-tab dot)">&#128190; Save</button>
+  ${ScreenExportUiNode.controlsHtml('')}
   <div class="section-label">Record</div>
   <select id="recordSelect"></select>
   <div class="rename-row">
@@ -448,6 +458,10 @@ const htmlTemplate = `<!DOCTYPE html>
 <script nonce="${NONCE_TOKEN}">${keywordSpecJs}</script>
 <script nonce="${NONCE_TOKEN}">${engineJs}</script>
 <script nonce="${NONCE_TOKEN}">${indicatorSimJs}</script>
+<script nonce="${NONCE_TOKEN}">${screenExportJs}</script>
+<script nonce="${NONCE_TOKEN}">${screenPngJs}</script>
+<script nonce="${NONCE_TOKEN}">${screenTextJs}</script>
+<script nonce="${NONCE_TOKEN}">${screenExportUiJs}</script>
 <script nonce="${NONCE_TOKEN}">${writerJs}</script>
 <script nonce="${NONCE_TOKEN}">${mnuCmdEngineJs}</script>
 <script nonce="${NONCE_TOKEN}">${clientHelpersJs}</script>
@@ -554,6 +568,9 @@ const htmlTemplate = `<!DOCTYPE html>
   applyPanelCollapse();
 
   const recordSelect = document.getElementById('recordSelect');
+  // Task E5e - the screen drawn last (what Export screen builds its file from); null until the first render, and
+  // set to null again when there is no record to draw, so an export never offers a stale picture.
+  let lastScreen = null;
   const screenOutput = document.getElementById('screenOutput');
   const optionsBody = document.getElementById('optionsBody');
   const optionCountEl = document.getElementById('optionCount');
@@ -891,6 +908,7 @@ const htmlTemplate = `<!DOCTYPE html>
     rebuildRecordSelect();
     const recordName = recordSelect.value || (model.records[0] && model.records[0].name);
     if (!recordName) {
+      lastScreen = null;
       screenOutput.innerHTML = '<div class="empty-state">No record formats found.</div>';
       recordCopyBtn.disabled = true;
       recordDeleteBtn.disabled = true;
@@ -907,6 +925,7 @@ const htmlTemplate = `<!DOCTYPE html>
     model.choicePreviewStates = IndicatorSim.namespaceValues(fieldValues, 'choiceControl');
     renderSimulatorPanel(recordName);
     const screen = DspfEngine.resolveScreen(model, recordName, active, null);
+    lastScreen = screen;
     if (screen.error) { screenOutput.innerHTML = '<div class="warn">' + escapeHtml(screen.error) + '</div>'; return; }
     screenOutput.innerHTML = DspfEngine.renderScreenHtml(screen);
   }
@@ -2073,9 +2092,26 @@ const htmlTemplate = `<!DOCTYPE html>
 
   recordSelect.addEventListener('change', renderAll);
 
+  // Task E5e - Export screen: the menu's own screen, built by the same serialisers as the DSPF designer's. The file name base
+  // (the menu member's name) is added host-side; the page only knows the record.
+  const exportController = ScreenExportUi.createController({
+    document: document,
+    window: window,
+    postMessage: (m) => vscode.postMessage(m),
+    getScreen: () => lastScreen,
+    getName: () => (lastScreen && lastScreen.recordName) || recordSelect.value || 'screen',
+  });
+  exportController.attach('');
+
   window.addEventListener('message', (event) => {
     const msg = event.data;
-    if (msg.type === 'externalUpdate') {
+    if (msg.type === ScreenExportUi.SETTINGS_TYPE) {
+      // Task E5e - the isda.export.* settings.
+      exportController.applySettings(msg);
+    } else if (msg.type === ScreenExportUi.REQUEST_TYPE) {
+      // Task E5e - the iSDA: Export Screen Preview command, asking this (the active) designer for its current screen.
+      void exportController.handleRequest(msg);
+    } else if (msg.type === 'externalUpdate') {
       sourceText = msg.text;
       model = DspfParser.parseDspf(sourceText);
       renderAll();

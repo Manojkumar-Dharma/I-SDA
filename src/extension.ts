@@ -81,6 +81,24 @@ const IndicatorSim: {
   loadFileState(memento: any, fileKey: string): { scenarios: any[]; values: any };
   saveFileState(memento: any, fileKey: string, state: { scenarios?: any; values?: any }): Thenable<void>;
 } = require('./indicatorSim.js');
+// Screen preview export (E5e): the command, save dialog and clipboard around the E5b / E5c / E5d building blocks. Pure JS
+// with the vscode calls handed in; the page builds the file, this side asks where it goes.
+const ScreenExportUi: {
+  MESSAGE_TYPE: string;
+  REQUEST_TYPE: string;
+  SETTINGS_TYPE: string;
+  readSettings(get: (key: string, fallback: unknown) => unknown): { defaultFormat: string; pngScale: number; ruler: boolean; textStyle: string };
+  withFileBase(msg: any, base: string): any;
+  handleMessage(
+    api: {
+      showSaveDialog(options: { defaultPath: string; filters: Record<string, string[]>; saveLabel: string }): Thenable<vscode.Uri | undefined> | vscode.Uri | undefined;
+      writeFile(target: vscode.Uri, bytes: Uint8Array): Thenable<void> | void;
+      writeClipboardText(text: string): Thenable<void> | void;
+    },
+    msg: any,
+    opts?: { defaultFolder?: string }
+  ): Promise<{ done: 'saved' | 'copied' | 'cancelled'; target?: vscode.Uri; fileName?: string; format?: string; notice?: string }>;
+} = require('./screenExportUi.js');
 // Editor-side diagnostics (E1b): the one DiagnosticCollection every iSDA diagnostic goes through. Pure JS that takes
 // the vscode API as an argument, so it has fake-API tests; ddsDiagnostics.js (E1a) does the analysing.
 const DiagnosticsHub: {
@@ -287,6 +305,49 @@ function getUiTheme(context: vscode.ExtensionContext): string {
   return context.globalState.get<string>(UI_THEME_KEY, 'green');
 }
 
+// Task E5e - the open designers, so the iSDA: Export Screen Preview command can ask the one in front for its screen.
+const exportDesigners = new Set<{ panel: vscode.WebviewPanel; document: vscode.TextDocument }>();
+
+function getExportSettings() {
+  const cfg = vscode.workspace.getConfiguration('isda');
+  return ScreenExportUi.readSettings((key, fallback) => cfg.get('export.' + key, fallback as any));
+}
+
+function sendExportSettings(webview: vscode.Webview): void {
+  void webview.postMessage({ type: ScreenExportUi.SETTINGS_TYPE, ...getExportSettings() });
+}
+
+/** The page built an export (a file's text or a PNG) or copied an image; this side asks where to save it or copies the text. */
+async function handleExportScreen(document: vscode.TextDocument, msg: any): Promise<void> {
+  try {
+    const name = document.uri.path.split('/').pop() || document.fileName.split(/[\\/]/).pop() || '';
+    const folder = document.uri.scheme === 'file'
+      ? document.uri.fsPath.replace(/[\\/][^\\/]*$/, '')
+      : vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    const result = await ScreenExportUi.handleMessage(
+      {
+        showSaveDialog: (options) => {
+          const isAbsolute = /^([A-Za-z]:)?[\\/]/.test(options.defaultPath);
+          const defaultUri = isAbsolute ? vscode.Uri.file(options.defaultPath) : undefined;
+          return vscode.window.showSaveDialog({ defaultUri, filters: options.filters, saveLabel: options.saveLabel });
+        },
+        writeFile: (target, bytes) => vscode.workspace.fs.writeFile(target, bytes),
+        writeClipboardText: (text) => vscode.env.clipboard.writeText(text),
+      },
+      ScreenExportUi.withFileBase(msg, name),
+      { defaultFolder: folder }
+    );
+    if (result.done === 'saved') {
+      const saved = (result.target as vscode.Uri).path.split('/').pop() || result.fileName || 'the file';
+      vscode.window.showInformationMessage('iSDA: Saved the screen preview as ' + saved + '.' + (result.notice ? ' ' + result.notice : ''));
+    } else if (result.done === 'copied') {
+      vscode.window.showInformationMessage('iSDA: Copied the screen preview to the clipboard' + (result.format === 'png' ? ' as an image.' : '.'));
+    }
+  } catch (err) {
+    vscode.window.showErrorMessage('iSDA: Could not export the screen preview: ' + (err instanceof Error ? err.message : String(err)));
+  }
+}
+
 export function activate(context: vscode.ExtensionContext): void {
   const provider = new DspfDesignerEditorProvider(context);
   context.subscriptions.push(
@@ -361,6 +422,20 @@ export function activate(context: vscode.ExtensionContext): void {
         return;
       }
       return compileDspf(uri);
+    })
+  );
+
+  // Task E5e - exports the current record of the designer in front, in its current indicator state, in the default format
+  // (isda.export.defaultFormat). The designer builds the file; handleExportScreen asks where it goes.
+  context.subscriptions.push(
+    vscode.commands.registerCommand('dspfDesigner.exportScreenPreview', () => {
+      const open = Array.from(exportDesigners);
+      const target = open.find((d) => d.panel.active) || (open.filter((d) => d.panel.visible).length === 1 ? open.find((d) => d.panel.visible) : undefined);
+      if (!target) {
+        vscode.window.showWarningMessage('iSDA: Open a display file or a menu in the iSDA designer first, then export its screen preview.');
+        return;
+      }
+      void target.panel.webview.postMessage({ type: ScreenExportUi.REQUEST_TYPE });
     })
   );
 
@@ -2075,6 +2150,12 @@ class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
     const messageFilesSub = vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration('isda.messageFiles')) sendMessageFiles();
     });
+    // Task E5e: isda.export.* (default format, PNG scale, ruler, text style) - sent on 'ready' and again on a change.
+    const exportEntry = { panel: webviewPanel, document };
+    exportDesigners.add(exportEntry);
+    const exportSettingsSub = vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration('isda.export')) sendExportSettings(webviewPanel.webview);
+    });
     const previewDateSeparatorSub = vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration('isda.previewDateSeparator')) sendPreviewDateSeparator();
     });
@@ -2119,6 +2200,8 @@ class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
         await handleRequestMessageTexts(webviewPanel.webview, msg);
       } else if (msg.type === 'listMessageFile') {
         await handleListMessageFile(webviewPanel.webview, msg);
+      } else if (msg.type === ScreenExportUi.MESSAGE_TYPE) {
+        await handleExportScreen(document, msg);
       } else if (msg.type === 'ready') {
         // A (re)loaded webview starts with no line width, so the next answer is always posted.
         lastSourceLineWidth = undefined;
@@ -2128,6 +2211,7 @@ class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
         await sendCodeForIStatus();
         sendModTrackingConfig();
         sendMessageFiles();
+        sendExportSettings(webviewPanel.webview);
         // E2e: a designer opened (or reloaded) after a failed compile still shows the messages that are in the Problems panel.
         const existing = compileHub ? compileHub.getTracked(document.uri) : [];
         if (existing.length) postCompileMessages(webviewPanel.webview, existing, false);
@@ -2152,6 +2236,8 @@ class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
       modTrackingConfigSub.dispose();
       previewDateSeparatorSub.dispose();
       messageFilesSub.dispose();
+      exportSettingsSub.dispose();
+      exportDesigners.delete(exportEntry);
       compileMessagesSub.dispose();
     });
   }
@@ -2419,12 +2505,23 @@ class MenuDesignerEditorProvider implements vscode.CustomTextEditorProvider {
         // only - the DDS source is never written. Same entry (keyed by the member's URI) as the DSPF designer's, so a
         // scenario saved in one designer is there in the other.
         await IndicatorSim.saveFileState(this.context.workspaceState, document.uri.toString(), { scenarios: msg.scenarios, values: msg.values });
+      } else if (msg.type === ScreenExportUi.MESSAGE_TYPE) {
+        // Task E5e - the page built an export of the menu's screen.
+        await handleExportScreen(document, msg);
       } else if (msg.type === 'ready') {
         const simulatorState = IndicatorSim.loadFileState(this.context.workspaceState, document.uri.toString());
         webviewPanel.webview.postMessage({ type: 'simulatorState', scenarios: simulatorState.scenarios, values: simulatorState.values });
         await sendCodeForIStatus();
         sendModTrackingConfig();
+        sendExportSettings(webviewPanel.webview);
       }
+    });
+
+    // Task E5e: isda.export.* for the menu designer's Export screen, and the entry the command finds this panel by.
+    const exportEntry = { panel: webviewPanel, document };
+    exportDesigners.add(exportEntry);
+    const exportSettingsSub = vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration('isda.export')) sendExportSettings(webviewPanel.webview);
     });
 
     webviewPanel.onDidDispose(() => {
@@ -2435,6 +2532,8 @@ class MenuDesignerEditorProvider implements vscode.CustomTextEditorProvider {
       clearInterval(statusPollInterval);
       extChangeSub.dispose();
       modTrackingConfigSub.dispose();
+      exportSettingsSub.dispose();
+      exportDesigners.delete(exportEntry);
     });
   }
 }

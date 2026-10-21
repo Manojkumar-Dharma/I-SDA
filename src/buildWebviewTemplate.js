@@ -9,6 +9,12 @@ const keywordSpecJs = fs.readFileSync(path.join(__dirname, 'keywordSpec.js'), 'u
 const writerJs = fs.readFileSync(path.join(__dirname, 'dspfWriter.js'), 'utf8');
 // IndicatorSim (E3) reads DspfEngine, so it loads right after it.
 const indicatorSimJs = fs.readFileSync(path.join(__dirname, 'indicatorSim.js'), 'utf8');
+// E5e: the screen preview export (E5b serialiser, E5c PNG, E5d text, then the UI that joins them). Load order matters.
+const screenExportJs = fs.readFileSync(path.join(__dirname, 'screenExport.js'), 'utf8');
+const screenPngJs = fs.readFileSync(path.join(__dirname, 'screenPng.js'), 'utf8');
+const screenTextJs = fs.readFileSync(path.join(__dirname, 'screenText.js'), 'utf8');
+const screenExportUiJs = fs.readFileSync(path.join(__dirname, 'screenExportUi.js'), 'utf8');
+const ScreenExportUiNode = require('./screenExportUi.js');
 const clientHelpersJs = fs.readFileSync(path.join(__dirname, 'webviewClientHelpers.js'), 'utf8');
 const parserBundleJs = fs.readFileSync(path.join(__dirname, '../dist/dspfParser.browser.js'), 'utf8');
 
@@ -487,6 +493,9 @@ const htmlTemplate = `<!DOCTYPE html>
   button:hover { background: #1b3324; }
   button.secondary { color: var(--ink); border-color: var(--panel-border); }
   .compile-btn { background: #142018; color: var(--chrome-accent); border: 1px solid var(--chrome-accent); }
+  .export-group { display: flex; gap: 6px; margin-top: 8px; }
+  .export-group .export-btn { flex: 1 1 auto; }
+  .export-group .export-more { flex: 0 0 96px; min-width: 0; }
   .save-btn { background: #142018; color: var(--chrome-accent); border: 1px solid var(--chrome-accent); font-weight: 600; }
   .save-btn-dirty { background: #2a2410; color: var(--warn); border-color: var(--warn); animation: isda-save-pulse 1.8s ease-in-out infinite; }
   @keyframes isda-save-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
@@ -1035,6 +1044,7 @@ const htmlTemplate = `<!DOCTYPE html>
   <div class="section-label">Conditioning indicators (preview)</div>
   <div id="indicatorList"></div>
   <button id="compileDspfBtn" class="compile-btn" style="width:100%;margin-top:8px;">Compile Display File (CRTDSPF)</button>
+  ${ScreenExportUiNode.controlsHtml('aside')}
   <details class="props-accordion" id="uiSettingsAccordion" style="margin-top:10px;">
     <summary>&#9881; UI Settings</summary>
     <div class="props-accordion-body">
@@ -1091,6 +1101,7 @@ const htmlTemplate = `<!DOCTYPE html>
     <div class="codefori-badge unknown" id="toolbarCodeForIBadge" title="Whether the Code for IBM i extension is installed and connected. Compile, Resolve Referenced Field, and Add fields from database file all need a live connection.">IBM i: checking…</div>
     <button type="button" class="save-btn" id="toolbarSaveBtn" title="Save this file to disk (Ctrl+S/Cmd+S works too - this button exists because a webview panel doesn't show VS Code's own dirty-tab dot)">&#128190; Save</button>
     <button type="button" class="compile-btn" id="toolbarCompileBtn">Compile Display File (CRTDSPF)</button>
+    ${ScreenExportUiNode.controlsHtml('toolbar')}
     <div class="field-row toolbar-field-row"><label>Record</label><select id="toolbarRecordSelect"></select></div>
     <div class="field-row toolbar-field-row hidden" id="toolbarSizeSelectRow"><label>Screen size</label><select id="toolbarSizeSelect"></select></div>
   </div>
@@ -1155,6 +1166,10 @@ const htmlTemplate = `<!DOCTYPE html>
 <script nonce="${NONCE_TOKEN}">${keywordSpecJs}</script>
 <script nonce="${NONCE_TOKEN}">${engineJs}</script>
 <script nonce="${NONCE_TOKEN}">${indicatorSimJs}</script>
+<script nonce="${NONCE_TOKEN}">${screenExportJs}</script>
+<script nonce="${NONCE_TOKEN}">${screenPngJs}</script>
+<script nonce="${NONCE_TOKEN}">${screenTextJs}</script>
+<script nonce="${NONCE_TOKEN}">${screenExportUiJs}</script>
 <script nonce="${NONCE_TOKEN}">${writerJs}</script>
 <script nonce="${NONCE_TOKEN}">${clientHelpersJs}</script>
 <script nonce="${NONCE_TOKEN}">
@@ -1703,6 +1718,20 @@ const htmlTemplate = `<!DOCTYPE html>
       vscode.postMessage({ type: 'compileDspf' });
     });
   }
+
+  // Task E5e - Export screen: one controller, two genuine copies of the controls (the side panel's for the classic UI,
+  // the pinned toolbar's for the modern one). The page builds the file from lastScreen (what the preview shows now, in the
+  // current indicator state); the extension host asks where to save it or puts it on the clipboard. The file name base
+  // (the member's own name) is added host-side; the page only knows the record.
+  const exportController = ScreenExportUi.createController({
+    document: document,
+    window: window,
+    postMessage: (m) => vscode.postMessage(m),
+    getScreen: () => lastScreen,
+    getName: () => (lastScreen && lastScreen.recordName) || recordSelect.value || 'screen',
+  });
+  exportController.attach('aside');
+  exportController.attach('toolbar');
 
   // Task L18 - "IBM i: Connected/Not connected/Not installed" badge. The
   // extension host is the only side that can actually check Code for i's
@@ -8276,6 +8305,12 @@ const htmlTemplate = `<!DOCTYPE html>
       // Task E4d - the host's answer to a Browse... listing (see showMessagePicker).
       const picker = document.querySelector('.msgpicker-overlay');
       if (picker && picker.__onMessageFileList) picker.__onMessageFileList(msg);
+    } else if (msg.type === ScreenExportUi.SETTINGS_TYPE) {
+      // Task E5e - the isda.export.* settings (default format, PNG scale, ruler, text style).
+      exportController.applySettings(msg);
+    } else if (msg.type === ScreenExportUi.REQUEST_TYPE) {
+      // Task E5e - the iSDA: Export Screen Preview command, asking this (the active) designer for its current screen.
+      void exportController.handleRequest(msg);
     } else if (msg.type === 'messageFiles') {
       // Task E4f - the isda.messageFiles setting (read by showMessagePicker when it opens).
       defaultMessageFiles = Array.isArray(msg.files) ? msg.files.filter((f) => f && typeof f.name === 'string') : [];

@@ -76,6 +76,8 @@ class Uri {
       changes && changes.query !== undefined ? changes.query : this.query
     );
   }
+  // E5e: the host reads fsPath to offer the member's own folder in the save dialog (the same as path on Linux and macOS).
+  get fsPath() { return this.path; }
   toString() { return this.scheme + '://' + this.path; }
 }
 
@@ -178,6 +180,12 @@ const vscodeMock = {
       return channel;
     },
     showInformationMessage: (msg) => { vscodeMock.__lastInformation = msg; return Promise.resolve(undefined); },
+    // E5e: the save dialog of the screen preview export; a test sets __setSaveDialogResponse (a Uri, undefined = cancelled, or a function of the options).
+    showSaveDialog: (options) => {
+      vscodeMock.__lastSaveDialog = options;
+      const resp = vscodeMock.__saveDialogResponse;
+      return Promise.resolve(typeof resp === 'function' ? resp(options) : resp);
+    },
     showInputBox: () => Promise.resolve(undefined),
     showQuickPick: () => Promise.resolve(undefined),
     showWorkspaceFolderPick: () => Promise.resolve(undefined),
@@ -189,6 +197,12 @@ const vscodeMock = {
     },
   },
   ProgressLocation: { Notification: 15 },
+  // E5e: only the clipboard, as text (what Copy writes for SVG, HTML and Text).
+  env: {
+    clipboard: {
+      writeText: (text) => { vscodeMock.__clipboardText = text; return Promise.resolve(); },
+    },
+  },
   extensions: {
     getExtension: (id) => {
       if (!Object.prototype.hasOwnProperty.call(mockExtensions, id)) return undefined;
@@ -371,6 +385,7 @@ const vscodeMock = {
   __setMockExtension: (id, ext) => { mockExtensions[id] = ext; },
   __removeMockExtension: (id) => { delete mockExtensions[id]; },
   __setWarningResponse: (respOrFn) => { vscodeMock.__mockWarningResponse = respOrFn; },
+  __setSaveDialogResponse: (respOrFn) => { vscodeMock.__saveDialogResponse = respOrFn; },
   get __lastInformationMessage() { return vscodeMock.__lastInformation; },
   // Fires every currently-registered onDidChangeTextDocument listener with the
   // given event, same as VS Code notifying every subscriber - NOT just the

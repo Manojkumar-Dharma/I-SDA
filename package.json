@@ -2,7 +2,7 @@
   "name": "i-sda",
   "displayName": "iSDA",
   "description": "Interactive visual designer for IBM i DDS display files (DSPF) \u2014 preview, click, drag, and edit fields with changes written straight back into the DDS source.",
-  "version": "0.17.3",
+  "version": "0.17.4",
   "publisher": "Manojkumar-IBMi",
   "icon": "images/icon.png",
   "engines": {
@@ -200,6 +200,31 @@
           "default": "",
           "description": "Screen Designer: the date separator the preview draws for EDTCDE(Y) and EDTCDE(W) when no IBM i connection can supply the job's DATSEP. The connected job's DATSEP always wins; with neither, a slash (IBM's default) is used. It changes only the character drawn, never the field's width."
         },
+        "isda.export.defaultFormat": {
+          "type": "string",
+          "enum": ["png", "svg", "html", "text"],
+          "enumDescriptions": ["A PNG image (see isda.export.pngScale)", "A scalable SVG drawing", "A self-contained HTML page (the drawing, no script, no remote file)", "Plain text, one character per screen cell"],
+          "default": "png",
+          "description": "Screen Designer and Menu Designer: the format the Export screen button and the iSDA: Export Screen Preview command save in. The list beside the button saves in any format or copies to the clipboard."
+        },
+        "isda.export.pngScale": {
+          "type": "number",
+          "enum": [1, 2, 3],
+          "default": 2,
+          "description": "Screen Designer and Menu Designer: how many pixels a PNG export uses per drawing unit (1x, 2x or 3x). 2x stays sharp on a high-resolution display."
+        },
+        "isda.export.ruler": {
+          "type": "boolean",
+          "default": false,
+          "description": "Screen Designer and Menu Designer: add the row and column numbers (the designer's ruler) to an exported screen."
+        },
+        "isda.export.textStyle": {
+          "type": "string",
+          "enum": ["unicode", "ascii"],
+          "enumDescriptions": ["Window and pull-down borders as box-drawing characters", "Window and pull-down borders as + - | (for a tool that cannot show box-drawing characters)"],
+          "default": "unicode",
+          "description": "Screen Designer and Menu Designer: how a plain-text export draws borders."
+        },
         "isda.messageFiles": {
           "type": "array",
           "items": {
@@ -281,6 +306,11 @@
         "command": "dspfDesigner.compileDspf",
         "title": "iSDA: Compile Display File (CRTDSPF)",
         "icon": "$(play)"
+      },
+      {
+        "command": "dspfDesigner.exportScreenPreview",
+        "title": "iSDA: Export Screen Preview",
+        "icon": "$(device-camera)"
       }
     ],
     "menus": {
@@ -330,7 +360,7 @@
     "test": "node src/test/run.js",
     "test:parity": "node src/test/parity.js",
     "test:quick": "node src/test/quick.js",
-    "build:webview-assets": "node src/fixtures/generateFixture.js && esbuild src/browserEntry.ts --bundle --format=iife --global-name=DspfParser --outfile=dist/dspfParser.browser.js && node src/buildWebviewTemplate.js && node src/buildMenuWebviewTemplate.js && node -e \"require('fs').mkdirSync('dist',{recursive:true});['mnuCmdEngine.js','dspfEngine.js','indicatorSim.js','keywordSpec.js','dspfWriter.js','webviewClientHelpers.js','qdbrtvfdParser.js','jobDateFormat.js','sourceLineWidth.js','messageFile.js','ddsItemRules.js','ddsDiagnostics.js','diagnosticsHub.js','ddsHover.js','ddsCompletion.js','ddsOutline.js','ddsQuickFix.js','ddsColumnAids.js','compileMessages.js','compileListing.js','compileLineMap.js','compileDiagnostics.js','menuCompileSteps.js','screenExport.js','screenPng.js','screenText.js'].forEach(f=>require('fs').copyFileSync('src/'+f,'dist/'+f))\" && node src/buildKeywordHoverData.js",
+    "build:webview-assets": "node src/fixtures/generateFixture.js && esbuild src/browserEntry.ts --bundle --format=iife --global-name=DspfParser --outfile=dist/dspfParser.browser.js && node src/buildWebviewTemplate.js && node src/buildMenuWebviewTemplate.js && node -e \"require('fs').mkdirSync('dist',{recursive:true});['mnuCmdEngine.js','dspfEngine.js','indicatorSim.js','keywordSpec.js','dspfWriter.js','webviewClientHelpers.js','qdbrtvfdParser.js','jobDateFormat.js','sourceLineWidth.js','messageFile.js','ddsItemRules.js','ddsDiagnostics.js','diagnosticsHub.js','ddsHover.js','ddsCompletion.js','ddsOutline.js','ddsQuickFix.js','ddsColumnAids.js','compileMessages.js','compileListing.js','compileLineMap.js','compileDiagnostics.js','menuCompileSteps.js','screenExport.js','screenPng.js','screenText.js','screenExportUi.js'].forEach(f=>require('fs').copyFileSync('src/'+f,'dist/'+f))\" && node src/buildKeywordHoverData.js",
     "compile": "npm run build:webview-assets && tsc -p ."
   },
   "devDependencies": {
