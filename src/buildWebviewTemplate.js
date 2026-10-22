@@ -206,6 +206,12 @@ const htmlTemplate = `<!DOCTYPE html>
   .dspf-underline { text-decoration: underline; }
   .dspf-blink { animation: dspf-blink 1s steps(1) infinite; }
   .dspf-protect { opacity: 0.65; }
+  /* E11f - DSPATR(CS) column separators: a thin vertical line at the right edge of every character cell of the field. */
+  .dspf-cs { background-image: repeating-linear-gradient(to right, transparent 0, transparent calc(1ch - 1px), rgba(var(--accent-rgb),0.55) calc(1ch - 1px), rgba(var(--accent-rgb),0.55) 1ch); }
+  /* E11f - an input field that a later SFGR format has cleared the rows around: still there and still accepting input (B-2), so dimmed and dashed. */
+  .dspf-covered { opacity: 0.45; outline: 1px dashed rgba(255,138,92,0.7); outline-offset: -1px; }
+  /* E11f - the I / O / B tick in the top-right corner of an SFGR field (data-usage-mark carries the letter). */
+  .dspf-usage-mark::after { content: attr(data-usage-mark); position: absolute; right: 0; top: -0.2em; font-size: 8px; line-height: 1; color: var(--ink-dim); pointer-events: none; }
   /* Field usage — only emitted for nameType=FIELD divs (never constants/help).
      Input (I) and Both (B): underlined, matching the 5250 terminal's own
      input-field indicator shown in IBM SDA Design Image.

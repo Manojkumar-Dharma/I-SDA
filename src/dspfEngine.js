@@ -397,6 +397,9 @@
   var NUMERIC_TYPES = { S: true, Y: true, N: true, D: true, F: true };
 
   function placeholderChar(field) {
+    // E11f: an SFGR field's own type decides - its numeric N maps to DDS M (numeric-only character), which the DDS
+    // table below does not call numeric; S and D are numeric either way.
+    if (field.sfgr && /^[NSD]$/.test(field.sfgr.sfgrDataType || '')) return '9';
     var t = (field.dataType || '').toUpperCase();
     if (t === 'L') return 'D'; // date
     if (t === 'T') return 'T'; // time
@@ -693,10 +696,14 @@
     // Named field: show the field name inside its own box when it fits (design-time
     // convention, like SDA's field-definition mode), else placeholder chars.
     var name = field.name || '';
+    // E11f: the LOWER keyword (an SFGR input field that allows lowercase maps to it) fills the box with a lowercase
+    // x, so a field that takes lowercase letters reads differently from one that does not.
+    var filler = placeholderChar(field);
+    if (filler === 'X' && (field.keywords || []).some(function (k) { return k.name === 'LOWER'; })) filler = 'x';
     if (name.length > 0 && name.length <= len) {
-      return name + repeat(placeholderChar(field), len - name.length);
+      return name + repeat(filler, len - name.length);
     }
-    return repeat(placeholderChar(field), len);
+    return repeat(filler, len);
   }
 
   function repeat(ch, n) {
@@ -753,6 +760,7 @@
           else if (a === 'BL') style.blink = true;
           else if (a === 'ND') style.hidden = true;
           else if (a === 'PR') style.protect = true;
+          else if (a === 'CS') style.columnSeparators = true; // E11f: set only when on, so a style without it is unchanged
           // PC ("position cursor") previously had NO rendering effect at all - the
           // keyword was offered in the DSPATR checkbox editor but silently produced
           // no visible change in the preview. Real 5250 semantics: it puts the
@@ -1515,6 +1523,9 @@
       startCol += colOffset;
 
       var style = styleFromKeywords(field.keywords, activeIndicators, activeSizeName);
+      // E11f: on a 5250 high intensity + reverse image + underline together is the nondisplay attribute (SFGR-SPEC.md
+      // section 4); a DDS field is drawn as its keywords say, so this is for SFGR fields only.
+      if (field.sfgr && style.hi && style.reverse && style.underline) style.hidden = true;
       if (style.hidden) return;
 
       // A choice/button/menubar widget needs room for its own content rather
@@ -1563,7 +1574,7 @@
         renderHeight = cntfld.totalLines;
       }
 
-      candidates.push({
+      var candidate = {
         name: field.name,
         nameType: field.nameType,
         usage: field.usage,
@@ -1583,10 +1594,44 @@
         anchorLine: field.location.line != null ? field.location.line : 1,
         anchorColumn: field.location.column,
         tag: tag || null,
-      });
+      };
+      // E11f: an SFGR field is marked I, O or B (the corner tick) ...
+      if (field.sfgr && field.nameType === 'FIELD' && /^[IOB]$/.test(field.usage || '')) candidate.usageMark = field.usage;
+      // ... and one longer than the rest of its row runs on into the next rows from column 1, as it does on the 5250.
+      var rowWidth = record.sfgr ? (record.sfgr.columns132 ? 132 : 80) : 0;
+      if (rowWidth && !widget && !cntfld && renderHeight === 1 && candidate.column >= 1 && candidate.column <= rowWidth &&
+          candidate.column + candidate.length - 1 > rowWidth) {
+        wrapCandidate(candidate, rowWidth).forEach(function (piece) { candidates.push(piece); });
+      } else {
+        candidates.push(candidate);
+      }
     });
 
     return candidates;
+  }
+
+  /**
+   * E11f: one field that runs past the end of its row, as one candidate per row. The first piece starts where the field
+   * does and ends at `rowWidth`; each next piece starts in column 1 and takes the next `rowWidth` cells, the last the
+   * rest. Every piece keeps the field's name, style, source line and anchor (so a click on any of them is the field)
+   * and says which piece it is (`wrapIndex`, `wrapCount`); the text is cut to the cells each piece owns.
+   */
+  function wrapCandidate(candidate, rowWidth) {
+    var text = String(candidate.text == null ? '' : candidate.text);
+    while (text.length < candidate.length) text += ' ';
+    var pieces = [];
+    var column = candidate.column;
+    var at = 0;
+    while (at < candidate.length) {
+      var take = Math.min(rowWidth - column + 1, candidate.length - at);
+      var piece = Object.assign({}, candidate, { line: candidate.line + pieces.length, column: column, length: take, text: text.substr(at, take), wrapIndex: pieces.length });
+      if (pieces.length > 0) delete piece.usageMark;
+      pieces.push(piece);
+      at += take;
+      column = 1;
+    }
+    pieces.forEach(function (p) { p.wrapCount = pieces.length; });
+    return pieces;
   }
 
   /**
@@ -3009,6 +3054,39 @@
     if (erasedFrom.length) effects.push({ record: recordName, effect: 'ERASEINP', records: erasedFrom });
   }
 
+
+  /**
+   * E11f: the rows an SFGR format clears before it appears (S columns 19 - 20; SFGR-SPEC.md section 2, B-2 of the
+   * manual): blank clears every line of the display, a number clears that many lines from the start line (blank and V
+   * start at line 1), 0 clears none. null for a DDS record and when nothing is cleared.
+   */
+  function sfgrClearedRows(record, totalLines) {
+    var sfgr = record.sfgr;
+    if (!sfgr) return null;
+    if (sfgr.linesToClear === null) return { from: 1, to: totalLines };
+    if (!(sfgr.linesToClear > 0)) return null;
+    var from = typeof sfgr.startLine === 'number' && sfgr.startLine > 1 ? sfgr.startLine : 1;
+    return { from: from, to: Math.min(totalLines, from + sfgr.linesToClear - 1) };
+  }
+
+  /**
+   * E11f: what is drawn once a format has cleared `rows`. Constants and output fields on those rows are gone; an input
+   * field (usage I or B) stays and keeps accepting data - the manual: "Input fields covered by a new display format still
+   * allow data entry" - so it is kept, marked `covered` (drawn dimmed) and says by which format.
+   */
+  function clearRows(fields, rows, byRecord) {
+    var kept = [];
+    fields.forEach(function (f) {
+      if (f.line < rows.from || f.line > rows.to) { kept.push(f); return; }
+      if (f.nameType === 'FIELD' && /^[IB]$/.test(f.usage || '')) {
+        f.covered = true;
+        f.coveredBy = byRecord;
+        kept.push(f);
+      }
+    });
+    return kept;
+  }
+
   /**
    * Read-only combined preview of SEVERAL record formats at once - the opt-in
    * "display mode" for comparing/eyeballing multiple formats together (not just
@@ -3037,6 +3115,7 @@
     var windows = [];
     var errorMessages = [];
     var menuBarSeparators = [];
+    var clears = [];
     var contributing = 0;
     // E8e - a placeholder slot (the stagger step) is used only by a window that is really drawn on the placeholder: a
     // window with chosen preview values, a fixed start, a record without a window and a record that is not in effect
@@ -3067,6 +3146,12 @@
       if (menuBar.separator) menuBarSeparators.push(Object.assign({ stackLayer: layer, recordName: recordName }, menuBar.separator));
       fields.forEach(function (f) { f.sourceRecord = recordName; f.stackLayer = layer + 1; if (windowBox) f.inWindow = true; });
       if (writeSequence) applyWriteEffects(record, recordName, fields, allFields, removed, writeEffects, activeIndicators, size.name);
+      // E11f: a format read from SFGR source clears lines of what is already on the display (S columns 19 - 20).
+      var cleared = sfgrClearedRows(record, size.lines);
+      if (cleared) {
+        allFields = clearRows(allFields, cleared, recordName);
+        clears.push({ recordName: recordName, from: cleared.from, to: cleared.to });
+      }
       allFields = allFields.concat(fields);
       if (windowBox) windows.push(Object.assign({ recordName: recordName, stackLayer: layer }, windowBox));
 
@@ -3095,7 +3180,7 @@
       menuBarSeparators = menuBarSeparators.filter(function (m) { return keep(m.recordName); });
       errorMessages = errorMessages.filter(function (e) { return keep(e.recordName); });
     }
-    return { lines: size.lines, columns: size.columns, sizeName: size.name, availableSizes: size.sizes, fields: allFields, windows: windows, menuBarSeparators: menuBarSeparators, errorMessages: errorMessages, stacked: contributing > 1, writeEffects: writeEffects };
+    return { lines: size.lines, columns: size.columns, sizeName: size.name, availableSizes: size.sizes, fields: allFields, windows: windows, menuBarSeparators: menuBarSeparators, errorMessages: errorMessages, stacked: contributing > 1, writeEffects: writeEffects, clears: clears };
   }
 
   // ---------------------------------------------------------------------
@@ -3288,6 +3373,10 @@
     if (f.style.underline) classes.push('dspf-underline');
     if (f.style.blink) classes.push('dspf-blink');
     if (f.style.protect) classes.push('dspf-protect');
+    if (f.style.columnSeparators) classes.push('dspf-cs');                   // E11f: DSPATR(CS)
+    if (f.covered) classes.push('dspf-covered');                              // E11f: input field under a later format's cleared rows
+    if (f.usageMark) classes.push('dspf-usage-mark');                         // E11f: SFGR field's I / O / B tick
+    if (f.wrapIndex) classes.push('dspf-wrap-cont');                          // E11f: a later row of a field that wraps
     if (f.showCursorIndicator) classes.push('dspf-cursor-pos');
     if (f.widget) classes.push('dspf-widget-' + f.widget.type);
     if (f.cntfld) classes.push('dspf-cntfld');
@@ -3320,7 +3409,9 @@
     var dtypeStr = f.nameType === 'FIELD'
       ? ' · ' + ({ S: 'Signed numeric', Y: 'Numeric-only', N: 'Numeric', D: 'Float', F: 'Float' }[(f.dataType || '').toUpperCase()] || 'Character')
       : '';
-    var title = escapeHtml((f.name || '(constant)') + ' @ ' + f.line + '/' + f.column + usageStr + dtypeStr + recordLabel);
+    var coveredStr = f.covered ? ' · covered by ' + (f.coveredBy || 'a later format') + ' (still accepts input)' : '';
+    var wrapStr = f.wrapCount > 1 ? ' · row ' + ((f.wrapIndex || 0) + 1) + ' of ' + f.wrapCount + ' (wraps)' : '';
+    var title = escapeHtml((f.name || '(constant)') + ' @ ' + f.line + '/' + f.column + usageStr + dtypeStr + recordLabel + coveredStr + wrapStr);
     var innerHtml = f.widget ? widgetInnerHtml(f) : (f.cntfld ? cntfldInnerHtml(f) : escapeHtml(f.text));
     var height = f.height || 1;
     return (
@@ -3360,6 +3451,7 @@
       '" data-length="' +
       f.length +
       (f.choiceMarker ? '" data-choice-marker="' + escapeHtml(f.choiceMarker) : '') +
+      (f.usageMark ? '" data-usage-mark="' + escapeHtml(f.usageMark) : '') +
       '" data-height="' +
       height +
       '" data-tag="' +

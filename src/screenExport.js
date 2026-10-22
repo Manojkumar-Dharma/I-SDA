@@ -103,6 +103,10 @@
     if (style.underline) classes.push('dspf-underline');
     if (style.blink) classes.push('dspf-blink');
     if (style.protect) classes.push('dspf-protect');
+    if (style.columnSeparators) classes.push('dspf-cs');
+    if (f.covered) classes.push('dspf-covered');
+    if (f.usageMark) classes.push('dspf-usage-mark');
+    if (f.wrapIndex) classes.push('dspf-wrap-cont');
     if (f.showCursorIndicator) classes.push('dspf-cursor-pos');
     if (f.widget) classes.push('dspf-widget-' + f.widget.type);
     if (f.cntfld) classes.push('dspf-cntfld');
@@ -173,7 +177,7 @@
     parts = parts.filter(Boolean);
     if (!parts.length) return;
     this.add(isNum(f.stackLayer) ? f.stackLayer : defaultZ,
-      '<g class="' + esc(fieldClasses(f).join(' ')) + '"' + (style.protect ? ' opacity="0.65"' : '') + '>' + parts.join('') + '</g>');
+      '<g class="' + esc(fieldClasses(f).join(' ')) + '"' + (f.covered ? ' opacity="0.45"' : (style.protect ? ' opacity="0.65"' : '')) + '>' + parts.join('') + '</g>');
   };
 
   Drawing.prototype.window = function (w) {

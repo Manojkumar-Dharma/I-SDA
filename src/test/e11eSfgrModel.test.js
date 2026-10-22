@@ -77,11 +77,11 @@ const kwNames = (f) => f.keywords.map((k) => k.raw).join(' ');
     const sc = draw(file, r.name);
     if (sc.error || sc.suppressed) engineErrors++;
     overlaps += (sc.overlaps || []).length;
-    drawn += sc.fields.length;
+    drawn += new Set(sc.fields.map((f) => f.sourceLine)).size; // E11f: a wrapped field is several pieces of one source line
     sc.fields.forEach((f) => {
       if (f.line < 1 || f.line > sc.lines || f.column < 1 || f.column + f.length - 1 > sc.columns) outside.push(f);
     });
-    hidden += r.fields.length - sc.fields.length;
+    hidden += r.fields.length - new Set(sc.fields.map((f) => f.sourceLine)).size;
   });
   check('sample: the engine resolves all 7 formats without an error, 24 x 80', engineErrors === 0 && draw(file, 'CHOIX1').lines === 24 && draw(file, 'CHOIX1').columns === 80);
   const plainNd = (f) => f.keywords.some((k) => k.raw === 'DSPATR(ND)' && k.conditions.length === 0);
@@ -89,14 +89,13 @@ const kwNames = (f) => f.keywords.map((k) => k.raw).join(' ');
   check('sample: with no indicator on, the fields not drawn are the nondisplay ones (7) and the ones whose output indicator is off (3)',
     drawn + hidden === 496 && hidden === notDrawn && all.filter(plainNd).length === 7 && all.filter((f) => f.conditions.length > 0).length === 3);
   check('sample: no field overlaps another on a format', overlaps === 0);
-  check('sample: 6 constants run past the right edge (the source wraps them to the next lines: 188, 59, 89, 112, 126 and 102 cells) and each wrapped end is still on the 24-line screen; E11f draws the wrap',
-    outside.length === 6 && outside.every((f) => f.nameType === 'CONSTANT' && f.line >= 1 && f.column >= 1 &&
-      f.line + Math.floor((f.column - 1 + f.length - 1) / 80) <= 24) && outside.map((f) => f.length).sort((x, y) => x - y).join() === '59,89,102,112,126,188');
+  check('sample: 6 constants run past the right edge (188, 59, 89, 112, 126 and 102 cells); since E11f the engine wraps them onto the next rows, so none is past the edge (e11fPreviewFidelity.test.js)',
+    outside.length === 0 && file.records.every((r) => draw(file, r.name).fields.every((f) => f.wrapCount === undefined || f.wrapCount >= 2)));
   check('sample: format SORTIE starts on line 18: its first field (relative line 1) is drawn on row 18',
     draw(file, 'SORTIE').fields[0].line === 18 && draw(file, 'SORTIE').fields[0].anchorLine === 1 &&
     draw(file, 'SORTIE').fields.every((f) => f.line >= 18));
   check('sample: a format with no start line is drawn on the source\'s own rows (row = line)', file.records.filter((r) => r.sfgr.startLine === null)
-    .every((r) => draw(file, r.name).fields.every((f) => f.line === f.anchorLine)));
+    .every((r) => draw(file, r.name).fields.every((f) => f.line === f.anchorLine + (f.wrapIndex || 0))));
 }
 
 // ---- 2. mapping rules --------------------------------------------------------------------------------------------------
@@ -229,7 +228,7 @@ const kwNames = (f) => f.keywords.map((k) => k.raw).join(' ');
     model([S('F1', [[17, ' V']])]).records[0].sfgr.startLine === null);
 
   // two formats stacked on one screen
-  const stack = model([S('LOW', [[17, '12']]), D('X', POS(4, 1, 2).concat([[23, 'Y']])), S('HIGH'), D('Y', POS(4, 2, 2).concat([[23, 'Y']]))]);
+  const stack = model([S('LOW', [[17, '12'], [19, ' 0']]), D('X', POS(4, 1, 2).concat([[23, 'Y']])), S('HIGH', [[19, ' 0']]), D('Y', POS(4, 2, 2).concat([[23, 'Y']]))]);
   const multi = DspfEngine.resolveMultiScreen(stack, ['HIGH', 'LOW'], new Set(), 0);
   check('start line: stacked formats are drawn each at its own start line (resolveMultiScreen)', multi.fields.length === 2 &&
     multi.fields.find((f) => f.sourceRecord === 'LOW').line === 12 && multi.fields.find((f) => f.sourceRecord === 'HIGH').line === 2);
