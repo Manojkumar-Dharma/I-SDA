@@ -61,7 +61,7 @@ never in columns 1-80 or the tag area.
 | [E8](#e8) | `WINDOW(*DFT)` and runtime-valued window parameters | E8a - E8g | E3f | Done | v0.15.0 |
 | [E9](#e9) | `EDTCDE(Y/W)` separator width | E9a - E9e | - | Done | v0.13.0 |
 | [E10](#e10) | `CHCCTL` / `SFLCHCCTL` choice control values | E10a - E10f | E3f (E10f only) | Done | v0.14.0 |
-| [E11](#e11) | System/36 `DSPF36` (SFGR) source in the designer and the editor | E11a - E11l | E1, E2, E3, E5 (soft, for reuse) | Open | - |
+| [E11](#e11) | System/36 `DSPF36` (SFGR) source in the designer and the editor | E11a - E11l (E11g in four slices, E11g1 - E11g4) | E1, E2, E3, E5 (soft, for reuse) | Open | - |
 
 ### Suggested order
 
@@ -2635,7 +2635,10 @@ never runs on SFGR source and SFGR tooling never runs on DDS.
 | E11d | **Writer.** New pure module `src/sfgrWriter.js`: edit operations (set a column value, add, delete and move a spec, split and join continuation lines) that touch only the lines they change; untouched lines stay byte-identical, including trailing text in columns 64 - 80 and sequence numbers. Round-trip test over the whole sample. | E11c | Done | v0.18.4 |
 | E11e | **Model and engine mapping.** Fill the existing record and field model (`dspfModel.ts`) from SFGR formats so `dspfEngine.js` draws them: one format = one record, constants and fields placed by row and column, output-data indicators 01 - 99 as conditions, 80- and 132-column formats. Where SFGR has a concept the DDS model lacks, extend the model rather than encode it in keywords. | E11c | Done | v0.18.3 |
 | E11f | **Preview fidelity.** Draw the SFGR display attributes (high intensity, blink, nondisplay, reverse image, underline, column separators, lowercase), the start line and lines-to-clear stacking of several formats on one screen (Figure B-2), and the visual markers for input, output and input/output fields. Reuse the E3 simulator conditions for the indicators. | E11e | Done | v0.18.5 |
-| E11g | **Designer panels.** Panels for the S specification (start line, lines to clear, key enable and masks, alarm, blink, erase input, override, suppress input, null fill, 132-column, right-to-left), for the D specification (field and constant definition, input allowed, data type, mandatory fill and entry, self-check, adjust/fill, position cursor, dup key, controlled field exit, protect, attributes) and for H specs (help). Every value is a dropdown or a checked input with the range from E11a. DDS-only panels and the keyword picker are hidden for `DSPF36`. | E11d, E11e | In progress | - |
+| E11g1 | **Designer panels, slice 1: wiring, read-only.** Open SFGR in the designer (the E11b notice goes): the host sends `sourceKind`, the page routes every parse through `parseSource`, SFGR modules embedded; canvas, simulator and exports work; DDS-only edit controls hidden or disabled with one banner; title button and lens back for `.dspf36`. See "E11g plan and decisions". | E11d, E11e, E11f | In progress | - |
+| E11g2 | **Designer panels, slice 2: format (S spec) panel**, with the key-mask editor; edits through `SfgrWriter.setValue`. | E11g1 | Open | - |
+| E11g3 | **Designer panels, slice 3: field and constant (D spec) panel**, constants through `setConstant`; values checked against the E11a ranges. | E11g1 | Open | - |
+| E11g4 | **Designer panels, slice 4: help (H spec) panel and clean-up**: `*DDS` block locked, DDS-only panels and tabs absent for SFGR, SFGR labels. | E11g2, E11g3 | Open | - |
 | E11h | **Editing operations.** Click-to-place and drag of fields and constants, new format, delete, duplicate, reorder, resize on the grid, undo and redo, all through the E11d writer; the Raw editor tab edits SFGR text with column rulers. | E11g | Open | - |
 | E11i | **Simulator, export and batch.** The E3 indicator simulator, the E5 exports (SVG, HTML, PNG, text) and the batch export work on SFGR source; the saved scenarios stay outside the source (see "Source stays clean"). | E11f | Open | - |
 | E11j | **Editor language support.** SFGR rule checks as diagnostics (column values out of range, duplicate format names, field outside the screen, overlapping fields, key mask without the matching enable column, unmatched continuation), hover on a column (what it is and the allowed values), outline of formats and fields, quick-fix for the most common violations; same settings pattern as E1. | E11b, E11c | Open | - |
@@ -2760,9 +2763,9 @@ E11a is `Done (no code change)`: the specification and the decisions are recorde
 **Not done.** Column separators are a vertical line per cell in the preview only; the SVG and text exports do not draw them. The 5292 color mapping (manual Figure B-9) is not applied. Both are small and can follow with E11i (exports on SFGR source).
 
 
-### E11g plan
+### E11g plan and decisions
 
-**Status.** E11g is claimed; no code yet. The designer was read first, and it cannot take SFGR by adding panels alone, so the work is split into slices below (answers wanted before code, as for E11a).
+**Status.** E11g is split into four slices (decisions below accepted); E11g1 is in progress.
 
 **What the designer is (read from `buildWebviewTemplate.js`, `extension.ts`).** One webview page holds the whole designer. The extension host only creates it, sends the source text and writes back what the page sends (`applyEdit`: the full new text). The page parses the text itself (`DspfParser.parseDspf`, called in about 14 places), keeps `model`, and edits by changing DDS lines with `dspfWriter.js` and parsing again. The parser, engine, writer and helpers are inlined as scripts (`parserBundleJs`, `engineJs`, `writerJs`, ...), so adding `sfgrParser.js`, `sfgrModel.js` and `sfgrWriter.js` (all UMD, no `vscode`) is a matter of embedding them. The properties panel is chosen in `renderProps` (placement, file, multi-field, field, help, record). Today the E11b notice stands in for the page when the source is SFGR.
 
@@ -2779,16 +2782,16 @@ E11a is `Done (no code change)`: the specification and the decisions are recorde
 
 Canvas operations (click-to-place, drag, resize, delete, duplicate, undo and redo) stay E11h; E11g covers the panels and the routing.
 
-**Decisions to confirm (Manojkumar).**
+**Decisions (all accepted as proposed by Manojkumar).**
 
 | # | Question | Proposal | Answer |
 |---|----------|----------|--------|
-| 1 | Slicing | Split E11g into E11g1 - E11g4 as above, each its own release | - |
-| 2 | Edit routing | The page keeps `sourceText` as the truth for SFGR; every edit is one `SfgrWriter` call, then `buildModel` again; `applyEdit` sends the full text as today | - |
-| 3 | Before E11h | In SFGR mode the canvas is read-only (select, inspect, simulate, export); drag, resize and add arrive with E11h | - |
-| 4 | Panel style | Same panel look as the DDS ones (tabs for Basic / Attributes / Constant), SFGR column names, the column number in a tooltip | - |
-| 5 | Indicators | One control for each Y / N / indicator column: a small select (No, Yes, Indicator) plus a 01 - 99 box when Indicator is chosen | - |
-| 6 | Key mask | Two rows of toggle buttons (function keys 1 - 6, command keys A - Y) with the enable columns beside them, so the mask and the Y / N meaning are edited together | - |
+| 1 | Slicing | Split E11g into E11g1 - E11g4 as above, each its own release | Accepted as proposed (Manojkumar) |
+| 2 | Edit routing | The page keeps `sourceText` as the truth for SFGR; every edit is one `SfgrWriter` call, then `buildModel` again; `applyEdit` sends the full text as today | Accepted as proposed (Manojkumar) |
+| 3 | Before E11h | In SFGR mode the canvas is read-only (select, inspect, simulate, export); drag, resize and add arrive with E11h | Accepted as proposed (Manojkumar) |
+| 4 | Panel style | Same panel look as the DDS ones (tabs for Basic / Attributes / Constant), SFGR column names, the column number in a tooltip | Accepted as proposed (Manojkumar) |
+| 5 | Indicators | One control for each Y / N / indicator column: a small select (No, Yes, Indicator) plus a 01 - 99 box when Indicator is chosen | Accepted as proposed (Manojkumar) |
+| 6 | Key mask | Two rows of toggle buttons (function keys 1 - 6, command keys A - Y) with the enable columns beside them, so the mask and the Y / N meaning are edited together | Accepted as proposed (Manojkumar) |
 
 ---
 
