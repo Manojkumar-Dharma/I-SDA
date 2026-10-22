@@ -1,7 +1,8 @@
 /**
  * E11b - telling System/36 SFGR source (DSPF36) from DDS (src/sourceKind.js), and keeping the DDS tooling off SFGR:
- * the CodeLens, the diagnostics, the "Open Screen Design" command and the "Open With" designer. Pure checks first,
- * then the extension against the vscode mock.
+ * the diagnostics and the other DDS providers. Pure checks first, then the extension against the vscode mock.
+ * (E11g1 later gave SFGR source the designer, so the lens, the command and "Open With" open it as the designer
+ * page; that part is checked here against the new behaviour, the page itself in e11g1SfgrDesigner.test.js.)
  */
 'use strict';
 const path = require('path');
@@ -112,21 +113,17 @@ async function run() {
   const lens = vscodeMock.__registeredCodeLensProviders[0].provider;
   const lensTitles = (d) => lens.provideCodeLenses(d).map((l) => l.command.title);
   check('DDS source: Open Screen Design', lensTitles(ddsFile).some((t) => /Open Screen Design/.test(t)));
-  check('.dspf36 with SFGR text: no lens', lensTitles(sfgrFile).length === 0);
-  check('DSPF36 member: no lens', lensTitles(sfgrMember).length === 0);
+  check('.dspf36 with SFGR text: Open Screen Design (E11g1: the designer reads it)', lensTitles(sfgrFile).some((t) => /Open Screen Design/.test(t)));
+  check('DSPF36 member: Open Screen Design', lensTitles(sfgrMember).some((t) => /Open Screen Design/.test(t)));
   check('.dspf36 that holds DDS: Open Screen Design', lensTitles(legacy36).some((t) => /Open Screen Design/.test(t)));
 
   console.log('\nOpen Screen Design command');
   const openPreview = vscodeMock.__registeredCommands['dspfDesigner.openPreview'];
   vscodeMock.window.activeTextEditor = { document: sfgrFile };
   vscodeMock.__executedCommands.length = 0;
-  vscodeMock.__lastInformation = undefined;
   await openPreview();
   await new Promise((r) => setTimeout(r, 20));
-  const opened = vscodeMock.__executedCommands.filter((c) => c.id === 'vscode.openWith');
-  check('SFGR: the DDS designer is not opened', !opened.some((c) => c.args[1] === 'dspfDesigner.editor'));
-  check('SFGR: the file opens as text instead', opened.some((c) => c.args[1] === 'default' && c.args[0] === sfgrFile.uri));
-  check('SFGR: the person is told why', /DSPF36/.test(String(vscodeMock.__lastInformation)) && /not DDS/.test(String(vscodeMock.__lastInformation)));
+  check('SFGR: the designer opens (E11g1)', vscodeMock.__executedCommands.some((c) => c.id === 'vscode.openWith' && c.args[1] === 'dspfDesigner.editor' && c.args[0] === sfgrFile.uri));
   vscodeMock.window.activeTextEditor = { document: ddsFile };
   vscodeMock.__executedCommands.length = 0;
   await openPreview();
@@ -134,11 +131,16 @@ async function run() {
 
   console.log('\nOpen With > iSDA Screen Design on a DSPF36 file');
   const designer = vscodeMock.__registeredCustomEditorProviders['dspfDesigner.editor'].provider;
-  const panel = { webview: { options: {}, html: '', cspSource: 'csp' } };
-  designer.resolveCustomTextEditor(sfgrFile, panel, {});
-  check('a notice is shown, naming the file', /STIPFM\.dspf36/.test(panel.webview.html) && /SFGR/.test(panel.webview.html));
-  check('the notice runs no script', panel.webview.options.enableScripts === false && !/<script/i.test(panel.webview.html));
-  check('the DDS designer page is not built', panel.webview.html.length < 2000);
+  const mkPanel = () => ({ webview: { cspSource: 'csp', options: null, set html(v) { this._html = v; }, get html() { return this._html; }, onDidReceiveMessage: () => ({ dispose: () => {} }), postMessage: () => {} }, onDidDispose: () => {} });
+  const sfgrPanel = mkPanel();
+  designer.resolveCustomTextEditor(sfgrFile, sfgrPanel, {});
+  check('SFGR: the designer page is built as an SFGR page', /<body[^>]*data-source-kind="sfgr"/.test(sfgrPanel.webview.html));
+  const ddsPanel = mkPanel();
+  designer.resolveCustomTextEditor(ddsFile, ddsPanel, {});
+  check('DDS: the page is a DDS page', /<body[^>]*data-source-kind="dds"/.test(ddsPanel.webview.html));
+  const legacyPanel = mkPanel();
+  designer.resolveCustomTextEditor(legacy36, legacyPanel, {});
+  check('a .dspf36 file that holds DDS is a DDS page', /<body[^>]*data-source-kind="dds"/.test(legacyPanel.webview.html));
 
   vscodeMock.__setLanguageMatch(null);
   console.log('\n' + (failureCount() === 0 ? 'ALL CHECKS PASSED' : failureCount() + ' CHECK(S) FAILED'));

@@ -2635,7 +2635,7 @@ never runs on SFGR source and SFGR tooling never runs on DDS.
 | E11d | **Writer.** New pure module `src/sfgrWriter.js`: edit operations (set a column value, add, delete and move a spec, split and join continuation lines) that touch only the lines they change; untouched lines stay byte-identical, including trailing text in columns 64 - 80 and sequence numbers. Round-trip test over the whole sample. | E11c | Done | v0.18.4 |
 | E11e | **Model and engine mapping.** Fill the existing record and field model (`dspfModel.ts`) from SFGR formats so `dspfEngine.js` draws them: one format = one record, constants and fields placed by row and column, output-data indicators 01 - 99 as conditions, 80- and 132-column formats. Where SFGR has a concept the DDS model lacks, extend the model rather than encode it in keywords. | E11c | Done | v0.18.3 |
 | E11f | **Preview fidelity.** Draw the SFGR display attributes (high intensity, blink, nondisplay, reverse image, underline, column separators, lowercase), the start line and lines-to-clear stacking of several formats on one screen (Figure B-2), and the visual markers for input, output and input/output fields. Reuse the E3 simulator conditions for the indicators. | E11e | Done | v0.18.5 |
-| E11g1 | **Designer panels, slice 1: wiring, read-only.** Open SFGR in the designer (the E11b notice goes): the host sends `sourceKind`, the page routes every parse through `parseSource`, SFGR modules embedded; canvas, simulator and exports work; DDS-only edit controls hidden or disabled with one banner; title button and lens back for `.dspf36`. See "E11g plan and decisions". | E11d, E11e, E11f | In progress | - |
+| E11g1 | **Designer panels, slice 1: wiring, read-only.** Open SFGR in the designer (the E11b notice goes): the host sends `sourceKind`, the page routes every parse through `parseSource`, SFGR modules embedded; canvas, simulator and exports work; DDS-only edit controls hidden or disabled with one banner; title button and lens back for `.dspf36`. See "E11g plan and decisions". | E11d, E11e, E11f | Done | v0.18.6 |
 | E11g2 | **Designer panels, slice 2: format (S spec) panel**, with the key-mask editor; edits through `SfgrWriter.setValue`. | E11g1 | Open | - |
 | E11g3 | **Designer panels, slice 3: field and constant (D spec) panel**, constants through `setConstant`; values checked against the E11a ranges. | E11g1 | Open | - |
 | E11g4 | **Designer panels, slice 4: help (H spec) panel and clean-up**: `*DDS` block locked, DDS-only panels and tabs absent for SFGR, SFGR labels. | E11g2, E11g3 | Open | - |
@@ -2792,6 +2792,23 @@ Canvas operations (click-to-place, drag, resize, delete, duplicate, undo and red
 | 4 | Panel style | Same panel look as the DDS ones (tabs for Basic / Attributes / Constant), SFGR column names, the column number in a tooltip | Accepted as proposed (Manojkumar) |
 | 5 | Indicators | One control for each Y / N / indicator column: a small select (No, Yes, Indicator) plus a 01 - 99 box when Indicator is chosen | Accepted as proposed (Manojkumar) |
 | 6 | Key mask | Two rows of toggle buttons (function keys 1 - 6, command keys A - Y) with the enable columns beside them, so the mask and the Y / N meaning are edited together | Accepted as proposed (Manojkumar) |
+
+
+### E11g1 results
+
+**E11g1 (designer, slice 1: wiring, read-only).** Changes in `buildWebviewTemplate.js` (the page), `extension.ts` (the host), `package.json`; new test `src/test/e11g1SfgrDesigner.test.js`.
+
+**The page.** `getWebviewHtml` takes a `sourceKind` (`'dds'` default, `'sfgr'`), baked into `<body data-source-kind>` so the CSS can hide the DDS-only controls before any script runs. The three SFGR modules are embedded after the DDS parser bundle (parser first: the model and the writer read it as a global). One `parseSource(text)` routes to `SfgrModel.buildModel` or `DspfParser.parseDspf`; all 13 parse sites in the page use it. The canvas, record and size lists, indicator simulator and exports are the existing ones: E11e gives the same model, E11f draws it.
+
+**Nothing writes SFGR yet, and nothing writes it wrongly.** `sfgrReadOnlyBlocks()` is the first line of `commitSourceChange`, `commitGroupEdit`, `commitAlignEdit`, `commitMultiFieldKeywordEdit`, `commitCopySelection` and `commitPaste`; `startDrag` and `startGroupDrag` return at once. Keyboard shortcuts (Delete, nudge, cut, paste, duplicate) all end in those functions, so they are covered; a refused edit flashes the note in the left panel. The hidden controls are the buttons and rows listed in the CHANGELOG entry (CSS on `body[data-source-kind="sfgr"]`).
+
+**Properties.** `renderProps` hands SFGR to `renderSfgrReadOnlyProps`: for a format, source lines, start line (blank / number / `V`), lines to clear, 80 or 132 columns, the display control columns with their column numbers, the key mask decoded into function and command keys, and counts of H specs and `*DDS` blocks; for a field or constant, source lines (with "continued"), line and column with the screen row (start line + line - 1), length, usage, SFGR and DDS data type, the constant's text, a message constant's id and member, and its attributes with their indicator conditions. E11g2 - E11g4 replace this with the panels that write.
+
+**Host.** The E11b notice page and the "opens as text" message are gone; `openPreview`, "Open With" and the lens open the designer for SFGR (`isLikelyDisplayFile` is true for it again), and the title button matches `.dspf36` again. A `.dspf36` file whose text is DDS is still a DDS page (E11b's rule). The batch export (E5) reads SFGR through the SFGR model, so the images are no longer drawn from a DDS reading of it; its menu entry and the other exports stay with E11i. `sfgrModel.js` joins the copy list.
+
+**Checked.** In jsdom on `stipfm.dspf36`: one record per format, fields drawn, the DDS-only controls computed `display: none`, the heading and compile buttons say DSPF36 and CRTS36DSPF, the format and a selected field show in Properties with no input to type into, Delete, nudge, cut, paste and duplicate post no `applyEdit`, the note flashes, an `externalUpdate` re-reads the new text as SFGR; a DDS page beside it is unchanged (note hidden, controls shown, Delete still edits).
+
+**Not done (by design).** The keyword finder and the add-from-database path are hidden, not ported; the multi-field and record-level panels have no SFGR version (not needed while it is read-only); the explorer's host-side DDS helpers (referenced fields, menu) are unreachable from an SFGR page.
 
 ---
 

@@ -17,6 +17,11 @@ const screenExportUiJs = fs.readFileSync(path.join(__dirname, 'screenExportUi.js
 const ScreenExportUiNode = require('./screenExportUi.js');
 const clientHelpersJs = fs.readFileSync(path.join(__dirname, 'webviewClientHelpers.js'), 'utf8');
 const parserBundleJs = fs.readFileSync(path.join(__dirname, '../dist/dspfParser.browser.js'), 'utf8');
+// E11g1: System/36 DSPF36 (SFGR) source. The parser loads first (the model and the writer read it as a global), then the
+// model (SFGR text -> the same record and field model the DDS parser gives) and the writer (used by the panels, E11g2 on).
+const sfgrParserJs = fs.readFileSync(path.join(__dirname, 'sfgrParser.js'), 'utf8');
+const sfgrModelJs = fs.readFileSync(path.join(__dirname, 'sfgrModel.js'), 'utf8');
+const sfgrWriterJs = fs.readFileSync(path.join(__dirname, 'sfgrWriter.js'), 'utf8');
 
 // Build the full HTML at Node build time with plain-text placeholder tokens for the
 // values only known at TS runtime (nonce, cspSource, fileName, initialSource).
@@ -42,6 +47,9 @@ const UI_STYLE_TOKEN = '%%DSPF_UI_STYLE%%';
 // included) - see the :root/body[data-ui-theme=...] comments in the
 // <style> block. Same persistence/sharing story as UI_STYLE_TOKEN.
 const UI_THEME_TOKEN = '%%DSPF_UI_THEME%%';
+// E11g1: 'dds' (default) or 'sfgr' - what the source is. Baked into <body data-source-kind> so the CSS can hide the
+// DDS-only controls before any script runs, and read by the page to choose its parser.
+const SOURCE_KIND_TOKEN = '%%DSPF_SOURCE_KIND%%';
 
 const htmlTemplate = `<!DOCTYPE html>
 <html lang="en">
@@ -653,6 +661,23 @@ const htmlTemplate = `<!DOCTYPE html>
   .compare-toggle input { accent-color: var(--warn); }
   #compareRecordList { margin-top: 8px; }
   .hidden { display: none; }
+  /* E11g1: System/36 DSPF36 (SFGR) source. The panels that write it come with E11g2 - E11g4; until then the page is a
+     viewer, so the controls that edit DDS are hidden (the page never writes SFGR through the DDS writer). */
+  .sfgr-note { display: none; font-size: 11px; line-height: 1.4; color: var(--ink-dim); border: 1px solid var(--panel-border); border-radius: 4px; padding: 6px 8px; margin: 0 0 10px 0; }
+  .sfgr-note.flash { border-color: var(--warn); color: var(--warn); }
+  body[data-source-kind="sfgr"] .sfgr-note { display: block; }
+  body[data-source-kind="sfgr"] #newRecordToggleBtn, body[data-source-kind="sfgr"] #placeFieldBtn,
+  body[data-source-kind="sfgr"] #placeConstantBtn, body[data-source-kind="sfgr"] #addFromDbBtn,
+  body[data-source-kind="sfgr"] #fabPlaceFieldBtn, body[data-source-kind="sfgr"] #fabPlaceConstantBtn,
+  body[data-source-kind="sfgr"] #fabAddRecordBtn, body[data-source-kind="sfgr"] #fabWindowBtn,
+  body[data-source-kind="sfgr"] #fabMenuBtn, body[data-source-kind="sfgr"] #fabAddFromDbBtn,
+  body[data-source-kind="sfgr"] .keyword-finder-row, body[data-source-kind="sfgr"] .mod-tracking-row,
+  body[data-source-kind="sfgr"] .mod-tracking-seq-row { display: none !important; }
+  .sfgr-props h3 { font-size: 12px; margin: 10px 0 4px 0; }
+  .sfgr-props table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  .sfgr-props td { padding: 2px 4px; border-bottom: 1px solid var(--panel-border); vertical-align: top; }
+  .sfgr-props td:first-child { color: var(--ink-dim); white-space: nowrap; width: 44%; }
+  .sfgr-props code { font-family: var(--mono); }
   .compare-record-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 12px; cursor: pointer; }
   .hint-readonly { color: var(--warn); }
   .cond-group { border: 1px solid var(--panel-border); border-radius: 3px; padding: 6px 8px; margin-bottom: 6px; }
@@ -990,13 +1015,14 @@ const htmlTemplate = `<!DOCTYPE html>
   body[data-ui-theme="white"] { --accent: #f2f6f4; --accent-rgb: 242, 246, 244; --chrome-accent: #f2f6f4; --chrome-accent-rgb: 242, 246, 244; }
 </style>
 </head>
-<body data-ui-style="${UI_STYLE_TOKEN}" data-ui-theme="${UI_THEME_TOKEN}">
+<body data-ui-style="${UI_STYLE_TOKEN}" data-ui-theme="${UI_THEME_TOKEN}" data-source-kind="${SOURCE_KIND_TOKEN}">
 <aside>
   <button class="panel-toggle-btn" id="leftPanelToggle" title="Hide this panel">&#9664; Hide panel</button>
   <div class="panel-body" id="leftPanelBody">
-  <h1>IBM i · DDS</h1>
+  <h1 id="designerTitle">IBM i · DDS</h1>
   <h2>Screen Design</h2>
   <div class="codefori-badge unknown" id="codeForIBadge" title="Whether the Code for IBM i extension is installed and connected. Compile, Resolve Referenced Field, and Add fields from database file all need a live connection.">IBM i: checking…</div>
+  <div class="sfgr-note" id="sfgrNote">System/36 <b>DSPF36</b> (SFGR) source. The screen preview, indicator simulator and exports work; editing it from this page comes in the next releases, so the source is read-only here for now.</div>
   <button id="saveDocBtn" class="save-btn" style="width:100%;margin-bottom:10px;" title="Save this file to disk (Ctrl+S/Cmd+S works too - this button exists because a webview panel doesn't show VS Code's own dirty-tab dot)">&#128190; Save</button>
   <div class="field-row">
     <label>Find field</label>
@@ -1169,6 +1195,9 @@ const htmlTemplate = `<!DOCTYPE html>
 </div>
 
 <script nonce="${NONCE_TOKEN}">${parserBundleJs}</script>
+<script nonce="${NONCE_TOKEN}">${sfgrParserJs}</script>
+<script nonce="${NONCE_TOKEN}">${sfgrModelJs}</script>
+<script nonce="${NONCE_TOKEN}">${sfgrWriterJs}</script>
 <script nonce="${NONCE_TOKEN}">${keywordSpecJs}</script>
 <script nonce="${NONCE_TOKEN}">${engineJs}</script>
 <script nonce="${NONCE_TOKEN}">${indicatorSimJs}</script>
@@ -1263,7 +1292,15 @@ const htmlTemplate = `<!DOCTYPE html>
   })();
 
   let sourceText = ${INITIAL_SOURCE_JSON_TOKEN};
-  let model = DspfParser.parseDspf(sourceText);
+  // E11g1: what the source is. 'sfgr' = System/36 DSPF36 (SFGR) source: read through SfgrModel, which gives the same
+  // record and field model the DDS parser gives, so the canvas, simulator and exports are shared. Every parse of the
+  // source goes through parseSource. The DDS edit paths (dspfWriter.js changes DDS columns) never run on SFGR text:
+  // see sfgrReadOnlyBlocks.
+  const sourceKind = document.body.dataset.sourceKind === 'sfgr' ? 'sfgr' : 'dds';
+  function parseSource(text) {
+    return sourceKind === 'sfgr' ? SfgrModel.buildModel(text) : DspfParser.parseDspf(text);
+  }
+  let model = parseSource(sourceText);
   // Resolved definitions of referenced database fields (Resolve Referenced
   // Field), keyed by DspfEngine.referenceKey(). Held here in memory only -
   // never written into the DDS source - and re-attached to the model in
@@ -2265,7 +2302,7 @@ const htmlTemplate = `<!DOCTYPE html>
             })),
           },
           { line: 1, column: 1 },
-          (sourceText) => DspfParser.parseDspf(sourceText)
+          (sourceText) => parseSource(sourceText)
         );
         return result.lines;
       },
@@ -3118,7 +3155,7 @@ const htmlTemplate = `<!DOCTYPE html>
           lines,
           { mainRecord: { name: name, keywords: keywords }, dependent: null, extraFields: [] },
           { line: line, column: col },
-          (sourceText) => DspfParser.parseDspf(sourceText)
+          (sourceText) => parseSource(sourceText)
         );
         return result.lines;
       },
@@ -3184,7 +3221,7 @@ const htmlTemplate = `<!DOCTYPE html>
           // signature still expects one; { line: 1, column: 1 } is a
           // harmless placeholder, never read.
           { line: 1, column: 1 },
-          (sourceText) => DspfParser.parseDspf(sourceText)
+          (sourceText) => parseSource(sourceText)
         );
         return result.lines;
       },
@@ -4296,6 +4333,7 @@ const htmlTemplate = `<!DOCTYPE html>
   }
 
   function startDrag(el, field, recordName, startEvent) {
+    if (sourceKind === 'sfgr') return; // E11g1: the canvas is read-only for SFGR until E11h
     const { colWidth, rowHeight } = gridMetrics();
     const origRenderLine = parseInt(el.getAttribute('data-render-line'), 10);
     const origRenderColumn = parseInt(el.getAttribute('data-render-column'), 10);
@@ -4469,6 +4507,7 @@ const htmlTemplate = `<!DOCTYPE html>
   // capture the mouse's starting point at mousedown and apply how far the
   // MOUSE has moved as a delta onto the reference field's original position.
   function startGroupDrag(els, fields, recordName, startEvent) {
+    if (sourceKind === 'sfgr') return; // E11g1: the canvas is read-only for SFGR until E11h
     const { colWidth, rowHeight } = gridMetrics();
     const originals = els.map((el) => ({
       el,
@@ -4557,6 +4596,7 @@ const htmlTemplate = `<!DOCTYPE html>
   }
 
   function commitGroupEdit(recordName, fields, deltaLine, deltaColumn) {
+    if (sfgrReadOnlyBlocks()) return;
     try {
       // Pre-L10 this only ever tracked named fields (the SFLPAG-preview
       // group-drag caller already filters to '.filter((f) => f.name)'), so
@@ -4583,7 +4623,7 @@ const htmlTemplate = `<!DOCTYPE html>
         const baseColumn = f.location.column != null ? f.location.column : 1;
         const newColumn = baseColumn + deltaColumn;
         lines = DspfWriter.applyFieldUpdate(f, lines, { line: newLine, column: newColumn });
-        currentModel = DspfParser.parseDspf(lines.join('\\n'));
+        currentModel = parseSource(lines.join('\\n'));
       });
 
       if (scrbarGuardBlocks(lines)) { render(); return; }
@@ -4633,6 +4673,7 @@ const htmlTemplate = `<!DOCTYPE html>
   // (post-align) identity, since unlike a delta move the exact new
   // position differs per field.
   function commitAlignEdit(recordName, targets) {
+    if (sfgrReadOnlyBlocks()) return;
     try {
       const identities = targets.map((t) => identityOf(t.field));
       const wasSelected = targets.map((t) => selectedKeys.some((k) => k.sourceLine === t.field.sourceLine));
@@ -4645,7 +4686,7 @@ const htmlTemplate = `<!DOCTYPE html>
         const f = rec && findByIdentity(rec, id);
         if (!f) return;
         lines = DspfWriter.applyFieldUpdate(f, lines, { line: targets[i].newLine, column: targets[i].newColumn });
-        currentModel = DspfParser.parseDspf(lines.join('\\n'));
+        currentModel = parseSource(lines.join('\\n'));
       });
 
       if (scrbarGuardBlocks(lines)) { render(); return; }
@@ -4688,6 +4729,7 @@ const htmlTemplate = `<!DOCTYPE html>
   // Re-selects whichever of 'fields' were selected beforehand, same as
   // commitGroupEdit.
   function commitMultiFieldKeywordEdit(recordName, fields, computeNewKeywords) {
+    if (sfgrReadOnlyBlocks()) return;
     try {
       const identities = fields.map(identityOf);
       const wasSelected = fields.map((f) => selectedKeys.some((k) => k.sourceLine === f.sourceLine));
@@ -4701,7 +4743,7 @@ const htmlTemplate = `<!DOCTYPE html>
         if (!f) return;
         const newKeywords = computeNewKeywords(f);
         lines = DspfWriter.applyFieldUpdate(f, lines, { keywords: newKeywords });
-        currentModel = DspfParser.parseDspf(lines.join('\\n'));
+        currentModel = parseSource(lines.join('\\n'));
       });
 
       if (scrbarGuardBlocks(lines)) { render(); return; }
@@ -4784,8 +4826,84 @@ const htmlTemplate = `<!DOCTYPE html>
     return out;
   }
 
+  // E11g1: the Properties panel for System/36 DSPF36 (SFGR) source, read-only until the panels that write it arrive
+  // (E11g2 format, E11g3 field, E11g4 help). Shows what the source says, column numbers included, so the person can
+  // check an entry against the manual while the preview is open.
+  const SFGR_S_LABELS = [
+    ['lowercase', 'Lowercase (format default)', '21'], ['returnInput', 'Return input', '22'], ['alarm', 'Sound alarm', '25 - 26'],
+    ['enableFunctionKeys', 'Enable function keys', '27'], ['enableCommandKeys', 'Enable command keys', '28'],
+    ['blinkCursor', 'Blink cursor', '29 - 30'], ['eraseInput', 'Erase input fields', '31 - 32'],
+    ['overrideFields', 'Override fields', '33 - 34'], ['suppressInput', 'Suppress input', '35 - 36'],
+    ['nullFill', 'Null fill', '37 - 38'], ['rightToLeft', 'Right-to-left display', '40']
+  ];
+
+  function sfgrRowsHtml(rows) {
+    const esc = DspfEngine.escapeHtml;
+    return '<table>' + rows.map((r) => '<tr><td>' + esc(r[0]) + '</td><td>' + (r[2] ? r[1] : esc(String(r[1]))) + '</td></tr>').join('') + '</table>';
+  }
+
+  function sfgrConditionText(kw) {
+    return (kw.conditions || []).map((c) => c.indicators.map((i) => (i.not ? 'N' : '') + i.number).join(' ')).filter(Boolean).join(' / ');
+  }
+
+  function renderSfgrReadOnlyProps(recordName) {
+    const esc = DspfEngine.escapeHtml;
+    const rec = model.records.find((r) => r.name === recordName);
+    const found = selectedKey ? findFieldBySourceLine(selectedKey.sourceLine) : null;
+    let html = '<div class="sfgr-props">';
+    if (found && found.field && found.field.sfgr) {
+      const f = found.field;
+      const sf = f.sfgr;
+      const rf = found.record.sfgr || {};
+      const startLine = rf.startLine == null ? 1 : rf.startLine;
+      const isConstant = f.nameType === 'CONSTANT';
+      const rows = [
+        [isConstant ? 'Constant' : 'Field', '<code>' + esc(sf.specName || '(no name)') + '</code>', true],
+        ['Source lines', sf.endLine > sf.line ? sf.line + ' - ' + sf.endLine + ' (continued)' : String(sf.line)],
+        ['Line / column', 'line ' + f.location.line + ', column ' + f.location.column + ' (row ' + (startLine + f.location.line - 1) + ' on the screen)'],
+        ['Length', f.length == null ? '' : f.length]
+      ];
+      if (!isConstant) rows.push(['Usage', f.usage || '']);
+      rows.push(['Data type', (sf.sfgrDataType || '(any)') + (f.dataType ? '  (DDS ' + f.dataType + ')' : '')]);
+      if (isConstant) rows.push(['Text', '<code>' + esc(f.constantValue == null ? '' : f.constantValue) + '</code>', true]);
+      if (sf.message) rows.push(['Message', 'id ' + sf.message.id + (sf.message.member ? ', member ' + sf.message.member : '')]);
+      html += '<h3>' + (isConstant ? 'Constant' : 'Field') + '</h3>' + sfgrRowsHtml(rows);
+      const kws = (f.keywords || []).map((k) => {
+        const cond = sfgrConditionText(k);
+        return [k.name + (k.parameters ? '(' + k.parameters + ')' : ''), cond ? 'when ' + cond : 'always'];
+      });
+      if (kws.length) html += '<h3>Attributes</h3>' + sfgrRowsHtml(kws);
+    } else if (rec && rec.sfgr) {
+      const r = rec.sfgr;
+      const start = r.startLineVariable ? 'V (set by the program)' : (r.startLine == null ? 'blank (line 1)' : r.startLine);
+      const rows = [
+        ['Format', '<code>' + esc(rec.name) + '</code>', true],
+        ['Source lines', r.sourceLine + ' - ' + r.endLine],
+        ['Start line (17 - 18)', start],
+        ['Lines to clear (19 - 20)', r.linesToClear == null ? 'blank (all)' : r.linesToClear],
+        ['Screen width (39)', r.columns132 ? '132 columns' : '80 columns']
+      ];
+      html += '<h3>Format</h3>' + sfgrRowsHtml(rows);
+      const other = SFGR_S_LABELS.map((l) => [l[1] + ' (' + l[2] + ')', (r.values && r.values[l[0]]) || '']);
+      html += '<h3>Display control</h3>' + sfgrRowsHtml(other);
+      const km = r.keyMask || { text: '', functionKeys: [], commandKeys: [], invalid: [] };
+      html += '<h3>Key mask (64 - 79)</h3>' + sfgrRowsHtml([
+        ['Mask', km.text || '(empty)'],
+        ['Function keys', km.functionKeys.map((k) => k.char + ' ' + k.name).join(', ') || 'none'],
+        ['Command keys', km.commandKeys.map((k) => k.char + ' (CF' + (k.number < 10 ? '0' : '') + k.number + ')').join(', ') || 'none'],
+        ['Not a key', km.invalid.join(' ') || 'none']
+      ]);
+      html += '<h3>Other</h3>' + sfgrRowsHtml([['Help areas (H)', (r.help || []).length], ['*DDS blocks', (r.passThrough || []).length]]);
+    } else {
+      html += '<div class="empty-state">Select a format, field or constant.</div>';
+    }
+    html += '</div>';
+    propsBody.innerHTML = html;
+  }
+
   function renderProps(recordName) {
     renderBreadcrumb(recordName);
+    if (sourceKind === 'sfgr') { renderSfgrReadOnlyProps(recordName); return; }
     if (pendingPlacement) { renderPlacementProps(recordName); return; }
     if (showFileProps) { renderFileProps(); return; }
     // Task L10: more than one field selected (shift/ctrl-click or
@@ -7020,7 +7138,7 @@ const htmlTemplate = `<!DOCTYPE html>
   // introduces blocks. Returns true (after alerting) when the edit is blocked.
   function scrbarGuardBlocks(newLines) {
     let candidate;
-    try { candidate = DspfParser.parseDspf(newLines.join('\\n')); } catch (e) { return false; }
+    try { candidate = parseSource(newLines.join('\\n')); } catch (e) { return false; }
     const reason = DspfWriter.scrbarReservedNewConflictReason(model, candidate);
     if (!reason) return false;
     window.alert(reason);
@@ -7033,7 +7151,7 @@ const htmlTemplate = `<!DOCTYPE html>
   // would introduce a clash.
   function keyClaimGuardBlocks(newLines) {
     let candidate;
-    try { candidate = DspfParser.parseDspf(newLines.join('\\n')); } catch (e) { return false; }
+    try { candidate = parseSource(newLines.join('\\n')); } catch (e) { return false; }
     const reason = DspfWriter.altKeyFileExclusionNewConflictReason(model, candidate);
     if (!reason) return false;
     window.alert(reason);
@@ -7062,7 +7180,7 @@ const htmlTemplate = `<!DOCTYPE html>
   // dependent keyword or by removing what it depends on.
   function windowDependencyGuardBlocks(newLines) {
     let candidate;
-    try { candidate = DspfParser.parseDspf(newLines.join('\\n')); } catch (e) { return false; }
+    try { candidate = parseSource(newLines.join('\\n')); } catch (e) { return false; }
     const reason = DspfWriter.windowDependencyNewConflictReason(model, candidate) ||
       DspfWriter.sflctlDependencyNewConflictReason(model, candidate) ||
       DspfWriter.subfileKeywordNewConflictReason(model, candidate) ||
@@ -7091,7 +7209,25 @@ const htmlTemplate = `<!DOCTYPE html>
     return true;
   }
 
+  // E11g1: no DDS edit may touch SFGR text. Every function that writes the source through dspfWriter.js asks this first.
+  // The note in the left panel flashes so the person sees why nothing happened.
+  function sfgrReadOnlyBlocks() {
+    if (sourceKind !== 'sfgr') return false;
+    const note = document.getElementById('sfgrNote');
+    if (note) { note.classList.add('flash'); setTimeout(() => note.classList.remove('flash'), 1500); }
+    return true;
+  }
+  if (sourceKind === 'sfgr') {
+    const title = document.getElementById('designerTitle');
+    if (title) title.textContent = 'IBM i \u00b7 DSPF36';
+    ['compileDspfBtn', 'toolbarCompileBtn'].forEach((id) => {
+      const btn = document.getElementById(id);
+      if (btn) btn.textContent = 'Compile Display File (CRTS36DSPF)';
+    });
+  }
+
   function commitSourceChange(transform, afterReparse) {
+    if (sfgrReadOnlyBlocks()) return;
     try {
       const lines = sourceText.split(/\\r\\n|\\r|\\n/);
       let newLines = transform(lines);
@@ -7106,7 +7242,7 @@ const htmlTemplate = `<!DOCTYPE html>
       // why a plain prefix/suffix trim is enough here.
       newLines = DspfWriter.applyModificationTracking(lines, newLines, { enabled: modTrackingEnabled, tag: modTrackingTag, position: modTrackingPosition });
       sourceText = newLines.join('\\n');
-      model = DspfParser.parseDspf(sourceText);
+      model = parseSource(sourceText);
       activePulldown = null;
       suppressNextExternalUpdate = true;
       vscode.postMessage({ type: 'applyEdit', text: sourceText });
@@ -7249,7 +7385,7 @@ const htmlTemplate = `<!DOCTYPE html>
         options.location = { line: f.location.line + deltaLine, column: f.location.column + deltaColumn };
       }
       lines = DspfWriter.copyField(rec, lines, f, options);
-      currentModel = DspfParser.parseDspf(lines.join('\\n'));
+      currentModel = parseSource(lines.join('\\n'));
       const freshRec = currentModel.records.find((r) => r.name === recordName);
       const newField = freshRec && freshRec.fields[freshRec.fields.length - 1];
       if (newField) insertedSourceLines.push(newField.sourceLine);
@@ -7275,6 +7411,7 @@ const htmlTemplate = `<!DOCTYPE html>
   // "click to place a whole block" UI today (the Copy button, and so
   // this shortcut's own single-field case, only ever place ONE field).
   function commitCopySelection(recordName) {
+    if (sfgrReadOnlyBlocks()) return;
     const selected = getSelectedFields().filter((s) => s.record.name === recordName);
     if (selected.length === 0) return;
     if (selected.length === 1) { beginCopyPlacement(recordName, selected[0].field); return; }
@@ -7518,6 +7655,7 @@ const htmlTemplate = `<!DOCTYPE html>
   // behavior every other copyField caller already has, so Paste doesn't
   // special-case it.
   function commitPaste() {
+    if (sfgrReadOnlyBlocks()) return;
     if (!clipboardField || !clipboardField.fields || clipboardField.fields.length === 0) return;
     const recordName = recordSelect.value || (model.records[0] && model.records[0].name);
     const rec = model.records.find((r) => r.name === recordName);
@@ -8284,7 +8422,7 @@ const htmlTemplate = `<!DOCTYPE html>
     sizeSelect.innerHTML = '';
     if (toolbarSizeSelect) toolbarSizeSelect.innerHTML = '';
     sourceText = text;
-    model = DspfParser.parseDspf(sourceText);
+    model = parseSource(sourceText);
     render();
   }
 
@@ -8295,7 +8433,7 @@ const htmlTemplate = `<!DOCTYPE html>
     } else if (msg.type === 'externalUpdate') {
       if (suppressNextExternalUpdate) { suppressNextExternalUpdate = false; return; }
       sourceText = msg.text;
-      model = DspfParser.parseDspf(sourceText);
+      model = parseSource(sourceText);
       clearSelection();
       render();
     } else if (msg.type === 'referencesResolved') {
@@ -8443,14 +8581,15 @@ const output = `/**
 
 const HTML_TEMPLATE: string = ${JSON.stringify(htmlTemplate)};
 
-export function getWebviewHtml(cspSource: string, nonce: string, initialSource: string, fileName: string, uiStyle: string = 'modern', uiTheme: string = 'green'): string {
+export function getWebviewHtml(cspSource: string, nonce: string, initialSource: string, fileName: string, uiStyle: string = 'modern', uiTheme: string = 'green', sourceKind: string = 'dds'): string {
   return HTML_TEMPLATE
     .split(${JSON.stringify(CSP_TOKEN)}).join(cspSource)
     .split(${JSON.stringify(NONCE_TOKEN)}).join(nonce)
     .split(${JSON.stringify(FILENAME_TOKEN)}).join(fileName)
     .split(${JSON.stringify(INITIAL_SOURCE_JSON_TOKEN)}).join(JSON.stringify(initialSource))
     .split(${JSON.stringify(UI_STYLE_TOKEN)}).join(uiStyle)
-    .split(${JSON.stringify(UI_THEME_TOKEN)}).join(uiTheme);
+    .split(${JSON.stringify(UI_THEME_TOKEN)}).join(uiTheme)
+    .split(${JSON.stringify(SOURCE_KIND_TOKEN)}).join(sourceKind === 'sfgr' ? 'sfgr' : 'dds');
 }
 `;
 

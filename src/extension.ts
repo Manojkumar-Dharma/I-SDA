@@ -191,6 +191,8 @@ const HoverKeywordSpec: unknown = require('./keywordSpec.js');
 const SourceKind: {
   isSfgrSource(pathOrUri: string, text?: string | (() => string)): boolean;
 } = require('./sourceKind.js');
+// E11g1: System/36 SFGR source -> the same record and field model the DDS parser gives.
+const SfgrModel: { buildModel(source: string): ReturnType<typeof parseDspf> } = require('./sfgrModel.js');
 // E1d: keyword completion (pure module; the provider takes the API as an argument)
 // E1e: outline and go to definition (pure module; the provider takes the API as an argument)
 const DdsOutline: {
@@ -386,7 +388,7 @@ async function exportAllScreenPreviews(context: vscode.ExtensionContext): Promis
   const memberName = document.uri.path.split('/').pop() || document.fileName.split(/[\\/]/).pop() || 'display-file';
   try {
     const settings = getExportSettings();
-    const plan = ScreenBatch.prepare(parseDspf(document.getText()), { engine: DspfEngine, memberName, themeName: getUiTheme(context), ruler: settings.ruler, textStyle: settings.textStyle });
+    const plan = ScreenBatch.prepare(isSfgrDocument(document) ? SfgrModel.buildModel(document.getText()) : parseDspf(document.getText()), { engine: DspfEngine, memberName, themeName: getUiTheme(context), ruler: settings.ruler, textStyle: settings.textStyle });
     if (plan.entries.length === 0) {
       vscode.window.showWarningMessage('iSDA: There is no record format in this file to export.');
       return;
@@ -473,10 +475,6 @@ export function activate(context: vscode.ExtensionContext): void {
       const editor = vscode.window.activeTextEditor;
       if (!editor) {
         vscode.window.showWarningMessage('Open a DDS display file source (.dspf) first.');
-        return;
-      }
-      if (isSfgrDocument(editor.document)) {
-        void showSfgrDesignerNotice(editor.document.uri);
         return;
       }
       openDesigner(editor.document.uri);
@@ -719,7 +717,7 @@ function hasDisplayFileShapedContent(document: vscode.TextDocument): boolean {
 }
 
 function isLikelyDisplayFile(document: vscode.TextDocument): boolean {
-  if (isSfgrDocument(document)) return false; // E11b: SFGR source is not a DDS display file
+  if (isSfgrDocument(document)) return true; // E11g1: System/36 SFGR source is a display file the designer reads (as a viewer for now)
   const type = getDocumentSourceType(document.uri);
   // A known, non-DSPF-family type (RPGLE, CLLE, PF, ...) is a hard no,
   // regardless of what the content happens to look like (Task L-40 - this is
@@ -2111,26 +2109,6 @@ function postDirtyState(webview: vscode.Webview, ...docs: vscode.TextDocument[])
   webview.postMessage({ type: 'dirtyState', isDirty: docs.some((d) => d.isDirty) });
 }
 
-// E11b: the screen designer reads DDS. Until E11g gives System/36 SFGR source its own designer, a DSPF36 file is
-// offered as text and the person is told why, instead of seeing the DDS reading of it.
-async function showSfgrDesignerNotice(uri: vscode.Uri): Promise<void> {
-  void vscode.window.showInformationMessage(
-    'iSDA: this is System/36 DSPF36 (SFGR) source, not DDS. The screen designer does not read it yet, so it is shown as text.'
-  );
-  await vscode.commands.executeCommand('vscode.openWith', uri, 'default');
-}
-
-function getSfgrNoticeHtml(fileName: string): string {
-  const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  return (
-    '<!DOCTYPE html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src \'unsafe-inline\'">' +
-    '<style>body{font-family:var(--vscode-font-family);color:var(--vscode-foreground);padding:24px;max-width:46em}</style></head><body>' +
-    '<h2>' + esc(fileName) + '</h2>' +
-    '<p>This is System/36 <b>DSPF36</b> (SFGR) source, not DDS. The screen designer does not read it yet.</p>' +
-    '<p>Use <b>Reopen Editor With... &gt; Text Editor</b> to edit it as text.</p></body></html>'
-  );
-}
-
 function openDesigner(uri: vscode.Uri): void {
   void openInDesigner(uri, DspfDesignerEditorProvider.viewType);
 }
@@ -2154,17 +2132,11 @@ class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
   constructor(private readonly context: vscode.ExtensionContext) {}
 
   resolveCustomTextEditor(document: vscode.TextDocument, webviewPanel: vscode.WebviewPanel, _token: vscode.CancellationToken): void {
-    // E11b: chosen through "Open With" on a DSPF36 file: say what it is instead of drawing the DDS reading of it.
-    if (isSfgrDocument(document)) {
-      webviewPanel.webview.options = { enableScripts: false };
-      webviewPanel.webview.html = getSfgrNoticeHtml(document.fileName.split(/[\\/]/).pop() || '');
-      return;
-    }
     webviewPanel.webview.options = { enableScripts: true };
 
     const nonce = getNonce();
     const fileName = document.fileName.split(/[\\/]/).pop() || '';
-    webviewPanel.webview.html = getWebviewHtml(webviewPanel.webview.cspSource, nonce, document.getText(), fileName, getUiStyle(this.context), getUiTheme(this.context));
+    webviewPanel.webview.html = getWebviewHtml(webviewPanel.webview.cspSource, nonce, document.getText(), fileName, getUiStyle(this.context), getUiTheme(this.context), isSfgrDocument(document) ? 'sfgr' : 'dds');
 
     // Scoped per editor instance (resolveCustomTextEditor runs once per opened tab),
     // same echo-suppression pattern as before: ignore the onDidChangeTextDocument
