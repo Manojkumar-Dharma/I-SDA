@@ -2630,7 +2630,7 @@ never runs on SFGR source and SFGR tooling never runs on DDS.
 | ID | Sub-task and scope | Depends on | Status | Version |
 |----|--------------------|------------|--------|---------|
 | E11a | **Specification and decisions.** **Decision first.** Write `docs/sda-reference/SFGR-SPEC.md`: the column tables for the S, D and H specs and the `*DDS` and comment lines, each value with its meaning, valid range and the DDS keyword (or none) it corresponds to; the continuation rule; which SFGR features have no DDS-model equivalent; every claim checked against `stipfm.dspf36`. Proposal and Manojkumar's answer to record in this section: (1) one shared model with SFGR as a second reader/writer, versus a separate model; (2) how a `DSPF36` file is told apart from DDS (extension, member source type, content sniff); (3) whether `*DDS` lines are shown as opaque blocks or parsed as DDS; (4) whether a "convert to DDS" command is in scope. May land as `Done (no code change)`. | - | Done (no code change) | - |
-| E11b | **Format detection and guards.** Language id and file association for `.dspf36` and `DSPF36` members; one `isSfgrSource(uri, text)` helper; DDS diagnostics, hover, completion, outline and quick-fix providers (E1) and the DDS designer path stop running on SFGR source (today they produce false errors on it). Settings stay as they are. | E11a | In progress | - |
+| E11b | **Format detection and guards.** Language id and file association for `.dspf36` and `DSPF36` members; one `isSfgrSource(uri, text)` helper; DDS diagnostics, hover, completion, outline and quick-fix providers (E1) and the DDS designer path stop running on SFGR source (today they produce false errors on it). Settings stay as they are. | E11a | Done | v0.18.2 |
 | E11c | **Parser.** New pure module `src/sfgrParser.js`, no `vscode` import: source text in, formats out (S spec, D specs, H specs, comments, `*DDS` blocks), each carrying its original line text and line numbers, continuation lines joined, CRLF and LF kept as found. Reports unreadable lines instead of throwing. Tests read `stipfm.dspf36` and small hand-made fixtures. | E11a | Done | v0.18.1 |
 | E11d | **Writer.** New pure module `src/sfgrWriter.js`: edit operations (set a column value, add, delete and move a spec, split and join continuation lines) that touch only the lines they change; untouched lines stay byte-identical, including trailing text in columns 64 - 80 and sequence numbers. Round-trip test over the whole sample. | E11c | Open | - |
 | E11e | **Model and engine mapping.** Fill the existing record and field model (`dspfModel.ts`) from SFGR formats so `dspfEngine.js` draws them: one format = one record, constants and fields placed by row and column, output-data indicators 01 - 99 as conditions, 80- and 132-column formats. Where SFGR has a concept the DDS model lacks, extend the model rather than encode it in keywords. | E11c | Open | - |
@@ -2669,6 +2669,20 @@ continuation rule, the key mask tables, the data type mapping and the line and e
 | 6 | Convert to DDS | Out of scope for E11 | Accepted as proposed (Manojkumar) |
 
 E11a is `Done (no code change)`: the specification and the decisions are recorded.
+
+
+### E11b results
+
+**E11b (format detection and guards).** New `src/sourceKind.js` (UMD, no `vscode`; copied to `dist/` by `build:webview-assets`) and `src/test/e11bSourceKind.test.js`; `extension.ts` asks it before any DDS tool runs.
+
+**Decisions.**
+- **The source type decides first** (E11a, answer 2): a `DSPF36` member or `.dspf36` file is SFGR; `.dspf`, `.dspf38`, `.mnudds` and any other known type are not, whatever the text looks like. Only with no type to read does the text decide: every record line has `S`, `D` or `H` in column 6 and at least one is an `S` (SFGR), or has `A` there and none of the three (DDS); anything else is unknown.
+- **One refinement to answer 2:** a `.dspf36` file whose text is DDS stays DDS. This project used `.dspf36` for DDS files before S36-5 (LIMITATIONS-PLAN.md, S36-1 and S36-5), and those keep their diagnostics, lens and designer. A new empty `.dspf36` file is SFGR.
+- **The text is read lazily:** never for a known non-`DSPF36` type, once for `DSPF36` (to spot DDS content) or when there is no type. A test document without `getText` is treated as having no text.
+
+**What changed in the extension.** `isDdsTextDocument` (which gates the diagnostics, hover, completion, outline, quick-fixes and column aids) and `isLikelyDisplayFile` / `isLikelyMenuFile` (the **Open Screen Design** and **Open Menu Design** lenses and the quick-fix's designer target) return false for SFGR. The editor title button no longer matches `.dspf36` by extension (a `member:` or `streamfile:` document still shows it, and the command itself checks). **Open Screen Design** on SFGR shows "this is System/36 DSPF36 (SFGR) source, not DDS ..." and reopens the file as text. **Open With > iSDA Screen Design** on it shows a short notice page with no script instead of the DDS reading of the file. `compileDspf` is unchanged (it already chose `CRTS36DSPF` by the member's type, S36-5).
+
+**Checked.** The DDS diagnostics report errors on `stipfm.dspf36` ("Field found before any record format", one per line), which is what the guard removes; the new tests fail without the `extension.ts` change (7 checks) and pass with it. E11g re-enables the designer for SFGR and replaces the notice.
 
 ### E11c results
 

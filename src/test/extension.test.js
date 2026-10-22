@@ -72,7 +72,11 @@ async function run() {
 
   const dspf36Uri = new vscodeMock.Uri('member', '/MYLIB/QDDSSRC/SCREEN2.DSPF36');
   const dspf36Doc = vscodeMock.__mockDocument('not actually DDS-shaped text at all', dspf36Uri);
-  check('a DSPF36 member type also gets the screen design lens', lensProvider.provideCodeLenses(dspf36Doc).some((l) => l.command.command === 'dspfDesigner.openPreview'));
+  // E11b: a DSPF36 member is System/36 SFGR source, not DDS, and the screen designer does not read it yet (E11g), so it
+  // gets no lens; a DSPF36-named member that holds DDS (the pre-S36-5 naming convention) still gets it.
+  check('a DSPF36 member type (SFGR source) gets no screen design lens until E11g', lensProvider.provideCodeLenses(dspf36Doc).length === 0);
+  const dspf36DdsDoc = vscodeMock.__mockDocument("     A          R REC1\n     A            F1        10A  B  2  2\n", dspf36Uri);
+  check('a DSPF36-named member that holds DDS keeps the screen design lens', lensProvider.provideCodeLenses(dspf36DdsDoc).some((l) => l.command.command === 'dspfDesigner.openPreview'));
 
   const mnuddsTypeUri = new vscodeMock.Uri('member', '/MYLIB/QDDSSRC/MYMENU.MNUDDS');
   const mnuddsTypeDoc = vscodeMock.__mockDocument('not menu-shaped content, no numbered options', mnuddsTypeUri);

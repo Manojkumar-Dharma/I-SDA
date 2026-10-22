@@ -187,6 +187,10 @@ const DdsHover: {
   ): vscode.HoverProvider;
 } = require('./ddsHover.js');
 const HoverKeywordSpec: unknown = require('./keywordSpec.js');
+// E11b: tells System/36 SFGR source (DSPF36) from DDS, so the DDS tooling below leaves SFGR alone.
+const SourceKind: {
+  isSfgrSource(pathOrUri: string, text?: string | (() => string)): boolean;
+} = require('./sourceKind.js');
 // E1d: keyword completion (pure module; the provider takes the API as an argument)
 // E1e: outline and go to definition (pure module; the provider takes the API as an argument)
 const DdsOutline: {
@@ -471,6 +475,10 @@ export function activate(context: vscode.ExtensionContext): void {
         vscode.window.showWarningMessage('Open a DDS display file source (.dspf) first.');
         return;
       }
+      if (isSfgrDocument(editor.document)) {
+        void showSfgrDesignerNotice(editor.document.uri);
+        return;
+      }
       openDesigner(editor.document.uri);
     })
   );
@@ -683,11 +691,18 @@ export function activate(context: vscode.ExtensionContext): void {
   columnAids.refreshAll();
 }
 
+// E11b: System/36 SFGR source (a DSPF36 member or .dspf36 file) is not DDS. The source type decides; the text is read
+// only when the type does not (see sourceKind.js). Takes anything with a uri, so a test double without getText works.
+function isSfgrDocument(document: { uri: vscode.Uri; getText?: () => string }): boolean {
+  return SourceKind.isSfgrSource(document.uri.path, () => (typeof document.getText === 'function' ? document.getText() : ''));
+}
+
 // A display-file or menu source opened in the text editor: what the diagnostics and the hover work on. A MNUCMD
 // member is not DDS (it is the option-to-command mapping), so it is left out.
 function isDdsTextDocument(document: vscode.TextDocument): boolean {
   return (
     vscode.languages.match(DDS_LANGUAGE_SELECTOR, document) > 0 &&
+    !isSfgrDocument(document) &&
     getDocumentSourceType(document.uri) !== MENU_COMMAND_SOURCE_TYPE &&
     (isLikelyDisplayFile(document) || isLikelyMenuFile(document))
   );
@@ -704,6 +719,7 @@ function hasDisplayFileShapedContent(document: vscode.TextDocument): boolean {
 }
 
 function isLikelyDisplayFile(document: vscode.TextDocument): boolean {
+  if (isSfgrDocument(document)) return false; // E11b: SFGR source is not a DDS display file
   const type = getDocumentSourceType(document.uri);
   // A known, non-DSPF-family type (RPGLE, CLLE, PF, ...) is a hard no,
   // regardless of what the content happens to look like (Task L-40 - this is
@@ -732,6 +748,7 @@ function isLikelyDisplayFile(document: vscode.TextDocument): boolean {
  * parse MNUCMD's own non-DDS content (Task L-40).
  */
 function isLikelyMenuFile(document: vscode.TextDocument): boolean {
+  if (isSfgrDocument(document)) return false; // E11b
   const type = getDocumentSourceType(document.uri);
   if (type === MENU_SOURCE_TYPE) return true;
   if (type === MENU_COMMAND_SOURCE_TYPE) return true;
@@ -2094,6 +2111,26 @@ function postDirtyState(webview: vscode.Webview, ...docs: vscode.TextDocument[])
   webview.postMessage({ type: 'dirtyState', isDirty: docs.some((d) => d.isDirty) });
 }
 
+// E11b: the screen designer reads DDS. Until E11g gives System/36 SFGR source its own designer, a DSPF36 file is
+// offered as text and the person is told why, instead of seeing the DDS reading of it.
+async function showSfgrDesignerNotice(uri: vscode.Uri): Promise<void> {
+  void vscode.window.showInformationMessage(
+    'iSDA: this is System/36 DSPF36 (SFGR) source, not DDS. The screen designer does not read it yet, so it is shown as text.'
+  );
+  await vscode.commands.executeCommand('vscode.openWith', uri, 'default');
+}
+
+function getSfgrNoticeHtml(fileName: string): string {
+  const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return (
+    '<!DOCTYPE html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src \'unsafe-inline\'">' +
+    '<style>body{font-family:var(--vscode-font-family);color:var(--vscode-foreground);padding:24px;max-width:46em}</style></head><body>' +
+    '<h2>' + esc(fileName) + '</h2>' +
+    '<p>This is System/36 <b>DSPF36</b> (SFGR) source, not DDS. The screen designer does not read it yet.</p>' +
+    '<p>Use <b>Reopen Editor With... &gt; Text Editor</b> to edit it as text.</p></body></html>'
+  );
+}
+
 function openDesigner(uri: vscode.Uri): void {
   void openInDesigner(uri, DspfDesignerEditorProvider.viewType);
 }
@@ -2117,6 +2154,12 @@ class DspfDesignerEditorProvider implements vscode.CustomTextEditorProvider {
   constructor(private readonly context: vscode.ExtensionContext) {}
 
   resolveCustomTextEditor(document: vscode.TextDocument, webviewPanel: vscode.WebviewPanel, _token: vscode.CancellationToken): void {
+    // E11b: chosen through "Open With" on a DSPF36 file: say what it is instead of drawing the DDS reading of it.
+    if (isSfgrDocument(document)) {
+      webviewPanel.webview.options = { enableScripts: false };
+      webviewPanel.webview.html = getSfgrNoticeHtml(document.fileName.split(/[\\/]/).pop() || '');
+      return;
+    }
     webviewPanel.webview.options = { enableScripts: true };
 
     const nonce = getNonce();
