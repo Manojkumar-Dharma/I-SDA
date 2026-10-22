@@ -2655,6 +2655,18 @@
     return "'" + String(text).replace(/'/g, "''") + "'";
   }
 
+
+  /**
+   * E11e: how many rows are added to every field line of a record. A window's own line wins (its fields sit on the
+   * window); otherwise a format read from SFGR source (record.sfgr, set by sfgrModel.js) is drawn from its start line
+   * (S columns 17 - 18, so row = start line + line - 1; blank and V count as line 1). A DDS record has neither: 0.
+   */
+  function recordLineOffset(record, windowBox) {
+    if (windowBox) return windowBox.line - 1;
+    var sfgr = record.sfgr;
+    return sfgr && typeof sfgr.startLine === 'number' && sfgr.startLine > 1 ? sfgr.startLine - 1 : 0;
+  }
+
   /**
    * The inheritable keywords one DSPFFD OUTFILE row (QADSPFFD, record format
    * QWHDRFFD) carries, as [{name, parameters}]: TEXT (WHFTXT), ALIAS (WHALI2,
@@ -2720,7 +2732,7 @@
     }
 
     var windowBox = resolveWindow(record, dspfFile, 0, 0, activeIndicators, size.name, size);
-    var lineOffset = windowBox ? windowBox.line - 1 : 0;
+    var lineOffset = recordLineOffset(record, windowBox);
     var colOffset = windowBox ? windowBox.col - 1 : 0;
 
     var isSflRecord = record.keywords.some(function (k) { return k.name === 'SFL'; });
@@ -3044,7 +3056,7 @@
 
       var windowBox = resolveWindow(record, dspfFile, 0, placeholderSlots, activeIndicators, size.name, size);
       if (windowBox && windowBox.positionIsDefault) placeholderSlots++;
-      var lineOffset = windowBox ? windowBox.line - 1 : 0;
+      var lineOffset = recordLineOffset(record, windowBox);
       var colOffset = windowBox ? windowBox.col - 1 : 0;
 
       var fields = resolveRecordFields(record, activeIndicators, lineOffset, colOffset, null, size.name, dspfFile);

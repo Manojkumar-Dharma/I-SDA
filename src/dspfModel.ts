@@ -112,6 +112,28 @@ export interface DdsFieldBase {
    * `sourceLine` itself.
    */
   entrySourceLines: number[];
+  /** Set only on a field read from System/36 SFGR source (E11e, src/sfgrModel.js): where it came from. */
+  sfgr?: SfgrFieldInfo;
+}
+
+/**
+ * What a model field remembers of the SFGR D specification it was made from, so a panel or the writer (E11d) can get
+ * back to the source entry. One D specification gives one field, or two when an output-data indicator decides between
+ * a constant and the program's data (see `part`).
+ */
+export interface SfgrFieldInfo {
+  /** The D specification's name (columns 7 - 14); the model's `name` is empty for a constant. */
+  specName: string;
+  /** First and last source line of the D specification, continuation lines included. */
+  line: number;
+  endLine: number;
+  /** 'whole': the one field this entry makes. 'constantWhenOff' / 'dataWhenOn': the two fields made from a
+   *  constant with an output-data indicator - the constant shows when the indicator is off, the program's data when on. */
+  part: 'whole' | 'constantWhenOff' | 'dataWhenOn';
+  /** The SFGR data type (column 27) as written; `dataType` above is its DDS equivalent. */
+  sfgrDataType: string;
+  /** A message constant (constant type M): the message id and the member identifier. */
+  message: { id: string; member: string } | null;
 }
 
 export interface DdsRecordFormat {
@@ -123,6 +145,33 @@ export interface DdsRecordFormat {
   helpEntries: DdsFieldBase[];
   fields: DdsFieldBase[];
   sourceLine: number;
+  /** Set only on a format read from System/36 SFGR source (E11e): what the S specification holds that a DDS record
+   *  has no place for. */
+  sfgr?: SfgrFormatInfo;
+}
+
+/** One S specification (display control) of SFGR source, as the model keeps it. Entries are as written (trimmed text). */
+export interface SfgrFormatInfo {
+  /** First line of the format (the S specification) and the last line it owns. */
+  sourceLine: number;
+  endLine: number;
+  /** Start line (columns 17 - 18) as a number; null = blank (line 1) or V. Field lines are RELATIVE to it:
+   *  the row drawn is startLine + line - 1. The engine adds the offset (dspfEngine.js recordLineOffset). */
+  startLine: number | null;
+  /** True when column 17 - 18 holds V: the program sets the start line (1 when it does not). */
+  startLineVariable: boolean;
+  /** Lines to clear (columns 19 - 20); null = blank, which clears everything. */
+  linesToClear: number | null;
+  /** True for a 132-column format (column 39 = Y), false for 80. */
+  columns132: boolean;
+  /** The S specification's other column entries, text as written (alarm, enable keys, key mask, blink cursor, ...). */
+  values: { [key: string]: string };
+  /** The key mask decoded (see SfgrParser.decodeKeyMask). */
+  keyMask: { text: string; functionKeys: { char: string; name: string }[]; commandKeys: { char: string; number: number }[]; invalid: string[] };
+  /** The format's H specifications (help areas), as parsed: line, values and the two corners. */
+  help: { line: number; values: { [key: string]: string }; upperLeft: { row: number | null; column: number | null } | null; lowerRight: { row: number | null; column: number | null } | null }[];
+  /** *DDS pass-through blocks inside the format, kept whole and not read as DDS. */
+  passThrough: { line: number; endLine: number; ddsLines: string[] }[];
 }
 
 export interface DdsParseError {
@@ -138,4 +187,11 @@ export interface DspfFile {
   /** Full text of comment lines, preserved for round-tripping, keyed by line number */
   comments: { line: number; text: string }[];
   errors: DdsParseError[];
+  /** Set only on a model read from System/36 SFGR source (E11e). The records and fields are the same shape as for DDS. */
+  sourceKind?: 'sfgr';
+  sfgr?: {
+    /** The display sizes the formats need, in the order of the DSPSIZ keyword this model carries (none when every
+     *  format is 24 x 80, which is the default). */
+    sizes: { lines: number; columns: number; name: string | null }[];
+  };
 }
