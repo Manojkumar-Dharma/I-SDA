@@ -2759,6 +2759,37 @@ E11a is `Done (no code change)`: the specification and the decisions are recorde
 
 **Not done.** Column separators are a vertical line per cell in the preview only; the SVG and text exports do not draw them. The 5292 color mapping (manual Figure B-9) is not applied. Both are small and can follow with E11i (exports on SFGR source).
 
+
+### E11g plan
+
+**Status.** E11g is claimed; no code yet. The designer was read first, and it cannot take SFGR by adding panels alone, so the work is split into slices below (answers wanted before code, as for E11a).
+
+**What the designer is (read from `buildWebviewTemplate.js`, `extension.ts`).** One webview page holds the whole designer. The extension host only creates it, sends the source text and writes back what the page sends (`applyEdit`: the full new text). The page parses the text itself (`DspfParser.parseDspf`, called in about 14 places), keeps `model`, and edits by changing DDS lines with `dspfWriter.js` and parsing again. The parser, engine, writer and helpers are inlined as scripts (`parserBundleJs`, `engineJs`, `writerJs`, ...), so adding `sfgrParser.js`, `sfgrModel.js` and `sfgrWriter.js` (all UMD, no `vscode`) is a matter of embedding them. The properties panel is chosen in `renderProps` (placement, file, multi-field, field, help, record). Today the E11b notice stands in for the page when the source is SFGR.
+
+**What that means.** The preview already works for SFGR (E11e builds the same model, E11f draws it). What is missing is: the page knowing the source is SFGR; every DDS edit path staying away from SFGR text (they change DDS columns and would corrupt it); and the S, D and H panels writing through `sfgrWriter.js`.
+
+**Proposed slices.**
+
+| Slice | Scope |
+|-------|-------|
+| E11g1 | **Wiring, read-only.** Open SFGR in the designer (the E11b notice goes). The host sends `sourceKind`; the page gets one `parseSource(text)` that routes to `SfgrModel.buildModel` or `DspfParser.parseDspf`, used at every parse site. For SFGR the canvas, record list, size list, indicator simulator and exports work; every DDS-only edit control is hidden or disabled (canvas drag and resize, add field, keyword picker, resolve reference, compile-time DDS helpers) with one banner saying why; the title button and lens return for `.dspf36`. Nothing can write SFGR text yet. |
+| E11g2 | **Format panel (S spec).** Record panel for an SFGR format: name, start line (blank / 1 - 24 / V), lines to clear, lowercase, return input, alarm, enable function keys and command keys with a key-mask editor (function keys 1 - 6, command keys A - Y), blink cursor, erase input, override, suppress input, null fill, 132 columns, right-to-left. Edits go through `SfgrWriter.setValue`; `sourceText` is replaced and parsed again (not the `lines` path). |
+| E11g3 | **Field panel (D spec).** Field and constant panel: name, length, line, column, output (Y / N / indicator), input allowed, data type, mandatory fill and entry, self-check, adjust/fill, position cursor, dup key, controlled field exit, automatic record advance, protect, the five attributes, column separators, lowercase, constant type and constant text (through `setConstant`, with the 23 + 73 split shown), message constant id and member. Each value is a dropdown or an input checked against the E11a range; a value the writer refuses is shown, not applied. |
+| E11g4 | **Help panel (H spec) and clean-up.** H specification panel (name or label, help file and library, the two corners, suppress selection, restore format, boundary, online document); a `*DDS` block shown as a locked item; the DDS-only panels and tabs absent for SFGR (file keywords, record keywords, keyword finder); breadcrumb and labels in SFGR words. |
+
+Canvas operations (click-to-place, drag, resize, delete, duplicate, undo and redo) stay E11h; E11g covers the panels and the routing.
+
+**Decisions to confirm (Manojkumar).**
+
+| # | Question | Proposal | Answer |
+|---|----------|----------|--------|
+| 1 | Slicing | Split E11g into E11g1 - E11g4 as above, each its own release | - |
+| 2 | Edit routing | The page keeps `sourceText` as the truth for SFGR; every edit is one `SfgrWriter` call, then `buildModel` again; `applyEdit` sends the full text as today | - |
+| 3 | Before E11h | In SFGR mode the canvas is read-only (select, inspect, simulate, export); drag, resize and add arrive with E11h | - |
+| 4 | Panel style | Same panel look as the DDS ones (tabs for Basic / Attributes / Constant), SFGR column names, the column number in a tooltip | - |
+| 5 | Indicators | One control for each Y / N / indicator column: a small select (No, Yes, Indicator) plus a 01 - 99 box when Indicator is chosen | - |
+| 6 | Key mask | Two rows of toggle buttons (function keys 1 - 6, command keys A - Y) with the enable columns beside them, so the mask and the Y / N meaning are edited together | - |
+
 ---
 
 ## Open questions
