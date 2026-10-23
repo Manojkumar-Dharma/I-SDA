@@ -685,6 +685,8 @@ const htmlTemplate = `<!DOCTYPE html>
   .sfgr-field-panel .field-row textarea { min-height: 4.5em; font-family: var(--mono, monospace); resize: vertical; }
   .sfgr-format-panel h3, .sfgr-field-panel h3 { font-size: 12px; margin: 14px 0 6px 0; }
   .sfgr-note { font-size: 11px; color: var(--warn); margin: 2px 0 8px; }
+  .sfgr-actions { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 8px; }
+  .sfgr-actions button { font-size: 11px; padding: 2px 8px; }
   .sfgr-help-row { padding: 4px 6px; margin: 2px 0; border: 1px solid var(--panel-border); border-radius: 4px; cursor: pointer; }
   .sfgr-help-row:hover, .sfgr-help-row:focus { border-color: var(--chrome-accent); outline: none; }
   .sfgr-dds-block { padding: 4px 6px; margin: 4px 0; border: 1px dashed var(--panel-border); border-radius: 4px; opacity: 0.85; }
@@ -4879,7 +4881,7 @@ const htmlTemplate = `<!DOCTYPE html>
     activePulldown = null;
     suppressNextExternalUpdate = true;
     vscode.postMessage({ type: 'applyEdit', text: sourceText });
-    if (afterReparse) afterReparse();
+    if (afterReparse) afterReparse(result);
     render();
     return true;
   }
@@ -4953,6 +4955,13 @@ const htmlTemplate = `<!DOCTYPE html>
     const ckMeaning = SFGR_ENABLE_MEANING[(v.enableCommandKeys || '').trim()] || SFGR_ENABLE_MEANING[''];
     let html = '<div class="sfgr-format-panel" data-sfgr-format="' + DspfEngine.escapeHtml(rec.name) + '">';
     html += '<div class="rename-error" id="sfgrFormatError"></div>';
+    const fIndex = model.records.indexOf(rec);
+    html += sfgrActionsHtml([
+      ['duplicate', 'Duplicate format', false, 'Copy this format, with its fields, to just after it'],
+      ['up', 'Move up', fIndex <= 0, 'Move this format before the previous one in the source'],
+      ['down', 'Move down', fIndex >= model.records.length - 1, 'Move this format after the next one in the source'],
+      ['delete', 'Delete format', false, 'Delete this format and everything in it']
+    ]);
     html += '<h3>Format</h3>';
     html += sfgrTextRow('name', 'Name', '7 - 14', rec.name, 8, 'Up to 8 characters: A - Z, 0 - 9, # $ @ _ ; the first not a digit.');
     html += sfgrTextRow('startLine', 'Start line', '17 - 18', startText, 2, 'Blank = line 1, 1 - ' + (r.columns132 ? '27' : '24') + ', or V = set by the program.');
@@ -4993,6 +5002,12 @@ const htmlTemplate = `<!DOCTYPE html>
     html += '</div>';
     propsBody.innerHTML = html;
     wireSfgrFormatProps(rec);
+    wireSfgrActions(propsBody.querySelector('.sfgr-format-panel'), {
+      duplicate: () => sfgrDuplicateFormat(rec),
+      up: () => sfgrMoveFormat(rec, -1),
+      down: () => sfgrMoveFormat(rec, 1),
+      delete: () => sfgrDeleteFormat(rec)
+    });
   }
 
   // The value to write for a format column from what the person typed, or { error }.
@@ -5193,6 +5208,14 @@ const htmlTemplate = `<!DOCTYPE html>
     if ((v.output || '').trim() !== '' && (v.output || '').trim() !== 'N') usageWords.push('output');
     let html = '<div class="sfgr-field-panel" data-sfgr-line="' + sf.line + '">';
     html += '<div class="rename-error" id="sfgrFieldError"></div>';
+    const siblings = sfgrSiblingsOf(found.record);
+    const at = siblings.findIndex((x) => x.line === sf.line);
+    html += sfgrActionsHtml([
+      ['duplicate', 'Duplicate', false, 'Copy this entry to just after it (Ctrl+D)'],
+      ['earlier', 'Move earlier', at <= 0, 'Move this entry before the previous one in the source'],
+      ['later', 'Move later', at < 0 || at >= siblings.length - 1, 'Move this entry after the next one in the source'],
+      ['delete', 'Delete', false, 'Delete this entry (Delete key)']
+    ]);
     html += '<h3>' + (isConstant ? 'Constant' : 'Field') + '</h3>';
     html += sfgrTextRow('name', 'Name', '7 - 14', v.name || '', 8, 'Up to 8 characters; a reference for the program only.');
     html += sfgrTextRow('length', 'Length', '15 - 18', v.length || '', 4, 'Blank, or 1 - ' + (rf.columns132 ? '3563' : '1919') + '.');
@@ -5242,6 +5265,13 @@ const htmlTemplate = `<!DOCTYPE html>
     html += '</div>';
     propsBody.innerHTML = html;
     wireSfgrFieldProps(found.record.sfgr.columns132, sf.line, entry);
+    const panel = propsBody.querySelector('.sfgr-field-panel');
+    wireSfgrActions(panel, {
+      duplicate: () => sfgrDuplicateEntry(sf.line, 'sfgrFieldError', false),
+      earlier: () => { if (at > 0) sfgrMoveEntry(sf.line, { before: { line: siblings[at - 1].line } }, 'sfgrFieldError'); },
+      later: () => { if (at >= 0 && at < siblings.length - 1) sfgrMoveEntry(sf.line, { after: { line: siblings[at + 1].endLine } }, 'sfgrFieldError'); },
+      delete: () => sfgrDeleteEntries([sf.line], 'sfgrFieldError')
+    });
   }
 
   function sfgrSetFieldValue(columns132, line, key, raw) {
@@ -5297,6 +5327,108 @@ const htmlTemplate = `<!DOCTYPE html>
       if (key === 'messageId') return sfgrSetMessage(line, 'id', value);
       if (key === 'messageMember') return sfgrSetMessage(line, 'member', value);
       return sfgrSetFieldValue(columns132, line, key, value);
+    });
+  }
+
+  // ---- E11h1: delete, duplicate and reorder (field, constant, help area, format) -------------------------------------
+  // Each is one SfgrWriter call inside one commitSfgrChange, so each is one applyEdit and one undo step of the editor.
+
+  function sfgrActionsHtml(list) {
+    return '<div class="sfgr-actions">' + list.map((a) => '<button type="button" class="secondary" data-sfgr-action="' + a[0] + '"' + (a[2] ? ' disabled' : '') + ' title="' + DspfEngine.escapeHtml(a[3] || '') + '">' + a[1] + '</button>').join('') + '</div>';
+  }
+
+  function wireSfgrActions(root, handlers) {
+    root.querySelectorAll('[data-sfgr-action]').forEach((btn) => {
+      btn.addEventListener('click', () => { const fn = handlers[btn.getAttribute('data-sfgr-action')]; if (fn) fn(); });
+    });
+  }
+
+  // The entries of a format in source order, as { line, endLine } (fields and constants).
+  function sfgrSiblingsOf(rec) {
+    const seen = {};
+    const out = [];
+    rec.fields.forEach((f) => { if (f.sfgr && !seen[f.sfgr.line]) { seen[f.sfgr.line] = true; out.push({ line: f.sfgr.line, endLine: f.sfgr.endLine }); } });
+    out.sort((a, b) => a.line - b.line);
+    return out;
+  }
+
+  function sfgrReport(errorId, reason) {
+    const el = document.getElementById(errorId);
+    if (el) el.textContent = reason;
+    else if (reason) window.alert(reason);
+  }
+
+  // Deletes the entries starting at the given source lines, last first so the earlier line numbers stay valid; one edit.
+  function sfgrDeleteEntries(lines, errorId) {
+    const ordered = lines.slice().sort((a, b) => b - a);
+    return commitSfgrChange((text) => {
+      let current = text;
+      let changed = false;
+      for (let i = 0; i < ordered.length; i++) {
+        const r = SfgrWriter.deleteEntry(current, { line: ordered[i] });
+        if (!r.ok) return r;
+        current = r.text;
+        changed = changed || r.changed;
+      }
+      return { ok: true, text: current, changed: changed };
+    }, () => { clearSelection(); selectedHelpSourceLine = null; }, (reason) => sfgrReport(errorId, reason));
+  }
+
+  function sfgrDuplicateEntry(line, errorId, helpArea) {
+    return commitSfgrChange((text) => SfgrWriter.duplicateEntry(text, { line: line }), (result) => {
+      const at = result && result.touched ? result.touched.from : null;
+      if (at == null) return;
+      if (helpArea) { clearSelection(); selectedHelpSourceLine = at; } else { setSingleSelection(at); selectedHelpSourceLine = null; }
+    }, (reason) => sfgrReport(errorId, reason));
+  }
+
+  function sfgrMoveEntry(line, position, errorId) {
+    return commitSfgrChange((text) => SfgrWriter.moveEntry(text, { line: line }, position), (result) => {
+      if (result && result.touched) setSingleSelection(result.touched.from);
+    }, (reason) => sfgrReport(errorId, reason));
+  }
+
+  function sfgrFreeFormatName(base) {
+    const used = {};
+    model.records.forEach((r) => { used[r.name] = true; });
+    for (let n = 1; n < 1000; n++) {
+      const suffix = String(n);
+      const name = base.slice(0, 8 - suffix.length) + suffix;
+      if (!used[name]) return name;
+    }
+    return base;
+  }
+
+  function sfgrSelectFormat(name) {
+    if (model.records.some((r) => r.name === name)) { recordSelect.value = name; render(); }
+  }
+
+  function sfgrDuplicateFormat(rec) {
+    const index = model.records.indexOf(rec);
+    const newName = sfgrFreeFormatName(rec.name);
+    const ok = commitSfgrChange((text) => {
+      const copied = SfgrWriter.duplicateFormat(text, index);
+      if (!copied.ok) return copied;
+      const renamed = SfgrWriter.setValue(copied.text, { line: copied.touched.from }, 'name', newName);
+      return renamed.ok ? { ok: true, text: renamed.text, changed: true, touched: copied.touched } : renamed;
+    }, () => { clearSelection(); selectedHelpSourceLine = null; showFileProps = false; }, (reason) => sfgrReport('sfgrFormatError', reason));
+    if (ok) sfgrSelectFormat(newName);
+  }
+
+  function sfgrMoveFormat(rec, delta) {
+    const index = model.records.indexOf(rec);
+    const ok = commitSfgrChange((text) => SfgrWriter.moveFormat(text, index, index + delta), null, (reason) => sfgrReport('sfgrFormatError', reason));
+    if (ok) sfgrSelectFormat(rec.name);
+  }
+
+  function sfgrDeleteFormat(rec) {
+    if (model.records.length < 2) { sfgrReport('sfgrFormatError', 'A file keeps at least one format.'); return; }
+    const index = model.records.indexOf(rec);
+    const span = rec.sfgr.endLine - rec.sfgr.sourceLine + 1;
+    const next = model.records[index + 1] || model.records[index - 1];
+    showConfirmDialog('Delete format ' + rec.name + '?', 'Its ' + span + ' source line' + (span === 1 ? '' : 's') + ' (S, H and D specifications and any *DDS block) are removed. Undo in the editor brings them back.', 'Delete format', () => {
+      const ok = commitSfgrChange((text) => SfgrWriter.deleteFormat(text, index), () => { clearSelection(); selectedHelpSourceLine = null; showFileProps = false; }, (reason) => sfgrReport('sfgrFormatError', reason));
+      if (ok) sfgrSelectFormat(next.name);
     });
   }
 
@@ -5359,6 +5491,7 @@ const htmlTemplate = `<!DOCTYPE html>
     let html = '<div class="sfgr-help-panel sfgr-field-panel" data-sfgr-line="' + entry.line + '">';
     html += '<div class="props-back"><a href="#" id="sfgrHelpBack">&larr; Format ' + esc(rec.name) + '</a></div>';
     html += '<div class="rename-error" id="sfgrHelpError"></div>';
+    html += sfgrActionsHtml([['duplicate', 'Duplicate', false, 'Copy this help area to just after it'], ['delete', 'Delete', false, 'Delete this help area']]);
     html += '<h3>' + (online ? 'Help text (online document)' : 'Help area (display format)') + '</h3>';
     html += sfgrCheckRow('onlineDocument', 'Online document', '53', online);
     html += sfgrTextRow('name', online ? 'Help text label' : 'Help format name', '7 - 14', v.name || '', 8, online ? '1 - 8 characters, A - Z # $ @ first, no comma, quote or blank.' : '8 characters: A - Z, five more, then 00 - 99 (up to 100 formats per help area).');
@@ -5439,6 +5572,10 @@ const htmlTemplate = `<!DOCTYPE html>
     const back = document.getElementById('sfgrHelpBack');
     if (back) back.addEventListener('click', (e) => { e.preventDefault(); selectedHelpSourceLine = null; renderProps(rec.name); });
     wireSfgrControls(root, 'sfgrHelpError', (key, value) => sfgrSetHelpValue(rec, line, key, value));
+    wireSfgrActions(root, {
+      duplicate: () => sfgrDuplicateEntry(line, 'sfgrHelpError', true),
+      delete: () => sfgrDeleteEntries([line], 'sfgrHelpError')
+    });
     root.addEventListener('change', (e) => {
       const el = e.target;
       if (el.getAttribute && el.getAttribute('data-sfgr-kind') === 'corner') sfgrSetCorners(rec, line, root);
@@ -8900,6 +9037,14 @@ const htmlTemplate = `<!DOCTYPE html>
     }
     const selected = getSelectedFields();
     if (selected.length === 0) return;
+    if (sourceKind === 'sfgr' && (isDeleteShortcut || isDuplicateShortcut)) {
+      // E11h1: Delete removes the selected entries, Ctrl+D copies one; each is one edit
+      e.preventDefault();
+      const lines = selected.map((x) => x.field.sfgr.line).filter((l, i, a) => a.indexOf(l) === i);
+      if (isDeleteShortcut) sfgrDeleteEntries(lines, 'sfgrFieldError');
+      else if (lines.length === 1) sfgrDuplicateEntry(lines[0], 'sfgrFieldError', false);
+      return;
+    }
     if (isArrowKey) {
       e.preventDefault();
       const step = e.shiftKey ? 5 : 1;

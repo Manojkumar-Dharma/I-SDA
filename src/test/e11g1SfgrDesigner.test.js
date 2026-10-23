@@ -64,21 +64,22 @@ setTimeout(() => {
   console.log('\nno DDS edit reaches the SFGR text');
   posted.length = 0;
   const before = doc.querySelectorAll('.dspf-field').length;
-  doc.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true }));
-  check('Delete on a selected field posts no edit', posted.filter((m) => m.type === 'applyEdit').length === 0);
-  check('and the field is still there', doc.querySelectorAll('.dspf-field').length === before);
   ['ArrowDown', 'ArrowRight'].forEach((key) => doc.body.dispatchEvent(new KeyboardEvent('keydown', { key, altKey: true, bubbles: true, cancelable: true })));
   doc.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'x', ctrlKey: true, bubbles: true, cancelable: true }));
   doc.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'v', ctrlKey: true, bubbles: true, cancelable: true }));
-  doc.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'd', ctrlKey: true, bubbles: true, cancelable: true }));
-  check('nudge, cut, paste and duplicate post no edit either', posted.filter((m) => m.type === 'applyEdit').length === 0);
+  check('nudge, cut and paste post no edit (the canvas drag and placement arrive with E11h2 and E11h3)', posted.filter((m) => m.type === 'applyEdit').length === 0);
   check('the note flashes when an edit is refused', doc.getElementById('sfgrNote').classList.contains('flash'));
+  doc.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true }));
+  check('Delete on a selected field is the SFGR delete of E11h1: one edit, the field is gone (see e11h1SfgrDeleteDuplicate.test.js)', posted.filter((m) => m.type === 'applyEdit').length === 1 && doc.querySelectorAll('.dspf-field').length < before);
 
   console.log('\nswitching format and external updates');
   const select = doc.getElementById('recordSelect');
   select.value = P.formats[3].name;
   select.dispatchEvent(new Event('change', { bubbles: true }));
   check('another format can be selected and its panel shows', /Format/.test(props()) && doc.querySelector('input[data-sfgr-key="name"]').value === P.formats[3].name);
+  const echoed = posted.filter((m) => m.type === 'applyEdit').pop();
+  if (echoed) dom.window.dispatchEvent(new MessageEvent('message', { data: { type: 'externalUpdate', text: echoed.text } })); // the editor echoes the page's own edit back
+  posted.length = 0;
   const smaller = ['     SONE', "     D          2 2 2           C                    A", '     STWO'].join('\n') + '\n';
   dom.window.dispatchEvent(new MessageEvent('message', { data: { type: 'externalUpdate', text: smaller } }));
   check('an external update (the text editor changed) re-reads the source as SFGR', Array.from(doc.getElementById('recordSelect').options).map((o) => o.value).join() === 'ONE,TWO');

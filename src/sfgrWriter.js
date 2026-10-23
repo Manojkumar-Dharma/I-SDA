@@ -488,6 +488,21 @@
     return removeLines(parsed, text, span.first, span.last);
   }
 
+  /** Copies a whole format (its S, H, D and *DDS lines) to just after it. The copy has the same S name; the caller renames it. */
+  function duplicateFormat(text, formatIndex) {
+    var parsed = load(text);
+    var span = formatSpan(parsed, formatIndex);
+    if (!span) return fail('noSuchFormat', 'No such format.');
+    var lines = linesOf(parsed);
+    var eol = defaultEol(parsed);
+    var copy = lines.slice(span.first - 1, span.last).map(function (l) { return { text: l.text, eol: l.eol || eol }; });
+    var lastEol = lines[span.last - 1].eol;
+    copy[copy.length - 1].eol = lastEol;
+    lines[span.last - 1].eol = lines[span.last - 1].eol || eol;
+    Array.prototype.splice.apply(lines, [span.last, 0].concat(copy));
+    return finish(parsed, text, done(parsed, lines, span.last + 1, span.last + copy.length));
+  }
+
   function duplicateEntry(text, ref) {
     var parsed = load(text);
     var entry = locate(parsed, ref);
@@ -551,6 +566,7 @@
     deleteEntry: deleteEntry,
     deleteFormat: deleteFormat,
     duplicateEntry: duplicateEntry,
+    duplicateFormat: duplicateFormat,
     moveEntry: moveEntry,
     moveFormat: moveFormat,
     buildLines: buildLines,
