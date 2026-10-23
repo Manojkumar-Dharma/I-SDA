@@ -47,7 +47,7 @@ setTimeout(() => {
 
   console.log('\nDDS-only controls');
   check('the note says what the source is', css('sfgrNote', 'display') !== 'none' && /DSPF36/.test(doc.getElementById('sfgrNote').textContent));
-  check('+ Field, + Constant, + Add record and Add from database are hidden', ['placeFieldBtn', 'placeConstantBtn', 'newRecordToggleBtn', 'addFromDbBtn', 'fabPlaceFieldBtn', 'fabAddRecordBtn'].every((id) => css(id, 'display') === 'none'));
+  check('+ Add record and Add from database are hidden (+ Field and + Constant work on SFGR since E11h2)', ['newRecordToggleBtn', 'addFromDbBtn', 'fabAddRecordBtn'].every((id) => css(id, 'display') === 'none'));
   check('the keyword finder and modification tracking are hidden', ['keywordFinderInput', 'modTrackingToggle'].every((id) => { let e = doc.getElementById(id); while (e && e !== doc.body) { if (dom.window.getComputedStyle(e).display === 'none') return true; e = e.parentElement; } return false; }));
   check('the heading and the compile buttons say DSPF36 / CRTS36DSPF', /DSPF36/.test(doc.getElementById('designerTitle').textContent) && /CRTS36DSPF/.test(doc.getElementById('compileDspfBtn').textContent) && /CRTS36DSPF/.test(doc.getElementById('toolbarCompileBtn').textContent));
 

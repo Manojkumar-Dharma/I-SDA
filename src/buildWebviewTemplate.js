@@ -666,9 +666,9 @@ const htmlTemplate = `<!DOCTYPE html>
   .sfgr-note { display: none; font-size: 11px; line-height: 1.4; color: var(--ink-dim); border: 1px solid var(--panel-border); border-radius: 4px; padding: 6px 8px; margin: 0 0 10px 0; }
   .sfgr-note.flash { border-color: var(--warn); color: var(--warn); }
   body[data-source-kind="sfgr"] .sfgr-note { display: block; }
-  body[data-source-kind="sfgr"] #newRecordToggleBtn, body[data-source-kind="sfgr"] #placeFieldBtn,
-  body[data-source-kind="sfgr"] #placeConstantBtn, body[data-source-kind="sfgr"] #addFromDbBtn,
-  body[data-source-kind="sfgr"] #fabPlaceFieldBtn, body[data-source-kind="sfgr"] #fabPlaceConstantBtn,
+  .sfgr-only { display: none; }
+  body[data-source-kind="sfgr"] .sfgr-only { display: block; }
+  body[data-source-kind="sfgr"] #newRecordToggleBtn, body[data-source-kind="sfgr"] #addFromDbBtn,
   body[data-source-kind="sfgr"] #fabAddRecordBtn, body[data-source-kind="sfgr"] #fabWindowBtn,
   body[data-source-kind="sfgr"] #fabMenuBtn, body[data-source-kind="sfgr"] #fabAddFromDbBtn,
   body[data-source-kind="sfgr"] .keyword-finder-row, body[data-source-kind="sfgr"] .mod-tracking-row,
@@ -1043,7 +1043,7 @@ const htmlTemplate = `<!DOCTYPE html>
   <h1 id="designerTitle">IBM i · DDS</h1>
   <h2>Screen Design</h2>
   <div class="codefori-badge unknown" id="codeForIBadge" title="Whether the Code for IBM i extension is installed and connected. Compile, Resolve Referenced Field, and Add fields from database file all need a live connection.">IBM i: checking…</div>
-  <div class="sfgr-note" id="sfgrNote">System/36 <b>DSPF36</b> (SFGR) source. The screen preview, indicator simulator and exports work. A format's properties can be edited in the panel; fields and constants are read-only here for now.</div>
+  <div class="sfgr-note" id="sfgrNote">System/36 <b>DSPF36</b> (SFGR) source. The screen preview, indicator simulator and exports work. Formats, fields, constants and help areas can be added, edited, copied, moved and deleted; dragging and resizing on the screen come later.</div>
   <button id="saveDocBtn" class="save-btn" style="width:100%;margin-bottom:10px;" title="Save this file to disk (Ctrl+S/Cmd+S works too - this button exists because a webview panel doesn't show VS Code's own dirty-tab dot)">&#128190; Save</button>
   <div class="field-row">
     <label>Find field</label>
@@ -1086,6 +1086,7 @@ const htmlTemplate = `<!DOCTYPE html>
     <button class="secondary" id="placeFieldBtn">+ Field</button>
     <button class="secondary" id="placeConstantBtn">+ Constant</button>
   </div>
+  <button class="secondary sfgr-only" id="sfgrNewFormatBtn" style="width:100%;margin-top:6px;" title="Add a new, empty format (S specification) after the selected one">+ Format</button>
   <button class="secondary" id="addFromDbBtn" style="width:100%;margin-top:6px;" title="Task L14: real SDA's F10 (Database) key - browse a PF/LF's field list and place several at once as REFFLD-based fields">+ Fields from database file</button>
   <div class="hint-readonly hidden" id="placementHint">Click anywhere on the screen preview to place it there (Esc to cancel).</div>
   <label class="compare-toggle"><input type="checkbox" id="compareModeToggle" /> Show other record(s) dimmed behind</label>
@@ -3107,6 +3108,17 @@ const htmlTemplate = `<!DOCTYPE html>
     const { rect, colWidth, rowHeight } = gridMetrics();
     const col = Math.max(1, Math.round((e.clientX - rect.left) / colWidth) + 1);
     const line = Math.max(1, Math.round((e.clientY - rect.top) / rowHeight) + 1);
+    if (sourceKind === 'sfgr') {
+      // E11h2: a click drops a ready-made field or constant at that place; the panel edits it afterwards
+      const kind = placementMode;
+      placementMode = null;
+      placeFieldBtn.classList.remove('active');
+      placeConstantBtn.classList.remove('active');
+      placementHint.classList.add('hidden');
+      screenEl.classList.remove('placing');
+      if (kind === 'FIELD' || kind === 'CONSTANT') sfgrPlaceEntry(kind, line, col);
+      return;
+    }
     // Task P3 - unlike +Field/+Constant/Copy, a window template has nothing
     // left to ask once its position is known (no name/length/type entry -
     // see commitWindowPlacement's own doc comment), so this commits straight
@@ -4960,6 +4972,7 @@ const htmlTemplate = `<!DOCTYPE html>
       ['duplicate', 'Duplicate format', false, 'Copy this format, with its fields, to just after it'],
       ['up', 'Move up', fIndex <= 0, 'Move this format before the previous one in the source'],
       ['down', 'Move down', fIndex >= model.records.length - 1, 'Move this format after the next one in the source'],
+      ['addHelp', 'Add help area', false, 'Add a help area (H specification) to this format'],
       ['delete', 'Delete format', false, 'Delete this format and everything in it']
     ]);
     html += '<h3>Format</h3>';
@@ -5006,6 +5019,7 @@ const htmlTemplate = `<!DOCTYPE html>
       duplicate: () => sfgrDuplicateFormat(rec),
       up: () => sfgrMoveFormat(rec, -1),
       down: () => sfgrMoveFormat(rec, 1),
+      addHelp: () => sfgrAddHelpArea(rec),
       delete: () => sfgrDeleteFormat(rec)
     });
   }
@@ -5431,6 +5445,88 @@ const htmlTemplate = `<!DOCTYPE html>
       if (ok) sfgrSelectFormat(next.name);
     });
   }
+
+  // ---- E11h2: add (format, field, constant, help area) ---------------------------------------------------------------
+  // Each add writes a ready-made entry through one SfgrWriter call inside one commitSfgrChange (one applyEdit, one undo
+  // step) and selects it, so the panel is open for the person to fill in. Nothing asks first: a name, a length and a
+  // place are all there, and the panel's own checks cover any change.
+
+  function sfgrUsedNames(kind) {
+    const used = {};
+    model.records.forEach((r) => {
+      if (kind === 'format') used[r.name] = true;
+      else r.fields.forEach((f) => { used[f.name] = true; });
+    });
+    return used;
+  }
+
+  function sfgrFreeName(base, used, width) {
+    for (let n = 1; n < 1000; n++) {
+      const suffix = n < 10 ? '0' + n : String(n);
+      const name = base.slice(0, width - suffix.length) + suffix;
+      if (!used[name]) return name;
+    }
+    return base;
+  }
+
+  // The current format (the one the preview shows), or null.
+  function sfgrCurrentFormat() {
+    return model.records.find((r) => r.name === recordSelect.value) || model.records[0] || null;
+  }
+
+  // A click on screen row (row), column (col) of the current format: the entry's line is relative to the format's
+  // start line, and column 1 never holds a field (the attribute byte sits in front of it).
+  function sfgrPlaceEntry(kind, row, col) {
+    const rec = sfgrCurrentFormat();
+    if (!rec || !rec.sfgr) return;
+    const index = model.records.indexOf(rec);
+    const start = rec.sfgr.startLine == null ? 1 : rec.sfgr.startLine;
+    const maxRow = rec.sfgr.columns132 ? 27 : 24;
+    const maxCol = rec.sfgr.columns132 ? 132 : 80;
+    const line = Math.max(1, Math.min(row - start + 1, maxRow - start + 1));
+    const column = Math.max(2, Math.min(col, maxCol));
+    const isConstant = kind === 'CONSTANT';
+    const name = sfgrFreeName(isConstant ? 'CONST' : 'FIELD', sfgrUsedNames('field'), 8);
+    const spec = isConstant
+      ? { type: 'D', values: { name: name, length: 4, line: line, column: column, output: 'Y' }, constant: 'Text' }
+      : { type: 'D', values: { name: name, length: 10, line: line, column: column, inputAllowed: 'Y' } };
+    commitSfgrChange((text) => SfgrWriter.insertSpec(text, { format: index, at: 'end' }, spec), (result) => {
+      selectedHelpSourceLine = null;
+      showFileProps = false;
+      if (result && result.touched) setSingleSelection(result.touched.from);
+    }, (reason) => sfgrReport('sfgrFormatError', reason));
+  }
+
+  // A new empty format after the current one (at the end when it is the last); it is selected.
+  function sfgrAddFormat() {
+    const rec = sfgrCurrentFormat();
+    const index = rec ? model.records.indexOf(rec) : model.records.length - 1;
+    const name = sfgrFreeName('FORMAT', sfgrUsedNames('format'), 8);
+    const position = index >= 0 && index + 1 < model.records.length ? { beforeFormat: index + 1 } : { atEnd: true };
+    const ok = commitSfgrChange((text) => SfgrWriter.insertFormat(text, position, { s: { name: name }, help: [], fields: [] }), () => {
+      clearSelection();
+      selectedHelpSourceLine = null;
+      showFileProps = false;
+    }, (reason) => sfgrReport('sfgrFormatError', reason));
+    if (ok) sfgrSelectFormat(name);
+  }
+
+  // A help area with no corners (a null area, reached by Page Down and Page Up) after the format's last one; the help
+  // panel opens on it for the name, corners and file.
+  function sfgrAddHelpArea(rec) {
+    const index = model.records.indexOf(rec);
+    const used = {};
+    model.records.forEach((r) => { (r.sfgr.help || []).forEach((h) => { used[h.values.name] = true; }); });
+    const name = sfgrFreeName('HELP00', used, 8);
+    commitSfgrChange((text) => SfgrWriter.insertSpec(text, { format: index, at: 'end' }, { type: 'H', values: { name: name } }), (result) => {
+      clearSelection();
+      showFileProps = false;
+      selectedHelpSourceLine = result && result.touched ? result.touched.from : null;
+    }, (reason) => sfgrReport('sfgrFormatError', reason));
+  }
+
+  const sfgrNewFormatBtn = document.getElementById('sfgrNewFormatBtn');
+  if (sfgrNewFormatBtn) sfgrNewFormatBtn.addEventListener('click', () => { if (sourceKind === 'sfgr') sfgrAddFormat(); });
 
   // ---- E11g4: the help (H specification) panel ----------------------------------------------------------------------
 
