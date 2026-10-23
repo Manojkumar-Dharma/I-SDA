@@ -417,6 +417,7 @@
     createAnalyzer: createAnalyzer,
     allCodes: allCodes,
     CODES: CODES,
+    ENTRY: ENTRY,
     SOURCE: SOURCE
   };
 });

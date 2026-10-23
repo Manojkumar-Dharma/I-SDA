@@ -188,6 +188,16 @@ const DdsHover: {
   ): vscode.HoverProvider;
 } = require('./ddsHover.js');
 const HoverKeywordSpec: unknown = require('./keywordSpec.js');
+// E11j2: hover on the columns of SFGR source (pure lookup in sfgrHover.js).
+const SfgrHover: {
+  createProvider(
+    vscodeApi: any,
+    options: {
+      getSettings(): { enable: boolean };
+      shouldHover(document: vscode.TextDocument): boolean;
+    }
+  ): vscode.HoverProvider;
+} = require('./sfgrHover.js');
 // E11b: tells System/36 SFGR source (DSPF36) from DDS, so the DDS tooling below leaves SFGR alone.
 const SourceKind: {
   isSfgrSource(pathOrUri: string, text?: string | (() => string)): boolean;
@@ -600,6 +610,17 @@ export function activate(context: vscode.ExtensionContext): void {
       compileChannel = null;
     },
   });
+
+  // E11j2: hover on SFGR source, the same setting. Registered before the DDS keyword hover below, which never answers on SFGR.
+  context.subscriptions.push(
+    vscode.languages.registerHoverProvider(
+      DDS_LANGUAGE_SELECTOR,
+      SfgrHover.createProvider(vscode, {
+        getSettings: () => ({ enable: vscode.workspace.getConfiguration('isda').get<boolean>('hover.enable', true) }),
+        shouldHover: isSfgrTextDocument,
+      })
+    )
+  );
 
   // E1c: keyword hover over the same documents. The data file is read on the first hover, not at start-up.
   context.subscriptions.push(
