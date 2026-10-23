@@ -685,6 +685,12 @@ const htmlTemplate = `<!DOCTYPE html>
   .sfgr-field-panel .field-row textarea { min-height: 4.5em; font-family: var(--mono, monospace); resize: vertical; }
   .sfgr-format-panel h3, .sfgr-field-panel h3 { font-size: 12px; margin: 14px 0 6px 0; }
   .sfgr-note { font-size: 11px; color: var(--warn); margin: 2px 0 8px; }
+  .sfgr-help-row { padding: 4px 6px; margin: 2px 0; border: 1px solid var(--panel-border); border-radius: 4px; cursor: pointer; }
+  .sfgr-help-row:hover, .sfgr-help-row:focus { border-color: var(--chrome-accent); outline: none; }
+  .sfgr-dds-block { padding: 4px 6px; margin: 4px 0; border: 1px dashed var(--panel-border); border-radius: 4px; opacity: 0.85; }
+  .sfgr-dds-block pre { margin: 4px 0 0; font-size: 11px; white-space: pre-wrap; }
+  .sfgr-corner-row { margin: 4px 0; } .sfgr-corner-cell { display: inline-block; margin-right: 10px; }
+  .sfgr-corner-cell input { width: 3.4em; }
   .sfgr-col { color: var(--ink-dim); text-transform: none; letter-spacing: 0; }
   .sfgr-props h3 { font-size: 12px; margin: 10px 0 4px 0; }
   .sfgr-props table { width: 100%; border-collapse: collapse; font-size: 11px; }
@@ -4902,14 +4908,27 @@ const htmlTemplate = `<!DOCTYPE html>
   function sfgrTextRow(key, label, cols, value, width, hint) {
     return '<div class="field-row"><label>' + sfgrColLabel(label, cols) + '</label><input type="text" data-sfgr-key="' + key + '" data-sfgr-kind="text" maxlength="' + width + '" value="' + DspfEngine.escapeHtml(value) + '" />' + (hint ? '<div class="hint-small">' + DspfEngine.escapeHtml(hint) + '</div>' : '') + '</div>';
   }
-  // A Y / N / indicator column: No (blank), Yes (Y) or an indicator 01 - 99.
-  function sfgrIndicatorRow(key, label, cols, value) {
+  // A Y / N / indicator column: No (blank), Yes (Y) or an indicator 01 - 99. opts (E11g4, the help columns): yes and no
+  // are what Yes and No write and read back (default Y and blank), noLabel / yesLabel rename them, noYes leaves Yes out
+  // (a column where Y is an error).
+  function sfgrIndicatorRow(key, label, cols, value, opts) {
+    const o = opts || {};
+    const yesWrites = o.yes === undefined ? 'Y' : o.yes;
+    const noWrites = o.no === undefined ? '' : o.no;
     const v = (value || '').trim();
-    const mode = v === 'Y' ? 'yes' : (v === '' || v === 'N' ? 'no' : 'ind');
+    let mode;
+    if (v === '') mode = yesWrites === '' ? 'yes' : 'no';
+    else if (v === yesWrites || (yesWrites === '' && v === 'Y')) mode = 'yes';
+    else if (v === noWrites || (noWrites === '' && v === 'N')) mode = 'no';
+    else mode = 'ind';
+    if (o.noYes && mode === 'yes') mode = 'no';
     const box = mode === 'ind' ? v : '';
-    const opts = [['no', 'No'], ['yes', 'Yes'], ['ind', 'Indicator']].map((o) => '<option value="' + o[0] + '"' + (o[0] === mode ? ' selected' : '') + '>' + o[1] + '</option>').join('');
+    const choices = [['no', o.noLabel || 'No']];
+    if (!o.noYes) choices.push(['yes', o.yesLabel || 'Yes']);
+    choices.push(['ind', 'Indicator']);
+    const opt = choices.map((c) => '<option value="' + c[0] + '"' + (c[0] === mode ? ' selected' : '') + '>' + c[1] + '</option>').join('');
     return '<div class="field-row"><label>' + sfgrColLabel(label, cols) + '</label><div class="sfgr-ind-row">' +
-      '<select data-sfgr-key="' + key + '" data-sfgr-kind="ind" data-sfgr-part="mode">' + opts + '</select>' +
+      '<select data-sfgr-key="' + key + '" data-sfgr-kind="ind" data-sfgr-part="mode" data-sfgr-yes="' + DspfEngine.escapeHtml(yesWrites) + '" data-sfgr-no="' + DspfEngine.escapeHtml(noWrites) + '">' + opt + '</select>' +
       '<input type="text" maxlength="2" data-sfgr-key="' + key + '" data-sfgr-kind="ind" data-sfgr-part="box" value="' + DspfEngine.escapeHtml(box) + '" placeholder="01"' + (mode === 'ind' ? '' : ' style="display:none"') + ' /></div></div>';
   }
   function sfgrKeyButtons(maskText, fixed) {
@@ -4958,6 +4977,18 @@ const htmlTemplate = `<!DOCTYPE html>
     html += '<div class="sfgr-key-grid" id="sfgrCommandKeys">' + sfgrKeyButtons(mask, SFGR_COMMAND_KEYS) + '</div>';
     if (stray.length) html += '<div class="sfgr-key-grid"><span class="hint-small">Not a key (kept as written): </span>' + stray.map((c) => '<button type="button" class="sfgr-key-btn invalid on" data-sfgr-mask-char="' + DspfEngine.escapeHtml(c) + '" title="Click to remove">' + DspfEngine.escapeHtml(c) + '</button>').join('') + '</div>';
     html += '<div class="hint-small">Key mask (64 - 79): <code id="sfgrMaskText">' + DspfEngine.escapeHtml(mask || '(empty)') + '</code></div>';
+    html += '<h3>Help areas (H)</h3>';
+    if ((r.help || []).length) {
+      html += (r.help || []).map((h) => {
+        const hv = h.values || {};
+        const area = h.upperLeft && h.lowerRight ? 'row ' + h.upperLeft.row + ' col ' + h.upperLeft.column + ' to row ' + h.lowerRight.row + ' col ' + h.lowerRight.column : 'null area';
+        return '<div class="sfgr-help-row" role="button" tabindex="0" data-sfgr-help-line="' + h.line + '"><b>' + DspfEngine.escapeHtml(hv.name || '(no name)') + '</b> <span class="hint-small">' + DspfEngine.escapeHtml((hv.onlineDocument === 'Y' ? 'online document' : 'help format') + ', ' + area) + '</span></div>';
+      }).join('');
+    } else html += '<div class="hint-small">None. This format has no H specification.</div>';
+    if ((r.passThrough || []).length) {
+      html += '<h3>*DDS blocks (locked)</h3><div class="hint-small">User DDS passed to the generated display file. Kept exactly as written; the designer does not edit it.</div>';
+      html += (r.passThrough || []).map((b) => '<div class="sfgr-dds-block" data-sfgr-dds-line="' + b.line + '"><span class="sfgr-lock" aria-hidden="true">&#128274;</span> lines ' + b.line + (b.endLine > b.line ? ' - ' + b.endLine : '') + '<pre>' + DspfEngine.escapeHtml((b.ddsLines || []).join(String.fromCharCode(10))) + '</pre></div>').join('');
+    }
     html += '<h3>Source</h3><table><tr><td>Source lines</td><td>' + r.sourceLine + (r.endLine > r.sourceLine ? ' - ' + r.endLine : '') + '</td></tr><tr><td>Help areas (H)</td><td>' + (r.help || []).length + '</td></tr><tr><td>*DDS blocks</td><td>' + (r.passThrough || []).length + '</td></tr></table>';
     html += '</div>';
     propsBody.innerHTML = html;
@@ -5012,8 +5043,8 @@ const htmlTemplate = `<!DOCTYPE html>
     const indicatorValue = (key) => {
       const mode = root.querySelector('[data-sfgr-key="' + key + '"][data-sfgr-part="mode"]');
       const box = root.querySelector('[data-sfgr-key="' + key + '"][data-sfgr-part="box"]');
-      if (mode.value === 'no') return '';
-      if (mode.value === 'yes') return 'Y';
+      if (mode.value === 'no') return mode.getAttribute('data-sfgr-no') || '';
+      if (mode.value === 'yes') { const y = mode.getAttribute('data-sfgr-yes'); return y === null ? 'Y' : y; }
       const t = box.value.trim();
       const errorEl = document.getElementById(errorId);
       if (!/^[0-9]{1,2}$/.test(t) || Number(t) < 1) { if (errorEl) errorEl.textContent = 'Type an indicator 01 - 99.'; return undefined; }
@@ -5043,6 +5074,11 @@ const htmlTemplate = `<!DOCTYPE html>
     const root = propsBody.querySelector('.sfgr-format-panel');
     if (!root) return;
     wireSfgrControls(root, 'sfgrFormatError', (key, value) => sfgrSetFormatValue(rec, key, value));
+    root.querySelectorAll('[data-sfgr-help-line]').forEach((row) => {
+      const open = () => { selectedHelpSourceLine = parseInt(row.getAttribute('data-sfgr-help-line'), 10); renderProps(rec.name); };
+      row.addEventListener('click', open);
+      row.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
+    });
     root.addEventListener('click', (e) => {
       const btn = e.target.closest ? e.target.closest('[data-sfgr-mask-char]') : null;
       if (!btn) return;
@@ -5264,6 +5300,151 @@ const htmlTemplate = `<!DOCTYPE html>
     });
   }
 
+  // ---- E11g4: the help (H specification) panel ----------------------------------------------------------------------
+
+  const SFGR_DOCUMENT_BAD_CHARS = "?'/.-=>,*";
+  const SFGR_DOCUMENT_RESERVED = ['ALL', 'SYSTEM', 'NEW', 'DIR'];
+  const SFGR_FOLDER_RESERVED = ['ALL', '#LIBRARY', 'F1', 'READER', 'PRINT', 'DISK'];
+
+  function sfgrHEntry(line) {
+    const parsed = SfgrParser.parse(sourceText);
+    for (let i = 0; i < parsed.entries.length; i++) if (parsed.entries[i].kind === 'H' && parsed.entries[i].line === line) return parsed.entries[i];
+    return null;
+  }
+
+  // The value to write for an H column, or { error }. online: the entry is an online document (column 53 is Y).
+  function sfgrHelpValue(key, raw, online, values) {
+    const t = String(raw == null ? '' : raw).trim().toUpperCase();
+    const hasBad = (text, bad) => text.split('').some((c) => bad.indexOf(c) >= 0);
+    if (key === 'name') {
+      if (t === '') return { error: 'Enter a help format name or text label.' };
+      if (online) {
+        if (t.length > 8) return { error: 'A help text label is 1 - 8 characters.' };
+        if ('ABCDEFGHIJKLMNOPQRSTUVWXYZ#$@'.indexOf(t.charAt(0)) < 0) return { error: 'A help text label starts with A - Z, # $ or @.' };
+        if (hasBad(t, " ,'" + String.fromCharCode(34))) return { error: 'A help text label has no comma, quote or blank.' };
+        return { value: t };
+      }
+      if (t.length !== 8 || 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.indexOf(t.charAt(0)) < 0 || !/^[0-9][0-9]$/.test(t.slice(6)) || t.indexOf(' ') >= 0) {
+        return { error: 'A help format name is 8 characters: A - Z, five more characters, then 00 - 99.' };
+      }
+      return { value: t };
+    }
+    if (key === 'helpFile') {
+      if (t === '') return { value: '' };
+      if (t.length > 8 || t.indexOf(' ') >= 0) return { error: online ? 'A document name is 1 - 8 characters.' : 'A file name is up to 8 characters.' };
+      if (online && hasBad(t, SFGR_DOCUMENT_BAD_CHARS)) return { error: 'A document name has none of the characters ? quote slash period hyphen = > comma *.' };
+      if (online && SFGR_DOCUMENT_RESERVED.indexOf(t) >= 0) return { error: t + ' cannot be a document name.' };
+      return { value: t };
+    }
+    if (key === 'helpLibrary') {
+      if (t === '') return { value: '' };
+      if (t.length > 8 || t.indexOf(' ') >= 0) return { error: online ? 'A folder name is up to 8 characters.' : 'A library name is up to 8 characters.' };
+      if (online && SFGR_FOLDER_RESERVED.indexOf(t) >= 0) return { error: t + ' cannot be a folder name.' };
+      if (!online && String(values.helpFile || '').trim() === '') return { error: 'A library goes with a file name; enter the file first.' };
+      return { value: t };
+    }
+    return { value: raw };
+  }
+
+  function renderSfgrHelpProps(rec) {
+    const esc = DspfEngine.escapeHtml;
+    const entry = sfgrHEntry(selectedHelpSourceLine);
+    if (!entry) { selectedHelpSourceLine = null; renderSfgrReadOnlyProps(rec.name); return; }
+    const v = entry.values;
+    const online = (v.onlineDocument || '').trim() === 'Y';
+    const ul = entry.upperLeft, lr = entry.lowerRight;
+    const maxRow = rec.sfgr.columns132 ? 27 : 24;
+    const maxCol = rec.sfgr.columns132 ? 132 : 80;
+    const cell = (key, label, value, max) => '<div class="sfgr-corner-cell"><span class="hint-small">' + label + '</span><input type="text" maxlength="2" data-sfgr-key="' + key + '" data-sfgr-kind="corner" value="' + (value == null ? '' : value) + '" /></div>';
+    let html = '<div class="sfgr-help-panel sfgr-field-panel" data-sfgr-line="' + entry.line + '">';
+    html += '<div class="props-back"><a href="#" id="sfgrHelpBack">&larr; Format ' + esc(rec.name) + '</a></div>';
+    html += '<div class="rename-error" id="sfgrHelpError"></div>';
+    html += '<h3>' + (online ? 'Help text (online document)' : 'Help area (display format)') + '</h3>';
+    html += sfgrCheckRow('onlineDocument', 'Online document', '53', online);
+    html += sfgrTextRow('name', online ? 'Help text label' : 'Help format name', '7 - 14', v.name || '', 8, online ? '1 - 8 characters, A - Z # $ @ first, no comma, quote or blank.' : '8 characters: A - Z, five more, then 00 - 99 (up to 100 formats per help area).');
+    html += sfgrTextRow('helpFile', online ? 'Document name' : 'Help display file', '16 - 23', v.helpFile || '', 8, online ? 'Not ALL, SYSTEM, NEW or DIR; none of the characters ? quote slash period hyphen = > comma *.' : 'Blank = the display file in use.');
+    html += sfgrTextRow('helpLibrary', online ? 'Folder name' : 'Help library', '25 - 32', v.helpLibrary || '', 8, online ? 'Not ALL, #LIBRARY, F1, READER, PRINT or DISK.' : 'Only with a file name.');
+    html += '<h3>Help area on the screen</h3><div class="hint-small">Rows count from the start line of the format. Fill all four boxes (rows 1 - ' + maxRow + ', columns 1 - ' + maxCol + '), or clear all four for a null help area (reached with Page Down or Page Up only).</div>';
+    html += '<div class="sfgr-corner-row"><div class="hint-small">Upper left (34 - 37)</div>' + cell('ulRow', 'Row', ul && ul.row) + cell('ulColumn', 'Column', ul && ul.column) + '</div>';
+    html += '<div class="sfgr-corner-row"><div class="hint-small">Lower right (39 - 42)</div>' + cell('lrRow', 'Row', lr && lr.row) + cell('lrColumn', 'Column', lr && lr.column) + '</div>';
+    html += '<h3>Display</h3>';
+    html += sfgrIndicatorRow('suppressSelection', 'Suppress selection', '44 - 45', v.suppressSelection, { noYes: true, noLabel: 'Never (blank)' });
+    html += sfgrIndicatorRow('restoreFormat', 'Restore display format', '47 - 48', v.restoreFormat, { yes: '', no: 'N', yesLabel: 'Yes (blank)', noLabel: 'No (N)' });
+    html += sfgrIndicatorRow('boundary', 'Boundary', '50 - 51', v.boundary, { no: 'N', noLabel: 'No (N)' });
+    html += '<div class="hint-small">Restore display format is checked for syntax and ignored on the AS/400.</div>';
+    html += '<h3>Source</h3>' + sfgrRowsHtml([['Source line', String(entry.line)], ['Format', rec.name]]);
+    html += '</div>';
+    propsBody.innerHTML = html;
+    wireSfgrHelpProps(rec, entry.line);
+  }
+
+  function sfgrSetHelpValue(rec, line, key, raw) {
+    const errorEl = document.getElementById('sfgrHelpError');
+    if (errorEl) errorEl.textContent = '';
+    const refused = (reason) => { if (errorEl) errorEl.textContent = reason; };
+    const entry = sfgrHEntry(line);
+    if (!entry) { refused('This entry is no longer in the source.'); return false; }
+    let online = (entry.values.onlineDocument || '').trim() === 'Y';
+    let value = raw;
+    if (key === 'onlineDocument') {
+      online = raw === 'Y';
+      const named = sfgrHelpValue('name', entry.values.name, online, entry.values);
+      if (named.error) { refused('Not changed: ' + named.error); return false; }
+    } else if (key === 'name' || key === 'helpFile' || key === 'helpLibrary') {
+      const checked = sfgrHelpValue(key, raw, online, entry.values);
+      if (checked.error) { refused(checked.error); return false; }
+      value = checked.value;
+    }
+    return commitSfgrChange((text) => SfgrWriter.setValue(text, { line: line }, key, value), null, refused);
+  }
+
+  // The four corner boxes are one edit: all blank (a null area) or all four filled and in order.
+  function sfgrSetCorners(rec, line, root) {
+    const errorEl = document.getElementById('sfgrHelpError');
+    if (errorEl) errorEl.textContent = '';
+    const refused = (reason) => { if (errorEl) errorEl.textContent = reason; };
+    const box = (k) => root.querySelector('[data-sfgr-key="' + k + '"]').value.trim();
+    const raw = { ulRow: box('ulRow'), ulColumn: box('ulColumn'), lrRow: box('lrRow'), lrColumn: box('lrColumn') };
+    const filled = Object.keys(raw).filter((k) => raw[k] !== '');
+    if (filled.length === 0) {
+      return commitSfgrChange((text) => {
+        const one = SfgrWriter.setValue(text, { line: line }, 'upperLeft', '');
+        if (!one.ok) return one;
+        const two = SfgrWriter.setValue(one.text, { line: line }, 'lowerRight', '');
+        return two.ok ? { ok: true, text: two.text, changed: one.changed || two.changed } : two;
+      }, null, refused);
+    }
+    if (filled.length < 4) { refused('Fill in all four boxes (row and column of both corners), or clear all four for a null help area.'); return false; }
+    const maxRow = rec.sfgr.columns132 ? 27 : 24;
+    const maxCol = rec.sfgr.columns132 ? 132 : 80;
+    const n = {};
+    for (const k of Object.keys(raw)) {
+      if (!/^[0-9]+$/.test(raw[k])) { refused('The corner boxes take whole numbers.'); return false; }
+      n[k] = Number(raw[k]);
+      const isRow = k.slice(2) === 'Row';
+      if (n[k] < 1 || n[k] > (isRow ? maxRow : maxCol)) { refused('A corner ' + (isRow ? 'row is 1 - ' + maxRow : 'column is 1 - ' + maxCol) + '.'); return false; }
+    }
+    if (n.lrRow < n.ulRow || n.lrColumn < n.ulColumn) { refused('The lower right corner is at or below and right of the upper left corner.'); return false; }
+    return commitSfgrChange((text) => {
+      const one = SfgrWriter.setValue(text, { line: line }, 'upperLeft', { row: n.ulRow, column: n.ulColumn });
+      if (!one.ok) return one;
+      const two = SfgrWriter.setValue(one.text, { line: line }, 'lowerRight', { row: n.lrRow, column: n.lrColumn });
+      return two.ok ? { ok: true, text: two.text, changed: one.changed || two.changed } : two;
+    }, null, refused);
+  }
+
+  function wireSfgrHelpProps(rec, line) {
+    const root = propsBody.querySelector('.sfgr-help-panel');
+    if (!root) return;
+    const back = document.getElementById('sfgrHelpBack');
+    if (back) back.addEventListener('click', (e) => { e.preventDefault(); selectedHelpSourceLine = null; renderProps(rec.name); });
+    wireSfgrControls(root, 'sfgrHelpError', (key, value) => sfgrSetHelpValue(rec, line, key, value));
+    root.addEventListener('change', (e) => {
+      const el = e.target;
+      if (el.getAttribute && el.getAttribute('data-sfgr-kind') === 'corner') sfgrSetCorners(rec, line, root);
+    });
+  }
+
   function renderSfgrReadOnlyProps(recordName) {
     const esc = DspfEngine.escapeHtml;
     const rec = model.records.find((r) => r.name === recordName);
@@ -5271,6 +5452,9 @@ const htmlTemplate = `<!DOCTYPE html>
     let html = '<div class="sfgr-props">';
     if (found && found.field && found.field.sfgr) {
       renderSfgrFieldProps(found);
+      return;
+    } else if (rec && rec.sfgr && selectedHelpSourceLine != null) {
+      renderSfgrHelpProps(rec);
       return;
     } else if (found && found.field && found.field.sfgr && false) {
       const f = found.field;
@@ -5354,7 +5538,7 @@ const htmlTemplate = `<!DOCTYPE html>
     html += '<span class="crumb' + (showFileProps ? ' current' : '') + '" id="crumb-file">File' + compileBadgeHtml(compileFileCounts()) + '</span>';
     if (rec) {
       html += '<span class="crumb-sep">&rsaquo;</span>';
-      html += '<span class="crumb' + (atRecord ? ' current' : '') + '" id="crumb-record">Record: ' + DspfEngine.escapeHtml(rec.name) + compileBadgeHtml(compileIndex.byRecord[rec.name]) + '</span>';
+      html += '<span class="crumb' + (atRecord ? ' current' : '') + '" id="crumb-record">' + (sourceKind === 'sfgr' ? 'Format: ' : 'Record: ') + DspfEngine.escapeHtml(rec.name) + compileBadgeHtml(compileIndex.byRecord[rec.name]) + '</span>';
     }
     if (selectedKeys.length > 1) {
       html += '<span class="crumb-sep">&rsaquo;</span><span class="crumb current">' + selectedKeys.length + ' fields selected</span>';
@@ -5365,7 +5549,7 @@ const htmlTemplate = `<!DOCTYPE html>
       const label = rawLabel.length > 18 ? rawLabel.slice(0, 18) + '\u2026' : rawLabel;
       html += '<span class="crumb-sep">&rsaquo;</span><span class="crumb current">Field: ' + DspfEngine.escapeHtml(label) + compileBadgeHtml(compileCountsOf(compileIndex.byField[selectedKey.sourceLine])) + '</span>';
     } else if (selectedHelpSourceLine != null) {
-      html += '<span class="crumb-sep">&rsaquo;</span><span class="crumb current">Help entry</span>';
+      html += '<span class="crumb-sep">&rsaquo;</span><span class="crumb current">' + (sourceKind === 'sfgr' ? 'Help area' : 'Help entry') + '</span>';
     } else if (pendingPlacement) {
       let placementLabel;
       if (pendingPlacement.kind === 'COPY') placementLabel = 'Place copy';
@@ -5382,7 +5566,7 @@ const htmlTemplate = `<!DOCTYPE html>
 
     const fileCrumb = document.getElementById('crumb-file');
     if (fileCrumb) fileCrumb.addEventListener('click', () => {
-      if (showFileProps) return;
+      if (showFileProps || sourceKind === 'sfgr') return; // an SFGR file has no file-level keywords
       showFileProps = true;
       clearSelection();
       selectedHelpSourceLine = null;
