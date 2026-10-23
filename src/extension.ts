@@ -188,6 +188,16 @@ const DdsHover: {
   ): vscode.HoverProvider;
 } = require('./ddsHover.js');
 const HoverKeywordSpec: unknown = require('./keywordSpec.js');
+// E11j3: outline and go to definition on SFGR source (pure module; the provider takes the API as an argument).
+const SfgrSymbols: {
+  createProvider(
+    api: unknown,
+    options: {
+      getSettings: () => { outline: boolean; definition: boolean };
+      shouldProvide: (document: vscode.TextDocument) => boolean;
+    }
+  ): vscode.DocumentSymbolProvider & vscode.DefinitionProvider;
+} = require('./sfgrSymbols.js');
 // E11j2: hover on the columns of SFGR source (pure lookup in sfgrHover.js).
 const SfgrHover: {
   createProvider(
@@ -653,6 +663,20 @@ export function activate(context: vscode.ExtensionContext): void {
         spec: HoverKeywordSpec,
       })
     )
+  );
+
+  // E11j3: the outline and go to definition for SFGR source, with the same two settings. Registered before the DDS
+  // ones below, which never answer on SFGR.
+  const sfgrSymbolProvider = SfgrSymbols.createProvider(vscode, {
+    getSettings: () => ({
+      outline: vscode.workspace.getConfiguration('isda').get<boolean>('outline.enable', true),
+      definition: vscode.workspace.getConfiguration('isda').get<boolean>('definition.enable', true),
+    }),
+    shouldProvide: isSfgrTextDocument,
+  });
+  context.subscriptions.push(
+    vscode.languages.registerDocumentSymbolProvider(DDS_LANGUAGE_SELECTOR, sfgrSymbolProvider, { label: 'I-SDA SFGR' }),
+    vscode.languages.registerDefinitionProvider(DDS_LANGUAGE_SELECTOR, sfgrSymbolProvider)
   );
 
   // E1e: the outline (Outline view, breadcrumbs, Go to Symbol) and go to definition on a record-format name in

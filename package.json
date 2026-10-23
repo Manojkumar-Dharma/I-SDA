@@ -2,7 +2,7 @@
   "name": "i-sda",
   "displayName": "iSDA",
   "description": "Interactive visual designer for IBM i DDS display files (DSPF) \u2014 preview, click, drag, and edit fields with changes written straight back into the DDS source.",
-  "version": "0.18.13",
+  "version": "0.18.14",
   "publisher": "Manojkumar-IBMi",
   "icon": "images/icon.png",
   "engines": {
@@ -56,12 +56,12 @@
         "isda.outline.enable": {
           "type": "boolean",
           "default": true,
-          "description": "Show display-file and menu sources in the Outline view, the breadcrumbs and Go to Symbol: one entry per record format with its fields, constants and help specifications under it."
+          "description": "Show display-file and menu sources in the Outline view, the breadcrumbs and Go to Symbol: one entry per record format with its fields, constants and help specifications under it. System/36 DSPF36 source gets one entry per display format with its fields, constants and help areas."
         },
         "isda.definition.enable": {
           "type": "boolean",
           "default": true,
-          "description": "Go to Definition on a record-format name inside SFLCTL(...), WINDOW(...) and MNUBARCHC(...) jumps to that record format."
+          "description": "Go to Definition on a record-format name inside SFLCTL(...), WINDOW(...) and MNUBARCHC(...) jumps to that record format. In System/36 DSPF36 source it jumps from the display format name of an H specification to that format's S specification."
         },
         "isda.columnAids.enable": {
           "type": "boolean",
@@ -371,7 +371,7 @@
     "test": "node src/test/run.js",
     "test:parity": "node src/test/parity.js",
     "test:quick": "node src/test/quick.js",
-    "build:webview-assets": "node src/fixtures/generateFixture.js && esbuild src/browserEntry.ts --bundle --format=iife --global-name=DspfParser --outfile=dist/dspfParser.browser.js && node src/buildWebviewTemplate.js && node src/buildMenuWebviewTemplate.js && node -e \"require('fs').mkdirSync('dist',{recursive:true});['mnuCmdEngine.js','dspfEngine.js','indicatorSim.js','keywordSpec.js','dspfWriter.js','webviewClientHelpers.js','qdbrtvfdParser.js','jobDateFormat.js','sourceLineWidth.js','messageFile.js','ddsItemRules.js','ddsDiagnostics.js','diagnosticsHub.js','ddsHover.js','ddsCompletion.js','ddsOutline.js','ddsQuickFix.js','ddsColumnAids.js','compileMessages.js','compileListing.js','compileLineMap.js','compileDiagnostics.js','menuCompileSteps.js','screenExport.js','screenPng.js','screenText.js','screenExportUi.js','screenBatch.js','sourceKind.js','sfgrParser.js','sfgrWriter.js','sfgrModel.js','sfgrDiagnostics.js','sfgrHover.js'].forEach(f=>require('fs').copyFileSync('src/'+f,'dist/'+f))\" && node src/buildKeywordHoverData.js",
+    "build:webview-assets": "node src/fixtures/generateFixture.js && esbuild src/browserEntry.ts --bundle --format=iife --global-name=DspfParser --outfile=dist/dspfParser.browser.js && node src/buildWebviewTemplate.js && node src/buildMenuWebviewTemplate.js && node -e \"require('fs').mkdirSync('dist',{recursive:true});['mnuCmdEngine.js','dspfEngine.js','indicatorSim.js','keywordSpec.js','dspfWriter.js','webviewClientHelpers.js','qdbrtvfdParser.js','jobDateFormat.js','sourceLineWidth.js','messageFile.js','ddsItemRules.js','ddsDiagnostics.js','diagnosticsHub.js','ddsHover.js','ddsCompletion.js','ddsOutline.js','ddsQuickFix.js','ddsColumnAids.js','compileMessages.js','compileListing.js','compileLineMap.js','compileDiagnostics.js','menuCompileSteps.js','screenExport.js','screenPng.js','screenText.js','screenExportUi.js','screenBatch.js','sourceKind.js','sfgrParser.js','sfgrWriter.js','sfgrModel.js','sfgrDiagnostics.js','sfgrHover.js','sfgrSymbols.js'].forEach(f=>require('fs').copyFileSync('src/'+f,'dist/'+f))\" && node src/buildKeywordHoverData.js",
     "compile": "npm run build:webview-assets && tsc -p ."
   },
   "devDependencies": {
