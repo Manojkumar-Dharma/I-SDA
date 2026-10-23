@@ -10,6 +10,7 @@ const { check, failureCount } = require('./helpers/harness');
 const { buildLine: L } = require('../fixtures/lineBuilder.js');
 const DiagnosticsHub = require('../diagnosticsHub.js');
 const DdsDiagnostics = require('../ddsDiagnostics.js');
+const SfgrDiagnostics = require('../sfgrDiagnostics.js');
 
 // ---- a fake of the vscode API ------------------------------------------------------------------
 class Range { constructor(sl, sc, el, ec) { this.start = { line: sl, character: sc }; this.end = { line: el, character: ec }; } }
@@ -294,7 +295,7 @@ const props = pkg.contributes.configuration.properties;
 check('setting isda.diagnostics.enable: boolean, default true', props['isda.diagnostics.enable'] && props['isda.diagnostics.enable'].type === 'boolean' && props['isda.diagnostics.enable'].default === true);
 const sevProp = props['isda.diagnostics.severity'];
 check('setting isda.diagnostics.severity: object, default {}', sevProp && sevProp.type === 'object' && JSON.stringify(sevProp.default) === '{}');
-check('  its property names are exactly the codes the analyser can emit', sevProp && JSON.stringify(sevProp.propertyNames.enum.slice().sort()) === JSON.stringify(DdsDiagnostics.allCodes().slice().sort()));
+check('  its property names are exactly the codes the analysers can emit (DDS, and the SFGR rules of E11j1)', sevProp && JSON.stringify(sevProp.propertyNames.enum.slice().sort()) === JSON.stringify(DdsDiagnostics.allCodes().concat(SfgrDiagnostics.allCodes()).sort()));
 check('  its values are the four severities and off', sevProp && JSON.stringify(sevProp.additionalProperties.enum) === JSON.stringify(['error', 'warning', 'information', 'hint', 'off']));
 check('build:webview-assets copies ddsDiagnostics.js and diagnosticsHub.js', /'ddsDiagnostics\.js'/.test(pkg.scripts['build:webview-assets']) && /'diagnosticsHub\.js'/.test(pkg.scripts['build:webview-assets']));
 const ext = fs.readFileSync(path.join(root, 'src/extension.ts'), 'utf8');

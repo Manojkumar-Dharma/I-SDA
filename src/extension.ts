@@ -123,6 +123,7 @@ const DiagnosticsHub: {
     vscodeApi: any,
     options: {
       shouldAnalyze(document: vscode.TextDocument): boolean;
+      shouldAnalyzeSfgr?(document: vscode.TextDocument): boolean;
       getSettings(): { enable: boolean; severity: unknown };
       onInternalErrors?(uri: vscode.Uri, errors: string[]): void;
     }
@@ -581,6 +582,7 @@ export function activate(context: vscode.ExtensionContext): void {
   // display or menu source is analysed.
   const diagnosticsHub = DiagnosticsHub.createHub(vscode, {
     shouldAnalyze: isDdsTextDocument,
+    shouldAnalyzeSfgr: isSfgrTextDocument, // E11j1
     getSettings: () => {
       const config = vscode.workspace.getConfiguration('isda');
       return { enable: config.get<boolean>('diagnostics.enable', true), severity: config.get<unknown>('diagnostics.severity', {}) };
@@ -704,6 +706,11 @@ function isDdsTextDocument(document: vscode.TextDocument): boolean {
     getDocumentSourceType(document.uri) !== MENU_COMMAND_SOURCE_TYPE &&
     (isLikelyDisplayFile(document) || isLikelyMenuFile(document))
   );
+}
+
+// E11j1: System/36 SFGR source opened in the text editor: the Problems panel runs the SFGR rules on it (never the DDS ones).
+function isSfgrTextDocument(document: vscode.TextDocument): boolean {
+  return vscode.languages.match(DDS_LANGUAGE_SELECTOR, document) > 0 && isSfgrDocument(document);
 }
 
 // DDS display files declare record formats with 'R' in column 17; a quick,

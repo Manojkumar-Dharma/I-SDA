@@ -26,11 +26,11 @@
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
-    module.exports = factory(require('./ddsDiagnostics.js'));
+    module.exports = factory(require('./ddsDiagnostics.js'), require('./sfgrDiagnostics.js'));
   } else {
-    root.DiagnosticsHub = factory(root.DdsDiagnostics);
+    root.DiagnosticsHub = factory(root.DdsDiagnostics, root.SfgrDiagnostics);
   }
-})(typeof self !== 'undefined' ? self : this, function (DdsDiagnostics) {
+})(typeof self !== 'undefined' ? self : this, function (DdsDiagnostics, SfgrDiagnostics) {
   'use strict';
 
   var RULES_SOURCE = 'rules';
@@ -42,7 +42,7 @@
   function sanitizeSeverityMap(value) {
     var out = {};
     if (!value || typeof value !== 'object' || Array.isArray(value)) return out;
-    var known = DdsDiagnostics.allCodes();
+    var known = DdsDiagnostics.allCodes().concat(SfgrDiagnostics.allCodes()); // E11j1: the SFGR rules share the setting
     Object.keys(value).forEach(function (code) {
       var v = typeof value[code] === 'string' ? value[code].toLowerCase() : '';
       if (known.indexOf(code) >= 0 && (v === 'off' || SEVERITIES.indexOf(v) >= 0)) out[code] = v;
@@ -69,6 +69,7 @@
   function createHub(vscodeApi, options) {
     options = options || {};
     var shouldAnalyze = options.shouldAnalyze || function () { return false; };
+    var shouldAnalyzeSfgr = options.shouldAnalyzeSfgr || function () { return false; }; // E11j1: System/36 SFGR source has its own rules
     var getSettings = options.getSettings || function () { return { enable: true, severity: {} }; };
     var analyze = options.analyze || null;
     var createAnalyzer = options.createAnalyzer || DdsDiagnostics.createAnalyzer;
@@ -206,9 +207,14 @@
       return out;
     }
 
-    function analyzerFor(k) {
+    function analyzerFor(k, kind) {
       var a = analyzers.get(k);
-      if (!a) { a = createAnalyzer(); analyzers.set(k, a); }
+      if (a && a.kind !== kind) { a = null; analyzers.delete(k); } // the document changed kind (its source type was changed)
+      if (!a) {
+        var made = kind === 'sfgr' ? SfgrDiagnostics.createAnalyzer() : createAnalyzer();
+        a = { kind: kind, analyze: made.analyze.bind(made) };
+        analyzers.set(k, a);
+      }
       return a;
     }
 
@@ -223,14 +229,15 @@
       var k = key(document.uri);
       cancelPending(k);
       var s = settings();
-      if (!s.enable || document.isClosed || !shouldAnalyze(document)) {
+      var kind = !s.enable || document.isClosed ? null : shouldAnalyze(document) ? 'dds' : shouldAnalyzeSfgr(document) ? 'sfgr' : null;
+      if (!kind) {
         analyzers.delete(k);
         clearSource(document.uri, RULES_SOURCE);
         return;
       }
-      var result = analyze
+      var result = analyze && kind === 'dds'
         ? analyze(document.getText(), { severity: s.severity })
-        : analyzerFor(k).analyze(document.getText(), { severity: s.severity });
+        : analyzerFor(k, kind).analyze(document.getText(), { severity: s.severity });
       if (result.internalErrors && result.internalErrors.length && options.onInternalErrors) {
         options.onInternalErrors(document.uri, result.internalErrors);
       }
@@ -245,7 +252,7 @@
       var document = event.document;
       followEdits(event);
       var s = settings();
-      if (!s.enable || !shouldAnalyze(document)) return;
+      if (!s.enable || !(shouldAnalyze(document) || shouldAnalyzeSfgr(document))) return;
       var k = key(document.uri);
       cancelPending(k);
       pending.set(k, schedule(function () {
