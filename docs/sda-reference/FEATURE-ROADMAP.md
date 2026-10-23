@@ -2637,7 +2637,7 @@ never runs on SFGR source and SFGR tooling never runs on DDS.
 | E11f | **Preview fidelity.** Draw the SFGR display attributes (high intensity, blink, nondisplay, reverse image, underline, column separators, lowercase), the start line and lines-to-clear stacking of several formats on one screen (Figure B-2), and the visual markers for input, output and input/output fields. Reuse the E3 simulator conditions for the indicators. | E11e | Done | v0.18.5 |
 | E11g1 | **Designer panels, slice 1: wiring, read-only.** Open SFGR in the designer (the E11b notice goes): the host sends `sourceKind`, the page routes every parse through `parseSource`, SFGR modules embedded; canvas, simulator and exports work; DDS-only edit controls hidden or disabled with one banner; title button and lens back for `.dspf36`. See "E11g plan and decisions". | E11d, E11e, E11f | Done | v0.18.6 |
 | E11g2 | **Designer panels, slice 2: format (S spec) panel**, with the key-mask editor; edits through `SfgrWriter.setValue`. | E11g1 | Done | v0.18.7 |
-| E11g3 | **Designer panels, slice 3: field and constant (D spec) panel**, constants through `setConstant`; values checked against the E11a ranges. | E11g1 | Open | - |
+| E11g3 | **Designer panels, slice 3: field and constant (D spec) panel**, constants through `setConstant`; values checked against the E11a ranges. | E11g1 | Done | v0.18.9 |
 | E11g4 | **Designer panels, slice 4: help (H spec) panel and clean-up**: `*DDS` block locked, DDS-only panels and tabs absent for SFGR, SFGR labels. | E11g2, E11g3 | Open | - |
 | E11h | **Editing operations.** Click-to-place and drag of fields and constants, new format, delete, duplicate, reorder, resize on the grid, undo and redo, all through the E11d writer; the Raw editor tab edits SFGR text with column rulers. | E11g | Open | - |
 | E11i | **Simulator, export and batch.** The E3 indicator simulator, the E5 exports (SVG, HTML, PNG, text) and the batch export work on SFGR source; the saved scenarios stay outside the source (see "Source stays clean"). **Scope (Manojkumar, decided): host side + engine/export now** (batch and export commands routed by source kind, column separators in the SVG, HTML and text exports as a line / `|`, the 5292 colour mapping in the engine); the page-side simulator and export buttons follow E11g1 and are checked in a final test then. | E11f | Done | v0.18.8 |
@@ -2825,7 +2825,25 @@ Canvas operations (click-to-place, drag, resize, delete, duplicate, undo and red
 
 **Checked.** jsdom on `stipfm.dspf36`: every control writes only its own columns of the S line (every other line byte-identical), and setting every control back to its starting value restores the source byte for byte; refused input posts no edit and shows a message; rename keeps the selection and renaming back restores the source; 132 columns widens the allowed start line to 27; the key mask handles function keys, command keys, the 16-character limit and a stray character.
 
-**Not done.** Fields and constants (E11g3) and help areas (E11g4) are still read-only; the key mask has no drag ordering; there is no check yet that a start line plus a format's fields fits the screen (E11j).
+**Not done.** Fields and constants (E11g3, since done) and help areas (E11g4) are still read-only; the key mask has no drag ordering; there is no check yet that a start line plus a format's fields fits the screen (E11j).
+
+### E11g3 results
+
+**E11g3 (designer, slice 3: field and constant panel).** All in `buildWebviewTemplate.js`; new test `src/test/e11g3SfgrFieldPanel.test.js` (82 checks); the E11g1 and E11g2 tests each had one "a field is read-only" check replaced.
+
+**The panel (`renderSfgrFieldProps`).** Selecting a field or constant shows sections Field / Constant, Input checks, Attributes, Constant and Source, every label with its column numbers. It reads the D entry from the page's own `sourceText` (`sfgrDEntry`), so a constant with an output indicator (two model fields from one entry) opens the same panel from either part. Controls follow the accepted decisions: the Y / N / indicator columns reuse the E11g2 control (No / Yes / Indicator + 01 - 99 box: output data, position cursor, protect, high intensity, blink, nondisplay, reverse image, underline); the Y / blank columns are checkboxes (input allowed, mandatory fill, mandatory entry, dup key, controlled field exit, automatic record advance, column separators, lowercase); data type, self-check, adjust/fill and constant type are selects. A usage line says input, output or both.
+
+**One way in, as in E11g2.** Column values go through `SfgrWriter.setValue` and the constant through `SfgrWriter.setConstant`, both via `commitSfgrChange`; a refused edit shows the writer's reason and changes nothing. The shared change handler is now `wireSfgrControls` (the format panel uses it too).
+
+**Constants.** The constant text is one text area; a line shows how many characters it holds and on how many source lines (23 on the D line, 73 on each continuation line). Long text adds continuation lines and a shorter text drops them again; writing the original text back restores the source byte for byte. A text with a line break is refused. A message constant (type M) shows a message id (57 - 60, up to 4 characters, no blanks, upper-cased, not blank) and a member select (blank/U1, U2, P1, P2, M1, M2) instead of the text; both are written through `setConstant` as one text (the id padded to 4 when a member follows). Clearing the type while the constant has text is refused ("clear the constant text first"), because a field has nothing in columns 57 - 79.
+
+**Checks before writing (`sfgrFieldValue`).** Name up to 8 characters, upper-cased, no blank inside; length blank or 1 - 1919 (3563 on 132 columns); line 1 - 24 (27), not blank; column 1 - 80 (132), as a number or the codes A0 - D2; indicator 01 - 99. The writer's own width and character checks stay behind these.
+
+**Advisory notes, not refusals.** The combinations the manual states are shown under the Attributes section as notes: nondisplay with high intensity, reverse image or underline is nondisplay only; high intensity + reverse image + underline together draws nondisplay; protect and lowercase apply to input fields only; lowercase does not apply to a numeric field; adjust/fill is not allowed with mandatory fill and implies controlled field exit. They stay notes because the rule checks belong to E11j.
+
+**Decision taken without asking.** The panel is one scrolling panel with sections (as the E11g2 format panel is), not the tabs the E11g plan names; tell me if you want tabs.
+
+**Not done.** No check yet that a field fits the screen, that fields do not overlap, or that position cursor is on one field only (E11j); the H specification panel and the `*DDS` block (E11g4); canvas editing (E11h). The field name accepts any characters except blanks, since the manual says it is a reference for the program only.
 
 ### E11i results
 

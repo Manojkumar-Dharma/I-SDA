@@ -59,7 +59,7 @@ setTimeout(() => {
   field.dispatchEvent(new Event('click', { bubbles: true }));
   check('a click selects it and shows the D specification', /Source lines/.test(props()) && /Line \/ column/.test(props()) && /row \d+ on the screen/.test(props()));
   check('the breadcrumb names the field', /Field:/.test(doc.getElementById('propsBreadcrumb').textContent));
-  check('a field or constant is still read-only (E11g3 gives it a panel): nothing to type into', doc.getElementById('propsBody').querySelectorAll('input, select, textarea, button').length === 0);
+  check('a field or constant has its own panel (E11g3; see e11g3SfgrFieldPanel.test.js)', !!doc.querySelector('.sfgr-field-panel') && doc.querySelector('.sfgr-field-panel [data-sfgr-key="name"]') !== null);
 
   console.log('\nno DDS edit reaches the SFGR text');
   posted.length = 0;

@@ -681,8 +681,10 @@ const htmlTemplate = `<!DOCTYPE html>
   .sfgr-ind-row { display: flex; gap: 6px; }
   .sfgr-ind-row select { flex: 1 1 auto; }
   .sfgr-ind-row input { width: 3.2em; flex: 0 0 auto; }
-  .sfgr-format-panel .field-row select, .sfgr-format-panel .field-row input[type="text"] { width: 100%; box-sizing: border-box; }
-  .sfgr-format-panel h3 { font-size: 12px; margin: 14px 0 6px 0; }
+  .sfgr-format-panel .field-row select, .sfgr-format-panel .field-row input[type="text"], .sfgr-field-panel .field-row select, .sfgr-field-panel .field-row input[type="text"], .sfgr-field-panel .field-row textarea { width: 100%; box-sizing: border-box; }
+  .sfgr-field-panel .field-row textarea { min-height: 4.5em; font-family: var(--mono, monospace); resize: vertical; }
+  .sfgr-format-panel h3, .sfgr-field-panel h3 { font-size: 12px; margin: 14px 0 6px 0; }
+  .sfgr-note { font-size: 11px; color: var(--warn); margin: 2px 0 8px; }
   .sfgr-col { color: var(--ink-dim); text-transform: none; letter-spacing: 0; }
   .sfgr-props h3 { font-size: 12px; margin: 10px 0 4px 0; }
   .sfgr-props table { width: 100%; border-collapse: collapse; font-size: 11px; }
@@ -5004,16 +5006,16 @@ const htmlTemplate = `<!DOCTYPE html>
     return ok;
   }
 
-  function wireSfgrFormatProps(rec) {
-    const root = propsBody.querySelector('.sfgr-format-panel');
-    if (!root) return;
+  // One change handler for the controls of an SFGR panel (check, indicator, select, text, textarea): each reports its
+  // column key and the value to write to setValue(key, value). Used by the format panel and the field panel.
+  function wireSfgrControls(root, errorId, setValue) {
     const indicatorValue = (key) => {
       const mode = root.querySelector('[data-sfgr-key="' + key + '"][data-sfgr-part="mode"]');
       const box = root.querySelector('[data-sfgr-key="' + key + '"][data-sfgr-part="box"]');
       if (mode.value === 'no') return '';
       if (mode.value === 'yes') return 'Y';
       const t = box.value.trim();
-      const errorEl = document.getElementById('sfgrFormatError');
+      const errorEl = document.getElementById(errorId);
       if (!/^[0-9]{1,2}$/.test(t) || Number(t) < 1) { if (errorEl) errorEl.textContent = 'Type an indicator 01 - 99.'; return undefined; }
       return Number(t);
     };
@@ -5022,7 +5024,7 @@ const htmlTemplate = `<!DOCTYPE html>
       const key = el.getAttribute && el.getAttribute('data-sfgr-key');
       if (!key) return;
       const kind = el.getAttribute('data-sfgr-kind');
-      if (kind === 'check') { sfgrSetFormatValue(rec, key, el.checked ? 'Y' : ''); return; }
+      if (kind === 'check') { setValue(key, el.checked ? 'Y' : ''); return; }
       if (kind === 'ind') {
         if (el.getAttribute('data-sfgr-part') === 'mode') {
           const box = root.querySelector('[data-sfgr-key="' + key + '"][data-sfgr-part="box"]');
@@ -5030,11 +5032,17 @@ const htmlTemplate = `<!DOCTYPE html>
           if (el.value === 'ind') { box.focus(); return; }
         }
         const value = indicatorValue(key);
-        if (value !== undefined) sfgrSetFormatValue(rec, key, value);
+        if (value !== undefined) setValue(key, value);
         return;
       }
-      sfgrSetFormatValue(rec, key, el.value);
+      setValue(key, el.value);
     });
+  }
+
+  function wireSfgrFormatProps(rec) {
+    const root = propsBody.querySelector('.sfgr-format-panel');
+    if (!root) return;
+    wireSfgrControls(root, 'sfgrFormatError', (key, value) => sfgrSetFormatValue(rec, key, value));
     root.addEventListener('click', (e) => {
       const btn = e.target.closest ? e.target.closest('[data-sfgr-mask-char]') : null;
       if (!btn) return;
@@ -5050,12 +5058,221 @@ const htmlTemplate = `<!DOCTYPE html>
     });
   }
 
+  // ---- E11g3: the field and constant (D specification) panel --------------------------------------------------------
+
+  const SFGR_DATA_TYPES = [
+    ['', 'Any (blank)'], ['B', 'Any (B)'], ['A', 'Alphabetic (A)'], ['M', 'Alphabetic, numeric shift (M)'], ['N', 'Numeric (N)'],
+    ['S', 'Signed numeric (S)'], ['R', 'Magnetic stripe (R)'], ['Z', 'Right-to-left (Z)'], ['D', 'Digits only (D)'], ['K', 'Katakana (K)'],
+    ['E', 'DBCS (E)'], ['F', 'DBCS (F)'], ['O', 'DBCS (O)'], ['X', 'DBCS (X)']
+  ];
+  const SFGR_MESSAGE_MEMBERS = [['', 'U1 (blank)'], ['U1', 'U1'], ['U2', 'U2'], ['P1', 'P1'], ['P2', 'P2'], ['M1', 'M1'], ['M2', 'M2']];
+  const SFGR_CONSTANT_FIRST = 23, SFGR_CONSTANT_NEXT = 73;
+
+  // The D entry of the source that starts at line, read from the page's own text.
+  function sfgrDEntry(line) {
+    const parsed = SfgrParser.parse(sourceText);
+    for (let i = 0; i < parsed.entries.length; i++) if (parsed.entries[i].kind === 'D' && parsed.entries[i].line === line) return parsed.entries[i];
+    return null;
+  }
+
+  // The value to write for a D column from what the person typed, or { error }. columns132: the format's width.
+  function sfgrFieldValue(columns132, key, raw) {
+    const t = String(raw == null ? '' : raw).trim();
+    if (key === 'name') {
+      const name = t.toUpperCase();
+      if (name.length > 8) return { error: 'A field name is up to 8 characters.' };
+      if (name.indexOf(' ') >= 0) return { error: 'A field name has no blanks in it.' };
+      return { value: name };
+    }
+    if (key === 'length') {
+      if (t === '') return { value: '' };
+      const max = columns132 ? 3563 : 1919;
+      if (!/^[0-9]+$/.test(t) || Number(t) < 1 || Number(t) > max) return { error: 'Length is blank, or 1 - ' + max + '.' };
+      return { value: Number(t) };
+    }
+    if (key === 'line') {
+      const max = columns132 ? 27 : 24;
+      if (!/^[0-9]+$/.test(t) || Number(t) < 1 || Number(t) > max) return { error: 'Line is 1 - ' + max + ' (relative to the start line).' };
+      return { value: Number(t) };
+    }
+    if (key === 'column') {
+      const max = columns132 ? 132 : 80;
+      let n = null;
+      if (/^[0-9]+$/.test(t)) n = Number(t);
+      else if (/^[A-Da-d][0-9]$/.test(t)) n = 100 + (t.toUpperCase().charCodeAt(0) - 65) * 10 + Number(t.charAt(1));
+      if (n === null || n < 1 || n > max) return { error: 'Column is 1 - ' + max + (columns132 ? ' (100 and over may be typed as A0 - D2).' : '.') };
+      return { value: n };
+    }
+    if (key === 'dataType') {
+      if (!SFGR_DATA_TYPES.some((o) => o[0] === t)) return { error: 'That is not a data type SFGR defines.' };
+      return { value: t };
+    }
+    if (key === 'selfCheck') {
+      if (['', 'T', 'E'].indexOf(t) < 0) return { error: 'Self-check is blank, T (modulus 10) or E (modulus 11).' };
+      return { value: t };
+    }
+    if (key === 'adjustFill') {
+      if (['', 'Z', 'B'].indexOf(t) < 0) return { error: 'Adjust/fill is blank, Z or B.' };
+      return { value: t };
+    }
+    if (key === 'constantType') {
+      if (['', 'C', 'M'].indexOf(t) < 0) return { error: 'Constant type is blank, C or M.' };
+      return { value: t };
+    }
+    return { value: raw };
+  }
+
+  // Advisory notes from the combinations the manual states (not refusals: E11j owns the rule checks).
+  function sfgrFieldNotes(v) {
+    const on = (x) => (x || '').trim() !== '' && (x || '').trim() !== 'N';
+    const notes = [];
+    const input = (v.inputAllowed || '').trim() === 'Y';
+    if (on(v.nondisplay) && (on(v.highIntensity) || on(v.reverseImage) || on(v.underline))) notes.push('Nondisplay with high intensity, reverse image or underline is nondisplay only.');
+    else if (on(v.highIntensity) && on(v.reverseImage) && on(v.underline)) notes.push('High intensity, reverse image and underline together draw the field as nondisplay.');
+    if (on(v.protect) && !input) notes.push('Protect applies to input fields only.');
+    if ((v.lowercase || '').trim() === 'Y' && !input) notes.push('Lowercase applies to input fields only.');
+    if ((v.lowercase || '').trim() === 'Y' && ['N', 'S', 'D'].indexOf((v.dataType || '').trim()) >= 0) notes.push('Lowercase does not apply to a numeric field.');
+    if ((v.adjustFill || '').trim() !== '' && (v.mandatoryFill || '').trim() === 'Y') notes.push('Adjust/fill is not allowed with mandatory fill.');
+    if ((v.adjustFill || '').trim() !== '' && (v.controlledExit || '').trim() !== 'Y') notes.push('Adjust/fill implies controlled field exit.');
+    return notes;
+  }
+
+  function renderSfgrFieldProps(found) {
+    const esc = DspfEngine.escapeHtml;
+    const f = found.field;
+    const sf = f.sfgr;
+    const rf = found.record.sfgr || {};
+    const entry = sfgrDEntry(sf.line);
+    if (!entry) { propsBody.innerHTML = '<div class="empty-state">This entry is no longer in the source.</div>'; return; }
+    const v = entry.values;
+    const isConstant = entry.role === 'constant';
+    const isMessage = (v.constantType || '').trim() === 'M';
+    const startLine = rf.startLine == null ? 1 : rf.startLine;
+    const maxLine = rf.columns132 ? 27 : 24;
+    const maxColumn = rf.columns132 ? 132 : 80;
+    const text = entry.constantText || '';
+    const pieces = text.length <= SFGR_CONSTANT_FIRST ? 1 : 1 + Math.ceil((text.length - SFGR_CONSTANT_FIRST) / SFGR_CONSTANT_NEXT);
+    const usageWords = [];
+    if ((v.inputAllowed || '').trim() === 'Y') usageWords.push('input');
+    if ((v.output || '').trim() !== '' && (v.output || '').trim() !== 'N') usageWords.push('output');
+    let html = '<div class="sfgr-field-panel" data-sfgr-line="' + sf.line + '">';
+    html += '<div class="rename-error" id="sfgrFieldError"></div>';
+    html += '<h3>' + (isConstant ? 'Constant' : 'Field') + '</h3>';
+    html += sfgrTextRow('name', 'Name', '7 - 14', v.name || '', 8, 'Up to 8 characters; a reference for the program only.');
+    html += sfgrTextRow('length', 'Length', '15 - 18', v.length || '', 4, 'Blank, or 1 - ' + (rf.columns132 ? '3563' : '1919') + '.');
+    html += sfgrTextRow('line', 'Line', '19 - 20', v.line || '', 2, '1 - ' + maxLine + ', relative to the start line (screen row ' + (startLine + (entry.numbers.line || 1) - 1) + ').');
+    html += sfgrTextRow('column', 'Column', '21 - 22', v.column || '', 2, '1 - ' + maxColumn + (rf.columns132 ? ' (100 and over as A0 - D2)' : '') + '. Leave a blank before each field for its attribute byte.');
+    html += sfgrIndicatorRow('output', 'Output data', '23 - 24', v.output);
+    html += sfgrCheckRow('inputAllowed', 'Input allowed', '26', (v.inputAllowed || '').trim() === 'Y');
+    html += '<div class="hint-small">Usage: ' + (usageWords.length ? usageWords.join(' and ') : 'neither (no output, no input)') + '</div>';
+    html += sfgrSelectRow('dataType', 'Data type', '27', SFGR_DATA_TYPES, (v.dataType || '').trim());
+    html += '<h3>Input checks</h3>';
+    html += sfgrCheckRow('mandatoryFill', 'Mandatory fill', '28', (v.mandatoryFill || '').trim() === 'Y');
+    html += sfgrCheckRow('mandatoryEntry', 'Mandatory entry', '29', (v.mandatoryEntry || '').trim() === 'Y');
+    html += sfgrSelectRow('selfCheck', 'Self-check', '30', [['', 'None (blank)'], ['T', 'Modulus 10 (T)'], ['E', 'Modulus 11 (E)']], (v.selfCheck || '').trim());
+    html += sfgrSelectRow('adjustFill', 'Adjust / fill', '31', [['', 'None (blank)'], ['Z', 'Right-justify, zero fill (Z)'], ['B', 'Right-justify, blank fill (B)']], (v.adjustFill || '').trim());
+    html += sfgrCheckRow('dupKey', 'Enable Dup key', '34', (v.dupKey || '').trim() === 'Y');
+    html += sfgrCheckRow('controlledExit', 'Controlled field exit', '35', (v.controlledExit || '').trim() === 'Y');
+    html += sfgrCheckRow('autoAdvance', 'Automatic record advance', '36', (v.autoAdvance || '').trim() === 'Y');
+    html += '<h3>Attributes</h3>';
+    html += sfgrIndicatorRow('positionCursor', 'Position cursor', '32 - 33', v.positionCursor);
+    html += sfgrIndicatorRow('protect', 'Protect', '37 - 38', v.protect);
+    html += sfgrIndicatorRow('highIntensity', 'High intensity', '39 - 40', v.highIntensity);
+    html += sfgrIndicatorRow('blink', 'Blink', '41 - 42', v.blink);
+    html += sfgrIndicatorRow('nondisplay', 'Nondisplay', '43 - 44', v.nondisplay);
+    html += sfgrIndicatorRow('reverseImage', 'Reverse image', '45 - 46', v.reverseImage);
+    html += sfgrIndicatorRow('underline', 'Underline', '47 - 48', v.underline);
+    html += sfgrCheckRow('columnSeparators', 'Column separators', '49', (v.columnSeparators || '').trim() === 'Y');
+    html += sfgrCheckRow('lowercase', 'Lowercase', '51', (v.lowercase || '').trim() === 'Y');
+    const notes = sfgrFieldNotes(v);
+    if (notes.length) html += notes.map((n) => '<div class="sfgr-note">' + esc(n) + '</div>').join('');
+    html += '<h3>Constant</h3>';
+    html += sfgrSelectRow('constantType', 'Constant type', '56', [['', 'None - a field (blank)'], ['C', 'Constant text (C)'], ['M', 'Message (M)']], (v.constantType || '').trim());
+    if (isMessage) {
+      const id = (v.constantData || '').slice(0, 4).trim();
+      html += '<div class="field-row"><label>' + sfgrColLabel('Message id', '57 - 60') + '</label><input type="text" maxlength="4" data-sfgr-key="messageId" data-sfgr-kind="message" value="' + esc(id) + '" /></div>';
+      const member = (v.constantData || '').slice(4, 6).trim();
+      html += sfgrSelectRow('messageMember', 'Message member', '61 - 62', SFGR_MESSAGE_MEMBERS, member);
+    } else {
+      html += '<div class="field-row"><label>' + sfgrColLabel('Constant text', '57 - 79, then 7 - 79 on each continuation line') + '</label><textarea data-sfgr-key="constantText" data-sfgr-kind="constant" rows="3">' + esc(text) + '</textarea>' +
+        '<div class="hint-small" id="sfgrConstantCount">' + text.length + ' character' + (text.length === 1 ? '' : 's') + ' on ' + pieces + ' source line' + (pieces === 1 ? '' : 's') + ' (the first holds ' + SFGR_CONSTANT_FIRST + ', each continuation ' + SFGR_CONSTANT_NEXT + ').</div></div>';
+    }
+    html += '<h3>Source</h3>';
+    html += sfgrRowsHtml([
+      ['Source lines', sf.endLine > sf.line ? sf.line + ' - ' + sf.endLine + ' (continued)' : String(sf.line)],
+      ['Line / column', 'line ' + f.location.line + ', column ' + f.location.column + ' (row ' + (startLine + f.location.line - 1) + ' on the screen)'],
+      ['DDS data type', f.dataType || '(none)']
+    ]);
+    html += '</div>';
+    propsBody.innerHTML = html;
+    wireSfgrFieldProps(found.record.sfgr.columns132, sf.line, entry);
+  }
+
+  function sfgrSetFieldValue(columns132, line, key, raw) {
+    const errorEl = document.getElementById('sfgrFieldError');
+    if (errorEl) errorEl.textContent = '';
+    const refused = (reason) => { if (errorEl) errorEl.textContent = reason; };
+    const checked = sfgrFieldValue(columns132, key, raw);
+    if (checked.error) { refused(checked.error); return false; }
+    const entry = sfgrDEntry(line);
+    if (!entry) { refused('This entry is no longer in the source.'); return false; }
+    if (key === 'constantType' && checked.value === '' && (entry.constantText || '') !== '') {
+      refused('Clear the constant text first: a field has nothing in columns 57 - 79.');
+      return false;
+    }
+    return commitSfgrChange((text) => SfgrWriter.setValue(text, { line: line }, key, checked.value), null, refused);
+  }
+
+  function sfgrSetConstantText(line, value) {
+    const errorEl = document.getElementById('sfgrFieldError');
+    if (errorEl) errorEl.textContent = '';
+    const refused = (reason) => { if (errorEl) errorEl.textContent = reason; };
+    if (value.indexOf(String.fromCharCode(10)) >= 0 || value.indexOf(String.fromCharCode(13)) >= 0) { refused('A constant is one line of text; line breaks are not allowed.'); return false; }
+    return commitSfgrChange((text) => SfgrWriter.setConstant(text, { line: line }, value), null, refused);
+  }
+
+  // A message constant: columns 57 - 60 hold the id, 61 - 62 the member; both go through setConstant as one text.
+  function sfgrSetMessage(line, part, value) {
+    const errorEl = document.getElementById('sfgrFieldError');
+    if (errorEl) errorEl.textContent = '';
+    const refused = (reason) => { if (errorEl) errorEl.textContent = reason; };
+    const entry = sfgrDEntry(line);
+    if (!entry) { refused('This entry is no longer in the source.'); return false; }
+    const data = entry.values.constantData || '';
+    let id = data.slice(0, 4).trim();
+    let member = data.slice(4, 6).trim();
+    if (part === 'id') {
+      id = String(value).trim().toUpperCase();
+      if (id === '') { refused('Enter a message id (up to 4 characters).'); return false; }
+      if (id.length > 4 || id.indexOf(' ') >= 0) { refused('A message id is up to 4 characters, no blanks.'); return false; }
+    } else {
+      if (!SFGR_MESSAGE_MEMBERS.some((o) => o[0] === value)) { refused('The member is U1, U2, P1, P2, M1 or M2.'); return false; }
+      member = value;
+    }
+    const composed = member ? id + new Array(5 - id.length).join(' ') + member : id;
+    return commitSfgrChange((text) => SfgrWriter.setConstant(text, { line: line }, composed), null, refused);
+  }
+
+  function wireSfgrFieldProps(columns132, line, entry) {
+    const root = propsBody.querySelector('.sfgr-field-panel');
+    if (!root) return;
+    wireSfgrControls(root, 'sfgrFieldError', (key, value) => {
+      if (key === 'constantText') return sfgrSetConstantText(line, value);
+      if (key === 'messageId') return sfgrSetMessage(line, 'id', value);
+      if (key === 'messageMember') return sfgrSetMessage(line, 'member', value);
+      return sfgrSetFieldValue(columns132, line, key, value);
+    });
+  }
+
   function renderSfgrReadOnlyProps(recordName) {
     const esc = DspfEngine.escapeHtml;
     const rec = model.records.find((r) => r.name === recordName);
     const found = selectedKey ? findFieldBySourceLine(selectedKey.sourceLine) : null;
     let html = '<div class="sfgr-props">';
     if (found && found.field && found.field.sfgr) {
+      renderSfgrFieldProps(found);
+      return;
+    } else if (found && found.field && found.field.sfgr && false) {
       const f = found.field;
       const sf = f.sfgr;
       const rf = found.record.sfgr || {};

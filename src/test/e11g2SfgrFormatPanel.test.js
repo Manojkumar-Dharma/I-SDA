@@ -49,7 +49,7 @@ setTimeout(() => {
   check('the key mask CV: C and V are on, others off', keyBtn('C').classList.contains('on') && keyBtn('V').classList.contains('on') && !keyBtn('A').classList.contains('on') && keyBtn('C').getAttribute('aria-pressed') === 'true');
   check('6 function keys and 24 command keys (no O)', $('#sfgrFunctionKeys').querySelectorAll('button').length === 6 && $('#sfgrCommandKeys').querySelectorAll('button').length === 24 && !keyBtn('O'));
   check('the alarm of CHOIX shows as an indicator, the first format as No', $('[data-sfgr-key="alarm"][data-sfgr-part="mode"]').value === 'no');
-  check('a field is not editable yet (E11g3)', (() => { $('.dspf-field').dispatchEvent(new w.Event('click', { bubbles: true })); const r = doc.getElementById('propsBody').querySelectorAll('input, select, button').length === 0; $('#recordSelect').value = first.name; change($('#recordSelect')); return r; })());
+  check('a field shows its own panel (E11g3), and choosing the format brings the format panel back', (() => { $('.dspf-field').dispatchEvent(new w.Event('click', { bubbles: true })); const r = !!$('.sfgr-field-panel') && !$('.sfgr-format-panel'); $('#recordSelect').value = first.name; change($('#recordSelect')); return r && !!$('.sfgr-format-panel'); })());
 
   console.log('\none edit changes one line');
   posted.length = 0;
