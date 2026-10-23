@@ -2641,7 +2641,7 @@ never runs on SFGR source and SFGR tooling never runs on DDS.
 | E11g4 | **Designer panels, slice 4: help (H spec) panel and clean-up**: `*DDS` block locked, DDS-only panels and tabs absent for SFGR, SFGR labels. | E11g2, E11g3 | Done | v0.18.11 |
 | E11h | **Editing operations.** Click-to-place and drag of fields and constants, new format, delete, duplicate, reorder, resize on the grid, undo and redo, all through the E11d writer; the Raw editor tab edits SFGR text with column rulers. | E11g | Split into E11h1 - E11h4 | - |
 | E11h1 | **Delete, duplicate, reorder.** Fields, constants, help areas and whole formats, from the panels and the Delete and Ctrl+D keys. | E11g | Done | v0.18.12 |
-| E11h2 | **Add.** New format, click-to-place of a field or constant, add and delete a help area. | E11h1 | Open | - |
+| E11h2 | **Add.** New format, click-to-place of a field or constant, add and delete a help area. | E11h1 | In progress | - |
 | E11h3 | **Drag and resize.** Move and resize fields and constants on the grid, single and group, with arrow-key nudge. | E11h2 | Open | - |
 | E11h4 | **Raw editor tab.** The Raw tab edits SFGR text with column rulers. | E11h1 | Open | - |
 | E11i | **Simulator, export and batch.** The E3 indicator simulator, the E5 exports (SVG, HTML, PNG, text) and the batch export work on SFGR source; the saved scenarios stay outside the source (see "Source stays clean"). **Scope (Manojkumar, decided): host side + engine/export now** (batch and export commands routed by source kind, column separators in the SVG, HTML and text exports as a line / `|`, the 5292 colour mapping in the engine); the page-side simulator and export buttons follow E11g1 and are checked in a final test then. | E11f | Done | v0.18.8 |
