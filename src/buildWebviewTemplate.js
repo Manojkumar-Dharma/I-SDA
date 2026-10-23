@@ -673,6 +673,17 @@ const htmlTemplate = `<!DOCTYPE html>
   body[data-source-kind="sfgr"] #fabMenuBtn, body[data-source-kind="sfgr"] #fabAddFromDbBtn,
   body[data-source-kind="sfgr"] .keyword-finder-row, body[data-source-kind="sfgr"] .mod-tracking-row,
   body[data-source-kind="sfgr"] .mod-tracking-seq-row { display: none !important; }
+  .sfgr-key-grid { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 4px; }
+  .sfgr-key-btn { min-width: 36px; padding: 3px 5px; border: 1px solid var(--panel-border); background: transparent; color: var(--ink); border-radius: 3px; cursor: pointer; font-size: 11px; line-height: 1.15; text-align: center; font-family: var(--mono); }
+  .sfgr-key-btn small { display: block; font-size: 9px; color: var(--ink-dim); font-family: inherit; }
+  .sfgr-key-btn.on { border-color: var(--accent); background: rgba(var(--accent-rgb), 0.22); }
+  .sfgr-key-btn.invalid { border-color: var(--warn); color: var(--warn); }
+  .sfgr-ind-row { display: flex; gap: 6px; }
+  .sfgr-ind-row select { flex: 1 1 auto; }
+  .sfgr-ind-row input { width: 3.2em; flex: 0 0 auto; }
+  .sfgr-format-panel .field-row select, .sfgr-format-panel .field-row input[type="text"] { width: 100%; box-sizing: border-box; }
+  .sfgr-format-panel h3 { font-size: 12px; margin: 14px 0 6px 0; }
+  .sfgr-col { color: var(--ink-dim); text-transform: none; letter-spacing: 0; }
   .sfgr-props h3 { font-size: 12px; margin: 10px 0 4px 0; }
   .sfgr-props table { width: 100%; border-collapse: collapse; font-size: 11px; }
   .sfgr-props td { padding: 2px 4px; border-bottom: 1px solid var(--panel-border); vertical-align: top; }
@@ -1022,7 +1033,7 @@ const htmlTemplate = `<!DOCTYPE html>
   <h1 id="designerTitle">IBM i · DDS</h1>
   <h2>Screen Design</h2>
   <div class="codefori-badge unknown" id="codeForIBadge" title="Whether the Code for IBM i extension is installed and connected. Compile, Resolve Referenced Field, and Add fields from database file all need a live connection.">IBM i: checking…</div>
-  <div class="sfgr-note" id="sfgrNote">System/36 <b>DSPF36</b> (SFGR) source. The screen preview, indicator simulator and exports work; editing it from this page comes in the next releases, so the source is read-only here for now.</div>
+  <div class="sfgr-note" id="sfgrNote">System/36 <b>DSPF36</b> (SFGR) source. The screen preview, indicator simulator and exports work. A format's properties can be edited in the panel; fields and constants are read-only here for now.</div>
   <button id="saveDocBtn" class="save-btn" style="width:100%;margin-bottom:10px;" title="Save this file to disk (Ctrl+S/Cmd+S works too - this button exists because a webview panel doesn't show VS Code's own dirty-tab dot)">&#128190; Save</button>
   <div class="field-row">
     <label>Find field</label>
@@ -4846,6 +4857,199 @@ const htmlTemplate = `<!DOCTYPE html>
     return (kw.conditions || []).map((c) => c.indicators.map((i) => (i.not ? 'N' : '') + i.number).join(' ')).filter(Boolean).join(' / ');
   }
 
+  // E11g2: the one way an SFGR edit reaches the source. apply(text) calls an SfgrWriter operation and returns its
+  // result ({ ok, text, changed } or { ok: false, reason }); on success the new text replaces sourceText, is read again
+  // and posted to the host like every other edit (the text editor's own undo and redo then cover it). Nothing here
+  // goes through dspfWriter.js. Returns true when the edit was accepted (or changed nothing).
+  function commitSfgrChange(apply, afterReparse, onRefused) {
+    let result;
+    try { result = apply(sourceText); } catch (err) { result = { ok: false, reason: err.message }; }
+    if (!result || !result.ok) { if (onRefused) onRefused(result && result.reason ? result.reason : 'The edit was refused.'); return false; }
+    if (!result.changed) return true;
+    sourceText = result.text;
+    model = parseSource(sourceText);
+    activePulldown = null;
+    suppressNextExternalUpdate = true;
+    vscode.postMessage({ type: 'applyEdit', text: sourceText });
+    if (afterReparse) afterReparse();
+    render();
+    return true;
+  }
+
+  const SFGR_FUNCTION_KEYS = [['1', 'Print'], ['2', 'Page Down'], ['3', 'Page Up'], ['4', 'Clear'], ['5', 'Help'], ['6', 'Home']];
+  const SFGR_COMMAND_KEYS = 'ABCDEFGHIJKLMNPQRSTUVWXY'.split('');
+  const SFGR_ENABLE_OPTIONS = [['', 'All keys (blank)'], ['Y', 'Only the keys in the mask (Y)'], ['N', 'All except the keys in the mask (N)'], ['R', 'Keep the previous setting (R)']];
+  const SFGR_ENABLE_MEANING = {
+    '': 'All of these keys are enabled; the mask is ignored.',
+    Y: 'Only the keys marked below are enabled.',
+    N: 'All keys are enabled except the ones marked below.',
+    R: 'The setting of the previous format is kept; the mask is ignored.'
+  };
+  const SFGR_NAME_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#$@_';
+
+  function sfgrColLabel(label, cols) {
+    return DspfEngine.escapeHtml(label) + ' <span class="sfgr-col">(' + cols + ')</span>';
+  }
+  function sfgrSelectRow(key, label, cols, options, value) {
+    const opts = options.map((o) => '<option value="' + DspfEngine.escapeHtml(o[0]) + '"' + (o[0] === value ? ' selected' : '') + '>' + DspfEngine.escapeHtml(o[1]) + '</option>').join('');
+    return '<div class="field-row"><label>' + sfgrColLabel(label, cols) + '</label><select data-sfgr-key="' + key + '" data-sfgr-kind="select">' + opts + '</select></div>';
+  }
+  function sfgrCheckRow(key, label, cols, on) {
+    return '<div class="field-row"><label><input type="checkbox" data-sfgr-key="' + key + '" data-sfgr-kind="check"' + (on ? ' checked' : '') + ' /> ' + sfgrColLabel(label, cols) + '</label></div>';
+  }
+  function sfgrTextRow(key, label, cols, value, width, hint) {
+    return '<div class="field-row"><label>' + sfgrColLabel(label, cols) + '</label><input type="text" data-sfgr-key="' + key + '" data-sfgr-kind="text" maxlength="' + width + '" value="' + DspfEngine.escapeHtml(value) + '" />' + (hint ? '<div class="hint-small">' + DspfEngine.escapeHtml(hint) + '</div>' : '') + '</div>';
+  }
+  // A Y / N / indicator column: No (blank), Yes (Y) or an indicator 01 - 99.
+  function sfgrIndicatorRow(key, label, cols, value) {
+    const v = (value || '').trim();
+    const mode = v === 'Y' ? 'yes' : (v === '' || v === 'N' ? 'no' : 'ind');
+    const box = mode === 'ind' ? v : '';
+    const opts = [['no', 'No'], ['yes', 'Yes'], ['ind', 'Indicator']].map((o) => '<option value="' + o[0] + '"' + (o[0] === mode ? ' selected' : '') + '>' + o[1] + '</option>').join('');
+    return '<div class="field-row"><label>' + sfgrColLabel(label, cols) + '</label><div class="sfgr-ind-row">' +
+      '<select data-sfgr-key="' + key + '" data-sfgr-kind="ind" data-sfgr-part="mode">' + opts + '</select>' +
+      '<input type="text" maxlength="2" data-sfgr-key="' + key + '" data-sfgr-kind="ind" data-sfgr-part="box" value="' + DspfEngine.escapeHtml(box) + '" placeholder="01"' + (mode === 'ind' ? '' : ' style="display:none"') + ' /></div></div>';
+  }
+  function sfgrKeyButtons(maskText, fixed) {
+    const present = new Set(maskText.split(''));
+    return fixed.map((k) => {
+      const ch = Array.isArray(k) ? k[0] : k;
+      const title = Array.isArray(k) ? k[1] + ' key' : 'Command key ' + (SFGR_COMMAND_KEYS.indexOf(ch) + 1) + ' (CF' + (SFGR_COMMAND_KEYS.indexOf(ch) + 1 < 10 ? '0' : '') + (SFGR_COMMAND_KEYS.indexOf(ch) + 1) + ')';
+      const small = Array.isArray(k) ? k[1] : 'CF' + (SFGR_COMMAND_KEYS.indexOf(ch) + 1);
+      return '<button type="button" class="sfgr-key-btn' + (present.has(ch) ? ' on' : '') + '" data-sfgr-mask-char="' + ch + '" title="' + title + '" aria-pressed="' + (present.has(ch) ? 'true' : 'false') + '">' + ch + '<small>' + DspfEngine.escapeHtml(small) + '</small></button>';
+    }).join('');
+  }
+
+  function renderSfgrFormatProps(rec) {
+    const r = rec.sfgr;
+    const v = r.values || {};
+    const mask = ((r.keyMask && r.keyMask.text) || '').replace(/ /g, '');
+    const known = new Set(SFGR_FUNCTION_KEYS.map((k) => k[0]).concat(SFGR_COMMAND_KEYS));
+    const stray = mask.split('').filter((c) => !known.has(c));
+    const startText = r.startLineVariable ? 'V' : (r.startLine == null ? '' : String(r.startLine));
+    const clearText = r.linesToClear == null ? '' : String(r.linesToClear);
+    const fkMeaning = SFGR_ENABLE_MEANING[(v.enableFunctionKeys || '').trim()] || SFGR_ENABLE_MEANING[''];
+    const ckMeaning = SFGR_ENABLE_MEANING[(v.enableCommandKeys || '').trim()] || SFGR_ENABLE_MEANING[''];
+    let html = '<div class="sfgr-format-panel" data-sfgr-format="' + DspfEngine.escapeHtml(rec.name) + '">';
+    html += '<div class="rename-error" id="sfgrFormatError"></div>';
+    html += '<h3>Format</h3>';
+    html += sfgrTextRow('name', 'Name', '7 - 14', rec.name, 8, 'Up to 8 characters: A - Z, 0 - 9, # $ @ _ ; the first not a digit.');
+    html += sfgrTextRow('startLine', 'Start line', '17 - 18', startText, 2, 'Blank = line 1, 1 - ' + (r.columns132 ? '27' : '24') + ', or V = set by the program.');
+    html += sfgrTextRow('linesToClear', 'Lines to clear', '19 - 20', clearText, 2, 'Blank = clear all, or 0 - ' + (r.columns132 ? '27' : '24') + ' lines from the start line.');
+    html += sfgrCheckRow('columns132', '132 columns', '39', !!r.columns132);
+    html += sfgrCheckRow('rightToLeft', 'Right-to-left display', '40', (v.rightToLeft || '').trim() === 'Y');
+    html += '<h3>Display control</h3>';
+    html += sfgrSelectRow('lowercase', 'Lowercase (format default)', '21', [['', 'Uppercase only (blank)'], ['N', 'Uppercase only (N)'], ['Y', 'Lowercase allowed (Y)']], (v.lowercase || '').trim());
+    html += sfgrSelectRow('returnInput', 'Return input', '22', [['', 'Always (blank)'], ['Y', 'Always (Y)'], ['N', 'Only if data was typed (N)']], (v.returnInput || '').trim());
+    html += sfgrIndicatorRow('alarm', 'Sound alarm', '25 - 26', v.alarm);
+    html += sfgrIndicatorRow('blinkCursor', 'Blink cursor', '29 - 30', v.blinkCursor);
+    html += sfgrIndicatorRow('eraseInput', 'Erase input fields', '31 - 32', v.eraseInput);
+    html += sfgrIndicatorRow('overrideFields', 'Override fields', '33 - 34', v.overrideFields);
+    html += sfgrIndicatorRow('suppressInput', 'Suppress input', '35 - 36', v.suppressInput);
+    html += sfgrIndicatorRow('nullFill', 'Null fill', '37 - 38', v.nullFill);
+    html += '<h3>Keys</h3>';
+    html += sfgrSelectRow('enableFunctionKeys', 'Enable function keys', '27', SFGR_ENABLE_OPTIONS, (v.enableFunctionKeys || '').trim());
+    html += '<div class="hint-small">' + DspfEngine.escapeHtml(fkMeaning) + '</div>';
+    html += '<div class="sfgr-key-grid" id="sfgrFunctionKeys">' + sfgrKeyButtons(mask, SFGR_FUNCTION_KEYS) + '</div>';
+    html += sfgrSelectRow('enableCommandKeys', 'Enable command keys', '28', SFGR_ENABLE_OPTIONS, (v.enableCommandKeys || '').trim());
+    html += '<div class="hint-small">' + DspfEngine.escapeHtml(ckMeaning) + '</div>';
+    html += '<div class="sfgr-key-grid" id="sfgrCommandKeys">' + sfgrKeyButtons(mask, SFGR_COMMAND_KEYS) + '</div>';
+    if (stray.length) html += '<div class="sfgr-key-grid"><span class="hint-small">Not a key (kept as written): </span>' + stray.map((c) => '<button type="button" class="sfgr-key-btn invalid on" data-sfgr-mask-char="' + DspfEngine.escapeHtml(c) + '" title="Click to remove">' + DspfEngine.escapeHtml(c) + '</button>').join('') + '</div>';
+    html += '<div class="hint-small">Key mask (64 - 79): <code id="sfgrMaskText">' + DspfEngine.escapeHtml(mask || '(empty)') + '</code></div>';
+    html += '<h3>Source</h3><table><tr><td>Source lines</td><td>' + r.sourceLine + (r.endLine > r.sourceLine ? ' - ' + r.endLine : '') + '</td></tr><tr><td>Help areas (H)</td><td>' + (r.help || []).length + '</td></tr><tr><td>*DDS blocks</td><td>' + (r.passThrough || []).length + '</td></tr></table>';
+    html += '</div>';
+    propsBody.innerHTML = html;
+    wireSfgrFormatProps(rec);
+  }
+
+  // The value to write for a format column from what the person typed, or { error }.
+  function sfgrFormatValue(rec, key, raw) {
+    const maxLine = rec.sfgr.columns132 ? 27 : 24;
+    if (key === 'name') {
+      const name = String(raw).trim().toUpperCase();
+      if (!name) return { error: 'Enter a format name.' };
+      if (name.length > 8) return { error: 'A format name is up to 8 characters.' };
+      if (name.split('').some((c) => SFGR_NAME_CHARS.indexOf(c) < 0)) return { error: 'A format name uses A - Z, 0 - 9, # $ @ and _ only.' };
+      if ('0123456789'.indexOf(name.charAt(0)) >= 0 || name.charAt(0) === '_') return { error: 'A format name starts with A - Z, # $ or @.' };
+      if (model.records.some((o) => o !== rec && o.name === name)) return { error: 'A format named ' + name + ' already exists.' };
+      return { value: name };
+    }
+    if (key === 'startLine') {
+      const t = String(raw).trim().toUpperCase();
+      if (t === '' || t === 'V') return { value: t };
+      const n = Number(t);
+      if (!/^[0-9]+$/.test(t) || n < 1 || n > maxLine) return { error: 'Start line is blank, V, or 1 - ' + maxLine + '.' };
+      return { value: n };
+    }
+    if (key === 'linesToClear') {
+      const t = String(raw).trim();
+      if (t === '') return { value: '' };
+      const n = Number(t);
+      if (!/^[0-9]+$/.test(t) || n > maxLine) return { error: 'Lines to clear is blank, or 0 - ' + maxLine + '.' };
+      return { value: n };
+    }
+    return { value: raw };
+  }
+
+  function sfgrSetFormatValue(rec, key, raw) {
+    const errorEl = document.getElementById('sfgrFormatError');
+    if (errorEl) errorEl.textContent = '';
+    const checked = sfgrFormatValue(rec, key, raw);
+    if (checked.error) { if (errorEl) errorEl.textContent = checked.error; return false; }
+    const ok = commitSfgrChange(
+      (text) => SfgrWriter.setValue(text, { line: rec.sfgr.sourceLine }, key, checked.value),
+      () => { if (key === 'name') { rebuildRecordSelect(); recordSelect.value = checked.value; } },
+      (reason) => { if (errorEl) errorEl.textContent = reason; }
+    );
+    return ok;
+  }
+
+  function wireSfgrFormatProps(rec) {
+    const root = propsBody.querySelector('.sfgr-format-panel');
+    if (!root) return;
+    const indicatorValue = (key) => {
+      const mode = root.querySelector('[data-sfgr-key="' + key + '"][data-sfgr-part="mode"]');
+      const box = root.querySelector('[data-sfgr-key="' + key + '"][data-sfgr-part="box"]');
+      if (mode.value === 'no') return '';
+      if (mode.value === 'yes') return 'Y';
+      const t = box.value.trim();
+      const errorEl = document.getElementById('sfgrFormatError');
+      if (!/^[0-9]{1,2}$/.test(t) || Number(t) < 1) { if (errorEl) errorEl.textContent = 'Type an indicator 01 - 99.'; return undefined; }
+      return Number(t);
+    };
+    root.addEventListener('change', (e) => {
+      const el = e.target;
+      const key = el.getAttribute && el.getAttribute('data-sfgr-key');
+      if (!key) return;
+      const kind = el.getAttribute('data-sfgr-kind');
+      if (kind === 'check') { sfgrSetFormatValue(rec, key, el.checked ? 'Y' : ''); return; }
+      if (kind === 'ind') {
+        if (el.getAttribute('data-sfgr-part') === 'mode') {
+          const box = root.querySelector('[data-sfgr-key="' + key + '"][data-sfgr-part="box"]');
+          box.style.display = el.value === 'ind' ? '' : 'none';
+          if (el.value === 'ind') { box.focus(); return; }
+        }
+        const value = indicatorValue(key);
+        if (value !== undefined) sfgrSetFormatValue(rec, key, value);
+        return;
+      }
+      sfgrSetFormatValue(rec, key, el.value);
+    });
+    root.addEventListener('click', (e) => {
+      const btn = e.target.closest ? e.target.closest('[data-sfgr-mask-char]') : null;
+      if (!btn) return;
+      const ch = btn.getAttribute('data-sfgr-mask-char');
+      const current = ((rec.sfgr.keyMask && rec.sfgr.keyMask.text) || '').replace(/ /g, '');
+      let next;
+      if (current.indexOf(ch) >= 0) next = current.split('').filter((c) => c !== ch).join('');
+      else next = current + ch;
+      const errorEl = document.getElementById('sfgrFormatError');
+      if (errorEl) errorEl.textContent = '';
+      if (next.length > 16) { if (errorEl) errorEl.textContent = 'The key mask holds up to 16 characters (columns 64 - 79).'; return; }
+      sfgrSetFormatValue(rec, 'keyMask', next);
+    });
+  }
+
   function renderSfgrReadOnlyProps(recordName) {
     const esc = DspfEngine.escapeHtml;
     const rec = model.records.find((r) => r.name === recordName);
@@ -4874,6 +5078,9 @@ const htmlTemplate = `<!DOCTYPE html>
       });
       if (kws.length) html += '<h3>Attributes</h3>' + sfgrRowsHtml(kws);
     } else if (rec && rec.sfgr) {
+      renderSfgrFormatProps(rec);
+      return;
+    } else if (rec && rec.sfgr && false) {
       const r = rec.sfgr;
       const start = r.startLineVariable ? 'V (set by the program)' : (r.startLine == null ? 'blank (line 1)' : r.startLine);
       const rows = [

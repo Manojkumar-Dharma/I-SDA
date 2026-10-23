@@ -2636,7 +2636,7 @@ never runs on SFGR source and SFGR tooling never runs on DDS.
 | E11e | **Model and engine mapping.** Fill the existing record and field model (`dspfModel.ts`) from SFGR formats so `dspfEngine.js` draws them: one format = one record, constants and fields placed by row and column, output-data indicators 01 - 99 as conditions, 80- and 132-column formats. Where SFGR has a concept the DDS model lacks, extend the model rather than encode it in keywords. | E11c | Done | v0.18.3 |
 | E11f | **Preview fidelity.** Draw the SFGR display attributes (high intensity, blink, nondisplay, reverse image, underline, column separators, lowercase), the start line and lines-to-clear stacking of several formats on one screen (Figure B-2), and the visual markers for input, output and input/output fields. Reuse the E3 simulator conditions for the indicators. | E11e | Done | v0.18.5 |
 | E11g1 | **Designer panels, slice 1: wiring, read-only.** Open SFGR in the designer (the E11b notice goes): the host sends `sourceKind`, the page routes every parse through `parseSource`, SFGR modules embedded; canvas, simulator and exports work; DDS-only edit controls hidden or disabled with one banner; title button and lens back for `.dspf36`. See "E11g plan and decisions". | E11d, E11e, E11f | Done | v0.18.6 |
-| E11g2 | **Designer panels, slice 2: format (S spec) panel**, with the key-mask editor; edits through `SfgrWriter.setValue`. | E11g1 | In progress | - |
+| E11g2 | **Designer panels, slice 2: format (S spec) panel**, with the key-mask editor; edits through `SfgrWriter.setValue`. | E11g1 | Done | v0.18.7 |
 | E11g3 | **Designer panels, slice 3: field and constant (D spec) panel**, constants through `setConstant`; values checked against the E11a ranges. | E11g1 | Open | - |
 | E11g4 | **Designer panels, slice 4: help (H spec) panel and clean-up**: `*DDS` block locked, DDS-only panels and tabs absent for SFGR, SFGR labels. | E11g2, E11g3 | Open | - |
 | E11h | **Editing operations.** Click-to-place and drag of fields and constants, new format, delete, duplicate, reorder, resize on the grid, undo and redo, all through the E11d writer; the Raw editor tab edits SFGR text with column rulers. | E11g | Open | - |
@@ -2809,6 +2809,23 @@ Canvas operations (click-to-place, drag, resize, delete, duplicate, undo and red
 **Checked.** In jsdom on `stipfm.dspf36`: one record per format, fields drawn, the DDS-only controls computed `display: none`, the heading and compile buttons say DSPF36 and CRTS36DSPF, the format and a selected field show in Properties with no input to type into, Delete, nudge, cut, paste and duplicate post no `applyEdit`, the note flashes, an `externalUpdate` re-reads the new text as SFGR; a DDS page beside it is unchanged (note hidden, controls shown, Delete still edits).
 
 **Not done (by design).** The keyword finder and the add-from-database path are hidden, not ported; the multi-field and record-level panels have no SFGR version (not needed while it is read-only); the explorer's host-side DDS helpers (referenced fields, menu) are unreachable from an SFGR page.
+
+
+### E11g2 results
+
+**E11g2 (designer, slice 2: format panel).** All in `buildWebviewTemplate.js`; new test `src/test/e11g2SfgrFormatPanel.test.js` (54 checks); E11g1's test updated (the format panel replaced its read-only view).
+
+**One way in.** `commitSfgrChange(apply, afterReparse, onRefused)` is the only path an SFGR edit takes: it calls an `SfgrWriter` operation on `sourceText`; on success the new text replaces `sourceText`, is read again with `parseSource`, and is posted as `applyEdit` like every other edit (so the text editor's undo and redo cover it), then the page renders. A refused edit shows the writer's reason and changes nothing. The DDS guard from E11g1 (`sfgrReadOnlyBlocks`) is untouched: the DDS commit functions still refuse on SFGR.
+
+**The panel (`renderSfgrFormatProps`).** Sections Format, Display control, Keys and Source, every label with its column numbers. Controls follow the accepted decisions: the Y / N / indicator columns use one control (No / Yes / Indicator, plus a 01 - 99 box when Indicator is chosen; No writes blanks, so an `N` already in the source reads as No and is left alone); the key mask is two rows of toggle buttons beside the enable selects, with a line saying what blank / Y / N / R mean for the mask. Toggling appends or removes a character (the order of a mask carries no meaning, so a toggled-back mask can differ in order from the original); a character that is not a key stays visible, marked, and can be removed; a 17th character is refused.
+
+**Checks before writing** (`sfgrFormatValue`): name up to 8 characters from A - Z 0 - 9 # $ @ _, not starting with a digit or `_`, upper-cased, unique among the formats (any case); start line blank, `V` (any case) or a whole number 1 - 24 (27 when the format has 132 columns); lines to clear blank or 0 - 24 (27); indicator 01 - 99 (`00` and non-digits refused). The writer's own width and character checks stay behind these.
+
+**Selection.** After a rename the record list is rebuilt and the new name selected before the page renders, so the panel stays on the same format.
+
+**Checked.** jsdom on `stipfm.dspf36`: every control writes only its own columns of the S line (every other line byte-identical), and setting every control back to its starting value restores the source byte for byte; refused input posts no edit and shows a message; rename keeps the selection and renaming back restores the source; 132 columns widens the allowed start line to 27; the key mask handles function keys, command keys, the 16-character limit and a stray character.
+
+**Not done.** Fields and constants (E11g3) and help areas (E11g4) are still read-only; the key mask has no drag ordering; there is no check yet that a start line plus a format's fields fits the screen (E11j).
 
 ---
 

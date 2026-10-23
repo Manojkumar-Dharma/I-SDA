@@ -53,13 +53,13 @@ setTimeout(() => {
 
   console.log('\nread-only Properties');
   const props = () => doc.getElementById('propsBody').textContent;
-  check('nothing selected: the format is described', /Format/.test(props()) && props().indexOf(P.formats[0].name) >= 0 && /Start line \(17 - 18\)/.test(props()) && /Key mask/.test(props()));
-  check('the key mask of the first format is decoded', /Command keys/.test(props()));
+  check('nothing selected: the format shows its properties (E11g2 made this panel editable; see e11g2SfgrFormatPanel.test.js)', /Format/.test(props()) && doc.querySelector('.sfgr-format-panel input[data-sfgr-key="name"]').value === P.formats[0].name && /Start line/.test(props()) && /Key mask/.test(props()));
+  check('the key mask of the first format is shown as keys', /command keys/i.test(props()) && doc.querySelectorAll('.sfgr-key-btn').length >= 30);
   const field = doc.querySelector('.dspf-field');
   field.dispatchEvent(new Event('click', { bubbles: true }));
   check('a click selects it and shows the D specification', /Source lines/.test(props()) && /Line \/ column/.test(props()) && /row \d+ on the screen/.test(props()));
   check('the breadcrumb names the field', /Field:/.test(doc.getElementById('propsBreadcrumb').textContent));
-  check('the read-only view has no input to type into', doc.getElementById('propsBody').querySelectorAll('input, select, textarea, button').length === 0);
+  check('a field or constant is still read-only (E11g3 gives it a panel): nothing to type into', doc.getElementById('propsBody').querySelectorAll('input, select, textarea, button').length === 0);
 
   console.log('\nno DDS edit reaches the SFGR text');
   posted.length = 0;
@@ -78,7 +78,7 @@ setTimeout(() => {
   const select = doc.getElementById('recordSelect');
   select.value = P.formats[3].name;
   select.dispatchEvent(new Event('change', { bubbles: true }));
-  check('another format can be selected and its properties show', /Format/.test(props()) && props().indexOf(P.formats[3].name) >= 0);
+  check('another format can be selected and its panel shows', /Format/.test(props()) && doc.querySelector('input[data-sfgr-key="name"]').value === P.formats[3].name);
   const smaller = ['     SONE', "     D          2 2 2           C                    A", '     STWO'].join('\n') + '\n';
   dom.window.dispatchEvent(new MessageEvent('message', { data: { type: 'externalUpdate', text: smaller } }));
   check('an external update (the text editor changed) re-reads the source as SFGR', Array.from(doc.getElementById('recordSelect').options).map((o) => o.value).join() === 'ONE,TWO');
