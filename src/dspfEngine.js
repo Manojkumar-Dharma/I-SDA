@@ -776,6 +776,41 @@
     return style;
   }
 
+  // ---------------------------------------------------------------------
+  // E11i: the 5292 colour of an SFGR field (S/36 Environment Programming, Figure B-9, page B-23)
+  // ---------------------------------------------------------------------
+
+  /**
+   * The colour a 5292 Color Display Station gives a field from its column separators (CS), blink (BL) and high intensity (HI):
+   * none green, HI white, BL red (blinking), BL + HI red (not blinking), CS turquoise, CS + BL pink, CS + HI yellow,
+   * CS + BL + HI blue. Reverse image keeps the colour and swaps it to the background; underline can go with any of them.
+   * Footnotes 2 and 3 of the figure: a field with blink AND high intensity or column separators does not blink, and column
+   * separators do not appear with blink. Presentation only (like COLOR_HEX); it reads and sets the resolved style, never the source.
+   * Returns the DDS colour name, or null for plain green (the default colour, so a plain field is left exactly as it was).
+   */
+  function color5292Name(style) {
+    var cs = !!style.columnSeparators, bl = !!style.blink, hi = !!style.hi;
+    if (cs && bl && hi) return 'BLU';
+    if (cs && bl) return 'PNK';
+    if (cs && hi) return 'YLW';
+    if (cs) return 'TRQ';
+    if (bl) return 'RED';
+    if (hi) return 'WHT';
+    return null;
+  }
+
+  /** Applies color5292Name to a resolved SFGR field style: sets the colour, marks it mapped (so HI is not drawn brighter on top
+   *  of it) and drops the blink and the separators the figure says do not appear. */
+  function apply5292Colour(style) {
+    var name = color5292Name(style);
+    if (!name) return style;
+    if (!style.color) style.color = COLOR_HEX[name];
+    style.colorMapped = '5292';
+    if (style.blink && (style.hi || style.columnSeparators)) style.blink = false;
+    if (style.columnSeparators && name !== 'TRQ' && name !== 'YLW') style.columnSeparators = false;
+    return style;
+  }
+
   /** Marks the single first candidate (in the list's current order, already
    *  line/column sorted by callers that care) whose style.positionCursor is
    *  true with showCursorIndicator=true, mutating the list in place. Kept as
@@ -1527,6 +1562,7 @@
       // section 4); a DDS field is drawn as its keywords say, so this is for SFGR fields only.
       if (field.sfgr && style.hi && style.reverse && style.underline) style.hidden = true;
       if (style.hidden) return;
+      if (field.sfgr) apply5292Colour(style); // E11i: the 5292 colour of the CS / BL / HI combination
 
       // A choice/button/menubar widget needs room for its own content rather
       // than the raw field length: radio/checkbox stack vertically (one row per
@@ -3368,7 +3404,7 @@
       var isNum = dt === 'S' || dt === 'Y' || dt === 'N' || dt === 'D' || dt === 'F';
       classes.push(isNum ? 'dspf-dtype-num' : 'dspf-dtype-char');
     }
-    if (f.style.hi) classes.push('dspf-hi');
+    if (f.style.hi && !f.style.colorMapped) classes.push('dspf-hi'); // E11i: a 5292-mapped field's HI is its colour, not a brightness
     if (f.style.reverse) classes.push('dspf-reverse');
     if (f.style.underline) classes.push('dspf-underline');
     if (f.style.blink) classes.push('dspf-blink');

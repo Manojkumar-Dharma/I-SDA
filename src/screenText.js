@@ -69,6 +69,7 @@
     for (var i = 0; i < n; i++) { this.ch[i] = ' '; this.painted[i] = false; this.attr[i] = 0; this.colour[i] = PLAIN; }
     this.items = [];
     this.cursors = [];
+    this.separators = [];
     this.windowList = [];
     this.ascii = !!this.opts.ascii;
   }
@@ -131,6 +132,7 @@
     var rows = String(f.text == null ? '' : f.text).split('\n');
     var underlined = !!style.underline || (f.nameType === 'FIELD' && /^[IB]$/i.test(String(f.usage || '')));
     var textBits = (style.hi ? ATTRIBUTE_BITS.HI : 0) | (style.reverse ? ATTRIBUTE_BITS.RI : 0) | (style.blink ? ATTRIBUTE_BITS.BL : 0);
+    var cs = !!style.columnSeparators; // E11i: a '|' in the field's blank cells and one legend line per separated field
     var lineBits = (style.reverse ? ATTRIBUTE_BITS.RI : 0) | (underlined ? ATTRIBUTE_BITS.UL : 0);
     this.add(isNum(f.stackLayer) ? f.stackLayer : defaultZ, function () {
       if (self.screen.stacked) self.clear(line, col, height, length);
@@ -138,8 +140,13 @@
       for (var r = 0; r < Math.min(rows.length, height); r++) {
         self.text(line + r, col, rows[r], length, textBits | (underlined ? ATTRIBUTE_BITS.UL : 0), letter);
         if (underlined) for (var c = 0; c < length; c++) self.mark(line + r, col + c, lineBits, letter);
+        if (cs) for (var k = 0; k < length; k++) {
+          var ci = self.index(line + r, col + k);
+          if (ci >= 0 && self.ch[ci] === ' ') { self.ch[ci] = '|'; self.painted[ci] = true; }
+        }
       }
     });
+    if (cs) this.separators.push({ line: line, col: col, width: length, height: height });
     if (f.showCursorIndicator) this.cursors.push({ line: line, col: col });
   };
 
@@ -336,6 +343,7 @@
     } else {
       out.push('Colours: none (every field uses the screen colour)');
     }
+    this.separators.forEach(function (sp) { out.push('Column separators: line ' + sp.line + (sp.height > 1 ? '-' + (sp.line + sp.height - 1) : '') + ', columns ' + sp.col + '-' + (sp.col + sp.width - 1) + ' (a | marks a blank cell of the field)'); });
     this.cursors.forEach(function (c) { out.push('Cursor: line ' + c.line + ', column ' + c.col + (c.csrloc ? ' (CSRLOC)' : ' (DSPATR(PC))')); });
     this.windowList.forEach(function (w) {
       var parts = ['Window' + (w.recordName ? ' ' + w.recordName : '') + ': line ' + w.line + ', column ' + w.col + ', ' + w.width + ' x ' + w.height];

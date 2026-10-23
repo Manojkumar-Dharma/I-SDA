@@ -2640,7 +2640,7 @@ never runs on SFGR source and SFGR tooling never runs on DDS.
 | E11g3 | **Designer panels, slice 3: field and constant (D spec) panel**, constants through `setConstant`; values checked against the E11a ranges. | E11g1 | Open | - |
 | E11g4 | **Designer panels, slice 4: help (H spec) panel and clean-up**: `*DDS` block locked, DDS-only panels and tabs absent for SFGR, SFGR labels. | E11g2, E11g3 | Open | - |
 | E11h | **Editing operations.** Click-to-place and drag of fields and constants, new format, delete, duplicate, reorder, resize on the grid, undo and redo, all through the E11d writer; the Raw editor tab edits SFGR text with column rulers. | E11g | Open | - |
-| E11i | **Simulator, export and batch.** The E3 indicator simulator, the E5 exports (SVG, HTML, PNG, text) and the batch export work on SFGR source; the saved scenarios stay outside the source (see "Source stays clean"). **Scope (Manojkumar, decided): host side + engine/export now** (batch and export commands routed by source kind, column separators in the SVG, HTML and text exports as a line / `|`, the 5292 colour mapping in the engine); the page-side simulator and export buttons follow E11g1 and are checked in a final test then. | E11f | In progress | - |
+| E11i | **Simulator, export and batch.** The E3 indicator simulator, the E5 exports (SVG, HTML, PNG, text) and the batch export work on SFGR source; the saved scenarios stay outside the source (see "Source stays clean"). **Scope (Manojkumar, decided): host side + engine/export now** (batch and export commands routed by source kind, column separators in the SVG, HTML and text exports as a line / `|`, the 5292 colour mapping in the engine); the page-side simulator and export buttons follow E11g1 and are checked in a final test then. | E11f | Done | v0.18.8 |
 | E11j | **Editor language support.** SFGR rule checks as diagnostics (column values out of range, duplicate format names, field outside the screen, overlapping fields, key mask without the matching enable column, unmatched continuation), hover on a column (what it is and the allowed values), outline of formats and fields, quick-fix for the most common violations; same settings pattern as E1. | E11b, E11c | Open | - |
 | E11k | **Compile messages.** Parse the `CRTS36DSPF` result (the `$SFGR` listing and the SYX messages of Appendix D of the Reference) and put the messages on the source lines, through the E2 diagnostics hub under source `CRTS36DSPF`. **Needs a real failing `CRTS36DSPF` listing as a fixture** (open question 3); until it arrives the parser can only be written against stand-in text, marked as such. | E11c, E2 | Open | - |
 | E11l | **Release** (next free minor); update `README.md` (features, file types), `LIMITATIONS-PLAN.md` (S36 entries that this epic closes), `CHANGELOG.md`. Results against the acceptance rule above. | E11a - E11k | Open | - |
@@ -2760,7 +2760,7 @@ E11a is `Done (no code change)`: the specification and the decisions are recorde
 - **I / O / B tick**, **HI + RI + UL = nondisplay** (SFGR only, so an indicator on one of the three decides it), **column separators** (a thin line at the right of each cell), **lowercase** (a field with `LOWER` is filled with lowercase x), and **numeric placeholders** (an SFGR type N, S or D is filled with 9; the DDS table is unchanged, so a DDS `M` field still shows X).
 - **Exports.** The SVG and text exports draw the wrapped pieces as ordinary fields (the sample exports without error), the SVG draws a covered field at 0.45 opacity, and `fieldClasses` mirrors the new classes; a drift check compares it with the engine on every sample format.
 
-**Not done.** Column separators are a vertical line per cell in the preview only; the SVG and text exports do not draw them. The 5292 color mapping (manual Figure B-9) is not applied. Both are small and can follow with E11i (exports on SFGR source).
+**Not done.** Column separators are a vertical line per cell in the preview only; the SVG and text exports do not draw them. The 5292 color mapping (manual Figure B-9) is not applied. Both were closed in E11i (v0.18.8).
 
 
 ### E11g plan and decisions
@@ -2826,6 +2826,18 @@ Canvas operations (click-to-place, drag, resize, delete, duplicate, undo and red
 **Checked.** jsdom on `stipfm.dspf36`: every control writes only its own columns of the S line (every other line byte-identical), and setting every control back to its starting value restores the source byte for byte; refused input posts no edit and shows a message; rename keeps the selection and renaming back restores the source; 132 columns widens the allowed start line to 27; the key mask handles function keys, command keys, the 16-character limit and a stray character.
 
 **Not done.** Fields and constants (E11g3) and help areas (E11g4) are still read-only; the key mask has no drag ordering; there is no check yet that a start line plus a format's fields fits the screen (E11j).
+
+### E11i results
+
+**E11i (simulator, export and batch on SFGR source).** Changes in `src/dspfEngine.js` (5292 colours), `src/screenExport.js` (separators, class mirror) and `src/screenText.js` (separators); tested by `src/test/e11iSfgrExport.test.js` (new). No page code changed: E11g1 already routes SFGR source through `SfgrModel.buildModel` for the batch command and the page, so this slice checks that path on the whole sample and closes the two things E11f left over.
+
+**Decisions (Manojkumar, E11i).** (1) **Scope: host side + engine/export now**; the page-side simulator and export buttons are E11g1's wiring and are covered by its tests. (2) **Column separators** are a thin line at the right edge of each cell in the SVG and HTML exports, and a `|` in the blank cells of the field in the text export (a character grid has no room between cells), plus one legend line per separated field (the attribute plane keeps its one hex digit per cell). (3) **5292 colour mapping in the engine**, so the preview and every export agree.
+
+**The 5292 colour (manual Figure B-9, page B-23).** SFGR fields only (`field.sfgr`); a DDS field keeps what its keywords say. None = green (the default, left as it was); HI = white; BL = red; CS = turquoise; CS + HI = yellow; CS + BL = pink; CS + BL + HI = blue. Footnotes applied: a field with blink and high intensity, or blink and separators, does not blink; separators show only for turquoise and yellow. A mapped field's HI is its colour, so it is not drawn brighter on top (`style.colorMapped`, and `dspf-hi` is not added; `fieldClasses` mirrors the engine, checked by the E11f drift guard). Reverse image and underline are unchanged and can go with any colour.
+
+**Checked.** All eight attribute combinations, the two footnotes, DDS unchanged, separator line counts and spacing in SVG and HTML, the `|` and the legend line in text, every format of `stipfm.dspf36` through SVG, HTML, text and the batch with the source text unchanged, the host's batch path and the build copy list, and the indicator collector on an SFGR file. Full suite 382 files / 24,853 checks passed (RC=0, 981 s).
+
+**Not done.** PNG was not retried on the new separator lines (it rasterises the same SVG, so it follows, but it was not run in a browser); the 5292 mapping does not model reduced line spacing (separators are then not shown); nothing tried in a real VS Code window.
 
 ---
 

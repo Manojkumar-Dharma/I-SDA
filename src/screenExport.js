@@ -98,7 +98,7 @@
       var dt = String(f.dataType || '').toUpperCase();
       classes.push(dt === 'S' || dt === 'Y' || dt === 'N' || dt === 'D' || dt === 'F' ? 'dspf-dtype-num' : 'dspf-dtype-char');
     }
-    if (style.hi) classes.push('dspf-hi');
+    if (style.hi && !style.colorMapped) classes.push('dspf-hi'); // E11i: mirrors the engine (a 5292-mapped HI is a colour)
     if (style.reverse) classes.push('dspf-reverse');
     if (style.underline) classes.push('dspf-underline');
     if (style.blink) classes.push('dspf-blink');
@@ -172,6 +172,16 @@
     for (var r = 0; r < Math.min(rows.length, height); r++) {
       parts.push(this.text(f.line + r, f.column, rows[r], f.length, textFill, weight));
       if (underlined) parts.push(this.underline(f.line + r, f.column, f.length, textFill));
+    }
+    // E11i: DSPATR(CS) / SFGR column separators, one thin line at the right edge of every cell of the field (the preview's .dspf-cs).
+    if (style.columnSeparators) {
+      for (var cr = 0; cr < height; cr++) {
+        for (var cc = 1; cc <= f.length; cc++) {
+          var sx = this.x(f.column + cc) - 0.5;
+          parts.push('<line class="dspf-cs-line" x1="' + num(sx) + '" y1="' + num(this.y(f.line + cr)) + '" x2="' + num(sx) + '" y2="' + num(this.y(f.line + cr + 1)) +
+            '" stroke="' + textFill + '" stroke-opacity="0.55" stroke-width="1"/>');
+        }
+      }
     }
     if (f.showCursorIndicator) parts.push(this.rect(f.line, f.column, 1, 1, 'fill="' + fg + '"'));
     parts = parts.filter(Boolean);
