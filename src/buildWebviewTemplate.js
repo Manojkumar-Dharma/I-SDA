@@ -666,6 +666,8 @@ const htmlTemplate = `<!DOCTYPE html>
   .sfgr-note { display: none; font-size: 11px; line-height: 1.4; color: var(--ink-dim); border: 1px solid var(--panel-border); border-radius: 4px; padding: 6px 8px; margin: 0 0 10px 0; }
   .sfgr-note.flash { border-color: var(--warn); color: var(--warn); }
   body[data-source-kind="sfgr"] .sfgr-note { display: block; }
+  .sfgr-resize-handle { position: absolute; top: 0; right: -4px; width: 8px; height: 100%; cursor: ew-resize; background: var(--accent); opacity: 0.55; z-index: 3; }
+  .sfgr-resize-handle:hover { opacity: 1; }
   .sfgr-only { display: none; }
   body[data-source-kind="sfgr"] .sfgr-only { display: block; }
   body[data-source-kind="sfgr"] #newRecordToggleBtn, body[data-source-kind="sfgr"] #addFromDbBtn,
@@ -1043,7 +1045,7 @@ const htmlTemplate = `<!DOCTYPE html>
   <h1 id="designerTitle">IBM i · DDS</h1>
   <h2>Screen Design</h2>
   <div class="codefori-badge unknown" id="codeForIBadge" title="Whether the Code for IBM i extension is installed and connected. Compile, Resolve Referenced Field, and Add fields from database file all need a live connection.">IBM i: checking…</div>
-  <div class="sfgr-note" id="sfgrNote">System/36 <b>DSPF36</b> (SFGR) source. The screen preview, indicator simulator and exports work. Formats, fields, constants and help areas can be added, edited, copied, moved and deleted; dragging and resizing on the screen come later.</div>
+  <div class="sfgr-note" id="sfgrNote">System/36 <b>DSPF36</b> (SFGR) source. The screen preview, indicator simulator and exports work. Formats, fields, constants and help areas can be added, edited, copied, moved and deleted; fields and constants can be dragged, nudged with the arrow keys, and a field resized from its right edge.</div>
   <button id="saveDocBtn" class="save-btn" style="width:100%;margin-bottom:10px;" title="Save this file to disk (Ctrl+S/Cmd+S works too - this button exists because a webview panel doesn't show VS Code's own dirty-tab dot)">&#128190; Save</button>
   <div class="field-row">
     <label>Find field</label>
@@ -4059,6 +4061,7 @@ const htmlTemplate = `<!DOCTYPE html>
       if (!editable) el.classList.add('locked');
       if (selectedKeys.some((k) => k.sourceLine === underlying.sourceLine)) el.classList.add('selected');
       fieldElBySourceLine[underlying.sourceLine] = el;
+      if (sourceKind === 'sfgr') sfgrAddResizeHandle(el, underlying, ownerRecordName);
 
       const isEditableSflPreviewRow = tag.indexOf('subfile-edit-row-') === 0;
       const ownerRecord = model.records.find((r) => r.name === ownerRecordName);
@@ -4366,7 +4369,7 @@ const htmlTemplate = `<!DOCTYPE html>
   }
 
   function startDrag(el, field, recordName, startEvent) {
-    if (sourceKind === 'sfgr') return; // E11g1: the canvas is read-only for SFGR until E11h
+    if (sourceKind === 'sfgr') { startSfgrDrag([el], [field], recordName, startEvent); return; } // E11h3
     const { colWidth, rowHeight } = gridMetrics();
     const origRenderLine = parseInt(el.getAttribute('data-render-line'), 10);
     const origRenderColumn = parseInt(el.getAttribute('data-render-column'), 10);
@@ -4540,7 +4543,7 @@ const htmlTemplate = `<!DOCTYPE html>
   // capture the mouse's starting point at mousedown and apply how far the
   // MOUSE has moved as a delta onto the reference field's original position.
   function startGroupDrag(els, fields, recordName, startEvent) {
-    if (sourceKind === 'sfgr') return; // E11g1: the canvas is read-only for SFGR until E11h
+    if (sourceKind === 'sfgr') { startSfgrDrag(els, fields, recordName, startEvent); return; } // E11h3
     const { colWidth, rowHeight } = gridMetrics();
     const originals = els.map((el) => ({
       el,
@@ -5523,6 +5526,141 @@ const htmlTemplate = `<!DOCTYPE html>
       showFileProps = false;
       selectedHelpSourceLine = result && result.touched ? result.touched.from : null;
     }, (reason) => sfgrReport('sfgrFormatError', reason));
+  }
+
+  // ---- E11h3: move, nudge and resize on the canvas ---------------------------------------------------------------------
+  // A move changes the line and column of one or more D specifications by one delta; a resize changes a field's
+  // length. Both go through SfgrWriter.setValue inside one commitSfgrChange, so a drag, a group drag and an arrow-key
+  // nudge are each one edit and one undo step, and a refusal leaves the source as it was.
+
+  // The deltas the block of fields can move by without leaving the screen: the line stays within the format's lines
+  // (relative to its start line), the column stays 2 or more, and a field that fits on a row stays on it.
+  function sfgrClampDelta(rec, fields, dLine, dCol) {
+    const start = rec.sfgr.startLine == null ? 1 : rec.sfgr.startLine;
+    const maxRel = (rec.sfgr.columns132 ? 27 : 24) - start + 1;
+    const maxCol = rec.sfgr.columns132 ? 132 : 80;
+    let minLineDelta = -Infinity, maxLineDelta = Infinity, minColDelta = -Infinity, maxColDelta = Infinity;
+    fields.forEach((f) => {
+      const line = f.location.line, col = f.location.column, len = f.length || 1;
+      minLineDelta = Math.max(minLineDelta, 1 - line);
+      maxLineDelta = Math.min(maxLineDelta, maxRel - line);
+      minColDelta = Math.max(minColDelta, 2 - col);
+      const lastStart = len <= maxCol - 1 ? maxCol - len + 1 : maxCol;
+      maxColDelta = Math.min(maxColDelta, Math.max(lastStart, col) - col);
+    });
+    const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+    return { line: clamp(dLine, Math.min(minLineDelta, 0), Math.max(maxLineDelta, 0)), column: clamp(dCol, Math.min(minColDelta, 0), Math.max(maxColDelta, 0)) };
+  }
+
+  // Move the D specifications of these fields (one spec can carry two model fields) by a delta, as one edit.
+  function sfgrMoveEntries(fields, dLine, dCol) {
+    const seen = {};
+    const moves = [];
+    fields.forEach((f) => {
+      if (!f.sfgr || seen[f.sfgr.line]) return;
+      seen[f.sfgr.line] = true;
+      moves.push({ line: f.sfgr.line, newLine: f.location.line + dLine, newColumn: f.location.column + dCol, oldLine: f.location.line, oldColumn: f.location.column });
+    });
+    if (moves.length === 0 || (!dLine && !dCol)) return;
+    commitSfgrChange((text) => {
+      let current = text;
+      for (let i = 0; i < moves.length; i++) {
+        const m = moves[i];
+        if (m.newLine !== m.oldLine) {
+          const r = SfgrWriter.setValue(current, { line: m.line }, 'line', m.newLine);
+          if (!r.ok) return r;
+          current = r.text;
+        }
+        if (m.newColumn !== m.oldColumn) {
+          const r = SfgrWriter.setValue(current, { line: m.line }, 'column', m.newColumn);
+          if (!r.ok) return r;
+          current = r.text;
+        }
+      }
+      return { ok: true, text: current, changed: current !== text, touched: null };
+    }, null, (reason) => sfgrReport('sfgrFieldError', reason));
+  }
+
+  // A drag of one or more field elements: the delta follows the mouse in whole cells, held inside the screen.
+  function startSfgrDrag(els, fields, recordName, startEvent) {
+    const rec = model.records.find((r) => r.name === recordName);
+    if (!rec || !rec.sfgr || els.length === 0) return;
+    const { colWidth, rowHeight } = gridMetrics();
+    const originals = els.map((el) => ({
+      el,
+      line: parseInt(el.getAttribute('data-render-line'), 10),
+      column: parseInt(el.getAttribute('data-render-column'), 10),
+      length: parseInt(el.getAttribute('data-length'), 10) || 1,
+      height: parseInt(el.getAttribute('data-height'), 10) || 1
+    }));
+    const startX = startEvent.clientX, startY = startEvent.clientY;
+    els.forEach((el) => el.classList.add('dragging'));
+    let delta = { line: 0, column: 0 };
+    function onMove(e) {
+      dragState = dragState || {};
+      delta = sfgrClampDelta(rec, fields, Math.round((e.clientY - startY) / rowHeight), Math.round((e.clientX - startX) / colWidth));
+      originals.forEach((o) => {
+        o.el.style.gridColumn = (o.column + delta.column) + ' / span ' + o.length;
+        o.el.style.gridRow = (o.line + delta.line) + (o.height > 1 ? ' / span ' + o.height : '');
+      });
+    }
+    function onUp() {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      els.forEach((el) => el.classList.remove('dragging'));
+      if (delta.line || delta.column) sfgrMoveEntries(fields, delta.line, delta.column);
+      setTimeout(() => { dragState = null; }, 0);
+    }
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }
+
+  // A handle on the right edge of the one selected field (a constant's length follows its text, and a field that
+  // wraps onto more rows is resized in its panel).
+  function sfgrAddResizeHandle(el, field, recordName) {
+    if (selectedKeys.length !== 1 || !el.classList.contains('selected')) return;
+    if (field.nameType !== 'FIELD' || !field.sfgr || field.lengthRaw == null) return;
+    if ((parseInt(el.getAttribute('data-height'), 10) || 1) > 1) return;
+    const handle = document.createElement('div');
+    handle.className = 'sfgr-resize-handle';
+    handle.title = 'Drag to change the length';
+    handle.addEventListener('click', (e) => e.stopPropagation());
+    handle.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      startSfgrResize(el, field, recordName, e);
+    });
+    el.appendChild(handle);
+  }
+
+  function startSfgrResize(el, field, recordName, startEvent) {
+    const rec = model.records.find((r) => r.name === recordName);
+    if (!rec || !rec.sfgr) return;
+    const { colWidth } = gridMetrics();
+    const column = parseInt(el.getAttribute('data-render-column'), 10);
+    const row = el.style.gridRow;
+    const maxLength = Math.max(1, (rec.sfgr.columns132 ? 132 : 80) - column + 1);
+    const startLength = field.length || 1;
+    const startX = startEvent.clientX;
+    let length = startLength;
+    el.classList.add('dragging');
+    function onMove(e) {
+      dragState = dragState || {};
+      length = Math.min(maxLength, Math.max(1, startLength + Math.round((e.clientX - startX) / colWidth)));
+      el.style.gridColumn = column + ' / span ' + length;
+      if (row) el.style.gridRow = row;
+    }
+    function onUp() {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      el.classList.remove('dragging');
+      if (length !== startLength) {
+        commitSfgrChange((text) => SfgrWriter.setValue(text, { line: field.sfgr.line }, 'length', length), null, (reason) => sfgrReport('sfgrFieldError', reason));
+      }
+      setTimeout(() => { dragState = null; }, 0);
+    }
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
   }
 
   const sfgrNewFormatBtn = document.getElementById('sfgrNewFormatBtn');
@@ -8338,6 +8476,15 @@ const htmlTemplate = `<!DOCTYPE html>
   function nudgeSelected(deltaLine, deltaColumn) {
     const selected = getSelectedFields();
     if (selected.length === 0) return;
+    if (sourceKind === 'sfgr') {
+      // E11h3: the selection (one format's fields and constants) moves as one block
+      const recName = selected[0].record.name;
+      const same = selected.filter((x) => x.record.name === recName).map((x) => x.field);
+      const recNow = model.records.find((r) => r.name === recName);
+      const d = recNow ? sfgrClampDelta(recNow, same, deltaLine, deltaColumn) : null;
+      if (d && (d.line || d.column)) sfgrMoveEntries(same, d.line, d.column);
+      return;
+    }
     if (selected.length > 1) {
       const recordName = selected[0].record.name;
       const sameRecord = selected.filter((s) => s.record.name === recordName);

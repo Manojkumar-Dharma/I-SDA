@@ -64,10 +64,9 @@ setTimeout(() => {
   console.log('\nno DDS edit reaches the SFGR text');
   posted.length = 0;
   const before = doc.querySelectorAll('.dspf-field').length;
-  ['ArrowDown', 'ArrowRight'].forEach((key) => doc.body.dispatchEvent(new KeyboardEvent('keydown', { key, altKey: true, bubbles: true, cancelable: true })));
   doc.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'x', ctrlKey: true, bubbles: true, cancelable: true }));
   doc.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'v', ctrlKey: true, bubbles: true, cancelable: true }));
-  check('nudge, cut and paste post no edit (the canvas drag and placement arrive with E11h2 and E11h3)', posted.filter((m) => m.type === 'applyEdit').length === 0);
+  check('cut and paste post no edit (the arrow-key nudge is E11h3: see e11h3SfgrMoveResize.test.js)', posted.filter((m) => m.type === 'applyEdit').length === 0);
   check('the note flashes when an edit is refused', doc.getElementById('sfgrNote').classList.contains('flash'));
   doc.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true }));
   check('Delete on a selected field is the SFGR delete of E11h1: one edit, the field is gone (see e11h1SfgrDeleteDuplicate.test.js)', posted.filter((m) => m.type === 'applyEdit').length === 1 && doc.querySelectorAll('.dspf-field').length < before);
