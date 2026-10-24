@@ -150,7 +150,7 @@ const diagOf = (text, code, n) => withCode(text, code)[n || 0];
   check('the sample has no problem to fix, so nothing is offered', offered === 0);
   check('junk gives nothing', [null, undefined, 3, {}].every((x) => Quick.fixesFor(x, { code: 'isda.sfgrValue', line: 1, column: 1 }).length === 0) && Quick.fixesFor('x', null).length === 0 && Quick.fixesFor('x', { code: 'isda.other', line: 1, column: 1 }).length === 0);
   check('a diagnostic that points at nothing gives nothing', Quick.fixesFor(src([S('A')]), { code: 'isda.sfgrValue', line: 9, column: 27 }).length === 0 && Quick.fixesFor(src([S('A')]), { code: 'isda.sfgrContinuation', line: 9, column: 80 }).length === 0);
-  check('an overlap or outside-the-screen warning has no fix', Quick.fixesFor(src([S('A'), F('B', 30, 2, 5)]), { code: 'isda.sfgrOutsideScreen', line: 2, column: 19 }).length === 0);
+  check('an overlap warning has no fix, nor has a field with a column past the screen (a field past the last row has two since E12c)', Quick.fixesFor(src([S('A'), F('B', 2, 2, 5), F('C', 2, 2, 5)]), { code: 'isda.sfgrOverlap', line: 3, column: 15 }).length === 0 && Quick.fixesFor(src([S('A'), F('B', 2, 90, 5)]), { code: 'isda.sfgrOutsideScreen', line: 2, column: 21 }).length === 0);
 }
 
 // ---- 6. provider and host ---------------------------------------------------------------------------------------------

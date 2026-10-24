@@ -40,7 +40,7 @@ const only = (r, code) => r.diagnostics.filter((d) => d.code === code);
   const crlf = Sfgr.analyze(sample, {});
   check('sample: no diagnostics (LF)', lf.diagnostics.length === 0 && lf.internalErrors.length === 0);
   check('sample: no diagnostics (CRLF), so no rule is a false alarm on a source that compiles', crlf.diagnostics.length === 0 && crlf.internalErrors.length === 0);
-  check('codes: six rule codes, all isda.sfgr*, distinct from every DDS code', Sfgr.allCodes().length === 6 && Sfgr.allCodes().every((c) => /^isda\.sfgr[A-Za-z]+$/.test(c)) &&
+  check('codes: eight rule codes (six from E11j1, isda.sfgrOrder and isda.sfgrKeyMask from E12c), all isda.sfgr*, distinct from every DDS code', Sfgr.allCodes().length === 8 && Sfgr.allCodes().every((c) => /^isda\.sfgr[A-Za-z]+$/.test(c)) &&
     Sfgr.allCodes().every((c) => DdsDiagnostics.allCodes().indexOf(c) < 0));
 }
 

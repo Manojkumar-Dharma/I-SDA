@@ -82,7 +82,8 @@ structure. A generic **Keywords** tab remains the catch-all for anything without
 - Add, drag, nudge, resize, copy and delete formats, fields, constants and help areas from the panels and the
   canvas; a Raw source section edits an entry's own 80-column lines under a column ruler.
 - In the text editor: rule diagnostics in the Problems panel, hover, an outline, go to definition and
-  quick-fixes. A failed `CRTS36DSPF` puts its `SYX` messages on the source lines.
+  quick-fixes, and a fix-all over the file (`source.fixAll`) that applies only the safe ones. A failed `CRTS36DSPF`
+  puts its `SYX` messages on the source lines.
 - DDS-only features (keyword pickers, add-from-database) are not shown for it, and DDS tooling never runs on it.
 
 **Canvas and editing**

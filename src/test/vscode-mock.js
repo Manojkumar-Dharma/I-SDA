@@ -32,7 +32,13 @@ class WorkspaceEdit {
 class CodeAction {
   constructor(title, kind) { this.title = title; this.kind = kind; }
 }
-const CodeActionKind = { QuickFix: 'quickfix' };
+// E12c: SourceFixAll behaves like the real kind (a value, append, contains); QuickFix stays the plain string the older tests compare.
+class MockCodeActionKind {
+  constructor(value) { this.value = value; }
+  append(part) { return new MockCodeActionKind(this.value + '.' + part); }
+  contains(other) { const o = typeof other === 'string' ? other : other.value; return o === this.value || o.indexOf(this.value + '.') === 0; }
+}
+const CodeActionKind = { QuickFix: 'quickfix', SourceFixAll: new MockCodeActionKind('source.fixAll') };
 
 class MarkdownString {
   constructor(value) { this.value = value; }

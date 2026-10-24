@@ -22,6 +22,9 @@
  *   isda.sfgrDuplicateName   the same format name twice in a member (any case)
  *   isda.sfgrOutsideScreen   a field that starts or ends outside its format's screen (the wrap of E11f respected)
  *   isda.sfgrOverlap         two fields of one format on the same cells that are on at the same time
+ *   isda.sfgrOrder           an H specification after a D specification of its format (the order is S, H, D) (E12c)
+ *   isda.sfgrKeyMask         a key mask that lists keys whose enable column (27 for function keys, 28 for command keys)
+ *                            is blank or R, so the mask does not apply to them (a warning) (E12c)
  *
  * Nothing here throws: a rule that fails is skipped and named in `internalErrors`.
  */
@@ -41,10 +44,13 @@
     value: 'isda.sfgrValue',
     duplicate: 'isda.sfgrDuplicateName',
     outside: 'isda.sfgrOutsideScreen',
-    overlap: 'isda.sfgrOverlap'
+    overlap: 'isda.sfgrOverlap',
+    order: 'isda.sfgrOrder',
+    keyMask: 'isda.sfgrKeyMask'
   };
   var DEFAULT_SEVERITY = {};
   DEFAULT_SEVERITY[CODES.overlap] = 'warning';
+  DEFAULT_SEVERITY[CODES.keyMask] = 'warning';
 
   /** Cells compared for overlap per format; past it the rule stops for that format (a source that big is not hand-made). */
   var OVERLAP_CELL_BUDGET = 200000;
@@ -262,6 +268,39 @@
             valueProblem(d, 'column', columnOfKey(Parser.D_COLUMNS, 'column'), 'Column (columns 21 - 22) is ' + dv.column + '; use 1 - 99, or A0 - D2 for 100 - 132.', name);
           }
         });
+      });
+    });
+
+    // ---- order: S, then H, then D (E12c) -----------------------------------------------------------------------------------
+    rule('order', function () {
+      parsed.formats.forEach(function (format) {
+        if (!format.fields.length) return;
+        var firstD = format.fields[0].line;
+        format.help.forEach(function (h) {
+          if (h.line > firstD) {
+            add(CODES.order, null, h.line, 6, 7,
+              'An H specification after the D specification on line ' + firstD + ' in format ' + (format.name || '') + '; the order is S, then H, then D.', { record: format.name || '' });
+          }
+        });
+      });
+    });
+
+    // ---- a key mask the enable columns do not apply to (E12c) ---------------------------------------------------------------
+    rule('keyMask', function () {
+      parsed.formats.forEach(function (format) {
+        var s = format.s;
+        var mask = s && s.keyMask;
+        if (!mask) return;
+        var values = s.values || {};
+        var ignoredFunction = mask.functionKeys.length > 0 && /^(|R)$/.test(values.enableFunctionKeys || '');
+        var ignoredCommand = mask.commandKeys.length > 0 && /^(|R)$/.test(values.enableCommandKeys || '');
+        if (!ignoredFunction && !ignoredCommand) return;
+        var parts = [];
+        if (ignoredFunction) parts.push('the function keys ' + mask.functionKeys.map(function (k) { return k.char; }).join('') + ' (column 27 is ' + ((values.enableFunctionKeys || '') === 'R' ? 'R' : 'blank') + ')');
+        if (ignoredCommand) parts.push('the command keys ' + mask.commandKeys.map(function (k) { return k.char; }).join('') + ' (column 28 is ' + ((values.enableCommandKeys || '') === 'R' ? 'R' : 'blank') + ')');
+        var column = columnOfKey(Parser.S_COLUMNS, 'keyMask');
+        add(CODES.keyMask, null, s.line, column.from, column.to + 1,
+          'The key mask (columns 64 - 79) lists ' + parts.join(' and ') + ', which the mask does not apply to; set the column to Y or N, or take the keys out of the mask.', { record: format.name || '' });
       });
     });
 

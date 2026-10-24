@@ -2,7 +2,7 @@
   "name": "i-sda",
   "displayName": "iSDA",
   "description": "Interactive visual designer for IBM i DDS display files (DSPF) \u2014 preview, click, drag, and edit fields with changes written straight back into the DDS source.",
-  "version": "0.19.2",
+  "version": "0.19.3",
   "publisher": "Manojkumar-IBMi",
   "icon": "images/icon.png",
   "engines": {
@@ -71,7 +71,7 @@
         "isda.quickFix.enable": {
           "type": "boolean",
           "default": true,
-          "description": "Offer quick-fixes on the iSDA problems of display-file and menu sources in the text editor: remove the conflicting keyword, or add the companion keyword a rule says is missing (OVERLAY for PUTRETAIN, INDARA for RETKEY). The edit is made the way the designers make it, so the modification tag and isda.keepRemovedLines apply. System/36 DSPF36 source gets quick-fixes for a value out of range, a missing continuation line and a duplicate format name."
+          "description": "Offer quick-fixes on the iSDA problems of display-file and menu sources in the text editor: remove the conflicting keyword, or add the companion keyword a rule says is missing (OVERLAY for PUTRETAIN, INDARA for RETKEY). The edit is made the way the designers make it, so the modification tag and isda.keepRemovedLines apply. System/36 DSPF36 source gets quick-fixes for a value out of range, a missing continuation line, a duplicate format name, an H specification after a D, the keys a key mask lists that its blank column ignores and a field past the last row, and a fix-all over the file (source.fixAll.isda, which applies only the safe ones)."
         },
         "isda.quickFix.openInDesigner": {
           "type": "boolean",
@@ -184,7 +184,9 @@
             "isda.sfgrValue",
             "isda.sfgrDuplicateName",
             "isda.sfgrOutsideScreen",
-            "isda.sfgrOverlap"
+            "isda.sfgrOverlap",
+            "isda.sfgrOrder",
+            "isda.sfgrKeyMask"
           ]
           },
           "additionalProperties": {

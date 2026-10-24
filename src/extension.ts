@@ -703,8 +703,10 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.languages.registerDefinitionProvider(DDS_LANGUAGE_SELECTOR, outlineProvider)
   );
 
-  // E11j4: quick-fixes for the SFGR problems (a value out of range, a missing continuation line, a duplicate name), with
-  // the same setting. Registered before the DDS ones below, which never answer on SFGR.
+  // E11j4 / E12c: quick-fixes for the SFGR problems (a value out of range, a missing continuation line, a duplicate name,
+  // an H after a D, ignored keys in a key mask, a field past the last row) and the fix-all over the file
+  // (source.fixAll.isda, which the editor's own source.fixAll asks for), with the same setting. Registered before the DDS
+  // ones below, which never answer on SFGR.
   context.subscriptions.push(
     vscode.languages.registerCodeActionsProvider(
       DDS_LANGUAGE_SELECTOR,
@@ -712,7 +714,7 @@ export function activate(context: vscode.ExtensionContext): void {
         getSettings: () => ({ enable: vscode.workspace.getConfiguration('isda').get<boolean>('quickFix.enable', true) }),
         shouldProvide: isSfgrTextDocument,
       }),
-      { providedCodeActionKinds: [vscode.CodeActionKind.QuickFix] }
+      { providedCodeActionKinds: [vscode.CodeActionKind.QuickFix, vscode.CodeActionKind.SourceFixAll.append('isda')] }
     )
   );
 
