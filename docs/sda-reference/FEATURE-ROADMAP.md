@@ -2969,7 +2969,7 @@ Beyond the criteria: the simulator and the exports (PNG, SVG, HTML, text, batch)
 - **Never run against a real IBM i or a real VS Code window by this repo's tests.** The extension host is a fake of the VS Code API and the page runs in jsdom, so the Problems panel, hover, outline and quick-fix lightbulb on a real `DSPF36` member, and the canvas drag in a real browser, were not seen. A short manual pass on a real member is the first thing to do after install.
 - **Cut, copy and paste** were not offered for SFGR in the designer at v0.19.0; E12a (v0.19.1) added them.
 - **The multi-field and record-level panels** and the keyword pickers have no SFGR version (SFGR has no DDS keywords); the field panel shows the attributes the SFGR columns hold.
-- **Quick-fixes** exist only for the most common E11j1 violations (no fix where the right value is a guess) and there is no "fix all" over a file. **Column separators** are drawn in the preview only, not in the SVG or text exports. **DBCS shift characters** at a continuation join are not handled.
+- **Quick-fixes** exist only for the most common E11j1 violations (no fix where the right value is a guess) and there is no "fix all" over a file. **Column separators** are drawn in the preview, the SVG, the HTML and the text exports (E11i; this line first said the exports did not, which was wrong). **DBCS shift characters** at a continuation join are not handled.
 - **Two earlier S36 assumptions are superseded.** `DSPF36` source is SFGR, not DDS (S36-5 had it right for compiling, and E11 gives it its own reader and writer); the S36-3 / S36-4 restriction rules apply to DDS files that carry `USRDSPMGT`, not to SFGR.
 
 ## E12
@@ -2987,7 +2987,7 @@ them against more stand-in text.
 
 **Acceptance for the release.** On `DSPF36` source, fields and constants can be cut, copied and pasted inside a format and
 between formats; several selected entries can be edited together from one panel; the editor offers a fix for every E11j1
-rule that has a safe one and a fix-all over the file; the SVG and text exports draw column separators; and every defect the
+rule that has a safe one and a fix-all over the file; every defect the
 manual pass found is fixed or recorded as accepted.
 
 | ID | Sub-task and scope | Depends on | Status | Version |
@@ -2995,12 +2995,12 @@ manual pass found is fixed or recorded as accepted.
 | E12a | **Cut, copy and paste.** Ctrl+X / C / V in the SFGR designer for fields, constants and help areas: copy writes SFGR lines to the clipboard (and the DDS-style internal clipboard), paste goes into the current format at the clicked or next free place (line and column kept, moved when it would overlap), also into another format; one `SfgrWriter` call and one undo step; the DDS cut/copy/paste paths stay closed for SFGR. | E11h2, E11h3 | Done | v0.19.1 |
 | E12b | **Multi-select panel.** The multi-field panel for SFGR: with several D entries selected set output data, input allowed, data type, the attribute columns, length and indicator for all at once, plus align left / right / top / bottom and even spacing; one edit, shows "mixed" where values differ. | E11g3, E11h3 | Done | v0.19.2 |
 | E12c | **Quick-fix, second slice.** Fixes for the E11j1 rules E11j4 did not cover where the right value is not a guess (order of S / H / D, a start line plus lines past the screen, a key mask without its enable column), and a `source.fixAll` over the file that applies only the safe ones; each fix goes through `SfgrWriter` so untouched lines stay byte-identical. | E11j4 | In progress | - |
-| E12d | **Exports: column separators.** Draw the column separators (CS attribute) in the SVG and text exports as the preview does; run the PNG export on separator lines in a real browser, which E11i did not. | E11i | In progress | - |
+| E12d | **Exports: column separators.** The SVG, HTML and text exports already draw the column separators (CS attribute): that was built in E11i (v0.18.8), and this row wrongly listed it as open. What was left is the PNG export on separator lines in a real browser; no browser is available to the build, so this slice adds a geometry test of the SVG the PNG is made from and moves the browser check to the manual pass (E12i). | E11i | Done (PNG in a browser: manual pass) | v0.19.2 (test and docs only) |
 | E12e | **Compile messages, second slice.** Put the explanation text of the Reference on a diagnostic (hover or related information), mark the column range of the entry the message names (S, H or D column tables) instead of the whole line, and replace the stand-in printout text of `e11kSfgrCompileMessages.test.js` with the recorded one, fixing the parser where the real layout differs. **Gate: the real failing `CRTS36DSPF` printout and its source (open question 3).** | E11k | Open (blocked on the fixture) | - |
 | E12f | **Messages of the generated DDS.** When `$SFGR` converts and the `CRTDSPF` of the generated DDS then fails, map those DDS messages back to the SFGR entry that produced the DDS line, if the printout allows it. Decide after E12e whether the information is there at all. **Gate: a real printout that shows both.** | E12e | Open (blocked on the fixture) | - |
 | E12g | **Raw view of a whole format.** A Raw source section on the format panel that holds the whole format (S, its H and D lines, comments, `*DDS` lines) in one 80-column box under the ruler, applied as one edit; the entry-level Raw sections stay. Also the key mask drag ordering E11g2 left out. | E11h4 | Open | - |
 | E12h | **DBCS shift characters.** Handle shift-out / shift-in characters at a continuation join and in constant text (E11 decision 5 kept them as found). **Gate: a real DBCS `DSPF36` member.** | E11c | Open (blocked on the fixture) | - |
-| E12i | **Findings of the manual pass.** A standing slot: each defect found installing v0.19.0 on a real `DSPF36` member in a real VS Code window (Problems panel, hover, outline, go to definition, quick-fix lightbulb, designer drag and resize, Raw section, simulator, exports, `CRTS36DSPF` compile) is listed here with a one-line reproduction and fixed in its own patch release, or recorded as accepted. | E11l | Open | - |
+| E12i | **Findings of the manual pass.** A standing slot: each defect found installing v0.19.0 on a real `DSPF36` member in a real VS Code window (Problems panel, hover, outline, go to definition, quick-fix lightbulb, designer drag and resize, Raw section, simulator, exports including the PNG of a field with column separators, `CRTS36DSPF` compile) is listed here with a one-line reproduction and fixed in its own patch release, or recorded as accepted. | E11l | Open | - |
 
 ### E12a results
 
@@ -3019,6 +3019,14 @@ manual pass found is fixed or recorded as accepted.
 **Align and space.** Left, Right, Top and Bottom move every selected entry to the leftmost / rightmost edge / topmost / bottommost line of the selection; Distribute horiz. and vert. (three or more entries) space the entries between the two outermost by their centres, the outer two stay. The width and height come from what the preview drew (`lastScreen`), else the length. Targets are worked out first, then held on the screen (line 1 to the last line of the format, column 2 or more, the right edge inside the screen) and written as one edit through `sfgrApplyMoves` (the loop E11h3's drag used, now shared); nothing is posted when nothing moves.
 
 **Not done.** Name and the constant text stay single-entry (a name must be unique, a constant's text is its own); the format panel's columns are not part of it; "Center on screen" of the DDS panel was not asked for here. The preview hides a field another one now overlaps, so after Align Left the entries may not all be drawn selected, the panel still counts them (the Problems panel's overlap check, E11j1, reports the overlap). Tests: `e12bSfgrMultiPanel.test.js` (34 checks).
+
+### E12d results
+
+**What was wrong with the row.** E12d was written from E11f's "Not done" line, which E11i (v0.18.8) closed: `screenExport.js` draws one thin line at the right edge of every cell of a separated field in the SVG and HTML exports, and `screenText.js` puts a `|` in the field's blank cells with a legend line; the E11l results table and "what E11 leaves open" list repeated the old claim and are corrected. No export code needed changing.
+
+**What this slice adds.** `e12dSeparatorGeometry.test.js` runs every format of `stipfm.dspf36` through `buildSvg`: the four formats with a CS field (SAISIE 26 lines, SELECT 225, ECRDI 10, CHOIX2 11) have their separator lines inside the drawing, vertical, one row tall, stroke colour, width 1 and opacity 0.55, a whole number of cells apart, one `<svg>` document; the formats without CS have none.
+
+**PNG, as far as can be checked here.** The PNG is made by the browser (a canvas drawing of this SVG), and no browser is available to the build. The SAISIE SVG was rasterized once with an independent renderer (resvg, 1600 px wide, not added to the project) with and without its separator lines: 8,153 bytes of pixels differed, in 38 pixel columns, so the lines draw and only at the separator places. That shows the SVG is renderable, not that VS Code's webview canvas does it; the real-browser PNG of a separated field is added to the manual pass (E12i).
 
 ## Open questions
 
