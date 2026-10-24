@@ -2650,7 +2650,7 @@ never runs on SFGR source and SFGR tooling never runs on DDS.
 | E11j3 | **Outline and go to definition.** Document symbols for the formats and their fields and constants; go to definition from a format name to its S line; `isda.outline.enable`. | E11j1 | Done | v0.18.14 |
 | E11j4 | **Quick-fix.** Code actions for the most common E11j1 violations (a value out of range set to the nearest valid one, a missing continuation line added, a duplicate name renamed), written through `SfgrWriter` so untouched lines stay byte-identical; `isda.quickFix.enable`. | E11j1 | Done | v0.18.19 |
 | E11k | **Compile messages.** Parse the `CRTS36DSPF` result (the `$SFGR` listing and the SYX messages of Appendix D of the Reference) and put the messages on the source lines, through the E2 diagnostics hub under source `CRTS36DSPF`. **Needs a real failing `CRTS36DSPF` listing as a fixture** (open question 3); until it arrives the parser can only be written against stand-in text, marked as such. | E11c, E2 | Done (stand-in listing) | v0.18.18 |
-| E11l | **Release** (next free minor); update `README.md` (features, file types), `LIMITATIONS-PLAN.md` (S36 entries that this epic closes), `CHANGELOG.md`. Results against the acceptance rule above. | E11a - E11k | Open | - |
+| E11l | **Release** (next free minor); update `README.md` (features, file types), `LIMITATIONS-PLAN.md` (S36 entries that this epic closes), `CHANGELOG.md`. Results against the acceptance rule above. | E11a - E11k | In progress | - |
 
 
 ### E11a results
