@@ -4982,6 +4982,7 @@ const htmlTemplate = `<!DOCTYPE html>
       ['duplicate', 'Duplicate format', false, 'Copy this format, with its fields, to just after it'],
       ['up', 'Move up', fIndex <= 0, 'Move this format before the previous one in the source'],
       ['down', 'Move down', fIndex >= model.records.length - 1, 'Move this format after the next one in the source'],
+      ['paste', 'Paste', false, 'Paste the copied fields, constants or help areas into this format (Ctrl+V)'],
       ['addHelp', 'Add help area', false, 'Add a help area (H specification) to this format'],
       ['delete', 'Delete format', false, 'Delete this format and everything in it']
     ]);
@@ -5030,6 +5031,7 @@ const htmlTemplate = `<!DOCTYPE html>
       up: () => sfgrMoveFormat(rec, -1),
       down: () => sfgrMoveFormat(rec, 1),
       addHelp: () => sfgrAddHelpArea(rec),
+      paste: () => sfgrPasteEntries('sfgrFormatError'),
       delete: () => sfgrDeleteFormat(rec)
     });
   }
@@ -5237,6 +5239,8 @@ const htmlTemplate = `<!DOCTYPE html>
     const at = siblings.findIndex((x) => x.line === sf.line);
     html += sfgrActionsHtml([
       ['duplicate', 'Duplicate', false, 'Copy this entry to just after it (Ctrl+D)'],
+      ['copy', 'Copy', false, 'Copy this entry to paste into a format (Ctrl+C)'],
+      ['cut', 'Cut', false, 'Copy this entry and remove it (Ctrl+X)'],
       ['earlier', 'Move earlier', at <= 0, 'Move this entry before the previous one in the source'],
       ['later', 'Move later', at < 0 || at >= siblings.length - 1, 'Move this entry after the next one in the source'],
       ['delete', 'Delete', false, 'Delete this entry (Delete key)']
@@ -5293,6 +5297,8 @@ const htmlTemplate = `<!DOCTYPE html>
     const panel = propsBody.querySelector('.sfgr-field-panel');
     wireSfgrActions(panel, {
       duplicate: () => sfgrDuplicateEntry(sf.line, 'sfgrFieldError', false),
+      copy: () => sfgrCopyEntries(false),
+      cut: () => sfgrCopyEntries(true),
       earlier: () => { if (at > 0) sfgrMoveEntry(sf.line, { before: { line: siblings[at - 1].line } }, 'sfgrFieldError'); },
       later: () => { if (at >= 0 && at < siblings.length - 1) sfgrMoveEntry(sf.line, { after: { line: siblings[at + 1].endLine } }, 'sfgrFieldError'); },
       delete: () => sfgrDeleteEntries([sf.line], 'sfgrFieldError')
@@ -5672,6 +5678,91 @@ const htmlTemplate = `<!DOCTYPE html>
     window.addEventListener('mouseup', onUp);
   }
 
+  // ---- E12a: cut, copy and paste -----------------------------------------------------------------------------------------
+  // The clipboard holds each entry's own source lines (so every column is kept as found) with the place and name it had.
+  // Paste puts them at the end of the format being shown with SfgrWriter.pasteEntries, then sets a free name and, for a
+  // copy pasted into the format it came from, a place one line down (stays inside the screen); a cut, or a paste into
+  // another format, keeps the place. One edit. It is in-memory like the DDS clipboard; the text is also offered to the
+  // system clipboard when the page may write to it.
+  let sfgrClipboard = null; // { format, cut, entries: [{ kind: 'D' | 'H', lines, name, line, column, length }] }
+
+  function sfgrCopyEntries(cut) {
+    const parsed = SfgrParser.parse(sourceText);
+    const selected = getSelectedFields();
+    const entries = [];
+    const seen = {};
+    let format = recordSelect.value;
+    selected.forEach((x) => {
+      const line = x.field.sfgr && x.field.sfgr.line;
+      if (!line || seen[line]) return;
+      seen[line] = true;
+      const entry = parsed.entries.find((e) => e.line === line);
+      if (!entry) return;
+      format = x.record.name;
+      entries.push({ kind: 'D', lines: entry.raw.slice(), name: x.field.name || '', line: x.field.location.line, column: x.field.location.column, length: x.field.length || 1, source: line });
+    });
+    if (!entries.length && selectedHelpSourceLine) {
+      const entry = parsed.entries.find((e) => e.line === selectedHelpSourceLine && e.kind === 'H');
+      if (entry) entries.push({ kind: 'H', lines: entry.raw.slice(), name: String((entry.values && entry.values.name) || '').trim(), line: 0, column: 0, length: 0, source: entry.line });
+    }
+    if (!entries.length) return;
+    sfgrClipboard = { format: format, cut: !!cut, entries: entries };
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        const p = navigator.clipboard.writeText(entries.map((e) => e.lines.join('\\n')).join('\\n'));
+        if (p && p.catch) p.catch(() => {});
+      }
+    } catch (err) { /* the in-memory clipboard is what paste uses */ }
+    if (cut) sfgrDeleteEntries(entries.map((e) => e.source), entries[0].kind === 'H' ? 'sfgrHelpError' : 'sfgrFieldError');
+  }
+
+  function sfgrPasteEntries(errorId) {
+    const report = (reason) => sfgrReport(errorId || 'sfgrFormatError', reason);
+    if (!sfgrClipboard || !sfgrClipboard.entries.length) { report('Nothing copied yet. Select a field, constant or help area and press Ctrl+C.'); return; }
+    const rec = sfgrCurrentFormat();
+    if (!rec || !rec.sfgr) return;
+    const index = model.records.indexOf(rec);
+    const items = sfgrClipboard.entries;
+    const sameFormatCopy = !sfgrClipboard.cut && sfgrClipboard.format === rec.name;
+    const fieldsOut = items.filter((x) => x.kind === 'D').map((x) => ({ location: { line: x.line, column: x.column }, length: x.length }));
+    const delta = fieldsOut.length ? sfgrClampDelta(rec, fieldsOut, sameFormatCopy ? 1 : 0, 0) : { line: 0, column: 0 };
+    const usedFields = sfgrUsedNames('field');
+    const usedHelp = {};
+    model.records.forEach((r) => { (r.sfgr.help || []).forEach((h) => { usedHelp[h.values.name] = true; }); });
+    commitSfgrChange((text) => {
+      const r = SfgrWriter.pasteEntries(text, index, items.map((x) => ({ kind: x.kind, lines: x.lines })));
+      if (!r.ok) return r;
+      let current = r.text;
+      for (let i = 0; i < r.placed.length; i++) {
+        const p = r.placed[i];
+        const item = items[p.index];
+        const used = p.kind === 'H' ? usedHelp : usedFields;
+        let name = item.name;
+        if (name && used[name]) name = sfgrFreeName(name, used, 8);
+        if (name) used[name] = true;
+        const steps = [];
+        if (name && name !== item.name) steps.push(['name', name]);
+        if (p.kind === 'D' && delta.line) steps.push(['line', item.line + delta.line]);
+        if (p.kind === 'D' && delta.column) steps.push(['column', item.column + delta.column]);
+        for (let k = 0; k < steps.length; k++) {
+          const w = SfgrWriter.setValue(current, { line: p.line }, steps[k][0], steps[k][1]);
+          if (!w.ok) return w;
+          current = w.text;
+        }
+      }
+      return { ok: true, text: current, changed: current !== text, touched: r.touched, placed: r.placed };
+    }, (result) => {
+      clearSelection();
+      selectedHelpSourceLine = null;
+      showFileProps = false;
+      const placed = (result && result.placed) || [];
+      const ds = placed.filter((p) => p.kind === 'D').map((p) => ({ sourceLine: p.line }));
+      if (ds.length) { selectedKeys = ds; selectedKey = ds[ds.length - 1]; }
+      else if (placed.length) selectedHelpSourceLine = placed[0].line;
+      if (sfgrClipboard && sfgrClipboard.cut) sfgrClipboard.cut = false; // pasted once: a second paste is a copy
+    }, report);
+  }
+
   // ---- E11h4: the Raw section of the format, field and help panels -------------------------------------------------------
   // The entry's own source lines in a box of 80 columns under a ruler, and a legend of what the columns hold for that
   // kind of line. Apply writes the lines back with SfgrWriter.setRawLines as one edit; Revert shows the source again.
@@ -5796,7 +5887,7 @@ const htmlTemplate = `<!DOCTYPE html>
     let html = '<div class="sfgr-help-panel sfgr-field-panel" data-sfgr-line="' + entry.line + '">';
     html += '<div class="props-back"><a href="#" id="sfgrHelpBack">&larr; Format ' + esc(rec.name) + '</a></div>';
     html += '<div class="rename-error" id="sfgrHelpError"></div>';
-    html += sfgrActionsHtml([['duplicate', 'Duplicate', false, 'Copy this help area to just after it'], ['delete', 'Delete', false, 'Delete this help area']]);
+    html += sfgrActionsHtml([['duplicate', 'Duplicate', false, 'Copy this help area to just after it'], ['copy', 'Copy', false, 'Copy this help area to paste into a format (Ctrl+C)'], ['cut', 'Cut', false, 'Copy this help area and remove it (Ctrl+X)'], ['delete', 'Delete', false, 'Delete this help area']]);
     html += '<h3>' + (online ? 'Help text (online document)' : 'Help area (display format)') + '</h3>';
     html += sfgrCheckRow('onlineDocument', 'Online document', '53', online);
     html += sfgrTextRow('name', online ? 'Help text label' : 'Help format name', '7 - 14', v.name || '', 8, online ? '1 - 8 characters, A - Z # $ @ first, no comma, quote or blank.' : '8 characters: A - Z, five more, then 00 - 99 (up to 100 formats per help area).');
@@ -5880,6 +5971,8 @@ const htmlTemplate = `<!DOCTYPE html>
     wireSfgrControls(root, 'sfgrHelpError', (key, value) => sfgrSetHelpValue(rec, line, key, value));
     wireSfgrActions(root, {
       duplicate: () => sfgrDuplicateEntry(line, 'sfgrHelpError', true),
+      copy: () => sfgrCopyEntries(false),
+      cut: () => sfgrCopyEntries(true),
       delete: () => sfgrDeleteEntries([line], 'sfgrHelpError')
     });
     root.addEventListener('change', (e) => {
@@ -9345,13 +9438,18 @@ const htmlTemplate = `<!DOCTYPE html>
     if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
 
     if (isPasteShortcut) {
+      if (sourceKind === 'sfgr') { if (!sfgrClipboard) return; e.preventDefault(); sfgrPasteEntries(); return; } // E12a
       if (!clipboardField) return;
       e.preventDefault();
       commitPaste();
       return;
     }
     const selected = getSelectedFields();
+    if (sourceKind === 'sfgr' && selected.length === 0 && selectedHelpSourceLine && (isCutShortcut || isCopyShortcut)) {
+      e.preventDefault(); sfgrCopyEntries(isCutShortcut); return; // E12a: a help area
+    }
     if (selected.length === 0) return;
+    if (sourceKind === 'sfgr' && (isCutShortcut || isCopyShortcut)) { e.preventDefault(); sfgrCopyEntries(isCutShortcut); return; } // E12a
     if (sourceKind === 'sfgr' && (isDeleteShortcut || isDuplicateShortcut)) {
       // E11h1: Delete removes the selected entries, Ctrl+D copies one; each is one edit
       e.preventDefault();

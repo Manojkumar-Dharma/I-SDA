@@ -585,6 +585,59 @@
     return finish(parsed, text, done(parsed, lines, entry.line, entry.line + wanted.length - 1));
   }
 
+  // ---- paste ----------------------------------------------------------------------------------------------------------
+
+  /** Inserts copies of entries (kept as raw source lines, so what they hold is kept as found) into a format: the H ones
+   *  after the format's S and its last help area, the D ones after its last entry. `entries` is
+   *  [{ kind: 'H' | 'D', lines: [text, ...] }], their order kept inside each kind. One edit; `placed` lists where each
+   *  copy now starts, [{ index, kind, line }] with `index` the position in `entries`, so the caller can then set a name,
+   *  a line and a column on the copies (setValue). A line over 80 characters, a control character or a kind other than H
+   *  or D is refused. */
+  function pasteEntries(text, formatIndex, entries) {
+    var parsed = load(text);
+    var f = parsed.formats[formatIndex];
+    if (!f) return fail('noSuchFormat', 'No such format.');
+    if (!Array.isArray(entries) || !entries.length) return fail('empty', 'Nothing to paste.');
+    for (var i = 0; i < entries.length; i++) {
+      var e = entries[i];
+      if (!e || (e.kind !== 'H' && e.kind !== 'D') || !Array.isArray(e.lines) || !e.lines.length) return fail('badSpec', 'An entry to paste is { kind: "H" | "D", lines: [..] }.');
+      for (var k = 0; k < e.lines.length; k++) {
+        if (CONTROL.test(e.lines[k])) return fail('badValue', 'A pasted line holds a control character.');
+        if (sizeOf(e.lines[k]) > Parser.LINE_WIDTH) return fail('tooWide', 'A pasted line is wider than ' + Parser.LINE_WIDTH + ' characters.');
+      }
+    }
+    function lastLineOf(pool) { return pool.reduce(function (m, x) { return x.endLine > m ? x.endLine : m; }, 0); }
+    var helpAt = lastLineOf([f.s].concat(f.help)) + 1;
+    var fieldAt = lastLineOf([f.s].concat(f.help, f.fields)) + 1;
+    var helps = [], fields = [];
+    entries.forEach(function (x, index) { (x.kind === 'H' ? helps : fields).push({ index: index, kind: x.kind, lines: x.lines }); });
+    var lines = linesOf(parsed);
+    var eol = (fieldAt - 2 >= 0 && lines[fieldAt - 2] && lines[fieldAt - 2].eol) || defaultEol(parsed);
+    function asLines(group) {
+      var out = [];
+      group.forEach(function (x) { x.lines.forEach(function (t) { out.push({ text: t, eol: eol }); }); });
+      return out;
+    }
+    // the later block first, so the earlier insertion point is still right
+    Array.prototype.splice.apply(lines, [fieldAt - 1, 0].concat(asLines(fields)));
+    Array.prototype.splice.apply(lines, [helpAt - 1, 0].concat(asLines(helps)));
+    var placed = [];
+    var at = helpAt;
+    helps.forEach(function (x) { placed.push({ index: x.index, kind: 'H', line: at }); at += x.lines.length; });
+    at = fieldAt + helpsLineCount(helps);
+    fields.forEach(function (x) { placed.push({ index: x.index, kind: 'D', line: at }); at += x.lines.length; });
+    placed.sort(function (a, b) { return a.index - b.index; });
+    var total = helpsLineCount(helps) + helpsLineCount(fields);
+    var result = finish(parsed, text, done(parsed, lines, helpAt, helpAt + 0));
+    if (result.ok === false) return result;
+    var firstNew = helps.length ? helpAt : fieldAt;
+    result.touched = { from: firstNew, to: fieldAt + total - 1 };
+    result.placed = placed;
+    return result;
+  }
+
+  function helpsLineCount(group) { return group.reduce(function (n, x) { return n + x.lines.length; }, 0); }
+
   function moveEntry(text, ref, position) {
     var parsed = load(text);
     var entry = locate(parsed, ref);
@@ -618,6 +671,7 @@
     setValue: setValue,
     setConstant: setConstant,
     setRawLines: setRawLines,
+    pasteEntries: pasteEntries,
     setContinuation: setContinuation,
     insertSpec: insertSpec,
     insertFormat: insertFormat,

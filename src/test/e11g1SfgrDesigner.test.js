@@ -61,13 +61,9 @@ setTimeout(() => {
   check('the breadcrumb names the field', /Field:/.test(doc.getElementById('propsBreadcrumb').textContent));
   check('a field or constant has its own panel (E11g3; see e11g3SfgrFieldPanel.test.js)', !!doc.querySelector('.sfgr-field-panel') && doc.querySelector('.sfgr-field-panel [data-sfgr-key="name"]') !== null);
 
-  console.log('\nno DDS edit reaches the SFGR text');
+  console.log('\nno DDS edit reaches the SFGR text (cut, copy and paste are the SFGR ones of E12a: see e12aSfgrClipboard.test.js)');
   posted.length = 0;
   const before = doc.querySelectorAll('.dspf-field').length;
-  doc.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'x', ctrlKey: true, bubbles: true, cancelable: true }));
-  doc.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'v', ctrlKey: true, bubbles: true, cancelable: true }));
-  check('cut and paste post no edit (the arrow-key nudge is E11h3: see e11h3SfgrMoveResize.test.js)', posted.filter((m) => m.type === 'applyEdit').length === 0);
-  check('the note flashes when an edit is refused', doc.getElementById('sfgrNote').classList.contains('flash'));
   doc.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true }));
   check('Delete on a selected field is the SFGR delete of E11h1: one edit, the field is gone (see e11h1SfgrDeleteDuplicate.test.js)', posted.filter((m) => m.type === 'applyEdit').length === 1 && doc.querySelectorAll('.dspf-field').length < before);
 
