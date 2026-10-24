@@ -25,11 +25,11 @@
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
-    module.exports = factory(require('./compileMessages.js'), require('./compileListing.js'), require('./compileLineMap.js'));
+    module.exports = factory(require('./compileMessages.js'), require('./compileListing.js'), require('./compileLineMap.js'), require('./sfgrCompileMessages.js'));
   } else {
-    root.CompileDiagnostics = factory(root.CompileMessages, root.CompileListing, root.CompileLineMap);
+    root.CompileDiagnostics = factory(root.CompileMessages, root.CompileListing, root.CompileLineMap, root.SfgrCompileMessages);
   }
-})(typeof self !== 'undefined' ? self : this, function (CompileMessages, CompileListing, CompileLineMap) {
+})(typeof self !== 'undefined' ? self : this, function (CompileMessages, CompileListing, CompileLineMap, SfgrCompileMessages) {
   'use strict';
 
   var REASON_NOTES = {
@@ -112,6 +112,23 @@
       var mark = opts.mark || {};
       if (connection && typeof connection.runSQL === 'function' && opts.fileName) {
         fetched = await CompileListing.fetchCompileListing(connection, { fileName: opts.fileName, user: mark.user, since: mark.since }, hooks);
+        if (fetched && fetched.ok && source === 'CRTS36DSPF' && SfgrCompileMessages) {
+          // E11k: the $SFGR printout (SYX messages under the statement that caused them) comes before the DDS listing
+          var sfgr = SfgrCompileMessages.parseListing(fetched.text);
+          if (sfgr.recognized) {
+            var sd = SfgrCompileMessages.toDiagnostics(sfgr, opts.sourceText, { source: source });
+            result.raw = fetched.text;
+            result.via = 'listing';
+            result.listing = { ok: true, reason: null, error: null, job: fetched.job || null, cleanupError: fetched.cleanupError || null };
+            result.diagnostics = sd.diagnostics;
+            result.mapped = sd.mapped;
+            result.fileLevel = sd.fileLevel;
+            result.alignment = null;
+            result.sfgr = true;
+            result.ok = true;
+            return result;
+          }
+        }
         if (fetched && fetched.ok) {
           var candidate = CompileMessages.parseListing(fetched.text);
           var real = (candidate.messages || []).filter(function (m) { return !m.noise; });
