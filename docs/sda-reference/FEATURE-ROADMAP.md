@@ -61,7 +61,8 @@ never in columns 1-80 or the tag area.
 | [E8](#e8) | `WINDOW(*DFT)` and runtime-valued window parameters | E8a - E8g | E3f | Done | v0.15.0 |
 | [E9](#e9) | `EDTCDE(Y/W)` separator width | E9a - E9e | - | Done | v0.13.0 |
 | [E10](#e10) | `CHCCTL` / `SFLCHCCTL` choice control values | E10a - E10f | E3f (E10f only) | Done | v0.14.0 |
-| [E11](#e11) | System/36 `DSPF36` (SFGR) source in the designer and the editor | E11a - E11l (E11g in four slices, E11g1 - E11g4) | E1, E2, E3, E5 (soft, for reuse) | Open | - |
+| [E11](#e11) | System/36 `DSPF36` (SFGR) source in the designer and the editor | E11a - E11l (E11g in four slices, E11g1 - E11g4) | E1, E2, E3, E5 (soft, for reuse) | Done | v0.19.0 |
+| [E12](#e12) | System/36 `DSPF36` follow-ups: what E11 left out (copy and paste, multi-select, fix-all, export, compile messages) | E12a - E12i | E11 | Open | - |
 
 ### Suggested order
 
@@ -2970,6 +2971,36 @@ Beyond the criteria: the simulator and the exports (PNG, SVG, HTML, text, batch)
 - **The multi-field and record-level panels** and the keyword pickers have no SFGR version (SFGR has no DDS keywords); the field panel shows the attributes the SFGR columns hold.
 - **Quick-fixes** exist only for the most common E11j1 violations (no fix where the right value is a guess) and there is no "fix all" over a file. **Column separators** are drawn in the preview only, not in the SVG or text exports. **DBCS shift characters** at a continuation join are not handled.
 - **Two earlier S36 assumptions are superseded.** `DSPF36` source is SFGR, not DDS (S36-5 had it right for compiling, and E11 gives it its own reader and writer); the S36-3 / S36-4 restriction rules apply to DDS files that carry `USRDSPMGT`, not to SFGR.
+
+## E12
+
+**System/36 `DSPF36` (SFGR) follow-ups**
+
+**Goal.** E11 (v0.19.0) gave `DSPF36` source its own reader, writer, designer, editor help and compile messages. This epic
+is the list of what E11 left out by decision or by lack of a fixture (see "What E11 leaves open, by decision" above), in
+the order it is meant to be worked. Nothing here changes what E11 shipped; every item is its own release.
+
+**Order and gates.** E12a - E12d need nothing from outside and can start now. E12i is a standing slot for whatever the
+manual pass on a real `DSPF36` member and a real VS Code window finds (Manojkumar is doing that pass and the recording of
+a real failing `CRTS36DSPF` listing, open question 3). E12e, E12f and E12h wait for a recorded fixture; do not build
+them against more stand-in text.
+
+**Acceptance for the release.** On `DSPF36` source, fields and constants can be cut, copied and pasted inside a format and
+between formats; several selected entries can be edited together from one panel; the editor offers a fix for every E11j1
+rule that has a safe one and a fix-all over the file; the SVG and text exports draw column separators; and every defect the
+manual pass found is fixed or recorded as accepted.
+
+| ID | Sub-task and scope | Depends on | Status | Version |
+|----|--------------------|------------|--------|---------|
+| E12a | **Cut, copy and paste.** Ctrl+X / C / V in the SFGR designer for fields, constants and help areas: copy writes SFGR lines to the clipboard (and the DDS-style internal clipboard), paste goes into the current format at the clicked or next free place (line and column kept, moved when it would overlap), also into another format; one `SfgrWriter` call and one undo step; the DDS cut/copy/paste paths stay closed for SFGR. | E11h2, E11h3 | Open | - |
+| E12b | **Multi-select panel.** The multi-field panel for SFGR: with several D entries selected set output data, input allowed, data type, the attribute columns, length and indicator for all at once, plus align left / right / top / bottom and even spacing; one edit, shows "mixed" where values differ. | E11g3, E11h3 | Open | - |
+| E12c | **Quick-fix, second slice.** Fixes for the E11j1 rules E11j4 did not cover where the right value is not a guess (order of S / H / D, a start line plus lines past the screen, a key mask without its enable column), and a `source.fixAll` over the file that applies only the safe ones; each fix goes through `SfgrWriter` so untouched lines stay byte-identical. | E11j4 | Open | - |
+| E12d | **Exports: column separators.** Draw the column separators (CS attribute) in the SVG and text exports as the preview does; run the PNG export on separator lines in a real browser, which E11i did not. | E11i | Open | - |
+| E12e | **Compile messages, second slice.** Put the explanation text of the Reference on a diagnostic (hover or related information), mark the column range of the entry the message names (S, H or D column tables) instead of the whole line, and replace the stand-in printout text of `e11kSfgrCompileMessages.test.js` with the recorded one, fixing the parser where the real layout differs. **Gate: the real failing `CRTS36DSPF` printout and its source (open question 3).** | E11k | Open (blocked on the fixture) | - |
+| E12f | **Messages of the generated DDS.** When `$SFGR` converts and the `CRTDSPF` of the generated DDS then fails, map those DDS messages back to the SFGR entry that produced the DDS line, if the printout allows it. Decide after E12e whether the information is there at all. **Gate: a real printout that shows both.** | E12e | Open (blocked on the fixture) | - |
+| E12g | **Raw view of a whole format.** A Raw source section on the format panel that holds the whole format (S, its H and D lines, comments, `*DDS` lines) in one 80-column box under the ruler, applied as one edit; the entry-level Raw sections stay. Also the key mask drag ordering E11g2 left out. | E11h4 | Open | - |
+| E12h | **DBCS shift characters.** Handle shift-out / shift-in characters at a continuation join and in constant text (E11 decision 5 kept them as found). **Gate: a real DBCS `DSPF36` member.** | E11c | Open (blocked on the fixture) | - |
+| E12i | **Findings of the manual pass.** A standing slot: each defect found installing v0.19.0 on a real `DSPF36` member in a real VS Code window (Problems panel, hover, outline, go to definition, quick-fix lightbulb, designer drag and resize, Raw section, simulator, exports, `CRTS36DSPF` compile) is listed here with a one-line reproduction and fixed in its own patch release, or recorded as accepted. | E11l | Open | - |
 
 ## Open questions
 
