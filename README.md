@@ -7,7 +7,7 @@ file-backed editor for **DDS display files** and **SDA-style menus**. Open the s
 live 5250 screen, drag fields around, edit their properties — the changes are written straight back
 into the original source, and everything you didn't touch stays byte-for-byte as it was.
 
-- **Screen designer** for `.dspf`, `.dspf38` and `.dspf36` (System/36 environment).
+- **Screen designer** for `.dspf`, `.dspf38` (DDS) and `.dspf36` (System/36 environment screen format generator source, SFGR).
 - **Menu designer** for `.mnudds` menus and their paired MNUCMD command members.
 - **Keyword pickers** modelled on real SDA's "Select/Define ___ Keywords" screens, with IBM's DDS
   Reference rules (usage, conditioning, mutual exclusions) enforced.
@@ -74,6 +74,16 @@ structure. A generic **Keywords** tab remains the catch-all for anything without
 - **Resolve Referenced Field** and bulk **+ Fields from database file** (real SDA's F10). Fields
   are added as bare `R` + `REFFLD` and their definitions load into the designer read-only, so the
   source stays clean and `+n`/`-n` length adjustments keep working.
+
+**System/36 (`DSPF36`) source**
+- A `DSPF36` member or `.dspf36` file holds System/36 `$SFGR` source (`S`, `H` and `D` specifications), not DDS.
+  It has its own reader and writer: every format draws in the preview with its constants, fields and
+  attributes, and saving changes only the lines you touched.
+- Add, drag, nudge, resize, copy and delete formats, fields, constants and help areas from the panels and the
+  canvas; a Raw source section edits an entry's own 80-column lines under a column ruler.
+- In the text editor: rule diagnostics in the Problems panel, hover, an outline, go to definition and
+  quick-fixes. A failed `CRTS36DSPF` puts its `SYX` messages on the source lines.
+- DDS-only features (keyword pickers, add-from-database) are not shown for it, and DDS tooling never runs on it.
 
 **Canvas and editing**
 - Click-to-place, drag, arrow-key nudge, duplicate/cut/copy/paste, multi-select with block
