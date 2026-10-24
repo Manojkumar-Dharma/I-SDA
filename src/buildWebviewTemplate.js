@@ -5362,6 +5362,199 @@ const htmlTemplate = `<!DOCTYPE html>
     });
   }
 
+  // ---- E12b: the panel for several fields and constants selected together --------------------------------------------
+  // One edit for the whole selection (one applyEdit, one undo step); a row shows (mixed) where the entries differ, and a
+  // change writes the same value to every entry it applies to. The data columns apply to fields only (a constant is
+  // output text, its length follows its text); the display attributes apply to constants too.
+
+  const SFGR_MULTI_FIELD_ONLY = ['output', 'inputAllowed', 'dataType', 'length', 'positionCursor', 'protect', 'lowercase'];
+
+  // The selected D entries of this format, read from the source once: [{ field, entry, line, constant }].
+  function sfgrMultiItems(recordName) {
+    const parsed = SfgrParser.parse(sourceText);
+    const seen = {};
+    const out = [];
+    getSelectedFields().forEach((x) => {
+      if (x.record.name !== recordName || !x.field.sfgr || seen[x.field.sfgr.line]) return;
+      seen[x.field.sfgr.line] = true;
+      const entry = parsed.entries.find((e) => e.kind === 'D' && e.line === x.field.sfgr.line);
+      if (entry) out.push({ field: x.field, entry: entry, line: x.field.sfgr.line, constant: entry.role === 'constant' });
+    });
+    return out;
+  }
+
+  // The value the entries share for a column, normalised the way the row controls read it, or mixed.
+  function sfgrMultiCommon(items, key, kind) {
+    const norm = (v) => {
+      const t = (v == null ? '' : String(v)).trim();
+      if (kind === 'ind') return t === 'N' ? '' : t;
+      if (kind === 'check') return t === 'Y' ? 'Y' : '';
+      return t;
+    };
+    const first = norm(items[0].entry.values[key]);
+    return { value: first, mixed: items.some((it) => norm(it.entry.values[key]) !== first) };
+  }
+
+  function sfgrMultiMarkMixed(root, key, kind) {
+    const q = (extra) => root.querySelector('[data-sfgr-key="' + key + '"]' + extra);
+    if (kind === 'check') {
+      const el = q('[data-sfgr-kind="check"]');
+      if (el) { el.checked = false; el.indeterminate = true; el.setAttribute('data-sfgr-mixed', '1'); }
+      return;
+    }
+    if (kind === 'text') {
+      const el = q('[data-sfgr-kind="text"]');
+      if (el) { el.value = ''; el.placeholder = '(mixed)'; el.setAttribute('data-sfgr-mixed', '1'); }
+      return;
+    }
+    const sel = kind === 'ind' ? q('[data-sfgr-part="mode"]') : q('[data-sfgr-kind="select"]');
+    if (!sel) return;
+    const opt = document.createElement('option');
+    opt.value = '__mixed__';
+    opt.textContent = '(mixed)';
+    opt.disabled = true;
+    sel.insertBefore(opt, sel.firstChild);
+    opt.selected = true;
+    sel.setAttribute('data-sfgr-mixed', '1');
+    if (kind === 'ind') { const box = q('[data-sfgr-part="box"]'); if (box) box.style.display = 'none'; }
+  }
+
+  // The width and height an entry takes on the screen (what the preview drew, else its length).
+  function sfgrOccupied(field) {
+    const resolved = lastScreen && lastScreen.fields && lastScreen.fields.find((rf) => rf.sourceLine === field.sourceLine);
+    return { width: (resolved && resolved.length) || field.length || 1, height: (resolved && resolved.height) || 1 };
+  }
+
+  function renderSfgrMultiProps(recordName) {
+    const rec = model.records.find((r) => r.name === recordName);
+    if (!rec || !rec.sfgr) return false;
+    const items = sfgrMultiItems(recordName);
+    if (items.length < 2) return false;
+    const fieldItems = items.filter((it) => !it.constant);
+    const constants = items.length - fieldItems.length;
+    let html = '<div class="sfgr-field-panel sfgr-multi-panel" data-sfgr-multi="' + items.length + '">';
+    html += '<div class="rename-error" id="sfgrFieldError"></div>';
+    html += '<div class="status" style="margin-bottom:12px;">' + items.length + ' entries selected (' + fieldItems.length + ' field' + (fieldItems.length === 1 ? '' : 's') + ', ' + constants + ' constant' + (constants === 1 ? '' : 's') + '). A value that differs between them shows (mixed); changing a row writes it to all of them in one edit.</div>';
+    html += sfgrActionsHtml([
+      ['copy', 'Copy', false, 'Copy the selected entries to paste into a format (Ctrl+C)'],
+      ['cut', 'Cut', false, 'Copy the selected entries and remove them (Ctrl+X)'],
+      ['delete', 'Delete', false, 'Delete the selected entries (Delete key)']
+    ]);
+    html += '<div class="section-label">Align</div>' +
+      '<div class="align-btn-row">' +
+      '<button type="button" class="secondary align-btn" data-sfgr-align="left" title="Align the left edges to the leftmost entry">&#8676; Left</button>' +
+      '<button type="button" class="secondary align-btn" data-sfgr-align="right" title="Align the right edges to the rightmost entry">Right &#8677;</button>' +
+      '<button type="button" class="secondary align-btn" data-sfgr-align="top" title="Align the top edges to the topmost entry">&#8593; Top</button>' +
+      '<button type="button" class="secondary align-btn" data-sfgr-align="bottom" title="Align the bottom edges to the bottommost entry">&#8595; Bottom</button>' +
+      '</div>' +
+      '<div class="align-btn-row">' +
+      '<button type="button" class="secondary align-btn" data-sfgr-align="distribute-h" title="Space the entries evenly between the leftmost and the rightmost"' + (items.length < 3 ? ' disabled' : '') + '>&#8596; Distribute horiz.</button>' +
+      '<button type="button" class="secondary align-btn" data-sfgr-align="distribute-v" title="Space the entries evenly between the topmost and the bottommost"' + (items.length < 3 ? ' disabled' : '') + '>&#8597; Distribute vert.</button>' +
+      '</div>';
+    const mixed = [];
+    const rowFor = (key, kind, source, build) => {
+      const c = sfgrMultiCommon(source, key, kind);
+      if (c.mixed) mixed.push([key, kind]);
+      return build(c.value);
+    };
+    if (fieldItems.length) {
+      html += '<h3>Fields' + (constants ? ' (the ' + constants + ' constant' + (constants === 1 ? ' is' : 's are') + ' left as ' + (constants === 1 ? 'it is' : 'they are') + ')' : '') + '</h3>';
+      html += rowFor('output', 'ind', fieldItems, (v) => sfgrIndicatorRow('output', 'Output data', '23 - 24', v));
+      html += rowFor('inputAllowed', 'check', fieldItems, (v) => sfgrCheckRow('inputAllowed', 'Input allowed', '26', v === 'Y'));
+      html += rowFor('dataType', 'select', fieldItems, (v) => sfgrSelectRow('dataType', 'Data type', '27', SFGR_DATA_TYPES, v));
+      html += rowFor('length', 'text', fieldItems, (v) => sfgrTextRow('length', 'Length', '15 - 18', v, 4, 'Blank, or 1 - ' + (rec.sfgr.columns132 ? '3563' : '1919') + '.'));
+      html += rowFor('positionCursor', 'ind', fieldItems, (v) => sfgrIndicatorRow('positionCursor', 'Position cursor', '32 - 33', v));
+      html += rowFor('protect', 'ind', fieldItems, (v) => sfgrIndicatorRow('protect', 'Protect', '37 - 38', v));
+      html += rowFor('lowercase', 'check', fieldItems, (v) => sfgrCheckRow('lowercase', 'Lowercase', '51', v === 'Y'));
+    }
+    html += '<h3>Attributes</h3>';
+    html += rowFor('highIntensity', 'ind', items, (v) => sfgrIndicatorRow('highIntensity', 'High intensity', '39 - 40', v));
+    html += rowFor('blink', 'ind', items, (v) => sfgrIndicatorRow('blink', 'Blink', '41 - 42', v));
+    html += rowFor('nondisplay', 'ind', items, (v) => sfgrIndicatorRow('nondisplay', 'Nondisplay', '43 - 44', v));
+    html += rowFor('reverseImage', 'ind', items, (v) => sfgrIndicatorRow('reverseImage', 'Reverse image', '45 - 46', v));
+    html += rowFor('underline', 'ind', items, (v) => sfgrIndicatorRow('underline', 'Underline', '47 - 48', v));
+    html += rowFor('columnSeparators', 'check', items, (v) => sfgrCheckRow('columnSeparators', 'Column separators', '49', v === 'Y'));
+    html += '</div>';
+    propsBody.innerHTML = html;
+    const root = propsBody.querySelector('.sfgr-multi-panel');
+    mixed.forEach((m) => sfgrMultiMarkMixed(root, m[0], m[1]));
+    wireSfgrControls(root, 'sfgrFieldError', (key, value) => sfgrSetMultiValue(recordName, key, value));
+    wireSfgrActions(root, {
+      copy: () => sfgrCopyEntries(false),
+      cut: () => sfgrCopyEntries(true),
+      delete: () => sfgrDeleteEntries(sfgrMultiItems(recordName).map((it) => it.line), 'sfgrFieldError')
+    });
+    root.querySelectorAll('[data-sfgr-align]').forEach((btn) => {
+      btn.addEventListener('click', () => sfgrAlignEntries(recordName, btn.getAttribute('data-sfgr-align')));
+    });
+    return true;
+  }
+
+  // One value to every entry it applies to, as one edit; any refusal leaves the source as it was.
+  function sfgrSetMultiValue(recordName, key, raw) {
+    const errorEl = document.getElementById('sfgrFieldError');
+    if (errorEl) errorEl.textContent = '';
+    const refused = (reason) => { if (errorEl) errorEl.textContent = reason; };
+    const rec = model.records.find((r) => r.name === recordName);
+    if (!rec || !rec.sfgr) return false;
+    const checked = sfgrFieldValue(rec.sfgr.columns132, key, raw);
+    if (checked.error) { refused(checked.error); return false; }
+    const fieldOnly = SFGR_MULTI_FIELD_ONLY.indexOf(key) >= 0;
+    const targets = sfgrMultiItems(recordName).filter((it) => !(fieldOnly && it.constant));
+    if (!targets.length) { refused('None of the selected entries has this column.'); return false; }
+    return commitSfgrChange((text) => {
+      let current = text;
+      let changed = false;
+      for (let i = 0; i < targets.length; i++) {
+        const r = SfgrWriter.setValue(current, { line: targets[i].line }, key, checked.value);
+        if (!r.ok) return r;
+        current = r.text;
+        changed = changed || r.changed;
+      }
+      return { ok: true, text: current, changed: changed, touched: null };
+    }, null, refused);
+  }
+
+  // Align or distribute the selected entries: each gets its own new line and column, all written as one edit. The
+  // targets are worked out first from where the entries are now, then held inside the screen (column 2 or more).
+  function sfgrAlignEntries(recordName, how) {
+    const rec = model.records.find((r) => r.name === recordName);
+    if (!rec || !rec.sfgr) return;
+    const items = sfgrMultiItems(recordName);
+    if (items.length < 2) return;
+    const start = rec.sfgr.startLine == null ? 1 : rec.sfgr.startLine;
+    const maxLine = (rec.sfgr.columns132 ? 27 : 24) - start + 1;
+    const maxCol = rec.sfgr.columns132 ? 132 : 80;
+    const info = items.map((it) => {
+      const o = sfgrOccupied(it.field);
+      return { line: it.line, row: it.field.location.line, col: it.field.location.column, w: o.width, h: o.height };
+    });
+    const target = info.map((i) => ({ row: i.row, col: i.col }));
+    if (how === 'left') { const m = Math.min.apply(null, info.map((i) => i.col)); target.forEach((t) => { t.col = m; }); }
+    else if (how === 'right') { const m = Math.max.apply(null, info.map((i) => i.col + i.w - 1)); target.forEach((t, k) => { t.col = m - info[k].w + 1; }); }
+    else if (how === 'top') { const m = Math.min.apply(null, info.map((i) => i.row)); target.forEach((t) => { t.row = m; }); }
+    else if (how === 'bottom') { const m = Math.max.apply(null, info.map((i) => i.row + i.h - 1)); target.forEach((t, k) => { t.row = m - info[k].h + 1; }); }
+    else if (how === 'distribute-h' || how === 'distribute-v') {
+      if (info.length < 3) return;
+      const horizontal = how === 'distribute-h';
+      const centre = (i) => horizontal ? i.col + i.w / 2 : i.row + i.h / 2;
+      const order = info.map((i, k) => k).sort((a, b) => centre(info[a]) - centre(info[b]));
+      const first = centre(info[order[0]]);
+      const step = (centre(info[order[order.length - 1]]) - first) / (order.length - 1);
+      order.forEach((k, n) => {
+        const place = Math.round(first + step * n - (horizontal ? info[k].w : info[k].h) / 2);
+        if (horizontal) target[k].col = place; else target[k].row = place;
+      });
+    } else return;
+    const moves = [];
+    info.forEach((i, k) => {
+      const newLine = Math.min(Math.max(1, target[k].row), Math.max(1, maxLine));
+      const newColumn = Math.min(Math.max(2, target[k].col), Math.max(2, maxCol - i.w + 1));
+      if (newLine !== i.row || newColumn !== i.col) moves.push({ line: i.line, newLine: newLine, newColumn: newColumn, oldLine: i.row, oldColumn: i.col });
+    });
+    if (moves.length) sfgrApplyMoves(moves);
+  }
+
   // ---- E11h1: delete, duplicate and reorder (field, constant, help area, format) -------------------------------------
   // Each is one SfgrWriter call inside one commitSfgrChange, so each is one applyEdit and one undo step of the editor.
 
@@ -5577,6 +5770,11 @@ const htmlTemplate = `<!DOCTYPE html>
       moves.push({ line: f.sfgr.line, newLine: f.location.line + dLine, newColumn: f.location.column + dCol, oldLine: f.location.line, oldColumn: f.location.column });
     });
     if (moves.length === 0 || (!dLine && !dCol)) return;
+    sfgrApplyMoves(moves);
+  }
+
+  // E12b: the moves ({ line, newLine, newColumn, oldLine, oldColumn }) as one edit and one undo step.
+  function sfgrApplyMoves(moves) {
     commitSfgrChange((text) => {
       let current = text;
       for (let i = 0; i < moves.length; i++) {
@@ -6047,7 +6245,11 @@ const htmlTemplate = `<!DOCTYPE html>
 
   function renderProps(recordName) {
     renderBreadcrumb(recordName);
-    if (sourceKind === 'sfgr') { renderSfgrReadOnlyProps(recordName); return; }
+    if (sourceKind === 'sfgr') {
+      if (selectedKeys.length > 1 && renderSfgrMultiProps(recordName)) return;
+      renderSfgrReadOnlyProps(recordName);
+      return;
+    }
     if (pendingPlacement) { renderPlacementProps(recordName); return; }
     if (showFileProps) { renderFileProps(); return; }
     // Task L10: more than one field selected (shift/ctrl-click or
