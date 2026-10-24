@@ -338,6 +338,31 @@
     return finish(parsed, text, done(parsed, lines, entry.line, entry.line + rebuilt.length - 1));
   }
 
+  /** The X of column 80 on the last line of a D specification that says its constant continues. mode 'add': a blank
+   *  D line after it for the constant to continue on (when the next line is not a D line). mode 'remove': take the X
+   *  away, the constant ends where it is. Both leave every other line byte-identical. (E11j4) */
+  function setContinuation(text, ref, mode) {
+    var parsed = load(text);
+    var entry = locate(parsed, ref);
+    if (!entry) return fail('noSuchEntry', 'No entry at that place.');
+    if (entry.kind !== 'D') return fail('notAD', 'A continuation belongs to a D specification.');
+    if (mode !== 'add' && mode !== 'remove') return fail('badMode', 'The mode is add or remove.');
+    var lines = linesOf(parsed);
+    var lastAt = entry.endLine - 1;
+    var lastText = lines[lastAt].text;
+    if (get(lastText, CONTINUATION_COLUMN, CONTINUATION_COLUMN) !== 'X') return unchanged(text);
+    if (mode === 'remove') {
+      lines[lastAt].text = rtrim(put(lastText, CONTINUATION_COLUMN, CONTINUATION_COLUMN, ' '));
+      return finish(parsed, text, done(parsed, lines, entry.endLine, entry.endLine));
+    }
+    var next = parsed.lines[lastAt + 1];
+    if (next && get(next.text, 6, 6) === 'D') return unchanged(text);
+    var eol = lines[lastAt].eol;
+    lines[lastAt].eol = eol || defaultEol(parsed);
+    lines.splice(lastAt + 1, 0, { text: '     D', eol: eol });
+    return finish(parsed, text, done(parsed, lines, entry.endLine, entry.endLine + 1));
+  }
+
   // ---- building new lines -------------------------------------------------------------------------------------------
 
   /** The lines of one new entry (no line ends), or an error result. `spec`: { type: 'S' | 'H' | 'D' | 'comment' |
@@ -593,6 +618,7 @@
     setValue: setValue,
     setConstant: setConstant,
     setRawLines: setRawLines,
+    setContinuation: setContinuation,
     insertSpec: insertSpec,
     insertFormat: insertFormat,
     deleteEntry: deleteEntry,

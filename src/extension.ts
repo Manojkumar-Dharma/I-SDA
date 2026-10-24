@@ -188,6 +188,16 @@ const DdsHover: {
   ): vscode.HoverProvider;
 } = require('./ddsHover.js');
 const HoverKeywordSpec: unknown = require('./keywordSpec.js');
+// E11j4: quick-fixes for the E11j1 problems of SFGR source (pure module; the provider takes the API as an argument).
+const SfgrQuickFix: {
+  createProvider(
+    api: unknown,
+    options: {
+      getSettings: () => { enable: boolean };
+      shouldProvide: (document: vscode.TextDocument) => boolean;
+    }
+  ): vscode.CodeActionProvider;
+} = require('./sfgrQuickFix.js');
 // E11j3: outline and go to definition on SFGR source (pure module; the provider takes the API as an argument).
 const SfgrSymbols: {
   createProvider(
@@ -691,6 +701,19 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.languages.registerDocumentSymbolProvider(DDS_LANGUAGE_SELECTOR, outlineProvider, { label: 'I-SDA DDS' }),
     vscode.languages.registerDefinitionProvider(DDS_LANGUAGE_SELECTOR, outlineProvider)
+  );
+
+  // E11j4: quick-fixes for the SFGR problems (a value out of range, a missing continuation line, a duplicate name), with
+  // the same setting. Registered before the DDS ones below, which never answer on SFGR.
+  context.subscriptions.push(
+    vscode.languages.registerCodeActionsProvider(
+      DDS_LANGUAGE_SELECTOR,
+      SfgrQuickFix.createProvider(vscode, {
+        getSettings: () => ({ enable: vscode.workspace.getConfiguration('isda').get<boolean>('quickFix.enable', true) }),
+        shouldProvide: isSfgrTextDocument,
+      }),
+      { providedCodeActionKinds: [vscode.CodeActionKind.QuickFix] }
+    )
   );
 
   // E1f: quick-fixes for the E1b diagnostics (remove the conflicting keyword, add a missing companion, open in the
