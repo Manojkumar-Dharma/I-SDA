@@ -529,6 +529,37 @@
     return finish(parsed, original, done(parsed, lines, index + 1, index + count));
   }
 
+  // ---- the raw lines of one entry -----------------------------------------------------------------------------------
+
+  /** Replaces all the source lines of one entry (an S, H or D specification with its continuation lines, or a comment)
+   *  by the lines in `rawText`. The person typed the columns, so nothing is padded or checked per column; what is
+   *  refused is a control character, a line wider than 80, no line at all, and a result with a read error the source
+   *  did not have. The line ends of the old lines are kept (the last new line takes the last old line's end). The
+   *  result may hold more or fewer entries than the old lines did; `touched` covers the new lines. */
+  function setRawLines(text, ref, rawText) {
+    var parsed = load(text);
+    var entry = locate(parsed, ref);
+    if (!entry) return fail('noSuchEntry', 'No entry at that place.');
+    var wanted = String(rawText == null ? '' : rawText).split(/\r\n|\r|\n/);
+    while (wanted.length && wanted[wanted.length - 1] === '') wanted.pop();
+    if (!wanted.length) return fail('empty', 'An entry has at least one line; remove it with deleteEntry.');
+    for (var i = 0; i < wanted.length; i++) {
+      if (CONTROL.test(wanted[i])) return fail('badValue', 'Line ' + (i + 1) + ' holds a control character (a tab, for one).');
+      if (sizeOf(wanted[i]) > Parser.LINE_WIDTH) return fail('tooWide', 'Line ' + (i + 1) + ' is wider than ' + Parser.LINE_WIDTH + ' characters.');
+    }
+    var lines = linesOf(parsed);
+    var oldCount = entry.endLine - entry.line + 1;
+    var same = wanted.length === oldCount && wanted.every(function (t, k) { return t === lines[entry.line - 1 + k].text; });
+    if (same) return unchanged(text);
+    var fallback = lines[entry.endLine - 1].eol || defaultEol(parsed);
+    var replaced = wanted.map(function (t, k) {
+      var old = k < oldCount ? lines[entry.line - 1 + k].eol : '';
+      return { text: t, eol: k === wanted.length - 1 ? lines[entry.endLine - 1].eol : (old || fallback) };
+    });
+    Array.prototype.splice.apply(lines, [entry.line - 1, oldCount].concat(replaced));
+    return finish(parsed, text, done(parsed, lines, entry.line, entry.line + wanted.length - 1));
+  }
+
   function moveEntry(text, ref, position) {
     var parsed = load(text);
     var entry = locate(parsed, ref);
@@ -561,6 +592,7 @@
   return {
     setValue: setValue,
     setConstant: setConstant,
+    setRawLines: setRawLines,
     insertSpec: insertSpec,
     insertFormat: insertFormat,
     deleteEntry: deleteEntry,

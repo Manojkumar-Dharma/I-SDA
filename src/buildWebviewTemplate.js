@@ -668,6 +668,13 @@ const htmlTemplate = `<!DOCTYPE html>
   body[data-source-kind="sfgr"] .sfgr-note { display: block; }
   .sfgr-resize-handle { position: absolute; top: 0; right: -4px; width: 8px; height: 100%; cursor: ew-resize; background: var(--accent); opacity: 0.55; z-index: 3; }
   .sfgr-resize-handle:hover { opacity: 1; }
+  .sfgr-raw { margin-top: 10px; border-top: 1px solid var(--border, rgba(128,128,128,0.3)); padding-top: 6px; }
+  .sfgr-raw > summary { cursor: pointer; font-weight: 600; }
+  .sfgr-raw-wrap { overflow-x: auto; margin-top: 6px; }
+  .sfgr-ruler, .sfgr-raw-text { font-family: var(--vscode-editor-font-family, monospace); font-size: 12px; line-height: 1.35; white-space: pre; margin: 0; padding: 2px 4px; border: 1px solid transparent; box-sizing: content-box; }
+  .sfgr-ruler { color: var(--dim, #888); }
+  .sfgr-raw-text { width: 80ch; min-width: 80ch; resize: vertical; border-color: var(--border, rgba(128,128,128,0.4)); background: transparent; color: inherit; overflow-wrap: normal; overflow-x: hidden; }
+  .sfgr-raw-zones { font-size: 11px; color: var(--dim, #888); margin-top: 4px; line-height: 1.5; }
   .sfgr-only { display: none; }
   body[data-source-kind="sfgr"] .sfgr-only { display: block; }
   body[data-source-kind="sfgr"] #newRecordToggleBtn, body[data-source-kind="sfgr"] #addFromDbBtn,
@@ -5105,6 +5112,7 @@ const htmlTemplate = `<!DOCTYPE html>
   function wireSfgrFormatProps(rec) {
     const root = propsBody.querySelector('.sfgr-format-panel');
     if (!root) return;
+    sfgrAttachRawSection(root, rec.sfgr.sourceLine);
     wireSfgrControls(root, 'sfgrFormatError', (key, value) => sfgrSetFormatValue(rec, key, value));
     root.querySelectorAll('[data-sfgr-help-line]').forEach((row) => {
       const open = () => { selectedHelpSourceLine = parseInt(row.getAttribute('data-sfgr-help-line'), 10); renderProps(rec.name); };
@@ -5339,6 +5347,7 @@ const htmlTemplate = `<!DOCTYPE html>
   function wireSfgrFieldProps(columns132, line, entry) {
     const root = propsBody.querySelector('.sfgr-field-panel');
     if (!root) return;
+    sfgrAttachRawSection(root, line);
     wireSfgrControls(root, 'sfgrFieldError', (key, value) => {
       if (key === 'constantText') return sfgrSetConstantText(line, value);
       if (key === 'messageId') return sfgrSetMessage(line, 'id', value);
@@ -5663,6 +5672,68 @@ const htmlTemplate = `<!DOCTYPE html>
     window.addEventListener('mouseup', onUp);
   }
 
+  // ---- E11h4: the Raw section of the format, field and help panels -------------------------------------------------------
+  // The entry's own source lines in a box of 80 columns under a ruler, and a legend of what the columns hold for that
+  // kind of line. Apply writes the lines back with SfgrWriter.setRawLines as one edit; Revert shows the source again.
+
+  let sfgrRawOpen = false;
+
+  function sfgrRulerText() {
+    let tens = '', units = '';
+    for (let c = 1; c <= 80; c++) {
+      units += String(c % 10);
+      tens += c % 10 === 0 ? String(Math.floor(c / 10) % 10) : (c % 5 === 0 ? '+' : ' ');
+    }
+    return tens + '\\n' + units;
+  }
+
+  // The columns of one kind of line: 'range name' for each, from the parser's own tables.
+  function sfgrZonesText(kind) {
+    const table = kind === 'S' ? SfgrParser.S_COLUMNS : kind === 'H' ? SfgrParser.H_COLUMNS : SfgrParser.D_COLUMNS;
+    return table.map((c) => (c.from === c.to ? c.from : c.from + '-' + c.to) + ' ' + c.key).join('  \\u00b7  ');
+  }
+
+  function sfgrAttachRawSection(root, line) {
+    if (!root || root.querySelector('.sfgr-raw')) return;
+    const parsed = SfgrParser.parse(sourceText);
+    const entry = parsed.entries.find((e) => e.line === line);
+    if (!entry) return;
+    const esc = DspfEngine.escapeHtml;
+    const rows = parsed.lines.slice(entry.line - 1, entry.endLine).map((l) => l.text);
+    const kind = entry.kind === 'S' || entry.kind === 'H' || entry.kind === 'D' ? entry.kind : null;
+    const section = document.createElement('details');
+    section.className = 'sfgr-raw';
+    section.id = 'sfgrRaw';
+    section.open = sfgrRawOpen;
+    section.addEventListener('toggle', () => { sfgrRawOpen = section.open; });
+    section.innerHTML = '<summary>Raw source</summary>' +
+      '<div class="sfgr-raw-wrap"><pre class="sfgr-ruler" aria-hidden="true">' + sfgrRulerText() + '</pre>' +
+      '<textarea class="sfgr-raw-text" id="sfgrRawText" rows="' + Math.max(2, rows.length) + '" spellcheck="false" wrap="off" aria-label="The source lines of this entry, 80 columns">' + esc(rows.join('\\n')) + '</textarea></div>' +
+      (kind ? '<div class="sfgr-raw-zones">' + esc(sfgrZonesText(kind)) + '</div>' : '') +
+      '<div class="hint-small">Columns 1-5 are the sequence number, column 6 the form type (S, H or D). Nothing is padded or checked per column here; the whole entry is written as typed. Lines are at most 80 characters, no tabs.</div>' +
+      '<div class="sfgr-actions"><button type="button" class="secondary" id="sfgrRawApply">Apply raw edit</button> <button type="button" class="secondary" id="sfgrRawRevert">Revert</button></div>' +
+      '<div class="rename-error" id="sfgrRawError"></div>';
+    root.appendChild(section);
+    const area = section.querySelector('#sfgrRawText');
+    const errorEl = section.querySelector('#sfgrRawError');
+    section.querySelector('#sfgrRawRevert').addEventListener('click', () => { area.value = rows.join('\\n'); errorEl.textContent = ''; });
+    section.querySelector('#sfgrRawApply').addEventListener('click', () => {
+      errorEl.textContent = '';
+      const keep = recordSelect.value;
+      commitSfgrChange((text) => SfgrWriter.setRawLines(text, { line: line }, area.value), (result) => {
+        selectedHelpSourceLine = null;
+        showFileProps = false;
+        clearSelection();
+        if (result && result.touched) {
+          const again = SfgrParser.parse(sourceText).entries.find((e) => e.line === result.touched.from);
+          if (again && again.kind === 'D') setSingleSelection(again.line);
+          else if (again && again.kind === 'H') selectedHelpSourceLine = again.line;
+        }
+        if (keep && model.records.some((r) => r.name === keep)) recordSelect.value = keep;
+      }, (reason) => { errorEl.textContent = reason; });
+    });
+  }
+
   const sfgrNewFormatBtn = document.getElementById('sfgrNewFormatBtn');
   if (sfgrNewFormatBtn) sfgrNewFormatBtn.addEventListener('click', () => { if (sourceKind === 'sfgr') sfgrAddFormat(); });
 
@@ -5803,6 +5874,7 @@ const htmlTemplate = `<!DOCTYPE html>
   function wireSfgrHelpProps(rec, line) {
     const root = propsBody.querySelector('.sfgr-help-panel');
     if (!root) return;
+    sfgrAttachRawSection(root, line);
     const back = document.getElementById('sfgrHelpBack');
     if (back) back.addEventListener('click', (e) => { e.preventDefault(); selectedHelpSourceLine = null; renderProps(rec.name); });
     wireSfgrControls(root, 'sfgrHelpError', (key, value) => sfgrSetHelpValue(rec, line, key, value));
