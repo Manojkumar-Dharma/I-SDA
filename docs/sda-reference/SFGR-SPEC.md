@@ -134,8 +134,7 @@ when the indicator is on, the constant when off (Figure B-7, B-8). Color mapping
 (page B-23) and is kept for E11f.
 
 **Data type mapping to DDS (B-18).** blank to blank, `B` to `A`, `A` to `X`, `M` to `N`, `N` to `M`, `S` to `S`, `R` to
-`I`, `Z` to `A`, `D` to `D`, `K` to `W`, `E` and `F` to `E`, `O` to `O`, `X` to `J`. Without a DBCS system `E`, `F`, `O`,
-`X` become `B`.
+`I`, `Z` to `A`, `D` to `D`, `K` to `W`, `E` and `F` to `E`, `O` to `O`, `X` to `J`. **On a system without DBCS support `E`, `F`, `O` and `X` all compile to `A`** (checked 2026-10-30: `Dbcs1-comp2.pdf`, a real V7R3 `CRTS36DSPF` of `dbcs1.dspf36`, where fields of type E, F, O and X came out as `10A` and the K field as `10W`); an earlier version of this line said `B`, which the real run does not show. The mapping table above is what a DBCS system does and is not checked by a real run.
 
 ## 5. Continuation
 
@@ -151,7 +150,7 @@ Findings from the sample that the parser must follow:
 - Trailing blanks of a continuation line are trimmed like any other line, so joining must pad to column 79 before
   appending the next piece, or constants lose their internal blanks.
 - A comment line cannot follow a line with `X`.
-- With DBCS, a shift-in/shift-out pair at the join is deleted (B-27); out of scope until E11a decides on DBCS.
+- With DBCS, shift characters at a join are deleted (B-26, `sc414730.pdf`, "Considerations for Using the Constant Data Entry"): a shift-in (SI, hex 0F) in column 78 or 79 followed by a shift-out (SO, hex 0E) in column 7 of the next D line is deleted as a pair; when column 78 holds an SI, whatever is in column 79 is dropped too; when column 78 holds an SO and column 79 an SI, that pair is deleted whatever column 7 of the next line holds. SO and SI count as part of the data (a constant of more than 10 DBCS characters needs the `X`), and an extended-DBCS constant wants an SO in column 57 (or data type `O`). **Not built (E12h):** no member seen so far holds an SO or SI byte, and how they arrive in the editor after the IBM i converts the member (kept as U+000E / U+000F, or gone) is not known; see "E12h findings".
 
 ## 6. What the sample covers
 
