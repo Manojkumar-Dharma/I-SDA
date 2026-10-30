@@ -368,6 +368,49 @@
       });
     });
 
+    // ---- E12e: what the real $SFGR printouts showed and the rules above did not predict ----------------------------------------
+    // SYX5150 T neither input nor output; SYX5182 T type S or D outside length 2 - 16; SYX5078 T a second input field with
+    // position cursor Y; SYX5293 W lowercase on a numeric, signed numeric or digits-only field (compiler assumes N).
+    rule('compilerRules', function () {
+      var outputCols = columnOfKey(Parser.D_COLUMNS, 'output');
+      var inputCols = columnOfKey(Parser.D_COLUMNS, 'inputAllowed');
+      var lc = columnOfKey(Parser.D_COLUMNS, 'length');
+      var lw = columnOfKey(Parser.D_COLUMNS, 'lowercase');
+      var pc = columnOfKey(Parser.D_COLUMNS, 'positionCursor');
+      parsed.formats.forEach(function (format) {
+        var name = format.name || '';
+        var cursorField = null;
+        format.fields.forEach(function (d) {
+          var v = d.values || {};
+          var n = d.numbers || {};
+          // the case is the value rule's to report (a lowercase y is put right by its quick fix), not a second problem here
+          var output = String(v.output || '').trim().toUpperCase();
+          var hasOutput = output === 'Y' || /^[0-9]{1,2}$/.test(output);
+          var hasInput = String(v.inputAllowed || '').toUpperCase() === 'Y';
+          if (!hasOutput && !hasInput) {
+            add(CODES.value, null, d.line, outputCols.from, inputCols.to + 1,
+              (d.role === 'constant' ? 'This constant' : 'This field') + ' has neither output (columns 23 - 24: Y or an indicator) nor input (column 26: Y); ' +
+              'SYX5150 stops the conversion with "neither input nor output was specified for this field". A constant needs Y in column 23 and C in column 56.', { record: name });
+          }
+          var type = v.dataType;
+          if ((type === 'S' || type === 'D') && n.length !== null && n.length !== undefined && (n.length < 2 || n.length > 16)) {
+            add(CODES.value, null, d.line, lc.from, lc.to + 1,
+              'Data type ' + type + ' (column 27) needs a length of 2 - 16, this field is ' + n.length + ' long (SYX5182 stops the conversion).', { record: name });
+          }
+          if (v.lowercase === 'Y' && (type === 'N' || type === 'S' || type === 'D')) {
+            add(CODES.value, 'warning', d.line, lw.from, lw.to + 1,
+              'Lowercase Y (column 51) is not valid on a numeric, signed numeric or digits-only field; the compiler assumes N (SYX5293).', { record: name });
+          }
+          if (hasInput && String(v.positionCursor || '').toUpperCase() === 'Y') {
+            if (cursorField !== null) {
+              add(CODES.value, null, d.line, pc.from, pc.to + 1,
+                'Position cursor Y (columns 32 - 33) is already on the input field at line ' + cursorField + ' of format ' + name + '; SYX5078 stops the conversion.', { record: name });
+            } else cursorField = d.line;
+          }
+        });
+      });
+    });
+
     rule('overlap', function () {
       parsed.formats.forEach(function (format, index) {
         var info = formatInfo[index];

@@ -1,0 +1,81 @@
+    5770SS1 V7R3M0    160422                   Data Description                 QTEMP/DDSEDGE             10/30/26   6:21:15   Page   1
+
+    File name . . . . . . . . . . . . . . . . . . . . . :         DDSEDGE
+      Library name . . . . . . . . . . . . . . . . . . :          QTEMP
+    File attribute . . . . . . . . . . . . . . . . . . :          Display
+    Source file containing DDS . . . . . . . . . . . . :          QS36DDSSRC
+      Library name . . . . . . . . . . . . . . . . . . :          QTEMP
+    Source member containing DDS . . . . . . . . . . . :          $SFGR.WORK
+    Source member last changed . . . . . . . . . . . . :          10/30/26   6:21:15
+    Source listing options . . . . . . . . . . . . . . :          *SOURCE    *LIST      *NOSECLVL *NOEVENTF
+    DDS generation severity level . . . . . . . . . . . :         20
+    DDS flagging severity level . . . . . . . . . . . . :         00
+    Authority . . . . . . . . . . . . . . . . . . . . . :         *CHANGE
+    Replace file . . . . . . . . . . . . . . . . . . . :          *YES
+    Text . . . . . . . . . . . . . . . . . . . . . . . :          000000 Created-by-$SFGR
+    Compiler . . . . . . . . . . . . . . . . . . . . . :          IBM System i5 Data Description Processor
+
+                                            Data Description Source
+
+    SEQNBR   *...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8      Date
+
+       100   0000 A*0IGC 0DS4 V7R3M0                        910710
+       200   0000 A                                         DSPSIZ(*DS3 *DS4)
+       300   0000 A                                         USRDSPMGT CHGINPDFT INDARA
+       400   0001 A          R EDGE
+       500   0001 A                                          DSPMOD(*DS3)
+       600   0001 A                                          PRINT(*PGM)
+       700   0001 A                                          INVITE
+       800   0001 A                                          SLNO(01)
+       900   0001 A                                          CLRL(*ALL)
+*                                                   CPD8018-*
+      1000   0001 A                                          ALWROL
+*                                                   CPD8018-*
+      1100   0001 A                                          CF01 CF02 CF03 CF04 CF05 CF06 CF07
+      1200   0001 A                                          CF08 CF09 CF10 CF11 CF12 CF13 CF14
+      1300   0001 A                                          CF15 CF16 CF17 CF18 CF19 CF20 CF21
+      1400   0001 A                                          CF22 CF23 CF24
+      1500   0001 A                                          ROLLUP ROLLDOWN CLEAR HLPRTN HOME
+      1600   0001 A                                          HELP
+      1700   0002 A              FLDA          20    O 05070
+
+                               * * * * *   E N D    O F   S O U R C E    * * * * *
+5770SS1 V7R3M0   160422                      Data Description                   QTEMP/DDSEDGE          10/30/26   6:21:15     Page   2
+
+                                              Expanded Source
+                                                                                          Field             Buffer position
+SEQNBR   *...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8 length              Out     In
+
+  200                                                      DSPSIZ(*DS3 *DS4) USRDSPMGT +
+  300                                                      CHGINPDFT INDARA
+  400                     R EDGE                           DSPMOD(*DS3) PRINT(*PGM) INVITE +
+  800                                                      SLNO(01) CLRL(*ALL) ALWROL CF01 +
+ 1100                                                      CF02 CF03 CF04 CF05 CF06 CF07 CF08 +
+ 1200                                                      CF09 CF10 CF11 CF12 CF13 CF14 CF15 +
+ 1300                                                      CF16 CF17 CF18 CF19 CF20 CF21 CF22 +
+ 1400                                                      CF23 CF24 ROLLUP ROLLDOWN CLEAR +
+ 1500                                                      HLPRTN HOME HELP
+ 1700                        FLDA            20A   O   5 70                                       20               1
+
+                 * * * * *     E N D   O F     E X P A N D E D    S O U R C E     * * * * *
+5770SS1 V7R3M0     160422                 Data Description              QTEMP/DDSEDGE           10/30/26   6:21:15   Page   3
+
+                                              Messages
+
+   ID       Severity    Number
+
+* CPD8018     10            2    Message . . . . :   Keyword may not function as expected with DSPMOD.
+5770SS1 V7R3M0    160422                    Data Description                     QTEMP/DDSEDGE     10/30/26   6:21:15   Page   4
+
+                                               Message Summary
+
+   Total           Informational               Warning         Error       Severe
+                       (0-9)                   (10-19)        (20-29)      (30-99)
+
+        2                   0                       2              0               0
+
+
+* CPC7301    00                    Message . . . . :      File DDSEDGE created in library QTEMP.
+
+                           * * * * *   E N D     O F     C O M P I L A T I O N     * * * * *
+

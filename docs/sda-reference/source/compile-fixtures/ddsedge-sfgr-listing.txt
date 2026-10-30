@@ -1,0 +1,19 @@
+5770SS1 V7R3M0 160422          SOURCE INPUT SCREEN FORMAT SOURCE SPECIFICATIONS   10/30/26         TIME   6:21:15   PAGE 0001
+
+ DDSEDGE     - SOURCE MEMBER NAME                                       000000- REFERENCE NUMBER
+
+00010SEDGE          24
+00020DFLDA        20 570Y
+EXECUTION TIME OUTPUT BUFFER DESCRIPTION              PAGE 0002
+
+FIELD                           START      END
+NAME           LENGTH           POSITION   POSITION
+FLDA              20                1          20
+                                                                 PAGE 0003
+
+RPGTOFREE - INPUT LIBRARY NAME
+
+RPGTOFREE - OUTPUT LIBRARY NAME
+
+DDSEDGE   - FORMAT LOAD MEMBER NAME   000000- REFERENCE NUMBER
+

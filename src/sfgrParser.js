@@ -71,7 +71,7 @@
   ]);
 
   var D_COLUMNS = table([
-    ['name', 7, 14], ['length', 15, 18], ['line', 19, 20], ['column', 21, 22], ['output', 23, 24],
+    ['name', 7, 14], ['length', 15, 18], ['line', 19, 20], ['column', 21, 22], ['output', 23, 24], ['editCode', 25, 25],
     ['inputAllowed', 26, 26], ['dataType', 27, 27], ['mandatoryFill', 28, 28], ['mandatoryEntry', 29, 29],
     ['selfCheck', 30, 30], ['adjustFill', 31, 31], ['positionCursor', 32, 33], ['dupKey', 34, 34],
     ['controlledExit', 35, 35], ['autoAdvance', 36, 36], ['protect', 37, 38], ['highIntensity', 39, 40],
@@ -190,6 +190,9 @@
     if (read(1, 4) === '*DDS' && read(5, 5) === ' ' && read(7, 7) === '*') return 'dds';
     var type = read(6, 6);
     if (type === 'S' || type === 'H' || type === 'D') return read(7, 7) === '*' ? 'comment' : type;
+    // E12e: a blank form type with an asterisk in column 7 is a comment the compiler passes over without a message
+    // (the real DSPFALL printout; a blank form type with other text is SYX5086)
+    if (type === ' ' && read(7, 7) === '*') return 'comment';
     return 'unknownType';
   }
 

@@ -1,0 +1,291 @@
+00010 * DSPFALL - one DSPF36 member with a record format per feature.
+00020 * Every format starts with a comment saying what it tests. Add new
+00030 * cases as new formats at the end. See docs/DSPF-MAPPING.md.
+00040 * Convert with MSGF(lib/file) so the message fields are written.
+00050
+00060 * --- Before the first S: D and H are reported R and skipped ---
+00070DEARLYD     5 1 1Y
+00080HEARLYH                      315  319
+00090Q UNKNOWN RECORD TYPE IN COLUMN 6 (REPORTED R, KEPT AS COMMENT)
+00100 * === FKEYY: keys Y, mask 1236AB; right-to-left (col 40, first S) ===
+00110SFKEYY       24      YY           Y                       1236AB
+00120D          65 1 2                                  FKEYY 27=Y 28=Y mask 12X
+00130 36AB: PRINT ROLLUP ROLLDOWN HOME CF01 CF02
+00140 * === FKEYN: keys N with mask 45CD: all keys except the listed ones ===
+00150SFKEYN       24      NN                                   45CD
+00160D          58 1 2                                  FKEYN 27=N 28=N mask 45X
+00170 CD: all except CLEAR HELP CF03 CF04
+00180 * === FKEYR: keys R (retain): no key keywords ===
+00190SFKEYR       24      RR                                   1A
+00200D          32 1 2                                  FKEYR 27=R 28=R: no keyX
+00210  keywords
+00220 * === FKEYALL: keys blank = every function key and command key ===
+00230SFKEYALL     24
+00240D          51 1 2                                  FKEYALL blank = all keyX
+00250 s (CF01-CF24, function keys)
+00260 * === FKEYMIX: function keys Y (HELP only), command keys blank (all) ===
+00270SFKEYMIX     24      Y                                    5
+00280D          60 1 2                                  FKEYMIX 27=Y mask 5 (HEX
+00290 LP only), 28 blank = all command keys
+00300 * === FSTARTV: start line V (SLNO(*VAR)), clear blank (CLRL(*ALL)) ===
+00310SFSTARTV    V
+00320D          29 1 2                                  FSTARTV SLNO(*VAR) CLRLX
+00330 (*ALL)
+00340 * === FSTARTN: start line 5, clear 0 (SLNO(5) CLRL(*NO)) ===
+00350SFSTARTN    5 0
+00360D          25 1 2                                  FSTARTN SLNO(5) CLRL(*NX
+00370 O)
+00380 * === FCLR10: clear 10 lines (CLRL(10)) ===
+00390SFCLR10      10
+00400D          15 1 2                                  FCLR10 CLRL(10)
+00410 * === FOPTY: lowercase Y, return input N, alarm blink erase lock Y ===
+00420SFOPTY       24YN  Y   Y Y   Y Y
+00430D          57 1 2                                  FOPTY LOWER default, noX
+00440  RTNDTA, ALARM BLINK ERASEINP LOCK
+00450DLCFLD     10 3 2N  Y
+00460DNOLC      10 4 2N  Y                        N
+00470DNUMLC      6 5 2N  YS
+00480 * === FOPTI: alarm 31, blink 32, erase 33, override 34, lock 35 ===
+00490SFOPTI       24    31  32333435
+00500D          60 1 2                                  FOPTI ALARM(31) BLINK(3X
+00510 2) ERASEINP(33) OVERRIDE(34) LOCK(35)
+00520 * === 1BADFMT: name not valid in DDS: FMTn plus ALTNAME ===
+00530S1BADFMT     24
+00540D          55 1 2                                  1BADFMT format name notX
+00550  valid in DDS (FMTn and ALTNAME)
+00560 * === F132: 132 columns (col 39 Y): DSPSIZ for both sizes ===
+00570SF132        24                  Y
+00580D          59 1 2                                  F132 132-column format:X
+00590  file created for both display sizes
+00600 * Columns A0 to D2 (100-132) need the *DS4 size: add D records for them
+00610 * here when testing 132-column fields on their own.
+00620 * === FBADS: invalid S entries: start line 0, alarm Q (reported R) ===
+00630SFBADS      024    Q
+00640D          44 1 2                                  FBADS start line 0 and X
+00650 alarm Q are not valid
+00660 * === FCONST: constant text variants ===
+00670SFCONST      24
+00680D          28 1 2N                                 N output with text: conX
+00690 stant
+00700D          32 2 2                                  Blank output with text:X
+00710  constant
+00720D          44 3 2Y                                 Y output with text: conX
+00730 stant (reported once)
+00740D          10 4 2N
+00750D          72 5 2                                  Constant text continuedX
+00760  over two records: first part, second part, third
+00770D          36 6 2                                  DON'T PANIC (apostropheX
+00780  in the text)
+00790D          28 7 2                                 CConstant with C in coluX
+00800 mn 56
+00810DINTXT      8 8 2N  Y                              IGNORED
+00820 * === FOUT: output fields, names, output indicators ===
+00830SFOUT        24
+00840DOUTY      10 1 2Y
+00850DOUTI      10 2 241
+00860DOUTIC     20 3 242                                SHOWN WHEN 42 OFF
+00870DOUTN      10 4 2N
+00880D          10 5 2Y
+00890DOUTY      10 6 2Y
+00900D1BAD      10 7 2Y
+00910DLONGNAME  10 8 2Y
+00920DOUT$#@_1  10 9 2Y
+00930 * === FINPUT: input, input/output, output indicator on input ===
+00940SFINPUT      24
+00950DINONLY    10 1 2N  Y
+00960DINBLK     10 2 2   Y
+00970DINBOTH    10 3 2Y  Y
+00980DININD     10 4 243 Y
+00990DINS1       1 5 2N  YS
+01000 * === FTYPES: data types (col 27) on input fields ===
+01010SFTYPES      24
+01020DTYPEA      6 1 2N  YA
+01030DTYPEB      6 2 2N  YB
+01040DTYPEM      6 3 2N  YM
+01050DTYPEN      6 4 2N  YN
+01060DTYPES      6 5 2N  YS
+01070DTYPER      6 6 2N  YR
+01080DTYPEZ      6 7 2N  YZ
+01090DTYPED      6 8 2N  YD
+01100DTYPEK      6 9 2N  YK
+01110DTYPEE      610 2N  YE
+01120DTYPEF      611 2N  YF
+01130DTYPEO      612 2N  YO
+01140DTYPEX      613 2N  YX
+01150DTYPEBLAN   614 2N  Y
+01160 * === FBADD: invalid D entries (reported R) ===
+01170SFBADD       24
+01180DNOLEN        1 2Y
+01190DNOLINE    10   2Y
+01200DNOCOL     10 3  Y
+01210DBADOUT    10 4 2Q
+01220D          31 6 2                                  FBADD records 2-5 are nX
+01230 ot valid
+01240 * === FATTR: display attributes on constants, output and input fields ===
+01250SFATTR       24
+01260D          11 1 2                Y                 HI constant
+01270D          11 2 2                  Y               BL constant
+01280D          11 3 2                    Y             ND constant
+01290D          11 4 2                      Y           RI constant
+01300D          11 5 2                        Y         UL constant
+01310D          11 6 2                          Y       CS constant
+01320D          17 7 2                Y Y     Y         HI BL UL constant
+01330D          26 8 2                50    Y           HI with indicator 50, RX
+01340 I Y
+01350D          20 9 2                  51    52        BL ind 51, UL ind 52
+01360DOHI       1010 2Y               Y
+01370DOIND      1011 258              59  60
+01380DIHI       1012 2N  Y            Y
+01390DIPR       1013 2N  Y          Y
+01400DIPRI      1014 2N  Y          53
+01410DIPCI      1015 2N  Y     54
+01420DIALL      1016 2N  Y          56Y Y   Y Y Y
+01430DIUL       1017 2N  Y                    57
+01440 * === FATTRPC: position cursor Y on one field ===
+01450SFATTRPC     24
+01460DIPC       10 1 2N  Y     Y
+01470DIOTHER    10 2 2N  Y
+01480 * === FCHECK: validity checks, DUP, LOWER ===
+01490SFCHECK      24
+01500DCKMF       8 1 2N  Y Y
+01510DCKME       8 2 2N  Y  Y
+01520DCKM10      8 3 2N  Y   T
+01530DCKM11      8 4 2N  Y   E
+01540DCKRZ       8 5 2N  Y    Z
+01550DCKRB       8 6 2N  Y    B
+01560DCKFE       8 7 2N  Y        Y
+01570DCKAB10     8 8 2N  Y   T     Y
+01580DCKABONLY   8 9 2N  Y         Y
+01590DCKDUP      810 2N  Y       Y
+01600DCKALL      811 2N  Y YYTZ  YYY
+01610DCKLOWY     812 2N  Y                        Y
+01620DCKLOWN     813 2N  Y                        N
+01630DCKNUMLOW   814 2N  YS                       Y
+01640DCKOUT      815 2Y    Y     Y
+01650 * === FOVER: override (S 33-34) with OVRATR and OVRDTA on fields ===
+01660SFOVER       24            34
+01670D          51 1 2                                  FOVER OVERRIDE(34), OVRX
+01680 ATR and OVRDTA on the fields
+01690DOVIN      10 3 2N  Y            36
+01700DOVOUT     10 4 237
+01710DOVBOTH    10 5 2Y  Y            39
+01720DOVTXT     20 6 238                                SHOWN WHEN 38 OFF
+01730 * === FHELP: H specifications (help areas) ===
+01740SFHELP       24
+01750HORDHLP01                    315  319       Y
+01760HORDHLP02 ORDHELP  MYLIB     515  530 05 N
+01770HORDLBL   ORDDOC   ORDFLD    715  725       Y  Y
+01780HORDHLP03                                   61
+01790HORDHLP05                    815  819    62
+01800HLBL2     DOC2     FLD2      915  925 63       Y
+01810H1BADFMT                     211  215
+01820HORDHLP01                    315
+01830HORDHLP01                   2815 2819
+01840HORDHLP01                    915  515
+01850HORDHLP01          MYLIB
+01860HORDHLP01                    315  319 Y
+01870HORDLBL   ORDDOC             715  725          Y
+01880H                            315  319
+01890H1BADFMT  ORDHELP  MYLIB
+01900HORDHLP01                    315  319    Z
+01910HORDHLP01                    315  319       Q
+01920HORDHLP01                    315  319          Q
+01930D          46 1 2                                  FHELP: help areas, 18 HX
+01940  records (12 not valid)
+01950DORDNO      5 315N  Y
+01960 * === ORDHLP01, ORDHLP03, ORDHLP05: help formats (HLPSEQ group ORDHLP) ===
+01970SORDHLP01    24
+01980D          17 2 2                                 CORDER NUMBER HELP
+01990SORDHLP03    24
+02000D          18 2 2                                 CGENERAL ORDER HELP
+02010SORDHLP05    24
+02020D          13 2 2                                 CHELP FORMAT 5
+02030 * === FMSG: message fields (D col 56 = M); needs MSGF ===
+02040SFMSG        24
+02050D          40 1 2Y                                M0001U1
+02060D          40 2 2Y                                M000AU2
+02070D          40 3 2Y                                M0003
+02080D          40 4 2Y                                M0004P1
+02090D          40 5 2Y                                M0005P2
+02100D          40 6 2Y                                M0006M1
+02110D          40 7 2Y                                M0007M2
+02120DNAMED     40 8 2Y                                M0008U1
+02130D          40 9 2Y                                MB001U1
+02140DERRMSG    5022 244                               M0002
+02150DPGMMSG    5023 2Y                                M
+02160DBADMIC    4010 2Y                                MZZZZ
+02170DMSGIN     4011 2N  Y                             M0009U1
+02180DMSGOUTN   4012 2N                                M0010U1
+02190 * === EDTOUT: edit codes on output-only fields (24 codes) ===
+02200SEDTOUT      24
+02210DEO1        7 3 2Y 1
+02220DEO2        7 4 2Y 2
+02230DEO3        7 5 2Y 3
+02240DEO4        7 6 2Y 4
+02250DEOA        7 7 2Y A
+02260DEOB        7 8 2Y B
+02270DEOC        7 9 2Y C
+02280DEOD        710 2Y D
+02290DEOJ        711 2Y J
+02300DEOK        712 2Y K
+02310DEOL        713 2Y L
+02320DEOM        714 2Y M
+02330DEON        7 340Y N
+02340DEOO        7 440Y O
+02350DEOP        7 540Y P
+02360DEOQ        7 640Y Q
+02370DEOX        7 740Y X
+02380DEOY        7 840Y Y
+02390DEOZ        7 940Y Z
+02400DEO5        71040Y 5
+02410DEO6        71140Y 6
+02420DEO7        71240Y 7
+02430DEO8        71340Y 8
+02440DEO9        71440Y 9
+02450 * === EDTBOTH: edit codes on input/output fields, data type S ===
+02460SEDTBOTH     24
+02470DEB1        8 3 2Y 1YS
+02480DEB2        8 4 2Y 2YS
+02490DEB3        8 5 2Y 3YS
+02500DEB4        8 6 2Y 4YS
+02510DEBA        8 7 2Y AYS
+02520DEBB        8 8 2Y BYS
+02530DEBC        8 9 2Y CYS
+02540DEBD        810 2Y DYS
+02550DEBJ        811 2Y JYS
+02560DEBK        812 2Y KYS
+02570DEBL        813 2Y LYS
+02580DEBM        814 2Y MYS
+02590DEBN        8 340Y NYS
+02600DEBO        8 440Y OYS
+02610DEBP        8 540Y PYS
+02620DEBQ        8 640Y QYS
+02630DEBX        8 740Y XYS
+02640DEBY        8 840Y YYS
+02650DEBZ        8 940Y ZYS
+02660DEB5        81040Y 5YS
+02670DEB6        81140Y 6YS
+02680DEB7        81240Y 7YS
+02690DEB8        81340Y 8YS
+02700DEB9        81440Y 9YS
+02710 * === EDTMISC: lowercase codes; cases where EDTCDE is not written ===
+02720SEDTMISC     24
+02730DELOWOUT    8 3 2Y j
+02740DELOWBOTH   8 4 2Y zYS
+02750DBADW       8 5 2Y W
+02760DBADE       8 6 2Y E
+02770DBAD0       8 7 2Y 0
+02780DBADDASH    8 8 2Y -
+02790DEINONLY    8 9 2N ZYS
+02800DBOTHALP    810 2Y 1YA
+02810DBOTHNUM    811 2Y 1YN
+02820DBOTHDIG    812 2Y 1YD
+02830D           615 2  1                               TOTAL:
+02840 * === FDDS: *DDS line, comment and blank lines inside a format ===
+02850SFDDS        24
+02860D          45 1 2                                  FDDS next: a *DDS line X
+02870 is copied into the DDS
+02880A*                                23  2'LINE FROM *DDS RECORD'
+02890
+02900 * A comment line between D records
+02910D           8 5 2                                  FDDS end

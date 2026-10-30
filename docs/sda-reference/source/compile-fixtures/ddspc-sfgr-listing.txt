@@ -1,0 +1,22 @@
+5770SS1 V7R3M0 160422       SOURCE INPUT SCREEN FORMAT SOURCE SPECIFICATIONS   10/30/26          TIME   6:37:16   PAGE 0001
+
+ DDSPC    - SOURCE MEMBER NAME                                        000000- REFERENCE NUMBER
+
+00010SPC         24
+00020DFLDA     10 5 5   Y     Y
+00030DFLDB     10 6 5   Y     Y
+SYX5078 T A PRECEDING INPUT FIELD HAS A POSITION CURSOR ENTRY OF Y.
+INPUT BUFFER DESCRIPTION                         PAGE 0002
+
+FIELD                      START      END
+NAME           LENGTH      POSITION   POSITION
+FLDA              10           1          10
+FLDB              10          11          20
+                                                                 PAGE 0003
+
+RPGTOFREE - INPUT LIBRARY NAME
+
+RPGTOFREE - OUTPUT LIBRARY NAME
+
+DDSPC     - FORMAT LOAD MEMBER NAME   000000- REFERENCE NUMBER
+

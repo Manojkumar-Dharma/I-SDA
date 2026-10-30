@@ -1,0 +1,189 @@
+5770SS1 V7R3M0 160422       SOURCE INPUT SCREEN FORMAT SOURCE SPECIFICATIONS   10/30/26         TIME   6:09:38   PAGE 0001
+
+ EDTALL   - SOURCE MEMBER NAME                                       000000- REFERENCE NUMBER
+
+00010SEDTOUT     24
+00020DEO1       9 3 2Y 1
+00030DEO2       9 4 2Y 2
+00040DEO3       9 5 2Y 3
+00050DEO4       9 6 2Y 4
+00060DEOA       9 7 2Y A
+00070DEOB       9 8 2Y B
+00080DEOC       9 9 2Y C
+00090DEOD       910 2Y D
+00100DEOJ       911 2Y J
+00110DEOK       912 2Y K
+00120DEOL       913 2Y L
+00130DEOM       914 2Y M
+00140DEON       9 340Y N
+00150DEOO       9 440Y O
+00160DEOP       9 540Y P
+00170DEOQ       9 640Y Q
+00180DEOX       9 740Y X
+00190DEOY       9 840Y Y
+00200DEOZ       9 940Y Z
+00210DEO5       91040Y 5
+00220DEO6       91140Y 6
+00230DEO7       91240Y 7
+00240DEO8       91340Y 8
+00250DEO9       91440Y 9
+EXECUTION TIME OUTPUT BUFFER DESCRIPTION              PAGE 0002
+
+FIELD                           START      END
+NAME           LENGTH           POSITION   POSITION
+EO1                9                1           9
+EO2                9               10          18
+EO3                9               19          27
+EO4                9               28          36
+EOA                9               37          45
+EOB                9               46          54
+EOC                9               55          63
+EOD                9               64          72
+EOJ                9               73          81
+EOK                9               82          90
+EOL                9               91          99
+EOM                9              100        108
+EON                9              109        117
+EOO                9              118        126
+EOP                9              127        135
+EOQ                9              136        144
+EOX                9              145        153
+EOY                9              154        162
+EOZ                9              163        171
+EO5                9              172        180
+EO6                9              181        189
+EO7                9              190        198
+EO8                9              199        207
+EO9                9              208        216
+5770SS1 V7R3M0 160422        SOURCE INPUT SCREEN FORMAT SOURCE SPECIFICATIONS   10/30/26         TIME   6:09:38   PAGE 0003
+
+ EDTALL   - SOURCE MEMBER NAME                                        000000- REFERENCE NUMBER
+
+00260SEDTBOTH    24
+00270DEB1       8 3 2Y 1YS
+00280DEB2       8 4 2Y 2YS
+00290DEB3       8 5 2Y 3YS
+00300DEB4       8 6 2Y 4YS
+00310DEBA       8 7 2Y AYS
+00320DEBB       8 8 2Y BYS
+00330DEBC       8 9 2Y CYS
+00340DEBD       810 2Y DYS
+00350DEBJ       811 2Y JYS
+00360DEBK       812 2Y KYS
+00370DEBL       813 2Y LYS
+00380DEBM       814 2Y MYS
+00390DEBN       8 340Y NYS
+00400DEBO       8 440Y OYS
+00410DEBP       8 540Y PYS
+00420DEBQ       8 640Y QYS
+00430DEBX       8 740Y XYS
+00440DEBY       8 840Y YYS
+00450DEBZ       8 940Y ZYS
+00460DEB5       81040Y 5YS
+00470DEB6       81140Y 6YS
+00480DEB7       81240Y 7YS
+00490DEB8       81340Y 8YS
+00500DEB9       81440Y 9YS
+EXECUTION TIME OUTPUT BUFFER DESCRIPTION              PAGE 0004
+
+FIELD                           START      END
+NAME           LENGTH           POSITION   POSITION
+EB1                7                1           7
+EB2                7                8          14
+EB3                7               15          21
+EB4                7               22          28
+EBA                7               29          35
+EBB                7               36          42
+EBC                7               43          49
+EBD                7               50          56
+EBJ                7               57          63
+EBK                7               64          70
+EBL                7               71          77
+EBM                7               78          84
+EBN                7               85          91
+EBO                7               92          98
+EBP                7               99        105
+EBQ                7              106        112
+EBX                7              113        119
+EBY                7              120        126
+EBZ                7              127        133
+EB5                7              134        140
+EB6                7              141        147
+EB7                7              148        154
+EB8                7              155        161
+EB9                7              162        168
+INPUT BUFFER DESCRIPTION                         PAGE 0005
+
+FIELD                      START      END
+NAME           LENGTH      POSITION   POSITION
+EB1                7           1           7
+EB2                7           8          14
+EB3                7          15          21
+EB4                7          22          28
+EBA                7          29          35
+EBB                7          36          42
+EBC                7          43          49
+EBD                7          50          56
+EBJ                7          57          63
+EBK                7          64          70
+EBL                7          71          77
+EBM                7          78          84
+EBN                7          85          91
+EBO                7          92          98
+EBP                7          99        105
+EBQ                7         106        112
+EBX                7         113        119
+EBY                7         120        126
+EBZ                7         127        133
+EB5                7         134        140
+EB6                7         141        147
+EB7                7         148        154
+EB8                7         155        161
+EB9                7         162        168
+5770SS1 V7R3M0 160422       SOURCE INPUT SCREEN FORMAT SOURCE SPECIFICATIONS   10/30/26         TIME   6:09:38   PAGE 0006
+
+ EDTALL   - SOURCE MEMBER NAME                                       000000- REFERENCE NUMBER
+
+00510SEDTMISC    24
+00520DELOWOUT   8 3 2Y j
+00530DELOWBOTH  8 4 2Y zYS
+00540DBADW      8 5 2Y W
+00550DBADE      8 6 2Y E
+00560DBAD0      8 7 2Y 0
+00570DBADDASH   8 8 2Y -
+00580DINONLY    8 9 2N ZYS
+00590DBOTHALP   810 2Y 1YA
+00600DBOTHNUM   811 2Y 1YN
+00610DBOTHDIG   812 2Y 1YD
+00620D          615 2 1                                TOTAL:
+SYX5150 T NEITHER INPUT NOR OUTPUT WAS SPECIFIED FOR THIS FIELD.
+EXECUTION TIME OUTPUT BUFFER DESCRIPTION              PAGE 0007
+
+FIELD                           START      END
+NAME           LENGTH           POSITION   POSITION
+ELOWOUT            8                1           8
+ELOWBOTH           7                9          15
+BADW               8               16          23
+BADE               8               24          31
+BAD0               8               32          39
+BADDASH            8               40          47
+BOTHALP            8               48          55
+BOTHNUM            8               56          63
+BOTHDIG            8               64          71
+INPUT BUFFER DESCRIPTION                         PAGE 0008
+
+FIELD                      START      END
+NAME           LENGTH      POSITION   POSITION
+ELOWBOTH           7           1           7
+INONLY             7           8          14
+BOTHALP            8          15          22
+BOTHNUM            8          23          30
+BOTHDIG            8          31          38
+                                                                 PAGE 0009
+
+RPGTOFREE - INPUT LIBRARY NAME
+
+RPGTOFREE - OUTPUT LIBRARY NAME
+
+EDTALL    - FORMAT LOAD MEMBER NAME   000000- REFERENCE NUMBER
+

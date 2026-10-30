@@ -337,7 +337,8 @@
         messages.push(current);
         continue;
       }
-      if (HEADING_RE.test(line)) { statement = null; statementAt = null; current = null; continue; }
+      // E12e: a page can break between a statement and its message (STIPFM page 9), so a heading keeps the statement before it
+      if (HEADING_RE.test(line)) { current = null; continue; }
       if (current && /^\s{6,}\S/.test(line)) { current.text = norm(current.text + ' ' + line); continue; }
       statement = line;
       statementAt = i + 1;
@@ -387,6 +388,39 @@
     'line-changed': 'the statement is not in the source any more, so it could not be placed on a line'
   };
 
+  // E12e: the columns of the entry a message names (1-based, inclusive), by the spec type printed in column 6, from the
+  // S and D column tables of sfgrParser.js (e12eSfgrCompileFixtures.test.js checks they still agree). A message not listed
+  // marks the whole line.
+  var MESSAGE_COLUMNS = {
+    SYX5050: { any: [6, 6] }, SYX5086: { any: [6, 6] },
+    SYX5051: { S: [7, 14] }, SYX5052: { S: [7, 14] }, SYX5053: { S: [7, 14] },
+    SYX5078: { D: [32, 33] },
+    SYX5094: { D: [19, 20] },
+    SYX5101: { S: [17, 18], D: [19, 22] },
+    SYX5102: { D: [19, 22] },
+    SYX5150: { D: [23, 26] },
+    SYX5182: { D: [15, 18] },
+    SYX5293: { D: [51, 51] },
+    SYX5317: { D: [7, 14] }, SYX5318: { D: [7, 14] }
+  };
+
+  function columnRange(id, row) {
+    var spec = MESSAGE_COLUMNS[id];
+    if (!spec) return null;
+    var type = String(row || '').charAt(5);
+    var range = spec.any || spec[type] || null;
+    return range && range[0] <= String(row || '').length ? range : null;
+  }
+
+  // The Reference row of a message as one sentence: severity, which entries it concerns and what the compiler does.
+  var LETTERS = { T: 'terminal (the conversion stops)', W: 'warning', I: 'information' };
+  function explain(id) {
+    var row = describe(id);
+    if (!row) return null;
+    var where = row.specType === 'Not applicable' ? 'not tied to one entry' : 'concerns the ' + row.specType.replace(/ or /g, ', ') + ' entry';
+    return id + ' is ' + (LETTERS[row.letter] || 'a message') + '; ' + where + '.';
+  }
+
   function toDiagnostics(parsed, source, options) {
     options = options || {};
     var rows = linesOf(source);
@@ -398,12 +432,14 @@
       var text = m.text || m.id;
       if (!placed && REASON_NOTES[m.reason]) text += ' (' + REASON_NOTES[m.reason] + ')';
       var length = placed ? String(rows[m.line - 1] || '').length : 0;
+      var range = placed ? columnRange(m.id, rows[m.line - 1]) : null;
       out.diagnostics.push({
         line: placed ? m.line : 1,
-        column: 1,
-        endColumn: placed ? Math.max(2, length + 1) : width,
+        column: range ? range[0] : 1,
+        endColumn: range ? range[1] + 1 : (placed ? Math.max(2, length + 1) : width),
         severity: m.severity,
-        message: text,
+        message: options.explain === false || !explain(m.id) ? text : text + '\n' + explain(m.id),
+        explanation: explain(m.id),
         code: m.id,
         source: options.source || 'CRTS36DSPF',
         fileLevel: !placed
@@ -413,5 +449,5 @@
     return out;
   }
 
-  return { parseListing: parseListing, mapToSource: mapToSource, toDiagnostics: toDiagnostics, describe: describe, CATALOG: CATALOG, REASON_NOTES: REASON_NOTES };
+  return { parseListing: parseListing, mapToSource: mapToSource, toDiagnostics: toDiagnostics, describe: describe, explain: explain, MESSAGE_COLUMNS: MESSAGE_COLUMNS, CATALOG: CATALOG, REASON_NOTES: REASON_NOTES };
 });

@@ -1,0 +1,1715 @@
+    5770SS1 V7R3M0    160422                Data Description                 QTEMP/STIPFM              10/30/26   6:02:46   Page   1
+
+    File name . . . . . . . . . . . . . . . . . . . . . :      STIPFM
+      Library name . . . . . . . . . . . . . . . . . . :       QTEMP
+    File attribute . . . . . . . . . . . . . . . . . . :       Display
+    Source file containing DDS . . . . . . . . . . . . :       QS36DDSSRC
+      Library name . . . . . . . . . . . . . . . . . . :       QTEMP
+    Source member containing DDS . . . . . . . . . . . :       $SFGR.WORK
+    Source member last changed . . . . . . . . . . . . :       10/30/26   6:02:46
+    Source listing options . . . . . . . . . . . . . . :       *SOURCE    *LIST      *NOSECLVL *NOEVENTF
+    DDS generation severity level . . . . . . . . . . . :      20
+    DDS flagging severity level . . . . . . . . . . . . :      00
+    Authority . . . . . . . . . . . . . . . . . . . . . :      *CHANGE
+    Replace file . . . . . . . . . . . . . . . . . . . :       *YES
+    Text . . . . . . . . . . . . . . . . . . . . . . . :       000000 Created-by-$SFGR
+    Compiler . . . . . . . . . . . . . . . . . . . . . :       IBM System i5 Data Description Processor
+
+                                         Data Description Source
+
+    SEQNBR   *...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8   Date
+
+       100   0000 A*0IGC 0DS4 V7R3M0                    910710
+       200   0000 A                                     DSPSIZ(*DS3 *DS4)
+       300   0000 A                                     USRDSPMGT CHGINPDFT INDARA
+       400   0001 A          R CHOIX1
+       500   0001 A                                      DSPMOD(*DS3)
+       600   0001 A                                      PRINT(*PGM)
+       700   0001 A                                      INVITE
+       800   0001 A                                      SLNO(01)
+       900   0001 A                                      CLRL(*ALL)
+*                                                CPD8018-*
+      1000   0001 A                                      ALWROL
+*                                                CPD8018-*
+      1100   0001 A                                      CF03 CF21
+      1200   0001 A                                      ROLLUP ROLLDOWN CLEAR HLPRTN HOME
+      1300   0001 A                                      HELP
+      1400   0002 A            FA0001        1    I 02002DFT('1')
+      1500   0002 A                                      DSPATR(PR ND MDT)
+      1600   0004 A                                 03017'                                  -
+      1700   0004 A                                                       '
+      1800   0004 A                                      DSPATR(UL)
+      1900   0005 A                                 04016'¦'
+      2000   0006 A                                 04067'¦'
+      2100   0007 A                                 05016'¦'
+      2200   0008 A                                 05028'         INVENTAIRE    '
+      2300   0008 A                                      DSPATR(RI UL)
+      2400   0009 A                                 05055'SUITE'
+      2500   0009 A                                      DSPATR(HI BL)
+      2600   0010 A                                 05067'¦'
+      2700   0011 A                                 06016'¦'
+      2800   0012 A                                 06067'¦'
+      2900   0013 A                                 07016'¦'
+      3000   0014 A                                 07067'¦'
+      3100   0015 A                                 08016'¦'
+      3200   0017 A                                 08020'Des Produits ont déjà été cochés d-
+      3300   0017 A                                      ans '
+      3400   0018 A                                 08067'¦'
+      3500   0019 A                                 09016'¦'
+      3600   0021 A                                 09020'la liste manuelle                 -
+    5770SS1 V7R3M0    160422                Data Description               QTEMP/STIPFM                10/30/26   6:02:46   Page   2
+
+                                         Data Description Source
+
+    SEQNBR   *...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8   Date
+
+     3700    0021 A                                           '
+     3800    0022 A                                09067'¦'
+     3900    0023 A                                10016'¦'
+     4000    0024 A                                10067'¦'
+     4100    0025 A                                11016'¦'
+     4200    0026 A                                11020' Faites:'
+     4300    0027 A                                11067'¦'
+     4400    0028 A                                12016'¦'
+     4500    0029 A                                12067'¦'
+     4600    0030 A                                13016'¦'
+     4700    0031 A                                13025'F21'
+     4800    0031 A                                     DSPATR(HI)
+     4900    0032 A                                13033'pour annuler tout.'
+     5000    0033 A                                13067'¦'
+     5100    0034 A                                14016'¦'
+     5200    0035 A                                14067'¦'
+     5300    0036 A                                15016'¦'
+     5400    0037 A                                15021'ou'
+     5500    0038 A                                15025'ENTREE'
+     5600    0038 A                                     DSPATR(HI)
+     5700    0040 A                                15033'pour continuer l''inventaire'
+     5800    0041 A                                15067'¦'
+     5900    0042 A                                16016'¦'
+     6000    0043 A                                16067'¦'
+     6100    0044 A                                17016'¦'
+     6200    0045 A                                17067'¦'
+     6300    0046 A                                18016'¦'
+     6400    0047 A                                18067'¦'
+     6500    0048 A                                19016'¦'
+     6600    0049 A                                19067'¦'
+     6700    0050 A                                20016'¦'
+     6800    0051 A                                20037'F3-Abandon'
+     6900    0052 A                                20067'¦'
+     7000    0054 A                                21017'                                   -
+     7100    0054 A                                                     '
+     7200    0054 A                                     DSPATR(UL)
+     7300    0055 A            R CHOIX
+     7400    0055 A                                     DSPMOD(*DS3)
+     7500    0055 A                                     PRINT(*PGM)
+     7600    0055 A                                     INVITE
+     7700    0055 A                                     SLNO(01)
+     7800    0055 A                                     CLRL(*ALL)
+*                                               CPD8018-*
+     7900    0055 A   64                                ALARM
+     8000    0055 A                                     ALWROL
+*                                               CPD8018-*
+     8100    0055 A                                     CF03
+     8200    0055 A                                     ROLLUP ROLLDOWN CLEAR HLPRTN HOME
+     8300    0055 A                                     HELP
+     8400    0057 A                                03017'                                   -
+     8500    0057 A                                                     '
+     8600    0057 A                                     DSPATR(UL)
+     8700    0058 A                                04016'¦'
+5770SS1 V7R3M0    160422                 Data Description              QTEMP/STIPFM                10/30/26   6:02:46   Page   3
+
+                                      Data Description Source
+
+SEQNBR   *...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8   Date
+
+ 8800    0059 A                                04067'¦'
+ 8900    0060 A                                05016'¦'
+ 9000    0061 A                                05028'          INVENTAIRE   '
+ 9100    0061 A                                     DSPATR(RI UL)
+ 9200    0062 A                                05067'¦'
+ 9300    0063 A                                06016'¦'
+ 9400    0064 A                                06067'¦'
+ 9500    0065 A                                07016'¦'
+ 9600    0066 A                                07067'¦'
+ 9700    0067 A                                08016'¦'
+ 9800    0068 A                                08067'¦'
+ 9900    0069 A                                09016'¦'
+10000    0070 A                                09067'¦'
+10100    0071 A                                10016'¦'
+10200    0072 A                                10067'¦'
+10300    0073 A                                11016'¦'
+10400    0074 A                                11067'¦'
+10500    0075 A                                12016'¦'
+10600    0076 A                                12067'¦'
+10700    0077 A                                13016'¦'
+10800    0079 A                                13018'Vous allez cocher des produits sur-
+10900    0079 A                                       une liste     '
+11000    0080 A                                13067'¦'
+11100    0081 A                                14016'¦'
+11200    0082 A                                14067'¦'
+11300    0083 A                                15016'¦'
+11400    0085 A                                15018'de mots directeurs                -
+11500    0085 A                                                     '
+11600    0086 A                                15067'¦'
+11700    0087 A                                16016'¦'
+11800    0088 A                                16067'¦'
+11900    0089 A                                17016'¦'
+12000    0091 A                                17018'affichés à partir de ---->'
+12100    0092 A              FA0013     20   B 17046DSPATR(HI UL MDT)
+12200    0093 A                                17067'¦'
+12300    0094 A                                18016'¦'
+12400    0095 A                                18067'¦'
+12500    0096 A                                19016'¦'
+12600    0097 A                                19067'¦'
+12700    0098 A                                20016'¦'
+12800    0099 A                                20042'Entrée pour continuer'
+12900    0100 A                                20067'¦'
+13000    0102 A                                21017'                                  -
+13100    0102 A                                                       '
+13200    0102 A                                     DSPATR(UL)
+13300    0104 A                                24003'                       F3-Abandon -
+13400    0104 A                                                                        -
+13500    0104 A                                              '
+13600    0105 A            R SAISIE
+13700    0105 A                                     DSPMOD(*DS3)
+13800    0105 A                                     PRINT(*PGM)
+13900    0105 A                                     INVITE
+14000    0105 A                                     SLNO(01)
+    5770SS1 V7R3M0    160422                Data Description                QTEMP/STIPFM                10/30/26   6:02:46   Page   4
+
+                                         Data Description Source
+
+    SEQNBR   *...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8    Date
+
+    14100    0105 A                                       CLRL(*NO)
+*                                                CPD8018-*
+    14200    0105 A                                       ALWROL
+*                                                CPD8018-*
+    14300    0105 A                                       CF02 CF05
+    14400    0105 A                                       ROLLUP ROLLDOWN CLEAR HLPRTN HOME
+    14500    0105 A                                       HELP
+    14600    0106 A            ENR           1    I 01003DFT('s')
+    14700    0106 A                                       DSPATR(PR ND MDT)
+    14800    0108 A                                 01026'INVENTAIRE : Saisie des quantités'
+    14900    0108 A                                       DSPATR(RI UL)
+    15000    0109 A                                 01069'Le'
+    15100    0110 A            DAT           8    O 01072DSPATR(HI)
+    15200    0112 A                                 03002'            Désignation      lng |f-
+    15300    0112 A                                       a/af| cx       Stock    |   DI     -
+    15400    0112 A                                                 '
+    15500    0112 A                                       DSPATR(UL)
+    15600    0113 A            TA$1         41    O 04002
+    15700    0113 A   61                                  DSPATR(RI)
+    15800    0114 A                                 04044' '
+    15900    0114 A                                       DSPATR(RI)
+    16000    0115 A            TB$1         34    O 04046DSPATR(HI)
+    16100    0116 A            TA$2         41    O 05002
+    16200    0116 A   62                                  DSPATR(RI)
+    16300    0117 A                                 05044' '
+    16400    0117 A                                       DSPATR(RI)
+    16500    0118 A            TB$2         34    O 05046DSPATR(HI)
+    16600    0119 A            TA$3         41    O 06002
+    16700    0119 A   63                                  DSPATR(RI)
+    16800    0120 A                                 06044' '
+    16900    0120 A                                       DSPATR(RI)
+    17000    0121 A            TB$3         34    O 06046DSPATR(HI)
+    17100    0122 A            TA$4         41    O 07002
+    17200    0122 A   64                                  DSPATR(RI)
+    17300    0123 A                                 07044' '
+    17400    0123 A                                       DSPATR(RI)
+    17500    0124 A            TB$4         34    O 07046DSPATR(HI)
+    17600    0125 A            TA$5         41    O 08002
+    17700    0125 A   65                                  DSPATR(RI)
+    17800    0126 A                                 08044' '
+    17900    0126 A                                       DSPATR(RI)
+    18000    0127 A            TB$5         34    O 08046DSPATR(HI)
+    18100    0128 A            TA$6         41    O 09002
+    18200    0128 A   66                                  DSPATR(RI)
+    18300    0129 A                                 09044' '
+    18400    0129 A                                       DSPATR(RI)
+    18500    0130 A            TB$6         34    O 09046DSPATR(HI)
+    18600    0131 A            TA$7         41    O 10002
+    18700    0131 A   67                                  DSPATR(RI)
+    18800    0132 A                                 10044' '
+    18900    0132 A                                       DSPATR(RI)
+    19000    0133 A            TB$7         34    O 10046DSPATR(HI)
+    19100    0134 A            TA$8         41    O 11002
+5770SS1 V7R3M0   160422                 Data Description                  QTEMP/STIPFM              10/30/26   6:02:46   Page   5
+
+                                     Data Description Source
+
+SEQNBR   *...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8    Date
+
+19200    0134 A 68                                    DSPATR(RI)
+19300    0135 A                                 11044' '
+19400    0135 A                                       DSPATR(RI)
+19500    0136 A           TB$8          34    O 11046DSPATR(HI)
+19600    0137 A           TA$9          41    O 12002
+19700    0137 A 69                                    DSPATR(RI)
+19800    0138 A                                 12044' '
+19900    0138 A                                       DSPATR(RI)
+20000    0139 A           TB$9          34    O 12046DSPATR(HI)
+20100    0140 A           TA$10         41    O 13002
+20200    0140 A 70                                    DSPATR(RI)
+20300    0141 A                                 13044' '
+20400    0141 A                                       DSPATR(RI)
+20500    0142 A           TB$10         34    O 13046DSPATR(HI)
+20600    0143 A           TA$11         41    O 14002
+20700    0143 A 71                                    DSPATR(RI)
+20800    0144 A                                 14044' '
+20900    0144 A                                       DSPATR(RI)
+21000    0145 A           TB$11         34    O 14046DSPATR(HI)
+21100    0146 A           TA$12         41    O 15002
+21200    0146 A 72                                    DSPATR(RI)
+21300    0147 A                                 15044' '
+21400    0147 A                                       DSPATR(RI)
+21500    0148 A           TB$12         34    O 15046DSPATR(HI)
+21600    0149 A           TA$13         41    O 16002
+21700    0149 A 73                                    DSPATR(RI)
+21800    0150 A                                 16044' '
+21900    0150 A                                       DSPATR(RI)
+22000    0151 A           TB$13         34    O 16046DSPATR(HI)
+22100    0153 A                                 17002'                                   -
+22200    0153 A                                                                          -
+22300    0153 A                                               '
+22400    0153 A                                      DSPATR(UL)
+22500    0155 A                                 18001'                                   -
+22600    0155 A                                                    '
+22700    0156 A                                 18047'pal'
+22800    0156 A 37                                    DSPATR(ND)
+22900    0158 A                                 18051' vrac                         '
+23000    0159 A           SAI1          41    O 19002DSPATR(HI)
+23100    0160 A                                 19044' '
+23200    0160 A                                       DSPATR(RI)
+23300    0161 A           PAL1           4    B 19046CHECK(RB)
+23400    0161 A                                       DSPATR(HI MDT)
+23500    0161 A 37                                    DSPATR(PR ND)
+23600    0161 A 50                                    DSPATR(RI)
+23700    0161 A N37                                   DSPATR(CS)
+23800    0162 A           VRAC1          9D   B 19051CHECK(RB)
+23900    0162 A                                       DSPATR(CS HI MDT)
+24000    0162 A 37                                    DSPATR(PC)
+24100    0162 A 51                                    DSPATR(RI)
+24200    0163 A                                 19061'('
+24300    0163 A 30                                    DSPATR(ND)
+24400    0164 A           NBDEC          1    O 19063
+    5770SS1 V7R3M0    160422                 Data Description                QTEMP/STIPFM                 10/30/26   6:02:46   Page   6
+
+                                          Data Description Source
+
+    SEQNBR   *...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8      Date
+
+    24500    0165 A                                 19065'décimales)'
+    24600    0165 A 30                                   DSPATR(ND)
+    24700    0166 A                                 19076'     '
+    24800    0167 A                                 20002'N°:'
+    24900    0168 A              ART         7    O 20006DSPATR(HI)
+    25000    0169 A                                 20014'            '
+    25100    0170 A              QTPAL       5    O 20026DSPATR(HI)
+    25200    0170 A 37                                   DSPATR(ND)
+    25300    0171 A                                 20032'qté/pal '
+    25400    0171 A 37                                   DSPATR(ND)
+    25500    0172 A                                 20041' '
+    25600    0173 A                                 20044' '
+    25700    0173 A                                      DSPATR(RI)
+    25800    0174 A              PAL2        4    B 20046CHECK(RB)
+    25900    0174 A                                      DSPATR(HI MDT)
+    26000    0174 A 37                                   DSPATR(PR ND)
+    26100    0174 A 52                                   DSPATR(RI)
+    26200    0174 A N37                                  DSPATR(CS)
+    26300    0175 A              VRAC2       9D   B 20051CHECK(RB)
+    26400    0175 A                                      DSPATR(CS HI MDT)
+    26500    0175 A 37                                   DSPATR(PC)
+    26600    0175 A 53                                   DSPATR(RI)
+    26700    0176 A                                 20061'                   '
+    26800    0180 A                                 21001'                                     -
+    26900    0180 A                                                                            -
+    27000    0180 A                                                                            -
+    27100    0180 A                                                                            -
+    27200    0180 A                                                                            -
+    27300    0180 A                                                    '
+    27400    0182 A              MES        50    O 23030
+    27500    0182 A N99                                  DFTVAL('                              -
+    27600    0182 A                                                              ')
+    27700    0182 A                                      DSPATR(BL)
+    27800    0184 A                                 24002'                            F2-Fin   -
+    27900    0184 A                                      F5-Suivant                            -
+    28000    0184 A                                               '
+    28100    0185 A            R SELECT
+    28200    0185 A                                       DSPMOD(*DS3)
+    28300    0185 A                                       PRINT(*PGM)
+    28400    0185 A                                       INVITE
+    28500    0185 A                                       SLNO(01)
+    28600    0185 A                                       CLRL(*ALL)
+*                                                 CPD8018-*
+    28700    0185 A                                       ALWROL
+*                                                 CPD8018-*
+    28800    0185 A                                       CF01 CF03 CF05 CF09 CF10
+    28900    0185 A                                       ROLLUP ROLLDOWN CLEAR HLPRTN HOME
+    29000    0185 A                                       HELP
+    29100    0186 A              CE          1     I 01005DFT('1')
+    29200    0186 A                                       DSPATR(PR ND MDT)
+    29300    0188 A                                  01024' INVENTAIRE : Sélection des produi-
+    29400    0188 A                                       ts '
+    29500    0188 A                                       DSPATR(RI UL)
+5770SS1 V7R3M0    160422                Data Description               QTEMP/STIPFM                10/30/26   6:02:46   Page   7
+
+                                     Data Description Source
+
+SEQNBR   *...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8   Date
+
+29600    0190 A                                03002'x | Mot directeur                ln-
+29700    0190 A                                      g   | fa/af | cx| séqper|séqord| De-
+29800    0190 A                                      rnierIP|'
+29900    0191 A            X1            1   B 04002DSPATR(CS HI MDT)
+30000    0192 A            FL0014       27   O 04006
+30100    0193 A            FL0015        5   O 04034
+30200    0194 A                                04040'|'
+30300    0194 A                                      DSPATR(HI)
+30400    0195 A            FL0017        5   O 04042
+30500    0196 A                                04048'|'
+30600    0196 A                                      DSPATR(HI)
+30700    0197 A            FL0019        1   O 04050DSPATR(CS)
+30800    0198 A                                04052'|'
+30900    0198 A                                      DSPATR(HI)
+31000    0199 A            FL0021        5   O 04054DSPATR(CS)
+31100    0200 A                                04060'|'
+31200    0200 A                                      DSPATR(HI)
+31300    0201 A            FL0023        4   O 04062DSPATR(CS)
+31400    0202 A                                04067'|'
+31500    0202 A                                      DSPATR(HI)
+31600    0203 A            FA0001        8   O 04069
+31700    0204 A            FL0025        1   B 05002DSPATR(CS HI MDT)
+31800    0205 A            FL0027       27   O 05006
+31900    0206 A            FL0028        5   O 05034
+32000    0207 A                                05040'|'
+32100    0207 A                                      DSPATR(HI)
+32200    0208 A            FL0030        5   O 05042
+32300    0209 A                                05048'|'
+32400    0209 A                                      DSPATR(HI)
+32500    0210 A            FL0032        1   O 05050DSPATR(CS)
+32600    0211 A                                05052'|'
+32700    0211 A                                      DSPATR(HI)
+32800    0212 A            FL0034        5   O 05054DSPATR(CS)
+32900    0213 A                                05060'|'
+33000    0213 A                                      DSPATR(HI)
+33100    0214 A            FL0036        4   O 05062DSPATR(CS)
+33200    0215 A                                05067'|'
+33300    0215 A                                      DSPATR(HI)
+33400    0216 A            FA0002        8   O 05069
+33500    0217 A            FL0038        1   B 06002DSPATR(CS HI MDT)
+33600    0218 A            FL0040       27   O 06006
+33700    0219 A            FL0041        5   O 06034
+33800    0220 A                                06040'|'
+33900    0220 A                                      DSPATR(HI)
+34000    0221 A            FL0043        5   O 06042
+34100    0222 A                                06048'|'
+34200    0222 A                                      DSPATR(HI)
+34300    0223 A            FL0045        1   O 06050DSPATR(CS)
+34400    0224 A                                06052'|'
+34500    0224 A                                      DSPATR(HI)
+34600    0225 A            FL0047        5   O 06054DSPATR(CS)
+34700    0226 A                                06060'|'
+34800    0226 A                                      DSPATR(HI)
+5770SS1 V7R3M0    160422                Data Description                QTEMP/STIPFM               10/30/26   6:02:46   Page   8
+
+                                     Data Description Source
+
+SEQNBR   *...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8   Date
+
+34900    0227 A            FL0049        4   O 06062DSPATR(CS)
+35000    0228 A                                06067'|'
+35100    0228 A                                      DSPATR(HI)
+35200    0229 A            FA0003        8   O 06069
+35300    0230 A            FL0051        1   B 07002DSPATR(CS HI MDT)
+35400    0231 A            FL0053       27   O 07006
+35500    0232 A            FL0054        5   O 07034
+35600    0233 A                                07040'|'
+35700    0233 A                                      DSPATR(HI)
+35800    0234 A            FL0056        5   O 07042
+35900    0235 A                                07048'|'
+36000    0235 A                                      DSPATR(HI)
+36100    0236 A            FL0058        1   O 07050DSPATR(CS)
+36200    0237 A                                07052'|'
+36300    0237 A                                      DSPATR(HI)
+36400    0238 A            FL0060        5   O 07054DSPATR(CS)
+36500    0239 A                                07060'|'
+36600    0239 A                                      DSPATR(HI)
+36700    0240 A            FL0062        4   O 07062DSPATR(CS)
+36800    0241 A                                07067'|'
+36900    0241 A                                      DSPATR(HI)
+37000    0242 A            FA0004        8   O 07069
+37100    0243 A            FL0064        1   B 08002DSPATR(CS HI MDT)
+37200    0244 A            FL0066       27   O 08006
+37300    0245 A            FL0067        5   O 08034
+37400    0246 A                                08040'|'
+37500    0246 A                                      DSPATR(HI)
+37600    0247 A            FL0069        5   O 08042
+37700    0248 A                                08048'|'
+37800    0248 A                                      DSPATR(HI)
+37900    0249 A            FL0071        1   O 08050DSPATR(CS)
+38000    0250 A                                08052'|'
+38100    0250 A                                      DSPATR(HI)
+38200    0251 A            FL0073        5   O 08054DSPATR(CS)
+38300    0252 A                                08060'|'
+38400    0252 A                                      DSPATR(HI)
+38500    0253 A            FL0075        4   O 08062DSPATR(CS)
+38600    0254 A                                08067'|'
+38700    0254 A                                      DSPATR(HI)
+38800    0255 A            FA0005        8   O 08069
+38900    0256 A            FL0077        1   B 09002DSPATR(CS HI MDT)
+39000    0257 A            FL0079       27   O 09006
+39100    0258 A            FL0080        5   O 09034
+39200    0259 A                                09040'|'
+39300    0259 A                                      DSPATR(HI)
+39400    0260 A            FL0082        5   O 09042
+39500    0261 A                                09048'|'
+39600    0261 A                                      DSPATR(HI)
+39700    0262 A            FL0084        1   O 09050DSPATR(CS)
+39800    0263 A                                09052'|'
+39900    0263 A                                      DSPATR(HI)
+40000    0264 A            FL0086        5   O 09054DSPATR(CS)
+40100    0265 A                                09060'|'
+5770SS1 V7R3M0    160422                Data Description                QTEMP/STIPFM               10/30/26   6:02:46   Page   9
+
+                                     Data Description Source
+
+SEQNBR   *...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8   Date
+
+40200    0265 A                                      DSPATR(HI)
+40300    0266 A            FL0088        4   O 09062DSPATR(CS)
+40400    0267 A                                09067'|'
+40500    0267 A                                      DSPATR(HI)
+40600    0268 A            FA0006        8   O 09069
+40700    0269 A            FL0090        1   B 10002DSPATR(CS HI MDT)
+40800    0270 A            FL0092       27   O 10006
+40900    0271 A            FL0093        5   O 10034
+41000    0272 A                                10040'|'
+41100    0272 A                                      DSPATR(HI)
+41200    0273 A            FL0095        5   O 10042
+41300    0274 A                                10048'|'
+41400    0274 A                                      DSPATR(HI)
+41500    0275 A            FL0097        1   O 10050DSPATR(CS)
+41600    0276 A                                10052'|'
+41700    0276 A                                      DSPATR(HI)
+41800    0277 A            FL0099        5   O 10054DSPATR(CS)
+41900    0278 A                                10060'|'
+42000    0278 A                                      DSPATR(HI)
+42100    0279 A            FL0101        4   O 10062DSPATR(CS)
+42200    0280 A                                10067'|'
+42300    0280 A                                      DSPATR(HI)
+42400    0281 A            FA0007        8   O 10069
+42500    0282 A            FL0103        1   B 11002DSPATR(CS HI MDT)
+42600    0283 A            FL0105       27   O 11006
+42700    0284 A            FL0106        5   O 11034
+42800    0285 A                                11040'|'
+42900    0285 A                                      DSPATR(HI)
+43000    0286 A            FL0108        5   O 11042
+43100    0287 A                                11048'|'
+43200    0287 A                                      DSPATR(HI)
+43300    0288 A            FL0110        1   O 11050DSPATR(CS)
+43400    0289 A                                11052'|'
+43500    0289 A                                      DSPATR(HI)
+43600    0290 A            FL0112        5   O 11054DSPATR(CS)
+43700    0291 A                                11060'|'
+43800    0291 A                                      DSPATR(HI)
+43900    0292 A            FL0114        4   O 11062DSPATR(CS)
+44000    0293 A                                11067'|'
+44100    0293 A                                      DSPATR(HI)
+44200    0294 A            FA0008        8   O 11069
+44300    0295 A            FL0116        1   B 12002DSPATR(CS HI MDT)
+44400    0296 A            FL0118       27   O 12006
+44500    0297 A            FL0119        5   O 12034
+44600    0298 A                                12040'|'
+44700    0298 A                                      DSPATR(HI)
+44800    0299 A            FL0121        5   O 12042
+44900    0300 A                                12048'|'
+45000    0300 A                                      DSPATR(HI)
+45100    0301 A            FL0123        1   O 12050DSPATR(CS)
+45200    0302 A                                12052'|'
+45300    0302 A                                      DSPATR(HI)
+45400    0303 A            FL0125        5   O 12054DSPATR(CS)
+5770SS1 V7R3M0    160422                Data Description                QTEMP/STIPFM               10/30/26   6:02:46   Page   10
+
+                                     Data Description Source
+
+SEQNBR   *...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8   Date
+
+45500    0304 A                                12060'|'
+45600    0304 A                                      DSPATR(HI)
+45700    0305 A            FL0127        4   O 12062DSPATR(CS)
+45800    0306 A                                12067'|'
+45900    0306 A                                      DSPATR(HI)
+46000    0307 A            FA0009        8   O 12069
+46100    0308 A            FL0129        1   B 13002DSPATR(CS HI MDT)
+46200    0309 A            FL0131       27   O 13006
+46300    0310 A            FL0132        5   O 13034
+46400    0311 A                                13040'|'
+46500    0311 A                                      DSPATR(HI)
+46600    0312 A            FL0134        5   O 13042
+46700    0313 A                                13048'|'
+46800    0313 A                                      DSPATR(HI)
+46900    0314 A            FL0136        1   O 13050DSPATR(CS)
+47000    0315 A                                13052'|'
+47100    0315 A                                      DSPATR(HI)
+47200    0316 A            FL0138        5   O 13054DSPATR(CS)
+47300    0317 A                                13060'|'
+47400    0317 A                                      DSPATR(HI)
+47500    0318 A            FL0140        4   O 13062DSPATR(CS)
+47600    0319 A                                13067'|'
+47700    0319 A                                      DSPATR(HI)
+47800    0320 A            FA0010        8   O 13069
+47900    0321 A            FL0142        1   B 14002DSPATR(CS HI MDT)
+48000    0322 A            FL0144       27   O 14006
+48100    0323 A            FL0145        5   O 14034
+48200    0324 A                                14040'|'
+48300    0324 A                                      DSPATR(HI)
+48400    0325 A            FL0147        5   O 14042
+48500    0326 A                                14048'|'
+48600    0326 A                                      DSPATR(HI)
+48700    0327 A            FL0149        1   O 14050DSPATR(CS)
+48800    0328 A                                14052'|'
+48900    0328 A                                      DSPATR(HI)
+49000    0329 A            FL0151        5   O 14054DSPATR(CS)
+49100    0330 A                                14060'|'
+49200    0330 A                                      DSPATR(HI)
+49300    0331 A            FL0153        4   O 14062DSPATR(CS)
+49400    0332 A                                14067'|'
+49500    0332 A                                      DSPATR(HI)
+49600    0333 A            FA0011        8   O 14069
+49700    0334 A            FL0155        1   B 15002DSPATR(CS HI MDT)
+49800    0335 A            FL0157       27   O 15006
+49900    0336 A            FL0158        5   O 15034
+50000    0337 A                                15040'|'
+50100    0337 A                                      DSPATR(HI)
+50200    0338 A            FL0160        5   O 15042
+50300    0339 A                                15048'|'
+50400    0339 A                                      DSPATR(HI)
+50500    0340 A            FL0162        1   O 15050DSPATR(CS)
+50600    0341 A                                15052'|'
+50700    0341 A                                      DSPATR(HI)
+5770SS1 V7R3M0    160422                Data Description                QTEMP/STIPFM               10/30/26   6:02:46   Page   11
+
+                                     Data Description Source
+
+SEQNBR   *...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8   Date
+
+50800    0342 A            FL0164        5   O 15054DSPATR(CS)
+50900    0343 A                                15060'|'
+51000    0343 A                                      DSPATR(HI)
+51100    0344 A            FL0166        4   O 15062DSPATR(CS)
+51200    0345 A                                15067'|'
+51300    0345 A                                      DSPATR(HI)
+51400    0346 A            FA0012        8   O 15069
+51500    0347 A            FL0168        1   B 16002DSPATR(CS HI MDT)
+51600    0348 A            FL0170       27   O 16006
+51700    0349 A            FL0171        5   O 16034
+51800    0350 A                                16040'|'
+51900    0350 A                                      DSPATR(HI)
+52000    0351 A            FL0173        5   O 16042
+52100    0352 A                                16048'|'
+52200    0352 A                                      DSPATR(HI)
+52300    0353 A            FL0175        1   O 16050DSPATR(CS)
+52400    0354 A                                16052'|'
+52500    0354 A                                      DSPATR(HI)
+52600    0355 A            FL0177        5   O 16054DSPATR(CS)
+52700    0356 A                                16060'|'
+52800    0356 A                                      DSPATR(HI)
+52900    0357 A            FL0179        4   O 16062DSPATR(CS)
+53000    0358 A                                16067'|'
+53100    0358 A                                      DSPATR(HI)
+53200    0359 A            FA0013        8   O 16069
+53300    0360 A            FL0181        1   B 17002DSPATR(CS HI MDT)
+53400    0361 A            FL0183       27   O 17006
+53500    0362 A            FL0184        5   O 17034
+53600    0363 A                                17040'|'
+53700    0363 A                                      DSPATR(HI)
+53800    0364 A            FL0186        5   O 17042
+53900    0365 A                                17048'|'
+54000    0365 A                                      DSPATR(HI)
+54100    0366 A            FL0188        1   O 17050DSPATR(CS)
+54200    0367 A                                17052'|'
+54300    0367 A                                      DSPATR(HI)
+54400    0368 A            FL0190        5   O 17054DSPATR(CS)
+54500    0369 A                                17060'|'
+54600    0369 A                                      DSPATR(HI)
+54700    0370 A            FL0192        4   O 17062DSPATR(CS)
+54800    0371 A                                17067'|'
+54900    0371 A                                      DSPATR(HI)
+55000    0372 A            FA0014        8   O 17069
+55100    0373 A            FL0194        1   B 18002DSPATR(CS HI MDT)
+55200    0374 A            FL0196       27   O 18006
+55300    0375 A            FL0197        5   O 18034
+55400    0376 A                                18040'|'
+55500    0376 A                                      DSPATR(HI)
+55600    0377 A            FL0199        5   O 18042
+55700    0378 A                                18048'|'
+55800    0378 A                                      DSPATR(HI)
+55900    0379 A            FL0201        1   O 18050DSPATR(CS)
+56000    0380 A                                18052'|'
+5770SS1 V7R3M0    160422                Data Description                QTEMP/STIPFM               10/30/26   6:02:46   Page   12
+
+                                     Data Description Source
+
+SEQNBR   *...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8   Date
+
+56100    0380 A                                      DSPATR(HI)
+56200    0381 A            FL0203        5   O 18054DSPATR(CS)
+56300    0382 A                                18060'|'
+56400    0382 A                                      DSPATR(HI)
+56500    0383 A            FL0205        4   O 18062DSPATR(CS)
+56600    0384 A                                18067'|'
+56700    0384 A                                      DSPATR(HI)
+56800    0385 A            FA0015        8   O 18069
+56900    0386 A            FL0207        1   B 19002DSPATR(CS HI MDT)
+57000    0387 A            FL0209       27   O 19006
+57100    0388 A            FL0210        5   O 19034
+57200    0389 A                                19040'|'
+57300    0389 A                                      DSPATR(HI)
+57400    0390 A            FL0212        5   O 19042
+57500    0391 A                                19048'|'
+57600    0391 A                                      DSPATR(HI)
+57700    0392 A            FL0214        1   O 19050DSPATR(CS)
+57800    0393 A                                19052'|'
+57900    0393 A                                      DSPATR(HI)
+58000    0394 A            FL0216        5   O 19054DSPATR(CS)
+58100    0395 A                                19060'|'
+58200    0395 A                                      DSPATR(HI)
+58300    0396 A            FL0218        4   O 19062DSPATR(CS)
+58400    0397 A                                19067'|'
+58500    0397 A                                      DSPATR(HI)
+58600    0398 A            FA0016        8   O 19069
+58700    0399 A            FL0220        1   B 20002DSPATR(CS HI MDT)
+58800    0400 A            FL0222       27   O 20006
+58900    0401 A            FL0223        5   O 20034
+59000    0402 A                                20040'|'
+59100    0402 A                                      DSPATR(HI)
+59200    0403 A            FL0225        5   O 20042
+59300    0404 A                                20048'|'
+59400    0404 A                                      DSPATR(HI)
+59500    0405 A            FL0227        1   O 20050DSPATR(CS)
+59600    0406 A                                20052'|'
+59700    0406 A                                      DSPATR(HI)
+59800    0407 A            FL0229        5   O 20054DSPATR(CS)
+59900    0408 A                                20060'|'
+60000    0408 A                                      DSPATR(HI)
+60100    0409 A            FL0231        4   O 20062DSPATR(CS)
+60200    0410 A                                20067'|'
+60300    0410 A                                      DSPATR(HI)
+60400    0411 A            FA0017        8   O 20069
+60500    0412 A            FL0233        1   B 21002DSPATR(CS HI MDT)
+60600    0413 A            FL0235       27   O 21006
+60700    0414 A            FL0236        5   O 21034
+60800    0415 A                                21040'|'
+60900    0415 A                                      DSPATR(HI)
+61000    0416 A            FL0238        5   O 21042
+61100    0417 A                                21048'|'
+61200    0417 A                                      DSPATR(HI)
+61300    0418 A            FL0240        1   O 21050DSPATR(CS)
+    5770SS1 V7R3M0    160422                 Data Description              QTEMP/STIPFM                10/30/26   6:02:46   Page   13
+
+                                          Data Description Source
+
+    SEQNBR   *...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8   Date
+
+    61400    0419 A                                21052'|'
+    61500    0419 A                                      DSPATR(HI)
+    61600    0420 A              FL0242      5   O 21054DSPATR(CS)
+    61700    0421 A                                21060'|'
+    61800    0421 A                                      DSPATR(HI)
+    61900    0422 A              FL0244      4   O 21062DSPATR(CS)
+    62000    0423 A                                21067'|'
+    62100    0423 A                                      DSPATR(HI)
+    62200    0424 A              FA0018      8   O 21069
+    62300    0425 A                                22006'Afficher à partir de:'
+    62400    0426 A              FL0247     27   B 22028DSPATR(CS HI MDT)
+    62500    0428 A              MES        50   O 23005
+    62600    0428 A N99                                  DFTVAL('                           -
+    62700    0428 A                                                            ')
+    62800    0428 A                                     DSPATR(BL)
+    62900    0429 A                                23058'(X=Produits choisis)'
+    63000    0431 A                                24001' F1-Continuer F3-Abandon   F5-Stop-
+    63100    0431 A                                     per pour compter                 F9-
+    63200    0431 A                                     /F10-Ar/Av'
+    63300    0432 A            R ECRDI
+    63400    0432 A                                      DSPMOD(*DS3)
+    63500    0432 A                                      PRINT(*PGM)
+    63600    0432 A                                      INVITE
+    63700    0432 A                                      SLNO(01)
+    63800    0432 A                                      CLRL(*NO)
+*                                                CPD8018-*
+    63900    0432 A                                      ALWROL
+*                                                CPD8018-*
+    64000    0432 A                                      CF03
+    64100    0432 A                                      ROLLUP ROLLDOWN CLEAR HLPRTN HOME
+    64200    0432 A                                      HELP
+    64300    0433 A                                 18062'1/Erreur comptage '
+    64400    0434 A                                 19062'2/Utilisat° interne'
+    64500    0435 A                                 20062'3/Autre longueur   '
+    64600    0436 A                                 21002' '
+    64700    0437 A              ENR         1    I 21005DFT('d')
+    64800    0437 A                                      DSPATR(PR ND MDT)
+    64900    0438 A                                 21007' '
+    65000    0440 A                                 21009' D I: Une différence est détectée-
+    65100    0440 A                                        de ...'
+    65200    0440 A                                      DSPATR(HI BL)
+    65300    0441 A              QTDI        9    O 21051DSPATR(CS HI)
+    65400    0443 A                                 21061' 4/Transfert stock               -
+    65500    0443 A                                                               '
+    65600    0444 A                                 22041'Motif ...'
+    65700    0445 A              MOTIF       1    B 22051DSPATR(CS HI MDT)
+    65800    0445 A   51                                 DSPATR(RI PC)
+    65900    0447 A                                 22053'         5/ (libellé saisi )'
+    66000    0449 A                                 23002'                                 -
+    66100    0449 A                                         '
+    66200    0450 A                                 23039'Libellé ...'
+    66300    0451 A              FA0002     30    B 23051CHECK(LC)
+    66400    0451 A                                      DSPATR(HI MDT)
+    5770SS1 V7R3M0    160422                 Data Description               QTEMP/STIPFM                10/30/26   6:02:46   Page   14
+
+                                          Data Description Source
+
+    SEQNBR   *...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8    Date
+
+    66500    0451 A 52                                    DSPATR(RI PC)
+    66600    0453 A                                 24002'F3-Retour Entrée-Continuer'
+    66700    0455 A              MES        50    O 24030
+    66800    0455 A N99                                   DFTVAL('                          -
+    66900    0455 A                                                            ')
+    67000    0455 A                                       DSPATR(BL)
+    67100    0456 A            R SORTIE
+    67200    0456 A                                      DSPMOD(*DS3)
+    67300    0456 A                                      PRINT(*PGM)
+    67400    0456 A                                      INVITE
+    67500    0456 A                                      SLNO(18)
+    67600    0456 A                                      CLRL(*NO)
+*                                                CPD8018-*
+    67700    0456 A                                      OVERLAY
+*                                                CPD8018-*
+    67800    0456 A                                      ALWROL
+*                                                CPD8018-*
+    67900    0456 A                                      CF01 CF02 CF03 CF04 CF05 CF06 CF07
+    68000    0456 A                                      CF08 CF09 CF10 CF11 CF12 CF13 CF14
+    68100    0456 A                                      CF15 CF16 CF17 CF18 CF19 CF20 CF21
+    68200    0456 A                                      CF22 CF23 CF24
+    68300    0456 A                                      ROLLUP ROLLDOWN CLEAR HLPRTN HOME
+    68400    0456 A                                      HELP
+    68500    0457 A              FL0001      1    I 01003DFT('f')
+    68600    0457 A                                      DSPATR(PR ND MDT)
+    68700    0458 A                                 01005'    '
+    68800    0460 A                                 01009'                                   -
+    68900    0460 A                                                                          -
+    69000    0460 A                                                          '
+    69100    0462 A                                 02019'L''inventaire des produits choisis-
+    69200    0462 A                                        est terminé.'
+    69300    0462 A                                      DSPATR(HI)
+    69400    0465 A                                 02066'                                   -
+    69500    0465 A                                                                          -
+    69600    0465 A                                                                          -
+    69700    0465 A                                               '
+    69800    0467 A                                 04019'Appuyez sur une touche quelconque -
+    69900    0467 A                                      pour sortir.'
+    70000    0467 A                                      DSPATR(HI)
+    70100    0470 A                                 04066'                                   -
+    70200    0470 A                                                                          -
+    70300    0470 A                                                                          -
+    70400    0470 A                                                            '
+    70500    0471 A                                 06033'                     '
+    70600    0471 A                                      DSPATR(HI UL)
+    70700    0474 A                                 06055'                                   -
+    70800    0474 A                                                                          -
+    70900    0474 A                                                                        '
+    71000    0475 A              FA0001      1    I 07078CHECK(ER)
+    71100    0475 A                                      DSPATR(ND MDT)
+    71200    0476 A            R CHOIX2
+    71300    0476 A                                      DSPMOD(*DS3)
+    71400    0476 A                                      PRINT(*PGM)
+    5770SS1 V7R3M0    160422                Data Description                QTEMP/STIPFM                 10/30/26   6:02:46   Page   15
+
+                                         Data Description Source
+
+    SEQNBR   *...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8     Date
+
+    71500    0476 A                                       INVITE
+    71600    0476 A                                       SLNO(01)
+    71700    0476 A                                       CLRL(*ALL)
+*                                                CPD8018-*
+    71800    0476 A   64                                  ALARM
+    71900    0476 A                                       ALWROL
+*                                                CPD8018-*
+    72000    0476 A                                       CF03
+    72100    0476 A                                       ROLLUP ROLLDOWN CLEAR HLPRTN HOME
+    72200    0476 A                                       HELP
+    72300    0477 A            ENR           1    I 02003DFT('1')
+    72400    0477 A                                       DSPATR(PR ND MDT)
+    72500    0479 A                                 03017'                                    -
+    72600    0479 A                                                        '
+    72700    0479 A                                       DSPATR(UL)
+    72800    0480 A                                 04016'¦'
+    72900    0481 A                                 04028'         INVENTAIRE     '
+    73000    0481 A                                       DSPATR(RI UL)
+    73100    0482 A                                 04067'¦'
+    73200    0483 A                                 05016'¦'
+    73300    0484 A                                 05067'¦'
+    73400    0485 A                                 06016'¦'
+    73500    0487 A                                 06018'Des liste d''IP existent            -
+    73600    0487 A                                                      '
+    73700    0488 A                                 06067'¦'
+    73800    0489 A                                 07016'¦'
+    73900    0490 A                                 07018' Faites un choix '
+    74000    0492 A                                 07038'(1 seule réponse possible) '
+    74100    0493 A                                 07067'¦'
+    74200    0494 A                                 08016'¦'
+    74300    0495 A                                 08067'¦'
+    74400    0496 A                                 09016'¦'
+    74500    0497 A            Z1            1    B 09018DSPATR(HI MDT)
+    74600    0497 A 60                                    DSPATR(PR ND)
+    74700    0497 A N60                                   DSPATR(CS)
+    74800    0498 A            FA0029       39    O 09021DSPATR(HI)
+    74900    0499 A                                 09067'¦'
+    75000    0500 A                                 10016'¦'
+    75100    0501 A            Z2            1    B 10018DSPATR(HI MDT)
+    75200    0501 A 61                                    DSPATR(PR ND)
+    75300    0501 A N61                                   DSPATR(CS)
+    75400    0502 A            FA0030       39    O 10021
+    75500    0503 A                                 10067'¦'
+    75600    0504 A                                 11016'¦'
+    75700    0505 A            Z3            1    B 11018DSPATR(HI MDT)
+    75800    0505 A 62                                    DSPATR(PR ND)
+    75900    0505 A N62                                   DSPATR(CS)
+    76000    0506 A            FA0031       39    O 11021DSPATR(HI)
+    76100    0507 A                                 11067'¦'
+    76200    0508 A                                 12016'¦'
+    76300    0509 A            Z4            1    B 12018DSPATR(HI MDT)
+    76400    0509 A 63                                    DSPATR(PR ND)
+    76500    0509 A N63                                   DSPATR(CS)
+5770SS1 V7R3M0   160422                 Data Description               QTEMP/STIPFM                10/30/26   6:02:46   Page   16
+
+                                     Data Description Source
+
+SEQNBR   *...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8   Date
+
+76600    0510 A           FA0032        39   O 12021
+76700    0511 A                                12067'¦'
+76800    0512 A                                13016'¦'
+76900    0513 A           Z5             1   B 13018DSPATR(HI MDT)
+77000    0513 A 64                                   DSPATR(PR ND)
+77100    0513 A N64                                  DSPATR(CS)
+77200    0514 A           FA0033        39   O 13021DSPATR(HI)
+77300    0515 A                                13067'¦'
+77400    0516 A                                14016'¦'
+77500    0517 A           Z6             1   B 14018DSPATR(HI MDT)
+77600    0517 A 65                                   DSPATR(PR ND)
+77700    0517 A N65                                  DSPATR(CS)
+77800    0518 A           FA0034        39   O 14021
+77900    0519 A                                14067'¦'
+78000    0520 A                                15016'¦'
+78100    0521 A           Z7             1   B 15018DSPATR(HI MDT)
+78200    0521 A 66                                   DSPATR(PR ND)
+78300    0521 A N66                                  DSPATR(CS)
+78400    0522 A           FA0035        39   O 15021DSPATR(HI)
+78500    0523 A                                15067'¦'
+78600    0524 A                                16016'¦'
+78700    0525 A           Z8             1   B 16018DSPATR(HI MDT)
+78800    0525 A 67                                   DSPATR(PR ND)
+78900    0525 A N67                                  DSPATR(CS)
+79000    0526 A           FA0036        39   O 16021
+79100    0527 A                                16067'¦'
+79200    0528 A                                17016'¦'
+79300    0529 A           Z9             1   B 17018DSPATR(HI MDT)
+79400    0529 A 68                                   DSPATR(PR ND)
+79500    0529 A N68                                  DSPATR(CS)
+79600    0530 A           FA0037        39   O 17021DSPATR(HI)
+79700    0531 A                                17067'¦'
+79800    0532 A                                18016'¦'
+79900    0533 A           Z10            1   B 18018DSPATR(HI MDT)
+80000    0533 A 69                                   DSPATR(PR ND)
+80100    0533 A N69                                  DSPATR(CS)
+80200    0534 A           FA0038        39   O 18021
+80300    0535 A                                18067'¦'
+80400    0536 A                                19016'¦'
+80500    0537 A                                19067'¦'
+80600    0538 A                                20016'¦'
+80700    0539 A           Z11            1   B 20018DSPATR(CS HI MDT)
+80800    0539 A 50                                   DSPATR(RI PC)
+80900    0541 A                                20021'(P)asser outre et travailler manue-
+81000    0541 A                                      llement.'
+81100    0541 A                                      DSPATR(HI)
+81200    0542 A                                20067'¦'
+81300    0543 A                                21016'¦'
+81400    0544 A                                21067'¦'
+81500    0546 A                                22017'                                  -
+81600    0546 A                                                     '
+81700    0546 A                                      DSPATR(UL)
+81800    0547 A           FA0001        50   O 23019DSPATR(HI BL)
+5770SS1 V7R3M0    160422                   Data Description                QTEMP/STIPFM               10/30/26   6:02:46   Page   17
+
+                                        Data Description Source
+
+SEQNBR   *...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8      Date
+
+81900    0549 A                                   24003'                        F3-Abandon -
+82000    0549 A                                                    Entrée-continuer        -
+82100    0549 A                                                '
+
+                           * * * * *   E N D   O F   S O U R C E   * * * * *
+5770SS1 V7R3M0   160422                 Data Description                QTEMP/STIPFM              10/30/26   6:02:46       Page   18
+
+                                         Expanded Source
+                                                                                          Field        Buffer position
+SEQNBR   *...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8 length         Out     In
+
+  200                                                DSPSIZ(*DS3 *DS4) USRDSPMGT +
+  300                                                CHGINPDFT INDARA
+  400                     R CHOIX1                   DSPMOD(*DS3) PRINT(*PGM) INVITE +
+  800                                                SLNO(01) CLRL(*ALL) ALWROL CF03 +
+ 1100                                                CF21 ROLLUP ROLLDOWN CLEAR HLPRTN +
+ 1200                                                HOME HELP
+ 1400                       FA0001       1A   I 2 2DFT('1') DSPATR(PR ND MDT)                 1                        1
+ 1600                                            3 17'                                   -   50
+ 1600                                                                 ' DSPATR(UL)
+ 1900                                            4 16'¦'                                      1
+ 2000                                            4 67'¦'                                      1
+ 2100                                            5 16'¦'                                      1
+ 2200                                            5 28'         INVENTAIRE     ' +            23
+ 2300                                                DSPATR(RI UL)
+ 2400                                            5 55'SUITE' DSPATR(HI BL)                    5
+ 2600                                            5 67'¦'                                      1
+ 2700                                            6 16'¦'                                      1
+ 2800                                            6 67'¦'                                      1
+ 2900                                            7 16'¦'                                      1
+ 3000                                            7 67'¦'                                      1
+ 3100                                            8 16'¦'                                      1
+ 3200                                            8 20'Des Produits ont déjà été cochés d-    39
+ 3200                                                ans '
+ 3400                                            8 67'¦'                                      1
+ 3500                                            9 16'¦'                                      1
+ 3600                                            9 20'la liste manuelle                  -   39
+ 3600                                                     '
+ 3800                                            9 67'¦'                                      1
+ 3900                                           10 16'¦'                                      1
+ 4000                                           10 67'¦'                                      1
+ 4100                                           11 16'¦'                                      1
+ 4200                                           11 20' Faites:'                               8
+ 4300                                           11 67'¦'                                      1
+ 4400                                           12 16'¦'                                      1
+ 4500                                           12 67'¦'                                      1
+ 4600                                           13 16'¦'                                      1
+ 4700                                           13 25'F21' DSPATR(HI)                         3
+ 4900                                           13 33'pour annuler tout.'                    18
+ 5000                                           13 67'¦'                                      1
+ 5100                                           14 16'¦'                                      1
+ 5200                                           14 67'¦'                                      1
+ 5300                                           15 16'¦'                                      1
+ 5400                                           15 21'ou'                                     2
+ 5500                                           15 25'ENTREE' DSPATR(HI)                      6
+ 5700                                           15 33'pour continuer l''inventaire'          27
+ 5800                                           15 67'¦'                                      1
+ 5900                                           16 16'¦'                                      1
+ 6000                                           16 67'¦'                                      1
+ 6100                                           17 16'¦'                                      1
+ 6200                                           17 67'¦'                                      1
+ 6300                                           18 16'¦'                                      1
+ 6400                                           18 67'¦'                                      1
+ 6500                                           19 16'¦'                                      1
+5770SS1 V7R3M0   160422                 Data Description                QTEMP/STIPFM              10/30/26   6:02:46       Page   19
+
+                                         Expanded Source
+                                                                                          Field        Buffer position
+SEQNBR   *...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8 length         Out     In
+
+ 6600                                           19 67'¦'                                      1
+ 6700                                           20 16'¦'                                      1
+ 6800                                           20 37'F3-Abandon'                            10
+ 6900                                           20 67'¦'                                      1
+ 7000                                           21 17'                                  -    50
+ 7000                                                                ' DSPATR(UL)
+              * Indicator Area:
+              * *IN64
+ 7300                   R CHOIX                      DSPMOD(*DS3) PRINT(*PGM) INVITE +
+ 7700                                                SLNO(01) CLRL(*ALL)
+ 7900            64                                  ALARM
+ 8000                                                ALWROL CF03 ROLLUP ROLLDOWN CLEAR +
+ 8200                                                HLPRTN HOME HELP
+ 8400                                            3 17'                                   -   50
+ 8400                                                                 ' DSPATR(UL)
+ 8700                                            4 16'¦'                                      1
+ 8800                                            4 67'¦'                                      1
+ 8900                                            5 16'¦'                                      1
+ 9000                                            5 28'         INVENTAIRE     ' +            23
+ 9100                                                DSPATR(RI UL)
+ 9200                                            5 67'¦'                                      1
+ 9300                                            6 16'¦'                                      1
+ 9400                                            6 67'¦'                                      1
+ 9500                                            7 16'¦'                                      1
+ 9600                                            7 67'¦'                                      1
+ 9700                                            8 16'¦'                                      1
+ 9800                                            8 67'¦'                                      1
+ 9900                                            9 16'¦'                                      1
+10000                                            9 67'¦'                                      1
+10100                                           10 16'¦'                                      1
+10200                                           10 67'¦'                                      1
+10300                                           11 16'¦'                                      1
+10400                                           11 67'¦'                                      1
+10500                                           12 16'¦'                                      1
+10600                                           12 67'¦'                                      1
+10700                                           13 16'¦'                                      1
+10800                                           13 18'Vous allez cocher des produits sur-    48
+10800                                                  une liste    '
+11000                                           13 67'¦'                                      1
+11100                                           14 16'¦'                                      1
+11200                                           14 67'¦'                                      1
+11300                                           15 16'¦'                                      1
+11400                                           15 18'de mots directeurs                 -   48
+11400                                                               '
+11600                                           15 67'¦'                                      1
+11700                                           16 16'¦'                                      1
+11800                                           16 67'¦'                                      1
+11900                                           17 16'¦'                                      1
+12000                                           17 18'affichés à partir de ---->'            26
+12100                     FA0013        20A   B 17 46DSPATR(HI UL MDT)                       20               1        1
+12200                                           17 67'¦'                                      1
+12300                                           18 16'¦'                                      1
+12400                                           18 67'¦'                                      1
+5770SS1 V7R3M0   160422                 Data Description               QTEMP/STIPFM               10/30/26   6:02:46       Page   20
+
+                                         Expanded Source
+                                                                                          Field        Buffer position
+SEQNBR   *...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8 length         Out     In
+
+12500                                          19 16'¦'                                       1
+12600                                          19 67'¦'                                       1
+12700                                          20 16'¦'                                       1
+12800                                          20 42'Entrée pour continuer'                  21
+12900                                          20 67'¦'                                       1
+13000                                          21 17'                                  -     50
+13000                                                               ' DSPATR(UL)
+13300                                          24 3'                        F3-Abandon -     77
+13300                                                                                  -
+13300                                                       '
+              * Indicator Area:
+              * *IN30         *IN37        *IN50          *IN51         *IN52
+              * *IN53         *IN61        *IN62          *IN63         *IN64
+              * *IN65         *IN66        *IN67          *IN68         *IN69
+              * *IN70         *IN71        *IN72          *IN73         *IN99
+13600                   R SAISIE                     DSPMOD(*DS3) PRINT(*PGM) INVITE +
+14000                                                SLNO(01) CLRL(*NO) ALWROL CF02 +
+14300                                                CF05 ROLLUP ROLLDOWN CLEAR HLPRTN +
+14400                                                HOME HELP
+14600                     ENR            1A   I 1 3DFT('s') DSPATR(PR ND MDT)                 1                        1
+14800                                            1 26'INVENTAIRE : Saisie des quantités' +   33
+14900                                                DSPATR(RI UL)
+15000                                            1 69'Le'                                     2
+15100                     DAT            8A   O 1 72DSPATR(HI)                                8                1
+15200                                            3 2'            Désignation      lng |f-    78
+15200                                                a/af| cx       Stock    |   DI      -
+15200                                                           ' DSPATR(UL)
+15600                     TA$1          41A   O 4 2                                          41                9
+15700            61                                  DSPATR(RI)
+15800                                            4 44' ' DSPATR(RI)                           1
+16000                     TB$1          34A   O 4 46DSPATR(HI)                               34               50
+16100                     TA$2          41A   O 5 2                                          41               84
+16200            62                                  DSPATR(RI)
+16300                                            5 44' ' DSPATR(RI)                           1
+16500                     TB$2          34A   O 5 46DSPATR(HI)                               34              125
+16600                     TA$3          41A   O 6 2                                          41              159
+16700            63                                  DSPATR(RI)
+16800                                            6 44' ' DSPATR(RI)                           1
+17000                     TB$3          34A   O 6 46DSPATR(HI)                               34              200
+17100                     TA$4          41A   O 7 2                                          41              234
+17200            64                                  DSPATR(RI)
+17300                                            7 44' ' DSPATR(RI)                           1
+17500                     TB$4          34A   O 7 46DSPATR(HI)                               34              275
+17600                     TA$5          41A   O 8 2                                          41              309
+17700            65                                  DSPATR(RI)
+17800                                            8 44' ' DSPATR(RI)                           1
+18000                     TB$5          34A   O 8 46DSPATR(HI)                               34              350
+18100                     TA$6          41A   O 9 2                                          41              384
+18200            66                                  DSPATR(RI)
+18300                                            9 44' ' DSPATR(RI)                           1
+18500                     TB$6          34A   O 9 46DSPATR(HI)                               34              425
+18600                     TA$7          41A   O 10 2                                         41              459
+18700            67                                  DSPATR(RI)
+5770SS1 V7R3M0    160422                Data Description                QTEMP/STIPFM              10/30/26    6:02:46       Page   21
+
+                                         Expanded Source
+                                                                                          Field        Buffer position
+SEQNBR   *...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8 length         Out     In
+
+18800                                           10 44' ' DSPATR(RI)                           1
+19000                      TB$7         34A   O 10 46DSPATR(HI)                              34               500
+19100                      TA$8         41A   O 11 2                                         41               534
+19200             68                                 DSPATR(RI)
+19300                                           11 44' ' DSPATR(RI)                           1
+19500                      TB$8         34A   O 11 46DSPATR(HI)                              34               575
+19600                      TA$9         41A   O 12 2                                         41               609
+19700             69                                 DSPATR(RI)
+19800                                           12 44' ' DSPATR(RI)                           1
+20000                      TB$9         34A   O 12 46DSPATR(HI)                              34               650
+20100                      TA$10        41A   O 13 2                                         41               684
+20200             70                                 DSPATR(RI)
+20300                                           13 44' ' DSPATR(RI)                           1
+20500                      TB$10        34A   O 13 46DSPATR(HI)                              34               725
+20600                      TA$11        41A   O 14 2                                         41               759
+20700             71                                 DSPATR(RI)
+20800                                           14 44' ' DSPATR(RI)                           1
+21000                      TB$11        34A   O 14 46DSPATR(HI)                              34               800
+21100                      TA$12        41A   O 15 2                                         41               834
+21200             72                                 DSPATR(RI)
+21300                                           15 44' ' DSPATR(RI)                           1
+21500                      TB$12        34A   O 15 46DSPATR(HI)                              34               875
+21600                      TA$13        41A   O 16 2                                         41               909
+21700             73                                 DSPATR(RI)
+21800                                           16 44' ' DSPATR(RI)                           1
+22000                      TB$13        34A   O 16 46DSPATR(HI)                              34               950
+22100                                           17 2'                                  -     78
+22100                                                                                  -
+22100                                                         ' DSPATR(UL)
+22500                                           18   1'                                -     45
+22500                                                           '
+22700                                           18 47'pal'                                    3
+22800             37                                  DSPATR(ND)
+22900                                           18 51' vrac                        '         29
+23000                      SAI1         41A   O 19 2DSPATR(HI)                               41               984
+23100                                           19 44' ' DSPATR(RI)                           1
+23300                      PAL1          4A   B 19 46CHECK(RB) DSPATR(HI MDT)                 4              1025       2
+23500             37                                  DSPATR(PR ND)
+23600             50                                  DSPATR(RI)
+23700            N37                                  DSPATR(CS)
+23800                      VRAC1         9D   B 19 51CHECK(RB) DSPATR(CS HI MDT)              9              1029       6
+24000             37                                  DSPATR(PC)
+24100             51                                  DSPATR(RI)
+24200                                           19 61'('                                      1
+24300             30                                  DSPATR(ND)
+24400                      NBDEC         1A   O 19 63                                         1              1038
+24500                                           19 65'décimales)'                            10
+24600             30                                  DSPATR(ND)
+24700                                           19 76'      '                                 5
+24800                                           20 2'N°:'                                     3
+24900                      ART           7A   O 20 6DSPATR(HI)                                7              1039
+25000                                           20 14'            '                          11
+25100                      QTPAL         5A   O 20 26DSPATR(HI)                               5              1046
+5770SS1 V7R3M0    160422                Data Description                   QTEMP/STIPFM                10/30/26    6:02:46        Page   22
+
+                                         Expanded Source
+                                                                                          Field             Buffer position
+SEQNBR   *...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8 length              Out     In
+
+25200             37                                 DSPATR(ND)
+25300                                           20 32'qté/pal '                                    8
+25400             37                                 DSPATR(ND)
+25500                                           20 41' '                                           2
+25600                                           20 44' ' DSPATR(RI)                                1
+25800                      PAL2          4A   B 20 46CHECK(RB) DSPATR(HI MDT)                      4              1051       15
+26000             37                                 DSPATR(PR ND)
+26100             52                                 DSPATR(RI)
+26200            N37                                 DSPATR(CS)
+26300                      VRAC2         9D   B 20 51CHECK(RB) DSPATR(CS HI MDT)                   9              1055       19
+26500             37                                 DSPATR(PC)
+26600             53                                 DSPATR(RI)
+26700                                           20 61'                   '                        19
+26800                                           21 1'                                        -   188
+26800                                                                                        -
+26800                                                                                        -
+26800                                                                                        -
+26800                                                                                        -
+26800                                                                '
+27400                      MES          50A   O 23 30                                             50              1064
+27500            N99                                    DFTVAL('                             -
+27500                                                                          ')
+27700                                                   DSPATR(BL)
+27800                                             24   2'                           F2-Fin   -    78
+27800                                                   F5-Suivant                           -
+27800                                                            '
+              * Indicator Area:
+              * *IN99
+28100                   R SELECT                        DSPMOD(*DS3) PRINT(*PGM) INVITE +
+28500                                                   SLNO(01) CLRL(*ALL) ALWROL CF01 +
+28800                                                   CF03 CF05 CF09 CF10 ROLLUP +
+28900                                                   ROLLDOWN CLEAR HLPRTN HOME HELP
+29100                      CE            1A   I    1 5DFT('1') DSPATR(PR ND MDT)                   1                          1
+29300                                              1 24' INVENTAIRE : Sélection des produi-       37
+29300                                                   ts ' DSPATR(RI UL)
+29600                                              3 2'x | Mot directeur                  ln-     77
+29600                                                   g   | fa/af | cx| séqper|séqord| De-
+29600                                                   rnierIP|'
+29900                      X1            1A   B    4 2DSPATR(CS HI MDT)                            1                 1        2
+30000                      FL0014       27A   O    4 6                                            27                 2
+30100                      FL0015        5A   O    4 34                                            5                29
+30200                                              4 40'|' DSPATR(HI)                              1
+30400                      FL0017        5A   O    4 42                                            5                34
+30500                                              4 48'|' DSPATR(HI)                              1
+30700                      FL0019        1A   O    4 50DSPATR(CS)                                  1                39
+30800                                              4 52'|' DSPATR(HI)                              1
+31000                      FL0021        5A   O    4 54DSPATR(CS)                                  5                40
+31100                                              4 60'|' DSPATR(HI)                              1
+31300                      FL0023        4A   O    4 62DSPATR(CS)                                  4                45
+31400                                              4 67'|' DSPATR(HI)                              1
+31600                      FA0001        8A   O    4 69                                            8                49
+31700                      FL0025        1A   B    5 2DSPATR(CS HI MDT)                            1                57        3
+31800                      FL0027       27A   O    5 6                                            27                58
+5770SS1 V7R3M0   160422                 Data Description                 QTEMP/STIPFM             10/30/26   6:02:46       Page   23
+
+                                         Expanded Source
+                                                                                          Field        Buffer position
+SEQNBR   *...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8 length         Out     In
+
+31900                     FL0028         5A   O   5 34                                        5               85
+32000                                             5 40'|' DSPATR(HI)                          1
+32200                     FL0030         5A   O   5 42                                        5               90
+32300                                             5 48'|' DSPATR(HI)                          1
+32500                     FL0032         1A   O   5 50DSPATR(CS)                              1               95
+32600                                             5 52'|' DSPATR(HI)                          1
+32800                     FL0034         5A   O   5 54DSPATR(CS)                              5               96
+32900                                             5 60'|' DSPATR(HI)                          1
+33100                     FL0036         4A   O   5 62DSPATR(CS)                              4              101
+33200                                             5 67'|' DSPATR(HI)                          1
+33400                     FA0002         8A   O   5 69                                        8              105
+33500                     FL0038         1A   B   6 2DSPATR(CS HI MDT)                        1              113       4
+33600                     FL0040        27A   O   6 6                                        27              114
+33700                     FL0041         5A   O   6 34                                        5              141
+33800                                             6 40'|' DSPATR(HI)                          1
+34000                     FL0043         5A   O   6 42                                        5              146
+34100                                             6 48'|' DSPATR(HI)                          1
+34300                     FL0045         1A   O   6 50DSPATR(CS)                              1              151
+34400                                             6 52'|' DSPATR(HI)                          1
+34600                     FL0047         5A   O   6 54DSPATR(CS)                              5              152
+34700                                             6 60'|' DSPATR(HI)                          1
+34900                     FL0049         4A   O   6 62DSPATR(CS)                              4              157
+35000                                             6 67'|' DSPATR(HI)                          1
+35200                     FA0003         8A   O   6 69                                        8              161
+35300                     FL0051         1A   B   7 2DSPATR(CS HI MDT)                        1              169       5
+35400                     FL0053        27A   O   7 6                                        27              170
+35500                     FL0054         5A   O   7 34                                        5              197
+35600                                             7 40'|' DSPATR(HI)                          1
+35800                     FL0056         5A   O   7 42                                        5              202
+35900                                             7 48'|' DSPATR(HI)                          1
+36100                     FL0058         1A   O   7 50DSPATR(CS)                              1              207
+36200                                             7 52'|' DSPATR(HI)                          1
+36400                     FL0060         5A   O   7 54DSPATR(CS)                              5              208
+36500                                             7 60'|' DSPATR(HI)                          1
+36700                     FL0062         4A   O   7 62DSPATR(CS)                              4              213
+36800                                             7 67'|' DSPATR(HI)                          1
+37000                     FA0004         8A   O   7 69                                        8              217
+37100                     FL0064         1A   B   8 2DSPATR(CS HI MDT)                        1              225       6
+37200                     FL0066        27A   O   8 6                                        27              226
+37300                     FL0067         5A   O   8 34                                        5              253
+37400                                             8 40'|' DSPATR(HI)                          1
+37600                     FL0069         5A   O   8 42                                        5              258
+37700                                             8 48'|' DSPATR(HI)                          1
+37900                     FL0071         1A   O   8 50DSPATR(CS)                              1              263
+38000                                             8 52'|' DSPATR(HI)                          1
+38200                     FL0073         5A   O   8 54DSPATR(CS)                              5              264
+38300                                             8 60'|' DSPATR(HI)                          1
+38500                     FL0075         4A   O   8 62DSPATR(CS)                              4              269
+38600                                             8 67'|' DSPATR(HI)                          1
+38800                     FA0005         8A   O   8 69                                        8              273
+38900                     FL0077         1A   B   9 2DSPATR(CS HI MDT)                        1              281       7
+39000                     FL0079        27A   O   9 6                                        27              282
+39100                     FL0080         5A   O   9 34                                        5              309
+5770SS1 V7R3M0   160422                 Data Description                QTEMP/STIPFM              10/30/26   6:02:46        Page   24
+
+                                         Expanded Source
+                                                                                          Field        Buffer position
+SEQNBR   *...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8 length         Out     In
+
+39200                                            9 40'|' DSPATR(HI)                           1
+39400                     FL0082         5A   O  9 42                                         5              314
+39500                                            9 48'|' DSPATR(HI)                           1
+39700                     FL0084         1A   O 9 50DSPATR(CS)                                1              319
+39800                                            9 52'|' DSPATR(HI)                           1
+40000                     FL0086         5A   O 9 54DSPATR(CS)                                5              320
+40100                                            9 60'|' DSPATR(HI)                           1
+40300                     FL0088         4A   O 9 62DSPATR(CS)                                4              325
+40400                                            9 67'|' DSPATR(HI)                           1
+40600                     FA0006         8A   O 9 69                                          8              329
+40700                     FL0090         1A   B 10 2DSPATR(CS HI MDT)                         1              337        8
+40800                     FL0092        27A   O 10 6                                         27              338
+40900                     FL0093         5A   O 10 34                                         5              365
+41000                                           10 40'|' DSPATR(HI)                           1
+41200                     FL0095         5A   O 10 42                                         5              370
+41300                                           10 48'|' DSPATR(HI)                           1
+41500                     FL0097         1A   O 10 50DSPATR(CS)                               1              375
+41600                                           10 52'|' DSPATR(HI)                           1
+41800                     FL0099         5A   O 10 54DSPATR(CS)                               5              376
+41900                                           10 60'|' DSPATR(HI)                           1
+42100                     FL0101         4A   O 10 62DSPATR(CS)                               4              381
+42200                                           10 67'|' DSPATR(HI)                           1
+42400                     FA0007         8A   O 10 69                                         8              385
+42500                     FL0103         1A   B 11 2DSPATR(CS HI MDT)                         1              393        9
+42600                     FL0105        27A   O 11 6                                         27              394
+42700                     FL0106         5A   O 11 34                                         5              421
+42800                                           11 40'|' DSPATR(HI)                           1
+43000                     FL0108         5A   O 11 42                                         5              426
+43100                                           11 48'|' DSPATR(HI)                           1
+43300                     FL0110         1A   O 11 50DSPATR(CS)                               1              431
+43400                                           11 52'|' DSPATR(HI)                           1
+43600                     FL0112         5A   O 11 54DSPATR(CS)                               5              432
+43700                                           11 60'|' DSPATR(HI)                           1
+43900                     FL0114         4A   O 11 62DSPATR(CS)                               4              437
+44000                                           11 67'|' DSPATR(HI)                           1
+44200                     FA0008         8A   O 11 69                                         8              441
+44300                     FL0116         1A   B 12 2DSPATR(CS HI MDT)                         1              449       10
+44400                     FL0118        27A   O 12 6                                         27              450
+44500                     FL0119         5A   O 12 34                                         5              477
+44600                                           12 40'|' DSPATR(HI)                           1
+44800                     FL0121         5A   O 12 42                                         5              482
+44900                                           12 48'|' DSPATR(HI)                           1
+45100                     FL0123         1A   O 12 50DSPATR(CS)                               1              487
+45200                                           12 52'|' DSPATR(HI)                           1
+45400                     FL0125         5A   O 12 54DSPATR(CS)                               5              488
+45500                                           12 60'|' DSPATR(HI)                           1
+45700                     FL0127         4A   O 12 62DSPATR(CS)                               4              493
+45800                                           12 67'|' DSPATR(HI)                           1
+46000                     FA0009         8A   O 12 69                                         8              497
+46100                     FL0129         1A   B 13 2DSPATR(CS HI MDT)                         1              505       11
+46200                     FL0131        27A   O 13 6                                         27              506
+46300                     FL0132         5A   O 13 34                                         5              533
+46400                                           13 40'|' DSPATR(HI)                           1
+5770SS1 V7R3M0   160422                 Data Description                QTEMP/STIPFM              10/30/26   6:02:46        Page   25
+
+                                         Expanded Source
+                                                                                          Field        Buffer position
+SEQNBR   *...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8 length         Out     In
+
+46600                     FL0134         5A   O 13 42                                         5              538
+46700                                           13 48'|' DSPATR(HI)                           1
+46900                     FL0136         1A   O 13 50DSPATR(CS)                               1              543
+47000                                           13 52'|' DSPATR(HI)                           1
+47200                     FL0138         5A   O 13 54DSPATR(CS)                               5              544
+47300                                           13 60'|' DSPATR(HI)                           1
+47500                     FL0140         4A   O 13 62DSPATR(CS)                               4              549
+47600                                           13 67'|' DSPATR(HI)                           1
+47800                     FA0010         8A   O 13 69                                         8              553
+47900                     FL0142         1A   B 14 2DSPATR(CS HI MDT)                         1              561       12
+48000                     FL0144        27A   O 14 6                                         27              562
+48100                     FL0145         5A   O 14 34                                         5              589
+48200                                           14 40'|' DSPATR(HI)                           1
+48400                     FL0147         5A   O 14 42                                         5              594
+48500                                           14 48'|' DSPATR(HI)                           1
+48700                     FL0149         1A   O 14 50DSPATR(CS)                               1              599
+48800                                           14 52'|' DSPATR(HI)                           1
+49000                     FL0151         5A   O 14 54DSPATR(CS)                               5              600
+49100                                           14 60'|' DSPATR(HI)                           1
+49300                     FL0153         4A   O 14 62DSPATR(CS)                               4              605
+49400                                           14 67'|' DSPATR(HI)                           1
+49600                     FA0011         8A   O 14 69                                         8              609
+49700                     FL0155         1A   B 15 2DSPATR(CS HI MDT)                         1              617       13
+49800                     FL0157        27A   O 15 6                                         27              618
+49900                     FL0158         5A   O 15 34                                         5              645
+50000                                           15 40'|' DSPATR(HI)                           1
+50200                     FL0160         5A   O 15 42                                         5              650
+50300                                           15 48'|' DSPATR(HI)                           1
+50500                     FL0162         1A   O 15 50DSPATR(CS)                               1              655
+50600                                           15 52'|' DSPATR(HI)                           1
+50800                     FL0164         5A   O 15 54DSPATR(CS)                               5              656
+50900                                           15 60'|' DSPATR(HI)                           1
+51100                     FL0166         4A   O 15 62DSPATR(CS)                               4              661
+51200                                           15 67'|' DSPATR(HI)                           1
+51400                     FA0012         8A   O 15 69                                         8              665
+51500                     FL0168         1A   B 16 2DSPATR(CS HI MDT)                         1              673       14
+51600                     FL0170        27A   O 16 6                                         27              674
+51700                     FL0171         5A   O 16 34                                         5              701
+51800                                           16 40'|' DSPATR(HI)                           1
+52000                     FL0173         5A   O 16 42                                         5              706
+52100                                           16 48'|' DSPATR(HI)                           1
+52300                     FL0175         1A   O 16 50DSPATR(CS)                               1              711
+52400                                           16 52'|' DSPATR(HI)                           1
+52600                     FL0177         5A   O 16 54DSPATR(CS)                               5              712
+52700                                           16 60'|' DSPATR(HI)                           1
+52900                     FL0179         4A   O 16 62DSPATR(CS)                               4              717
+53000                                           16 67'|' DSPATR(HI)                           1
+53200                     FA0013         8A   O 16 69                                         8              721
+53300                     FL0181         1A   B 17 2DSPATR(CS HI MDT)                         1              729       15
+53400                     FL0183        27A   O 17 6                                         27              730
+53500                     FL0184         5A   O 17 34                                         5              757
+53600                                           17 40'|' DSPATR(HI)                           1
+53800                     FL0186         5A   O 17 42                                         5              762
+5770SS1 V7R3M0   160422                 Data Description                QTEMP/STIPFM              10/30/26   6:02:46        Page   26
+
+                                         Expanded Source
+                                                                                          Field        Buffer position
+SEQNBR   *...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8 length         Out     In
+
+53900                                           17 48'|' DSPATR(HI)                           1
+54100                     FL0188         1A   O 17 50DSPATR(CS)                               1              767
+54200                                           17 52'|' DSPATR(HI)                           1
+54400                     FL0190         5A   O 17 54DSPATR(CS)                               5              768
+54500                                           17 60'|' DSPATR(HI)                           1
+54700                     FL0192         4A   O 17 62DSPATR(CS)                               4              773
+54800                                           17 67'|' DSPATR(HI)                           1
+55000                     FA0014         8A   O 17 69                                         8              777
+55100                     FL0194         1A   B 18 2DSPATR(CS HI MDT)                         1              785       16
+55200                     FL0196        27A   O 18 6                                         27              786
+55300                     FL0197         5A   O 18 34                                         5              813
+55400                                           18 40'|' DSPATR(HI)                           1
+55600                     FL0199         5A   O 18 42                                         5              818
+55700                                           18 48'|' DSPATR(HI)                           1
+55900                     FL0201         1A   O 18 50DSPATR(CS)                               1              823
+56000                                           18 52'|' DSPATR(HI)                           1
+56200                     FL0203         5A   O 18 54DSPATR(CS)                               5              824
+56300                                           18 60'|' DSPATR(HI)                           1
+56500                     FL0205         4A   O 18 62DSPATR(CS)                               4              829
+56600                                           18 67'|' DSPATR(HI)                           1
+56800                     FA0015         8A   O 18 69                                         8              833
+56900                     FL0207         1A   B 19 2DSPATR(CS HI MDT)                         1              841       17
+57000                     FL0209        27A   O 19 6                                         27              842
+57100                     FL0210         5A   O 19 34                                         5              869
+57200                                           19 40'|' DSPATR(HI)                           1
+57400                     FL0212         5A   O 19 42                                         5              874
+57500                                           19 48'|' DSPATR(HI)                           1
+57700                     FL0214         1A   O 19 50DSPATR(CS)                               1              879
+57800                                           19 52'|' DSPATR(HI)                           1
+58000                     FL0216         5A   O 19 54DSPATR(CS)                               5              880
+58100                                           19 60'|' DSPATR(HI)                           1
+58300                     FL0218         4A   O 19 62DSPATR(CS)                               4              885
+58400                                           19 67'|' DSPATR(HI)                           1
+58600                     FA0016         8A   O 19 69                                         8              889
+58700                     FL0220         1A   B 20 2DSPATR(CS HI MDT)                         1              897       18
+58800                     FL0222        27A   O 20 6                                         27              898
+58900                     FL0223         5A   O 20 34                                         5              925
+59000                                           20 40'|' DSPATR(HI)                           1
+59200                     FL0225         5A   O 20 42                                         5              930
+59300                                           20 48'|' DSPATR(HI)                           1
+59500                     FL0227         1A   O 20 50DSPATR(CS)                               1              935
+59600                                           20 52'|' DSPATR(HI)                           1
+59800                     FL0229         5A   O 20 54DSPATR(CS)                               5              936
+59900                                           20 60'|' DSPATR(HI)                           1
+60100                     FL0231         4A   O 20 62DSPATR(CS)                               4              941
+60200                                           20 67'|' DSPATR(HI)                           1
+60400                     FA0017         8A   O 20 69                                         8              945
+60500                     FL0233         1A   B 21 2DSPATR(CS HI MDT)                         1              953       19
+60600                     FL0235        27A   O 21 6                                         27              954
+60700                     FL0236         5A   O 21 34                                         5              981
+60800                                           21 40'|' DSPATR(HI)                           1
+61000                     FL0238         5A   O 21 42                                         5              986
+61100                                           21 48'|' DSPATR(HI)                           1
+5770SS1 V7R3M0    160422                Data Description                 QTEMP/STIPFM              10/30/26    6:02:46        Page   27
+
+                                         Expanded Source
+                                                                                          Field         Buffer position
+SEQNBR   *...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8 length          Out     In
+
+61300                        FL0240      1A   O 21 50DSPATR(CS)                                1               991
+61400                                           21 52'|' DSPATR(HI)                            1
+61600                        FL0242      5A   O 21 54DSPATR(CS)                                5               992
+61700                                           21 60'|' DSPATR(HI)                            1
+61900                        FL0244      4A   O 21 62DSPATR(CS)                                4               997
+62000                                           21 67'|' DSPATR(HI)                            1
+62200                        FA0018      8A   O 21 69                                          8              1001
+62300                                           22 6'Afficher à partir de:'                   21
+62400                        FL0247     27A   B 22 28DSPATR(CS HI MDT)                        27              1009       20
+62500                        MES        50A   O 23 5                                          50              1036
+62600            N99                                  DFTVAL('                           -
+62600                                                                        ')
+62800                                                DSPATR(BL)
+62900                                           23 58'(X=Produits choisis)'                   20
+63000                                           24 1' F1-Continuer F3-Abandon     F5-Stop-    79
+63000                                                per pour compter                  F9-
+63000                                                /F10-Ar/Av'
+              * Indicator Area:
+              * *IN51         *IN52        *IN99
+63300                   R ECRDI                       DSPMOD(*DS3) PRINT(*PGM) INVITE +
+63700                                                 SLNO(01) CLRL(*NO) ALWROL CF03 +
+64100                                                 ROLLUP ROLLDOWN CLEAR HLPRTN HOME +
+64200                                                 HELP
+64300                                           18 62'1/Erreur comptage '                     19
+64400                                           19 62'2/Utilisat° interne'                    19
+64500                                           20 62'3/Autre longueur     '                  19
+64600                                           21 2' '                                        2
+64700                        ENR         1A   I 21 5DFT('d') DSPATR(PR ND MDT)                 1                          1
+64900                                           21 7' '                                        1
+65000                                           21 9' D I: Une différence est détectée-       41
+65000                                                  de ...' DSPATR(HI BL)
+65300                        QTDI        9A   O 21 51DSPATR(CS HI)                             9                 1
+65400                                           21 61' 4/Transfert stock                  -   59
+65400                                                                            '
+65600                                           22 41'Motif ...'                               9
+65700                        MOTIF       1A   B 22 51DSPATR(CS HI MDT)                         1                10        2
+65800             51                                  DSPATR(RI PC)
+65900                                           22 53'           5/ (libellé saisi )'         28
+66000                                           23 2'                                     -   36
+66000                                                   '
+66200                                           23 39'Libellé ...'                            11
+66300                        FA0002     30A   B 23 51CHECK(LC) DSPATR(HI MDT)                 30                11        3
+66500             52                                  DSPATR(RI PC)
+66600                                           24 2'F3-Retour Entrée-Continuer'              27
+66700                        MES        50A   O 24 30                                         50                41
+66800            N99                                  DFTVAL('                            -
+66800                                                                         ')
+67000                                                 DSPATR(BL)
+67100                      R SORTIE                   DSPMOD(*DS3) PRINT(*PGM) INVITE +
+67500                                                 SLNO(18) CLRL(*NO) OVERLAY ALWROL +
+67900                                                 CF01 CF02 CF03 CF04 CF05 CF06 CF07 +
+68000                                                 CF08 CF09 CF10 CF11 CF12 CF13 CF14 +
+68100                                                 CF15 CF16 CF17 CF18 CF19 CF20 CF21 +
+5770SS1 V7R3M0   160422                 Data Description                  QTEMP/STIPFM              10/30/26   6:02:46       Page   28
+
+                                         Expanded Source
+                                                                                          Field          Buffer position
+SEQNBR   *...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8 length           Out     In
+
+68200                                                  CF22 CF23 CF24 ROLLUP ROLLDOWN +
+68300                                                  CLEAR HLPRTN HOME HELP
+68500                     FL0001         1A   I   1   3DFT('f') DSPATR(PR ND MDT)               1                        1
+68700                                             1   5'   '                                    3
+68800                                             1   9'                                  -    89
+68800                                                                                     -
+68800                                                                      '
+69100                                             2 19'L''inventaire des produits choisis-     46
+69100                                                   est terminé.' DSPATR(HI)
+69400                                             2 66'                                  -    112
+69400                                                                                    -
+69400                                                                                    -
+69400                                                          '
+69800                                             4 19'Appuyez sur une touche quelconque -     46
+69800                                                 pour sortir.' DSPATR(HI)
+70100                                             4 66'                                  -    126
+70100                                                                                    -
+70100                                                                                    -
+70100                                                                        '
+70500                                             6 33'                      ' +               21
+70600                                                 DSPATR(HI UL)
+70700                                             6 55'                                  -    102
+70700                                                                                    -
+70700                                                                                  '
+71000                     FA0001         1A   I   7 78CHECK(ER) DSPATR(ND MDT)                  1                        2
+              * Indicator Area:
+              * *IN50         *IN60        *IN61          *IN62        *IN63
+              * *IN64         *IN65        *IN66          *IN67        *IN68
+              * *IN69
+71200                   R CHOIX2                      DSPMOD(*DS3) PRINT(*PGM) INVITE +
+71600                                                 SLNO(01) CLRL(*ALL)
+71800            64                                   ALARM
+71900                                                 ALWROL CF03 ROLLUP ROLLDOWN CLEAR +
+72100                                                 HLPRTN HOME HELP
+72300                     ENR            1A   I   2 3DFT('1') DSPATR(PR ND MDT)                 1                        1
+72500                                             3 17'                                   -    50
+72500                                                                  ' DSPATR(UL)
+72800                                             4 16'¦'                                       1
+72900                                             4 28'        INVENTAIRE      ' +             23
+73000                                                 DSPATR(RI UL)
+73100                                             4 67'¦'                                       1
+73200                                             5 16'¦'                                       1
+73300                                             5 67'¦'                                       1
+73400                                             6 16'¦'                                       1
+73500                                             6 18'Des liste d''IP existent           -    48
+73500                                                                '
+73700                                             6 67'¦'                                       1
+73800                                             7 16'¦'                                       1
+73900                                             7 18' Faites un choix '                      17
+74000                                             7 38'(1 seule réponse possible) '            28
+74100                                             7 67'¦'                                       1
+74200                                             8 16'¦'                                       1
+74300                                             8 67'¦'                                       1
+5770SS1 V7R3M0    160422                Data Description               QTEMP/STIPFM               10/30/26   6:02:46        Page   29
+
+                                         Expanded Source
+                                                                                          Field        Buffer position
+SEQNBR   *...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8 length         Out     In
+
+74400                                            9 16'¦'                                      1
+74500                      Z1            1A   B  9 18DSPATR(HI MDT)                           1                1        2
+74600             60                                  DSPATR(PR ND)
+74700            N60                                  DSPATR(CS)
+74800                      FA0029       39A   O 9 21DSPATR(HI)                               39                2
+74900                                            9 67'¦'                                      1
+75000                                           10 16'¦'                                      1
+75100                      Z2            1A   B 10 18DSPATR(HI MDT)                           1               41        3
+75200             61                                  DSPATR(PR ND)
+75300            N61                                  DSPATR(CS)
+75400                      FA0030       39A   O 10 21                                        39               42
+75500                                           10 67'¦'                                      1
+75600                                           11 16'¦'                                      1
+75700                      Z3            1A   B 11 18DSPATR(HI MDT)                           1               81        4
+75800             62                                  DSPATR(PR ND)
+75900            N62                                  DSPATR(CS)
+76000                      FA0031       39A   O 11 21DSPATR(HI)                              39               82
+76100                                           11 67'¦'                                      1
+76200                                           12 16'¦'                                      1
+76300                      Z4            1A   B 12 18DSPATR(HI MDT)                           1              121        5
+76400             63                                  DSPATR(PR ND)
+76500            N63                                  DSPATR(CS)
+76600                      FA0032       39A   O 12 21                                        39              122
+76700                                           12 67'¦'                                      1
+76800                                           13 16'¦'                                      1
+76900                      Z5            1A   B 13 18DSPATR(HI MDT)                           1              161        6
+77000             64                                  DSPATR(PR ND)
+77100            N64                                  DSPATR(CS)
+77200                      FA0033       39A   O 13 21DSPATR(HI)                              39              162
+77300                                           13 67'¦'                                      1
+77400                                           14 16'¦'                                      1
+77500                      Z6            1A   B 14 18DSPATR(HI MDT)                           1              201        7
+77600             65                                  DSPATR(PR ND)
+77700            N65                                  DSPATR(CS)
+77800                      FA0034       39A   O 14 21                                        39              202
+77900                                           14 67'¦'                                      1
+78000                                           15 16'¦'                                      1
+78100                      Z7            1A   B 15 18DSPATR(HI MDT)                           1              241        8
+78200             66                                  DSPATR(PR ND)
+78300            N66                                  DSPATR(CS)
+78400                      FA0035       39A   O 15 21DSPATR(HI)                              39              242
+78500                                           15 67'¦'                                      1
+78600                                           16 16'¦'                                      1
+78700                      Z8            1A   B 16 18DSPATR(HI MDT)                           1              281        9
+78800             67                                  DSPATR(PR ND)
+78900            N67                                  DSPATR(CS)
+79000                      FA0036       39A   O 16 21                                        39              282
+79100                                           16 67'¦'                                      1
+79200                                           17 16'¦'                                      1
+79300                      Z9            1A   B 17 18DSPATR(HI MDT)                           1              321       10
+79400             68                                  DSPATR(PR ND)
+79500            N68                                  DSPATR(CS)
+79600                      FA0037       39A   O 17 21DSPATR(HI)                              39              322
+5770SS1 V7R3M0    160422                     Data Description                   QTEMP/STIPFM           10/30/26   6:02:46        Page   30
+
+                                              Expanded Source
+                                                                                          Field             Buffer position
+SEQNBR   *...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8 length              Out     In
+
+79700                                                17 67'¦'                                      1
+79800                                                18 16'¦'                                      1
+79900                        Z10              1A   B 18 18DSPATR(HI MDT)                           1              361       11
+80000             69                                       DSPATR(PR ND)
+80100            N69                                       DSPATR(CS)
+80200                        FA0038          39A   O 18 21                                        39              362
+80300                                                18 67'¦'                                      1
+80400                                                19 16'¦'                                      1
+80500                                                19 67'¦'                                      1
+80600                                                20 16'¦'                                      1
+80700                        Z11              1A   B 20 18DSPATR(CS HI MDT)                        1              401       12
+80800             50                                       DSPATR(RI PC)
+80900                                                20 21'(P)asser outre et travailler manue-    42
+80900                                                      llement.' DSPATR(HI)
+81200                                                20 67'¦'                                      1
+81300                                                21 16'¦'                                      1
+81400                                                21 67'¦'                                      1
+81500                                                22 17'                                   -   50
+81500                                                                      ' DSPATR(UL)
+81800                        FA0001          50A   O 23 19DSPATR(HI BL)                           50              402
+81900                                                24 3'                         F3-Abandon -   77
+81900                                                                 Entrée-continuer        -
+81900                                                              '
+
+                 * * * * *     E N D   O F     E X P A N D E D    S O U R C E     * * * * *
+5770SS1 V7R3M0     160422                 Data Description              QTEMP/STIPFM            10/30/26   6:02:46   Page   31
+
+                                              Messages
+
+   ID       Severity    Number
+
+* CPD8018     10            15   Message . . . . :   Keyword may not function as expected with DSPMOD.
+5770SS1 V7R3M0    160422                    Data Description                     QTEMP/STIPFM     10/30/26   6:02:46   Page   32
+
+                                               Message Summary
+
+   Total           Informational               Warning         Error       Severe
+                       (0-9)                   (10-19)        (20-29)      (30-99)
+
+      15                    0                      15              0               0
+
+
+* CPC7301    00                    Message . . . . :      File STIPFM created in library QTEMP.
+
+                           * * * * *   E N D     O F     C O M P I L A T I O N     * * * * *
+

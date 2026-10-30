@@ -1,0 +1,29 @@
+5770SS1 V7R3M0 160422       SOURCE INPUT SCREEN FORMAT SOURCE SPECIFICATIONS   10/30/26         TIME   6:20:54   PAGE 0001
+
+ DBCS1    - SOURCE MEMBER NAME                                       000000- REFERENCE NUMBER
+
+00010SDBCS1      24
+00020DFLDE     10 5 5   YE
+00030DFLDF     10 6 5   YF
+00040DFLDO     10 7 5   YO
+00050DFLDX     10 8 5   YX
+00060DFLDK     10 9 5   YK
+00070D         2010 5                                 CREPLACE ME
+SYX5150 T NEITHER INPUT NOR OUTPUT WAS SPECIFIED FOR THIS FIELD.
+INPUT BUFFER DESCRIPTION                         PAGE 0002
+
+FIELD                      START      END
+NAME           LENGTH      POSITION   POSITION
+FLDE              10           1          10
+FLDF              10          11          20
+FLDO              10          21          30
+FLDX              10          31          40
+FLDK              10          41          50
+                                                                 PAGE 0003
+
+RPGTOFREE - INPUT LIBRARY NAME
+
+RPGTOFREE - OUTPUT LIBRARY NAME
+
+DBCS1     - FORMAT LOAD MEMBER NAME   000000- REFERENCE NUMBER
+
