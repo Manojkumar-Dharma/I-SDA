@@ -585,6 +585,41 @@
     return finish(parsed, text, done(parsed, lines, entry.line, entry.line + wanted.length - 1));
   }
 
+  /** E12g: the whole of format `formatIndex` (its header comments, S, H and D lines, comments and *DDS lines: the span
+   *  formatSpan gives) replaced by `rawText`, as typed, in one edit. The text holds exactly one S specification and starts
+   *  with it or with comments (an H or D line before the S would join the format above); to change the number of formats
+   *  use insertFormat, deleteFormat or duplicateFormat. One final line end in `rawText` is the end of its last line (the
+   *  box of the page sends one), a further empty line is a blank line of the format. A tab, a line over 80 characters
+   *  and a result with a read error the source did not have are refused, as in setRawLines. `touched` is the new span. */
+  function setRawFormat(text, formatIndex, rawText) {
+    var parsed = load(text);
+    var span = formatSpan(parsed, formatIndex);
+    if (!span) return fail('noSuchFormat', 'No such format.');
+    var wanted = String(rawText == null ? '' : rawText).split(/\r\n|\r|\n/);
+    if (wanted.length > 1 && wanted[wanted.length - 1] === '') wanted.pop();
+    if (!wanted.some(function (t) { return t.trim() !== ''; })) return fail('empty', 'A format has at least its S specification; remove it with deleteFormat.');
+    for (var i = 0; i < wanted.length; i++) {
+      if (CONTROL.test(wanted[i])) return fail('badValue', 'Line ' + (i + 1) + ' holds a control character (a tab, for one).');
+      if (sizeOf(wanted[i]) > Parser.LINE_WIDTH) return fail('tooWide', 'Line ' + (i + 1) + ' is wider than ' + Parser.LINE_WIDTH + ' characters.');
+    }
+    var typed = Parser.parse(wanted.join('\n'));
+    var sCount = typed.entries.filter(function (e) { return e.kind === 'S'; }).length;
+    if (sCount === 0) return fail('formatCount', 'The format needs its S specification (column 6 = S); to remove the format use deleteFormat.');
+    if (sCount > 1) return fail('formatCount', 'The box holds ' + sCount + ' S specifications; one format has one. To add a format use + Format or Duplicate format.');
+    if (typed.problems.some(function (p) { return p.code === 'orphanSpec'; })) return fail('beforeS', 'An H or D specification before the S specification would belong to the format above; put the S first.');
+    var lines = linesOf(parsed);
+    var oldCount = span.last - span.first + 1;
+    var same = wanted.length === oldCount && wanted.every(function (t, k) { return t === lines[span.first - 1 + k].text; });
+    if (same) return unchanged(text);
+    var fallback = lines[span.last - 1].eol || defaultEol(parsed);
+    var replaced = wanted.map(function (t, k) {
+      var old = k < oldCount ? lines[span.first - 1 + k].eol : '';
+      return { text: t, eol: k === wanted.length - 1 ? lines[span.last - 1].eol : (old || fallback) };
+    });
+    Array.prototype.splice.apply(lines, [span.first - 1, oldCount].concat(replaced));
+    return finish(parsed, text, done(parsed, lines, span.first, span.first + wanted.length - 1));
+  }
+
   // ---- paste ----------------------------------------------------------------------------------------------------------
 
   /** Inserts copies of entries (kept as raw source lines, so what they hold is kept as found) into a format: the H ones
@@ -671,6 +706,7 @@
     setValue: setValue,
     setConstant: setConstant,
     setRawLines: setRawLines,
+    setRawFormat: setRawFormat,
     pasteEntries: pasteEntries,
     setContinuation: setContinuation,
     insertSpec: insertSpec,

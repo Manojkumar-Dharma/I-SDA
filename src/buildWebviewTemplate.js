@@ -668,6 +668,11 @@ const htmlTemplate = `<!DOCTYPE html>
   body[data-source-kind="sfgr"] .sfgr-note { display: block; }
   .sfgr-resize-handle { position: absolute; top: 0; right: -4px; width: 8px; height: 100%; cursor: ew-resize; background: var(--accent); opacity: 0.55; z-index: 3; }
   .sfgr-resize-handle:hover { opacity: 1; }
+  .sfgr-mask-order { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 2px 0 4px; }
+  .sfgr-mask-chip { min-width: 26px; padding: 2px 6px; border: 1px solid var(--accent); background: rgba(var(--accent-rgb), 0.14); color: var(--ink); border-radius: 3px; cursor: grab; font-family: var(--mono); font-size: 12px; text-align: center; }
+  .sfgr-mask-chip.invalid { border-color: var(--warn); color: var(--warn); background: transparent; }
+  .sfgr-mask-chip.dragging { opacity: 0.4; }
+  .sfgr-mask-chip.over { outline: 2px solid var(--accent); }
   .sfgr-raw { margin-top: 10px; border-top: 1px solid var(--border, rgba(128,128,128,0.3)); padding-top: 6px; }
   .sfgr-raw > summary { cursor: pointer; font-weight: 600; }
   .sfgr-raw-wrap { overflow-x: auto; margin-top: 6px; }
@@ -5009,6 +5014,11 @@ const htmlTemplate = `<!DOCTYPE html>
     html += '<div class="hint-small">' + DspfEngine.escapeHtml(ckMeaning) + '</div>';
     html += '<div class="sfgr-key-grid" id="sfgrCommandKeys">' + sfgrKeyButtons(mask, SFGR_COMMAND_KEYS) + '</div>';
     if (stray.length) html += '<div class="sfgr-key-grid"><span class="hint-small">Not a key (kept as written): </span>' + stray.map((c) => '<button type="button" class="sfgr-key-btn invalid on" data-sfgr-mask-char="' + DspfEngine.escapeHtml(c) + '" title="Click to remove">' + DspfEngine.escapeHtml(c) + '</button>').join('') + '</div>';
+    if (mask.length > 1) {
+      html += '<div class="hint-small">Order in the mask (it carries no meaning for the display; drag a key, or Shift+Left / Shift+Right on it):</div>';
+      html += '<div class="sfgr-mask-order" id="sfgrMaskOrder">' + mask.split('').map((c, i) =>
+        '<button type="button" class="sfgr-mask-chip' + (known.has(c) ? '' : ' invalid') + '" draggable="true" data-sfgr-chip="' + i + '" title="Drag to reorder, or Shift+Left / Shift+Right">' + DspfEngine.escapeHtml(c) + '</button>').join('') + '</div>';
+    }
     html += '<div class="hint-small">Key mask (64 - 79): <code id="sfgrMaskText">' + DspfEngine.escapeHtml(mask || '(empty)') + '</code></div>';
     html += '<h3>Help areas (H)</h3>';
     if ((r.help || []).length) {
@@ -5111,16 +5121,59 @@ const htmlTemplate = `<!DOCTYPE html>
     });
   }
 
+  let sfgrMaskFocus = -1;   // the key chip to focus after a reorder re-renders the panel (E12g)
+
   function wireSfgrFormatProps(rec) {
     const root = propsBody.querySelector('.sfgr-format-panel');
     if (!root) return;
     sfgrAttachRawSection(root, rec.sfgr.sourceLine);
+    sfgrAttachRawFormatSection(root, rec);
     wireSfgrControls(root, 'sfgrFormatError', (key, value) => sfgrSetFormatValue(rec, key, value));
     root.querySelectorAll('[data-sfgr-help-line]').forEach((row) => {
       const open = () => { selectedHelpSourceLine = parseInt(row.getAttribute('data-sfgr-help-line'), 10); renderProps(rec.name); };
       row.addEventListener('click', open);
       row.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
     });
+    // E12g: reorder the keys of the mask by drag or Shift+Left / Shift+Right; one setValue, one undo step
+    const order = root.querySelector('#sfgrMaskOrder');
+    if (order) {
+      const chips = Array.from(order.querySelectorAll('[data-sfgr-chip]'));
+      const maskNow = () => ((rec.sfgr.keyMask && rec.sfgr.keyMask.text) || '').replace(/ /g, '');
+      const moveKey = (from, to) => {
+        const chars = maskNow().split('');
+        if (from === to || from < 0 || to < 0 || from >= chars.length || to >= chars.length) return false;
+        const moved = chars.splice(from, 1)[0];
+        chars.splice(to, 0, moved);
+        sfgrMaskFocus = to;
+        return sfgrSetFormatValue(rec, 'keyMask', chars.join(''));
+      };
+      let dragFrom = -1;
+      chips.forEach((chip) => {
+        const i = parseInt(chip.getAttribute('data-sfgr-chip'), 10);
+        chip.addEventListener('dragstart', (e) => {
+          dragFrom = i;
+          chip.classList.add('dragging');
+          if (e.dataTransfer) { try { e.dataTransfer.setData('text/plain', String(i)); e.dataTransfer.effectAllowed = 'move'; } catch (err) { /* a drag without data is fine */ } }
+        });
+        chip.addEventListener('dragend', () => { dragFrom = -1; chips.forEach((c) => c.classList.remove('dragging', 'over')); });
+        chip.addEventListener('dragover', (e) => { if (dragFrom >= 0) { e.preventDefault(); chip.classList.add('over'); } });
+        chip.addEventListener('dragleave', () => chip.classList.remove('over'));
+        chip.addEventListener('drop', (e) => {
+          e.preventDefault();
+          const from = dragFrom;
+          dragFrom = -1;
+          chips.forEach((c) => c.classList.remove('dragging', 'over'));
+          if (from >= 0) moveKey(from, i);
+        });
+        chip.addEventListener('keydown', (e) => {
+          if (!e.shiftKey || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
+          e.preventDefault();
+          moveKey(i, i + (e.key === 'ArrowLeft' ? -1 : 1));
+        });
+      });
+      if (sfgrMaskFocus >= 0 && chips[sfgrMaskFocus]) chips[sfgrMaskFocus].focus();
+      sfgrMaskFocus = -1;
+    }
     root.addEventListener('click', (e) => {
       const btn = e.target.closest ? e.target.closest('[data-sfgr-mask-char]') : null;
       if (!btn) return;
@@ -6019,6 +6072,57 @@ const htmlTemplate = `<!DOCTYPE html>
           else if (again && again.kind === 'H') selectedHelpSourceLine = again.line;
         }
         if (keep && model.records.some((r) => r.name === keep)) recordSelect.value = keep;
+      }, (reason) => { errorEl.textContent = reason; });
+    });
+  }
+
+  // ---- E12g: the Raw section of a whole format ------------------------------------------------------------------------------
+  // The format's header comments, S, H and D lines, comments and *DDS lines in one box of 80 columns under the ruler,
+  // written back with SfgrWriter.setRawFormat as one edit. The entry-level Raw section above it stays.
+
+  let sfgrRawFormatOpen = false;
+
+  function sfgrAttachRawFormatSection(root, rec) {
+    if (!root || root.querySelector('.sfgr-rawfmt')) return;
+    const parsed = SfgrParser.parse(sourceText);
+    const formatIndex = parsed.formats.findIndex((f) => f.startLine === rec.sfgr.sourceLine);
+    const span = formatIndex >= 0 ? SfgrWriter.formatSpan(parsed, formatIndex) : null;
+    if (!span) return;
+    const esc = DspfEngine.escapeHtml;
+    const rows = parsed.lines.slice(span.first - 1, span.last).map((l) => l.text);
+    const section = document.createElement('details');
+    section.className = 'sfgr-raw sfgr-rawfmt';
+    section.id = 'sfgrRawFormat';
+    section.open = sfgrRawFormatOpen;
+    section.addEventListener('toggle', () => { sfgrRawFormatOpen = section.open; });
+    section.innerHTML = '<summary>Raw source of the whole format</summary>' +
+      '<div class="hint-small">Lines ' + span.first + ' - ' + span.last + ' of the source: the comments above the S specification, the S, its H and D lines, comments and *DDS lines.</div>' +
+      '<div class="sfgr-raw-wrap"><pre class="sfgr-ruler" aria-hidden="true">' + sfgrRulerText() + '</pre>' +
+      '<textarea class="sfgr-raw-text" id="sfgrRawFormatText" rows="' + Math.min(40, Math.max(4, rows.length)) + '" spellcheck="false" wrap="off" aria-label="The source lines of this whole format, 80 columns">' + esc(rows.join('\\n')) + '</textarea></div>' +
+      '<div class="sfgr-raw-zones">S: ' + esc(sfgrZonesText('S')) + '</div>' +
+      '<div class="sfgr-raw-zones">H: ' + esc(sfgrZonesText('H')) + '</div>' +
+      '<div class="sfgr-raw-zones">D: ' + esc(sfgrZonesText('D')) + '</div>' +
+      '<div class="hint-small">Applied as one edit and one undo step. The box holds exactly one S specification, first (comments may come before it); to add or remove a format use + Format, Duplicate format or Delete format. Lines are at most 80 characters, no tabs.</div>' +
+      '<div class="sfgr-actions"><button type="button" class="secondary" id="sfgrRawFormatApply">Apply format edit</button> <button type="button" class="secondary" id="sfgrRawFormatRevert">Revert</button></div>' +
+      '<div class="rename-error" id="sfgrRawFormatError"></div>';
+    root.appendChild(section);
+    const area = section.querySelector('#sfgrRawFormatText');
+    const errorEl = section.querySelector('#sfgrRawFormatError');
+    section.querySelector('#sfgrRawFormatRevert').addEventListener('click', () => { area.value = rows.join('\\n'); errorEl.textContent = ''; });
+    section.querySelector('#sfgrRawFormatApply').addEventListener('click', () => {
+      errorEl.textContent = '';
+      // the box has no final line end of its own; one is added so a blank last line of the format is not lost
+      commitSfgrChange((text) => SfgrWriter.setRawFormat(text, formatIndex, area.value + '\\n'), (result) => {
+        selectedHelpSourceLine = null;
+        showFileProps = false;
+        clearSelection();
+        const again = SfgrParser.parse(sourceText);
+        const from = result && result.touched ? result.touched.from : span.first;
+        const to = result && result.touched ? result.touched.to : span.last;
+        const s = again.entries.find((e) => e.kind === 'S' && e.line >= from && e.line <= to);
+        rebuildRecordSelect();
+        const now = s ? model.records.find((r) => r.sfgr && r.sfgr.sourceLine === s.line) : null;
+        if (now) recordSelect.value = now.name;
       }, (reason) => { errorEl.textContent = reason; });
     });
   }
