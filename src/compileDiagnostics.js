@@ -25,11 +25,11 @@
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
-    module.exports = factory(require('./compileMessages.js'), require('./compileListing.js'), require('./compileLineMap.js'), require('./sfgrCompileMessages.js'));
+    module.exports = factory(require('./compileMessages.js'), require('./compileListing.js'), require('./compileLineMap.js'), require('./sfgrCompileMessages.js'), require('./sfgrDdsListing.js'));
   } else {
-    root.CompileDiagnostics = factory(root.CompileMessages, root.CompileListing, root.CompileLineMap, root.SfgrCompileMessages);
+    root.CompileDiagnostics = factory(root.CompileMessages, root.CompileListing, root.CompileLineMap, root.SfgrCompileMessages, root.SfgrDdsListing);
   }
-})(typeof self !== 'undefined' ? self : this, function (CompileMessages, CompileListing, CompileLineMap, SfgrCompileMessages) {
+})(typeof self !== 'undefined' ? self : this, function (CompileMessages, CompileListing, CompileLineMap, SfgrCompileMessages, SfgrDdsListing) {
   'use strict';
 
   var REASON_NOTES = {
@@ -125,6 +125,23 @@
             result.fileLevel = sd.fileLevel;
             result.alignment = null;
             result.sfgr = true;
+            result.ok = true;
+            return result;
+          }
+        }
+        if (fetched && fetched.ok && source === 'CRTS36DSPF' && SfgrDdsListing && SfgrDdsListing.isGenerated(fetched.text)) {
+          // E12f: $SFGR converted and CRTDSPF ran on the generated DDS; the DDS lines carry the SFGR line they came from
+          var gen = SfgrDdsListing.parse(fetched.text);
+          if (gen.recognized) {
+            var gd = SfgrDdsListing.toDiagnostics(gen, opts.sourceText, { source: source });
+            result.raw = fetched.text;
+            result.via = 'listing';
+            result.listing = { ok: true, reason: null, error: null, job: fetched.job || null, cleanupError: fetched.cleanupError || null };
+            result.diagnostics = gd.diagnostics;
+            result.mapped = gd.mapped;
+            result.fileLevel = gd.fileLevel;
+            result.alignment = null;
+            result.sfgrDds = true;
             result.ok = true;
             return result;
           }
