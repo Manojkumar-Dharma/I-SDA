@@ -3059,6 +3059,10 @@ The three DBCS members compiled on a DBCS-capable V7R3 system (DBCSA, DBCSB, DBC
 - `SfgrModel` / `SfgrSymbols` show shifts as blanks; the field panel's constant box is read-only with a note.
 - Still open: how real DBCS characters arrive after Code for i converts a member (needs a member downloaded back), SI / SO re-insertion when splitting, and any SO / SI balance diagnostic (no evidence yet).
 
+### E12h real-DBCS attempt (docs only, 2026-10-31)
+
+Round trip of `DBCSA` through Code for i (`dbcsa-downloaded.dspf36`): byte-for-byte identical to the original, so 0x0E / 0x0F survive upload and download as real control bytes. A second member `DBCSR` (DBCSA with 10 + 10 real Japanese characters, UTF-8 file, no shift bytes, shown as UTF-8 in VS Code) was uploaded into a source file created with CCSID 1399 (job `QCCSID` 65535). The compile failed (SYX5316, 5318, 5088, 5092, 5096, 5109, 5107, 5150) and `SELECT HEX(SRCDTA)` showed why: the member holds single-byte data, no 0x0E / 0x0F, about 30 characters for 10 kanji (the UTF-8 bytes, one per character, most as x'3F'), so the `X` landed near column 90 and line 4 was read as a new D line. The damage happens on upload, before the member exists, so it says nothing about how real DBCS characters read back. E12h stays Partly done: real DBCS characters need a member that already holds them (typed in a DBCS-capable 5250 session, or an upload path that converts to a mixed CCSID). Warrior's decision: not pursued further on this system.
+
 ### E12h findings (docs only, 2026-10-31)
 
 **Status.** E12h stays Open and blocked, by decision (Manojkumar chose "record findings, keep E12h blocked"). No code changed, no version bump.
