@@ -5281,7 +5281,9 @@ const htmlTemplate = `<!DOCTYPE html>
     const startLine = rf.startLine == null ? 1 : rf.startLine;
     const maxLine = rf.columns132 ? 27 : 24;
     const maxColumn = rf.columns132 ? 132 : 80;
-    const text = entry.constantText || '';
+    const rawConstant = entry.constantText || '';
+    const hasShift = /[\u000e\u000f]/.test(rawConstant) || !!entry.shiftJoins;
+    const text = rawConstant.replace(/[\u000e\u000f]/g, ' ');
     const pieces = text.length <= SFGR_CONSTANT_FIRST ? 1 : 1 + Math.ceil((text.length - SFGR_CONSTANT_FIRST) / SFGR_CONSTANT_NEXT);
     const usageWords = [];
     if ((v.inputAllowed || '').trim() === 'Y') usageWords.push('input');
@@ -5335,7 +5337,8 @@ const htmlTemplate = `<!DOCTYPE html>
       const member = (v.constantData || '').slice(4, 6).trim();
       html += sfgrSelectRow('messageMember', 'Message member', '61 - 62', SFGR_MESSAGE_MEMBERS, member);
     } else {
-      html += '<div class="field-row"><label>' + sfgrColLabel('Constant text', '57 - 79, then 7 - 79 on each continuation line') + '</label><textarea data-sfgr-key="constantText" data-sfgr-kind="constant" rows="3">' + esc(text) + '</textarea>' +
+      html += '<div class="field-row"><label>' + sfgrColLabel('Constant text', '57 - 79, then 7 - 79 on each continuation line') + '</label><textarea data-sfgr-key="constantText" data-sfgr-kind="constant" rows="3"' + (hasShift ? ' readonly' : '') + '>' + esc(text) + '</textarea>' +
+        (hasShift ? '<div class="hint-small" id="sfgrShiftNote">This constant holds DBCS shift characters (SO / SI), shown here as blanks. Edit it in Raw source below, where they are kept as written.</div>' : '') +
         '<div class="hint-small" id="sfgrConstantCount">' + text.length + ' character' + (text.length === 1 ? '' : 's') + ' on ' + pieces + ' source line' + (pieces === 1 ? '' : 's') + ' (the first holds ' + SFGR_CONSTANT_FIRST + ', each continuation ' + SFGR_CONSTANT_NEXT + ').</div></div>';
     }
     html += '<h3>Source</h3>';

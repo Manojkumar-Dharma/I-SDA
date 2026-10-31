@@ -80,6 +80,8 @@
     ['continuation', 80, 80]
   ]);
 
+  var SO = '\u000e';             // DBCS shift-out
+  var SI = '\u000f';             // DBCS shift-in
   var CONSTANT_FIRST = 57;       // constant data on the line that starts the constant
   var CONSTANT_LAST = 79;
   var CONTINUATION_FIRST = 7;    // constant data on a continuation line
@@ -283,6 +285,35 @@
       };
     }
 
+    // Constant pieces joined by the DBCS rule (manual sc414730, p. B-26): shift-in (SI) in column 78 or 79 followed by
+    // shift-out (SO) in column 7 of the next D line are deleted as a pair (with SI in 78, whatever is in 79 goes too);
+    // SO in 78 with SI in 79 are deleted as a pair whatever column 7 holds. Other shift characters stay as data.
+    // `joins` counts the pairs deleted. Each piece but the last is full width (the reader pads).
+    function joinConstant(pieces) {
+      var out = pieces[0];
+      var joins = 0;
+      for (var k = 1; k < pieces.length; k++) {
+        var prev = pieces[k - 1];
+        var next = pieces[k];
+        var c78 = prev.charAt(prev.length - 2);
+        var c79 = prev.charAt(prev.length - 1);
+        if (c78 === SO && c79 === SI) {
+          out = out.slice(0, -2);
+          joins++;
+        } else if (next.charAt(0) === SO && c78 === SI) {
+          out = out.slice(0, -2);
+          next = next.slice(1);
+          joins++;
+        } else if (next.charAt(0) === SO && c79 === SI) {
+          out = out.slice(0, -1);
+          next = next.slice(1);
+          joins++;
+        }
+        out += next;
+      }
+      return { text: out, joins: joins };
+    }
+
     // a D specification and the lines that continue its constant
     function readD(first, read, values) {
       var last = first;
@@ -306,7 +337,8 @@
       }
       // a piece that is followed by another keeps its full width (the file trims trailing blanks, the constant
       // does not); the end of the constant is trimmed
-      var constantText = pieces.join('').replace(/\s+$/, '');
+      var joined = joinConstant(pieces);
+      var constantText = joined.text.replace(/\s+$/, '');
 
       var numbers = { length: null, line: null, column: null };
       if (values.length !== '') {
@@ -327,7 +359,8 @@
         values: values,
         numbers: numbers,
         constantText: constantText,
-        continuationLines: last - first
+        continuationLines: last - first,
+        shiftJoins: joined.joins
       };
       if (type === 'M') {
         detail.message = { id: read(57, 60).trim(), member: read(61, 62).trim() };

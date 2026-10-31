@@ -85,7 +85,7 @@
           var node;
           if (isConstant) {
             constants++;
-            var shown = entry.constantText && entry.constantText.trim() !== '' ? label(entry.constantText) : (name || '(blank constant)');
+            var shown = entry.constantText && entry.constantText.replace(/[\u000e\u000f]/g, ' ').trim() !== '' ? label(entry.constantText.replace(/[\u000e\u000f]/g, ' ')) : (name || '(blank constant)');
             node = { name: shown, detail: (name ? name + ' ' : '') + 'constant', kind: 'constant' };
             node.selection = selectionOfText(raw, entry.line - 1, 57, 79, true) || selectionOfText(raw, entry.line - 1, NAME_FROM, NAME_TO) || lineStart(raw, entry.line - 1);
           } else {

@@ -182,7 +182,8 @@
       var input = inputEntry.kind === 'on';
       var isConstant = entry.role === 'constant';
       var isMessage = v.constantType === 'M';
-      var text = isMessage ? '[' + (entry.message ? entry.message.id : '') + ']' : entry.constantText;
+      // a DBCS shift character is one blank cell (the compiler listing prints it so, and it counts as data)
+      var text = isMessage ? '[' + (entry.message ? entry.message.id : '') + ']' : String(entry.constantText || '').replace(/[\u000e\u000f]/g, ' ');
 
       var attributes = dspatrKeywords(entry);
 

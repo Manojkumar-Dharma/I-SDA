@@ -61,6 +61,9 @@
 
   var HAS_SURROGATE = /[\ud800-\udfff]/;
   var CONTROL = /[\u0000-\u001f\u007f]/;
+  // raw lines may hold the DBCS shift characters (SO 0x0E, SI 0x0F); everything else below a blank is still refused
+  var RAW_CONTROL = /[\u0000-\u000d\u0010-\u001f\u007f]/;
+  var SHIFT = /[\u000e\u000f]/;
   var CONSTANT_FIRST = 57, CONSTANT_LAST = 79, CONTINUATION_FIRST = 7, CONTINUATION_LAST = 79, CONTINUATION_COLUMN = 80;
   var FIRST_WIDTH = CONSTANT_LAST - CONSTANT_FIRST + 1;        // 23 characters on the line that starts the constant
   var NEXT_WIDTH = CONTINUATION_LAST - CONTINUATION_FIRST + 1; // 73 on each continuation line
@@ -301,6 +304,9 @@
     return more || keepPadding ? next : rtrim(next);
   }
 
+  // the text box shows a shift character as a blank (the compiler listing prints it so)
+  function displayOf(t) { return String(t).replace(/[\u000e\u000f]/g, ' '); }
+
   function setConstant(text, ref, constantText, opts) {
     var keepBlanks = !!(opts && opts.keepBlanks);
     var parsed = load(text);
@@ -308,7 +314,12 @@
     if (!entry) return fail('noSuchEntry', 'No entry at that place.');
     if (entry.kind !== 'D') return fail('notAD', 'A constant belongs to a D specification.');
     var wanted = String(constantText == null ? '' : constantText);
+    if (SHIFT.test(wanted)) return fail('shiftCharacters', 'A constant with DBCS shift characters is edited in Raw source; the text box cannot place them.');
     if (CONTROL.test(wanted)) return fail('badValue', 'A constant holds a control character.');
+    if (entry.shiftJoins || SHIFT.test(entry.constantText)) {
+      if (!keepBlanks && rtrim(wanted) === rtrim(displayOf(entry.constantText))) return unchanged(text);
+      return fail('shiftCharacters', 'This constant holds DBCS shift characters; edit it in Raw source, where they are kept as written.');
+    }
     var pieces = constantPieces(wanted, keepBlanks);
     if (!keepBlanks && rtrim(wanted) === entry.constantText) return unchanged(text);
 
@@ -569,7 +580,7 @@
     while (wanted.length && wanted[wanted.length - 1] === '') wanted.pop();
     if (!wanted.length) return fail('empty', 'An entry has at least one line; remove it with deleteEntry.');
     for (var i = 0; i < wanted.length; i++) {
-      if (CONTROL.test(wanted[i])) return fail('badValue', 'Line ' + (i + 1) + ' holds a control character (a tab, for one).');
+      if (RAW_CONTROL.test(wanted[i])) return fail('badValue', 'Line ' + (i + 1) + ' holds a control character (a tab, for one).');
       if (sizeOf(wanted[i]) > Parser.LINE_WIDTH) return fail('tooWide', 'Line ' + (i + 1) + ' is wider than ' + Parser.LINE_WIDTH + ' characters.');
     }
     var lines = linesOf(parsed);
@@ -599,7 +610,7 @@
     if (wanted.length > 1 && wanted[wanted.length - 1] === '') wanted.pop();
     if (!wanted.some(function (t) { return t.trim() !== ''; })) return fail('empty', 'A format has at least its S specification; remove it with deleteFormat.');
     for (var i = 0; i < wanted.length; i++) {
-      if (CONTROL.test(wanted[i])) return fail('badValue', 'Line ' + (i + 1) + ' holds a control character (a tab, for one).');
+      if (RAW_CONTROL.test(wanted[i])) return fail('badValue', 'Line ' + (i + 1) + ' holds a control character (a tab, for one).');
       if (sizeOf(wanted[i]) > Parser.LINE_WIDTH) return fail('tooWide', 'Line ' + (i + 1) + ' is wider than ' + Parser.LINE_WIDTH + ' characters.');
     }
     var typed = Parser.parse(wanted.join('\n'));
@@ -637,7 +648,7 @@
       var e = entries[i];
       if (!e || (e.kind !== 'H' && e.kind !== 'D') || !Array.isArray(e.lines) || !e.lines.length) return fail('badSpec', 'An entry to paste is { kind: "H" | "D", lines: [..] }.');
       for (var k = 0; k < e.lines.length; k++) {
-        if (CONTROL.test(e.lines[k])) return fail('badValue', 'A pasted line holds a control character.');
+        if (RAW_CONTROL.test(e.lines[k])) return fail('badValue', 'A pasted line holds a control character.');
         if (sizeOf(e.lines[k]) > Parser.LINE_WIDTH) return fail('tooWide', 'A pasted line is wider than ' + Parser.LINE_WIDTH + ' characters.');
       }
     }
